@@ -19,7 +19,7 @@ Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-spe
    "frequency": {
       "core": 30,
       "node": 60
-   }
+   },
    "metrics": [
       "ipc",
       "flops_any",
