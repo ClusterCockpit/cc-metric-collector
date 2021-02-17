@@ -9,6 +9,8 @@ Open questions:
 # Configuration
 
 Configuration is implemented using a single json document that is distributed over network.
+Granularity can be either `node`, or `core`. Frequency can be set on a per measurement basis.
+Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol.md).
 
 ``` json
 {
