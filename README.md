@@ -8,7 +8,7 @@ Open questions:
 
 # Configuration
 
-Configuration is implemented using a single json document that is distributed over networkand may be persisted as file.
+Configuration is implemented using a single json document that is distributed over network and may be persisted as file.
 Granularity can be either `node`, or `core`. Frequency can be set on a per measurement basis.
 Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol.md).
 
