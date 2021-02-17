@@ -12,11 +12,11 @@ Configuration is implemented using a single json document that is distributed ov
 
 ``` json
 {
-sink: db.monitoring.center.de,
-granularity: core,
-frequency: {
-core: 30,
-node: 60
+"sink": "db.monitoring.center.de",
+"granularity": "core",
+"frequency": {
+"core": 30,
+"node": 60
 }
 metrics: [
 ipc,
