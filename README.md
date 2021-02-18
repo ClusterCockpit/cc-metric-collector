@@ -15,10 +15,14 @@ Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-spe
 ``` json
 {
    "sink": "db.monitoring.center.de",
-   "granularity": "core",
-   "frequency": {
-      "core": 30,
-      "node": 60
+   "report": ["core","node"],
+   "schedule": {
+      "core": {
+         "frequency": 30,
+         "duration": 10},
+      "node":{
+         "frequency": 60,
+         "duration": 20}
    },
    "metrics": [
       "ipc",
