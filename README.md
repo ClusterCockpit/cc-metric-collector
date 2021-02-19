@@ -15,7 +15,10 @@ Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-spe
 ``` json
 {
    "sink": "db.monitoring.center.de",
-   "report": ["core","node"],
+   "report": {
+      levels: ["core","node"],
+      interval: 120
+      },
    "schedule": {
       "core": {
          "frequency": 30,
