@@ -1,0 +1,33 @@
+{
+    "sink": {
+        "user": "admin",
+        "password": "12345"
+    },
+    "host": "localhost",
+    "port": "8080",
+    "report": {
+      "levels": ["core","node"],
+      "interval": 120
+      },
+   "schedule": {
+      "core": {
+         "frequency": 30,
+         "duration": 10
+      },
+      "node":{
+         "frequency": 60,
+         "duration": 20
+      }
+   },
+   "metrics": [
+      "ipc",
+      "flops_any",
+      "clock",
+      "load",
+      "mem_bw",
+      "mem_used",
+      "net_bw",
+      "file_bw"
+   ],
+   "collector_path": "./collectors"
+}
