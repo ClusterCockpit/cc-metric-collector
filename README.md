@@ -14,28 +14,17 @@ Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-spe
 
 ``` json
 {
-   "sink": "db.monitoring.center.de",
-   "report": {
-      levels: ["core","node"],
-      interval: 120
-      },
-   "schedule": {
-      "core": {
-         "frequency": 30,
-         "duration": 10},
-      "node":{
-         "frequency": 60,
-         "duration": 20}
-   },
-   "metrics": [
-      "ipc",
-      "flops_any",
-      "clock",
-      "load",
-      "mem_bw",
-      "mem_used",
-      "net_bw",
-      "file_bw"
-   ]
+    "sink": {
+        "user": "admin",
+        "password": "12345",
+        "host": "localhost",
+        "port": "8080"
+    },
+    "interval": 5,
+    "collectors": [
+        "memstat",
+        "loadstat",
+        "netstat"
+    ]
 }
 ```
