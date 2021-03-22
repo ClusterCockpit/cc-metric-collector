@@ -12,14 +12,11 @@ import (
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
 )
 
-var lsc collectors.LoadstatCollector
-var msc collectors.MemstatCollector
-var nsc collectors.NetstatCollector
-
 var Collectors = map[string]collectors.MetricGetter{
-	"loadstat": &lsc,
-	"memstat":  &msc,
-	"netstat":  &nsc}
+	"likwid":   &collectors.LikwidCollector{},
+	"loadstat": &collectors.LoadstatCollector{},
+	"memstat":  &collectors.MemstatCollector{},
+	"netstat":  &collectors.NetstatCollector{}}
 
 type GlobalConfig struct {
 	Sink struct {

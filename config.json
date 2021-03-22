@@ -5,10 +5,10 @@
         "host": "localhost",
         "port": "8080"
     },
-    "interval": 5,
+    "interval": 20,
     "collectors": [
         "memstat",
         "loadstat",
-        "netstat"
+        "likwid"
     ]
 }
