@@ -29,6 +29,10 @@ func (m *LoadavgCollector) Read(interval time.Duration){
 	ls := strings.Split(string(buffer), ` `)
 	loadOne, _ := strconv.ParseFloat(ls[0], 64)
 	m.node["load_one"] = float64(loadOne)
+	loadFive, _ := strconv.ParseFloat(ls[1], 64)
+	m.node["load_five"] = float64(loadFive)
+	loadFifteen, _ := strconv.ParseFloat(ls[2], 64)
+	m.node["load_fifteen"] = float64(loadFifteen)
 }
 
 func (m *LoadavgCollector) Close() {
