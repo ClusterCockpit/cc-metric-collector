@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 	"log"
+	"fmt"
 )
 
 const NETSTATFILE = `/proc/net/dev`
@@ -46,8 +47,7 @@ func (m *NetstatCollector) Read(interval time.Duration){
 		for i, name := range matches {
 			v, err := strconv.ParseInt(f[i], 10, 0)
 			if err == nil {
-				
-				m.node[name] = float64(v) * 1.0e-3
+				m.node[fmt.Sprintf("%s_%s", dev, name)] = float64(v) * 1.0e-3
 			}
 		}
 	}
