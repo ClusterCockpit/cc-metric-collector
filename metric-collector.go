@@ -17,6 +17,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"loadavg": &collectors.LoadavgCollector{},
 	"memstat":  &collectors.MemstatCollector{},
 	"netstat":  &collectors.NetstatCollector{},
+	"ibstat":  &collectors.InfinibandCollector{},
 }
 type GlobalConfig struct {
 	Sink struct {
