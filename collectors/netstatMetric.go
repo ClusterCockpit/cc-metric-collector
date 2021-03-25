@@ -1,12 +1,12 @@
 package collectors
 
 import (
+	"fmt"
 	"io/ioutil"
+	"log"
 	"strconv"
 	"strings"
 	"time"
-	"log"
-	"fmt"
 )
 
 const NETSTATFILE = `/proc/net/dev`
@@ -15,13 +15,12 @@ type NetstatCollector struct {
 	MetricCollector
 }
 
-
 func (m *NetstatCollector) Init() {
-    m.name = "NetstatCollector"
+	m.name = "NetstatCollector"
 	m.setup()
 }
 
-func (m *NetstatCollector) Read(interval time.Duration){
+func (m *NetstatCollector) Read(interval time.Duration) {
 	data, err := ioutil.ReadFile(string(NETSTATFILE))
 	if err != nil {
 		log.Print(err.Error())
@@ -51,9 +50,9 @@ func (m *NetstatCollector) Read(interval time.Duration){
 			}
 		}
 	}
-	
+
 }
 
 func (m *NetstatCollector) Close() {
-    return
+	return
 }

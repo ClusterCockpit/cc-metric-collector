@@ -3,8 +3,8 @@ package collectors
 import (
 	"io/ioutil"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 )
 
 const LOADAVGFILE = `/proc/loadavg`
@@ -13,13 +13,12 @@ type LoadavgCollector struct {
 	MetricCollector
 }
 
-
 func (m *LoadavgCollector) Init() {
-    m.name = "LoadavgCollector"
+	m.name = "LoadavgCollector"
 	m.setup()
 }
 
-func (m *LoadavgCollector) Read(interval time.Duration){
+func (m *LoadavgCollector) Read(interval time.Duration) {
 	buffer, err := ioutil.ReadFile(string(LOADAVGFILE))
 
 	if err != nil {
@@ -36,5 +35,5 @@ func (m *LoadavgCollector) Read(interval time.Duration){
 }
 
 func (m *LoadavgCollector) Close() {
-    return
+	return
 }

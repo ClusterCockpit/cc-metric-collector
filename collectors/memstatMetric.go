@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	//protocol "github.com/influxdata/line-protocol"
 )
 
@@ -17,13 +16,12 @@ type MemstatCollector struct {
 	MetricCollector
 }
 
-
 func (m *MemstatCollector) Init() {
-    m.name = "MemstatCollector"
+	m.name = "MemstatCollector"
 	m.setup()
 }
 
-func (m *MemstatCollector) Read(interval time.Duration){
+func (m *MemstatCollector) Read(interval time.Duration) {
 	buffer, err := ioutil.ReadFile(string(MEMSTATFILE))
 
 	if err != nil {
@@ -53,5 +51,5 @@ func (m *MemstatCollector) Read(interval time.Duration){
 }
 
 func (m *MemstatCollector) Close() {
-    return
+	return
 }

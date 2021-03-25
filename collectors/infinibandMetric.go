@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,48 +17,48 @@ type InfinibandCollector struct {
 }
 
 func (m *InfinibandCollector) Init() {
-    m.name = "InfinibandCollector"
+	m.name = "InfinibandCollector"
 	m.setup()
 }
 
-func (m *InfinibandCollector) Read(interval time.Duration){
+func (m *InfinibandCollector) Read(interval time.Duration) {
 	buffer, err := ioutil.ReadFile(string(LIDFILE))
 
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	
+
 	args := fmt.Sprintf("-r %s 1 0xf000", string(buffer))
-	
+
 	command := exec.Command("/usr/sbin/perfquery", args)
 	command.Wait()
 	stdout, err := command.Output()
 	if err != nil {
-	    log.Print(err)
+		log.Print(err)
 		return
 	}
 
 	ll := strings.Split(string(stdout), "\n")
 
 	for _, line := range ll {
-	    if strings.HasPrefix(line, "PortRcvData") || strings.HasPrefix(line, "RcvData") {
-	        lv := strings.Fields(line)
-	        v, err := strconv.ParseFloat(lv[1], 64)
-	        if err == nil {
-    	        m.node["ib_recv"] = float64(v)
-    	    }
-	    }
+		if strings.HasPrefix(line, "PortRcvData") || strings.HasPrefix(line, "RcvData") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				m.node["ib_recv"] = float64(v)
+			}
+		}
 		if strings.HasPrefix(line, "PortXmitData") || strings.HasPrefix(line, "XmtData") {
-	        lv := strings.Fields(line)
-	        v, err := strconv.ParseFloat(lv[1], 64)
-	        if err == nil {
-    	        m.node["ib_xmit"] = float64(v)
-    	    }
-	    }
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				m.node["ib_xmit"] = float64(v)
+			}
+		}
 	}
 }
 
 func (m *InfinibandCollector) Close() {
-    return
+	return
 }
