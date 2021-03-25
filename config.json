@@ -12,7 +12,8 @@
         "likwid",
         "loadavg",
         "netstat",
-        "ibstat"
+        "ibstat",
+        "lustrestat"
     ]
 }
 
