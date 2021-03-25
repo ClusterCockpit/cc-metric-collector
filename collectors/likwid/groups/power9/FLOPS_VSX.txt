@@ -1,0 +1,23 @@
+SHORT Vectorized MFlops/s
+
+EVENTSET
+PMC1  PM_VSU_FIN
+PMC3  PM_VECTOR_FLOP_CMPL
+PMC4  PM_RUN_INST_CMPL
+PMC5  PM_RUN_CYC
+
+METRICS
+Runtime (RDTSC) [s] time
+CPI  PMC5/PMC4
+SP [MFLOP/s] (assumed)  1.0E-06*(PMC3*8.0)/time
+DP [MFLOP/s] (assumed)  1.0E-06*(PMC3*4.0)/time
+Vector MIOPS/s   1.0E-06*(PMC1)/time
+
+LONG
+Formulas:
+CPI = PM_RUN_CYC/PM_RUN_INST_CMPL
+SP [MFLOP/s] (assumed) = 1.0E-06*(PM_VECTOR_FLOP_CMPL*4)/runtime
+DP [MFLOP/s] (assumed) = 1.0E-06*(PM_VECTOR_FLOP_CMPL*8)/runtime
+Vector MIOPS/s = 1.0E-06*(PM_VECTOR_FLOP_CMPL)/runtime
+--
+This group measures vector operations. There is no differentiation between SP and DP possible.

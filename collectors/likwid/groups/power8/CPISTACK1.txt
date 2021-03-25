@@ -1,0 +1,35 @@
+SHORT First level of IBM CPI stack 
+
+EVENTSET
+PMC0  PM_CMPLU_STALL_THRD 
+PMC1  PM_GCT_EMPTY_CYC
+PMC3  PM_CMPLU_STALL
+PMC4  PM_RUN_INST_CMPL
+PMC5  PM_RUN_CYC
+
+METRICS
+CPI  PMC5/PMC4
+Stall cycles PMC3
+Stall cycle ratio PMC3/PMC5
+Thread blocked cycles PMC0
+Thread blocked cycle ratio PMC0/PMC5
+GCT empty cycles PMC1
+GCT empty cycle ratio PMC1/PM5
+
+
+
+
+LONG
+Formulas:
+Stall cycles = PM_CMPLU_STALL
+Stall cycle ratio = PM_CMPLU_STALL/PM_RUN_CYC
+Thread blocked cycles = PM_CMPLU_STALL_THRD
+Thread blocked cycle ratio = PM_CMPLU_STALL_THRD/PM_RUN_CYC
+GCT empty cycles = PM_GCT_EMPTY_CYC
+GCT empty cycle ratio = PM_GCT_EMPTY_CYC/PM_RUN_CYC
+--
+First level of IBM CPI stack. IBM names Stalled Cycles, Waiting to Complete,
+Thread Blocked, Completion Table Empty, Other and Completion Cycles. For some
+there are no clearly identifiable events, so this group concentrates on
+Stalled Cycles (PM_CMPLU_STALL), Thread Blocked (PM_CMPLU_STALL_THRD),
+Completion Table Empty (PM_GCT_EMPTY_CYC) and Other (PM_CMPLU_STALL_OTHER_CMPL).

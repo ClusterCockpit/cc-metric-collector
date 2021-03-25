@@ -1,0 +1,21 @@
+SHORT  L1 Instruction TLB miss rate/ratio
+
+EVENTSET
+PMC2  PM_ITLB_MISS
+PMC4  PM_RUN_INST_CMPL
+PMC5  PM_RUN_CYC
+
+METRICS
+Runtime (RDTSC) [s] time
+CPI  PMC5/PMC4
+L1 ITLB misses     PMC2
+L1 ITLB miss rate  PMC2/PMC4
+
+LONG
+Formulas:
+CPI = PM_RUN_CYC / PM_RUN_INST_CMPL
+L1 ITLB misses = PM_ITLB_MISS
+L1 ITLB miss rate = PM_ITLB_MISS/PM_RUN_INST_CMPL
+--
+The ITLB miss rate gives a measure how often a TLB miss occured per instruction.
+
