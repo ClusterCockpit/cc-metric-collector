@@ -3,7 +3,9 @@
         "user": "admin",
         "password": "12345",
         "host": "localhost",
-        "port": "8080"
+        "port": "8080",
+        "database": "testdb",
+        "type": "influxdb"
     },
     "interval" : 3,
     "duration" : 1,
