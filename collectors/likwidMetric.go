@@ -10,15 +10,11 @@ import "C"
 
 import (
 	"errors"
-	//	"io/ioutil"
-	//	"log"
-	//	"strconv"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 	"unsafe"
-	//protocol "github.com/influxdata/line-protocol"
 )
 
 type LikwidCollector struct {

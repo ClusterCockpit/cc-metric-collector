@@ -1,10 +1,10 @@
 {
     "sink": {
         "user": "admin",
-        "password": "12345"
+        "password": "12345",
+        "host": "localhost",
+        "port": "8080"
     },
-    "host": "localhost",
-    "port": "8080",
     "interval" : 3,
     "duration" : 1,
     "collectors": [
@@ -16,4 +16,3 @@
         "lustrestat"
     ]
 }
-

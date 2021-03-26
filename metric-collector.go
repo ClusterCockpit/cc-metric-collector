@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ClusterCockpit/cc-metric-collector/collectors"
-	protocol "github.com/influxdata/line-protocol"
 	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"time"
+
+	"github.com/ClusterCockpit/cc-metric-collector/collectors"
+	protocol "github.com/influxdata/line-protocol"
 )
 
 var Collectors = map[string]collectors.MetricGetter{
@@ -20,6 +21,8 @@ var Collectors = map[string]collectors.MetricGetter{
 	"ibstat":     &collectors.InfinibandCollector{},
 	"lustrestat": &collectors.LustreCollector{},
 }
+
+var serializer *protocol.Encoder
 
 type GlobalConfig struct {
 	Sink struct {
@@ -61,6 +64,17 @@ func shutdown(wg *sync.WaitGroup, config *GlobalConfig) {
 	}(wg)
 }
 
+func setupProtocol(scope string, tags map[string]string, fields map[string]interface{}, t time.Time) {
+	cur, err := protocol.New(scope, tags, fields, t)
+	if err != nil {
+		log.Print(err)
+	}
+	_, err = serializer.Encode(cur)
+	if err != nil {
+		log.Print(err)
+	}
+}
+
 func main() {
 	var config GlobalConfig
 	var wg sync.WaitGroup
@@ -70,7 +84,6 @@ func main() {
 		log.Print(err)
 		return
 	}
-	var tags = map[string]string{"host": host}
 
 	LoadConfiguration("config.json", &config)
 	if config.Interval <= 0 || time.Duration(config.Interval)*time.Second <= 0 {
@@ -82,27 +95,33 @@ func main() {
 		return
 	}
 	shutdown(&wg, &config)
-	serializer := protocol.NewEncoder(os.Stdout)
+
+	serializer = protocol.NewEncoder(os.Stdout)
 	serializer.SetPrecision(time.Second)
 	serializer.SetMaxLineBytes(1024)
+
 	for _, c := range config.Collectors {
 		col := Collectors[c]
 		col.Init()
 		log.Print("Start ", col.Name())
 	}
+
 	log.Print(config.Interval, time.Duration(config.Interval)*time.Second)
 	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
 	done := make(chan bool)
-	node_fields := make(map[string]interface{})
+
+	nodeFields := make(map[string]interface{})
+
 	slist := collectors.SocketList()
-	sockets_fields := make(map[int]map[string]interface{}, len(slist))
+	socketsFields := make(map[int]map[string]interface{}, len(slist))
 	for _, s := range slist {
-		sockets_fields[s] = make(map[string]interface{})
+		socketsFields[s] = make(map[string]interface{})
 	}
+
 	clist := collectors.CpuList()
-	cpu_fields := make(map[int]map[string]interface{}, len(clist))
+	cpuFields := make(map[int]map[string]interface{}, len(clist))
 	for _, s := range clist {
-		cpu_fields[s] = make(map[string]interface{})
+		cpuFields[s] = make(map[string]interface{})
 	}
 
 	go func() {
@@ -111,63 +130,41 @@ func main() {
 			case <-done:
 				return
 			case t := <-ticker.C:
-
 				scount := 0
 				ccount := 0
+
 				for _, c := range config.Collectors {
 					col := Collectors[c]
 					col.Read(time.Duration(config.Duration))
+
 					for key, val := range col.GetNodeMetric() {
-						node_fields[key] = val
+						nodeFields[key] = val
 					}
 					for sid, socket := range col.GetSocketMetrics() {
 						for key, val := range socket {
-							sockets_fields[sid][key] = val
+							socketsFields[sid][key] = val
 							scount++
 						}
 					}
 					for cid, cpu := range col.GetCpuMetrics() {
 						for key, val := range cpu {
-							cpu_fields[cid][key] = val
+							cpuFields[cid][key] = val
 							ccount++
 						}
 					}
 				}
-				var CurrentNode protocol.MutableMetric
-				CurrentNode, err = protocol.New("node", tags, node_fields, t)
-				if err != nil {
-					log.Print(err)
-				}
-				_, err := serializer.Encode(CurrentNode)
-				if err != nil {
-					log.Print(err)
-				}
+
+				setupProtocol("node", map[string]string{"host": host}, nodeFields, t)
+
 				if scount > 0 {
-					for sid, socket := range sockets_fields {
-						var CurrentSocket protocol.MutableMetric
-						var stags = map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}
-						CurrentSocket, err = protocol.New("socket", stags, socket, t)
-						if err != nil {
-							log.Print(err)
-						}
-						_, err := serializer.Encode(CurrentSocket)
-						if err != nil {
-							log.Print(err)
-						}
+					for sid, socket := range socketsFields {
+						setupProtocol("socket", map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}, socket, t)
 					}
 				}
+
 				if ccount > 0 {
-					for cid, cpu := range cpu_fields {
-						var CurrentCpu protocol.MutableMetric
-						var ctags = map[string]string{"host": host, "cpu": fmt.Sprintf("%d", cid)}
-						CurrentCpu, err = protocol.New("cpu", ctags, cpu, t)
-						if err != nil {
-							log.Print(err)
-						}
-						_, err := serializer.Encode(CurrentCpu)
-						if err != nil {
-							log.Print(err)
-						}
+					for cid, cpu := range cpuFields {
+						setupProtocol("cpu", map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}, cpu, t)
 					}
 				}
 			}

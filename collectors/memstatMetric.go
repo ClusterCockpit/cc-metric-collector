@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	//protocol "github.com/influxdata/line-protocol"
 )
 
 const MEMSTATFILE = `/proc/meminfo`

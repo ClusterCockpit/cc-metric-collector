@@ -1,7 +1,6 @@
 package collectors
 
 import (
-	//	"errors"
 	"io/ioutil"
 	"log"
 	"strconv"
