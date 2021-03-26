@@ -5,7 +5,7 @@
         "host": "localhost",
         "port": "8080",
         "database": "testdb",
-        "type": "influxdb"
+        "type": "stdout"
     },
     "interval" : 3,
     "duration" : 1,
