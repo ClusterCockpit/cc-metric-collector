@@ -139,7 +139,7 @@ func (m *LikwidCollector) Read(interval time.Duration) {
 			for cpu := range m.cpus {
 				if flops_dp, found := m.cpus[cpu]["flops_dp"]; found {
 					if flops_sp, found := m.cpus[cpu]["flops_sp"]; found {
-						m.cpus[cpu]["flops_any"] = flops_dp.(float64) + flops_sp.(float64)
+						m.cpus[cpu]["flops_any"] = (2 * flops_dp.(float64)) + flops_sp.(float64)
 					}
 				}
 			}
