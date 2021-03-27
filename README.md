@@ -9,33 +9,31 @@ Open questions:
 # Configuration
 
 Configuration is implemented using a single json document that is distributed over network and may be persisted as file.
-Granularity can be either `node`, or `core`. Frequency can be set on a per measurement basis.
 Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol.md).
 
 ``` json
 {
-   "sink": "db.monitoring.center.de",
-   "report": {
-      levels: ["core","node"],
-      interval: 120
-      },
-   "schedule": {
-      "core": {
-         "frequency": 30,
-         "duration": 10},
-      "node":{
-         "frequency": 60,
-         "duration": 20}
-   },
-   "metrics": [
-      "ipc",
-      "flops_any",
-      "clock",
-      "load",
-      "mem_bw",
-      "mem_used",
-      "net_bw",
-      "file_bw"
-   ]
+    "sink": {
+        "user": "admin",
+        "password": "12345",
+        "host": "localhost",
+        "port": "8080",
+        "database": "testdb",
+        "type": "stdout"
+    },
+    "interval" : 3,
+    "duration" : 1,
+    "collectors": [
+        "memstat",
+        "likwid",
+        "loadavg",
+        "netstat",
+        "ibstat",
+        "lustrestat"
+    ]
 }
 ```
+
+All available collectors are listed in the above JSON. There are currently two sinks supported `influxdb` and `stdout`. The `interval` defines how often the metrics should be read and send to the sink. The `duration` tells collectors how long one measurement has to take. An example for this is the `likwid` collector which starts the hardware performance counter, waits for `duration` seconds and stops the counters again. For most systems, the `likwid` collector has to do two measurements, thus `interval` must be larger than two times `duration`.
+
+

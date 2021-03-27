@@ -1,7 +1,13 @@
-
+# LIKWID version
 LIKWID_VERSION = 5.1.0
+# Target user for LIKWID's accessdaemon
 DAEMON_USER=root
+# Target group for LIKWID's accessdaemon
 DAEMON_GROUP=root
+
+#################################################
+# No need to change anything below this line
+#################################################
 INSTALL_FOLDER = ./likwid
 BUILD_FOLDER = ./likwid/build
 
