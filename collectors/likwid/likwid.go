@@ -1,4 +1,5 @@
 package main
+
 /*
 #cgo CFLAGS: -I.
 #cgo LDFLAGS: -L. -llikwid -llikwid-hwloc -lm
@@ -11,7 +12,7 @@ import "unsafe"
 
 func main() {
 	var topo C.CpuTopology_t
-	C.topology_init();
+	C.topology_init()
 	topo = C.get_cpuTopology()
 	cpulist := make([]C.int, topo.numHWThreads)
 	for a := 0; a < int(topo.numHWThreads); a++ {
@@ -27,5 +28,5 @@ func main() {
 	fmt.Println(v)
 	C.free(unsafe.Pointer(gstring))
 	C.perfmon_finalize()
-	C.topology_finalize();
+	C.topology_finalize()
 }
