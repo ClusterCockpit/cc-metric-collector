@@ -73,14 +73,15 @@ The collector will measure both groups `MEM_DP` and `FLOPS_DP` for `duration` se
 
 # Contributing own collectors
 A collector reads data from any source, parses it to metrics and submits these metrics to the `metric-collector`. A collector provides three function:
+
 * `Init() error`: Initializes the collector and its data structures.
 * `Read(duration time.Duration) error`: Read, parse and submit data. If the collector has to measure anything for some duration, use the provided function argument `duration`
 * `Close()`: Closes down the collector.
 
 It is recommanded to call `setup()` in the `Init()` function as it creates the required data structures.
 
-Submitting data:
-Each collector contains data structures for the submission of metrics:
+Each collector contains data structures for the submission of metrics after calling `setup()` in `Init()`:
+
 * `node` (`map[string]string`): Just key-value store for all metrics concerning the whole system
 * `sockets` (`map[int]map[string]string`): One key-value store per CPU socket like `sockets[1]["testmetric] = 1.0` for the second socket. You can either use `len(sockets)` to get the amount of sockets or you use `SocketList()`.
 * `cpus` (`map[int]map[string]string`): One key-value store per hardware thread like `cpus[12]["testmetric] = 1.0`. You can either use `len(cpus)` to get the amount of hardware threads or you use `CpuList()`.
