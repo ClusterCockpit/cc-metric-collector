@@ -19,3 +19,5 @@ A sink contains three functions and is derived from the type `Sink` (in `sink.go
 * `Close()`
 
 The data structures should be set up in `Init()` like opening a file or server connection. The `Write()` function takes a measurement, tags, fields and a timestamp and writes/sends the data. The `Close()` function should tear down anything created in `Init()`.
+
+Finally, the sink needs to be registered in the `metric-collector.go`. There is a list of sinks called `Sinks` which is a map (string -> pointer to sink). Add a new entry with a descriptive name and the new sink.
