@@ -34,6 +34,6 @@ Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-spe
 }
 ```
 
-All available collectors are listed in the above JSON. There are currently two sinks supported `influxdb` and `stdout`. The `interval` defines how often the metrics should be read and send to the sink. The `duration` tells collectors how long one measurement has to take. An example for this is the `likwid` collector which starts the hardware performance counter, waits for `duration` seconds and stops the counters again. For most systems, the `likwid` collector has to do two measurements, thus `interval` must be larger than two times `duration`.
+All available collectors are listed in the above JSON. There are currently three sinks supported `influxdb`, `nats` and `stdout`. The `interval` defines how often the metrics should be read and send to the sink. The `duration` tells collectors how long one measurement has to take. An example for this is the `likwid` collector which starts the hardware performance counter, waits for `duration` seconds and stops the counters again. For most systems, the `likwid` collector has to do two measurements, thus `interval` must be larger than two times `duration`.
 
 
