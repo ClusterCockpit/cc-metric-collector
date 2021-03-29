@@ -38,7 +38,7 @@ The base class/configuration is located in `metricCollector.go`.
    * `cpi` (cpu)
    * `clock` (cpu)
 
-# Installation
+# LIKWID collector
 Only the `likwidMetric.go` requires preparation steps. For this, the `Makefile` can be used. The LIKWID build needs to be configured:
 * Version of LIKWID in `LIKWID_VERSION`
 * Target user for LIKWID's accessdaemon in `DAEMON_USER`. The user has to have enough permissions to read the `msr` and `pci` device files
@@ -51,3 +51,36 @@ It performs the following steps:
 * Build it
 * Copy all required files into `collectors/likwid`
 * The accessdaemon is installed with the suid bit set using `sudo` also into `collectors/likwid`
+
+## Custom metrics for LIKWID
+The `likwidMetric.go` collector uses it's own performance group tree by copying it from the LIKWID sources. By adding groups to this directory tree, you can use them in the collector. Additionally, you have to tell the collector which group to measure and which event count or derived metric should be used.
+
+The collector contains a hash map with the groups and metrics (reduced set of metrics):
+```
+var likwid_metrics = map[string][]LikwidMetric{
+	"MEM_DP": {LikwidMetric{name: "mem_bw", search: "Memory bandwidth [MBytes/s]", socket_scope: true}},
+	"FLOPS_SP": {LikwidMetric{name: "clock", search: "Clock [MHz]", socket_scope: false}},
+}
+```
+
+The collector will measure both groups `MEM_DP` and `FLOPS_DP` for `duration` seconds (global `config.json`). It matches the LIKWID name by using the `search` string and submits the value with the given `name` as field name in either the `socket` or the `cpu` metric depending on the `socket_scope` flag.
+
+## Todos
+* Aggregate a per-hwthread metric to a socket metric if `socket_scope=true`
+* Add a JSON configuration file `likwid.json` and suitable reader for the metrics and group tree path.
+  * Do we need separate sections for CPU architectures? (one config file for all architectures?)
+  * How to encode postprocessing steps. There are Go packages like [eval](https://github.com/apaxa-go/eval) or [govaluate](https://github.com/Knetic/govaluate) but they seem to be not maintained anymore.
+
+# Contributing own collectors
+A collector reads data from any source, parses it to metrics and submits these metrics to the `metric-collector`. A collector provides three function:
+* `Init() error`: Initializes the collector and its data structures.
+* `Read(duration time.Duration) error`: Read, parse and submit data. If the collector has to measure anything for some duration, use the provided function argument `duration`
+* `Close()`: Closes down the collector.
+
+It is recommanded to call `setup()` in the `Init()` function as it creates the required data structures.
+
+Submitting data:
+Each collector contains data structures for the submission of metrics:
+* `node` (`map[string]string`): Just key-value store for all metrics concerning the whole system
+* `sockets` (`map[int]map[string]string`): One key-value store per CPU socket like `sockets[1]["testmetric] = 1.0` for the second socket. You can either use `len(sockets)` to get the amount of sockets or you use `SocketList()`.
+* `cpus` (`map[int]map[string]string`): One key-value store per hardware thread like `cpus[12]["testmetric] = 1.0`. You can either use `len(cpus)` to get the amount of hardware threads or you use `CpuList()`.
