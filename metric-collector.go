@@ -27,6 +27,7 @@ var Collectors = map[string]collectors.MetricGetter{
 var Sinks = map[string]sinks.SinkFuncs{
 	"influxdb": &sinks.InfluxSink{},
 	"stdout": &sinks.StdoutSink{},
+	"nats": &sinks.NatsSink{},
 }
 
 // Structure of the configuration file
