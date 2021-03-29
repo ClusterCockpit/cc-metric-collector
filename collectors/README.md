@@ -85,3 +85,5 @@ Each collector contains data structures for the submission of metrics after call
 * `node` (`map[string]string`): Just key-value store for all metrics concerning the whole system
 * `sockets` (`map[int]map[string]string`): One key-value store per CPU socket like `sockets[1]["testmetric] = 1.0` for the second socket. You can either use `len(sockets)` to get the amount of sockets or you use `SocketList()`.
 * `cpus` (`map[int]map[string]string`): One key-value store per hardware thread like `cpus[12]["testmetric] = 1.0`. You can either use `len(cpus)` to get the amount of hardware threads or you use `CpuList()`.
+
+Finally, the collector needs to be registered in the `metric-collector.go`. There is a list of collectors called `Collectors` which is a map (string -> pointer to collector). Add a new entry with a descriptive name and the new collector.
