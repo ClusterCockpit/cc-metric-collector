@@ -59,10 +59,31 @@ func LoadConfiguration(file string, config *GlobalConfig) error {
 	return err
 }
 
-func ReadCli() string {
+func ReadCli() map[string]string {
+    var m map[string]string
     cfg := flag.String("config", "./config.json", "Path to configuration file")
+    logfile := flag.String("log", "stderr", "Path for logfile")
     flag.Parse()
-    return *cfg
+    m = make(map[string]string)
+    m["configfile"] = *cfg
+    m["logfile"] = *logfile
+    return m
+}
+
+func SetLogging(logfile string) error {
+    var file *os.File
+    var err error
+    if (logfile != "stderr") {
+        file, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+        if err != nil {
+            log.Fatal(err)
+            return err
+        }
+    } else {
+        file = os.Stderr
+    }
+    log.SetOutput(file)
+    return nil
 }
 
 // Register an interrupt handler for Ctrl+C and similar. At signal,
@@ -94,12 +115,17 @@ func main() {
 		log.Print(err)
 		return
 	}
-	configfile := ReadCli()
+	clicfg := ReadCli()
+	err = SetLogging(clicfg["logfile"])
+	if (err != nil) {
+	    log.Print("Error setting up logging system to ", clicfg["logfile"])
+	    return
+	}
 
 	// Load and check configuration
-	err = LoadConfiguration(configfile, &config)
+	err = LoadConfiguration(clicfg["configfile"], &config)
 	if (err != nil) {
-	    log.Print("Error reading configuration file ", configfile)
+	    log.Print("Error reading configuration file ", clicfg["configfile"])
 	    return
 	}
 	if config.Interval <= 0 || time.Duration(config.Interval)*time.Second <= 0 {
