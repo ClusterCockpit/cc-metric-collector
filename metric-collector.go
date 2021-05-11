@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"flag"
 )
 
 // List of provided collectors. Which collector should be run can be
@@ -51,10 +52,17 @@ func LoadConfiguration(file string, config *GlobalConfig) error {
 	defer configFile.Close()
 	if err != nil {
 		fmt.Println(err.Error())
+		return err
 	}
 	jsonParser := json.NewDecoder(configFile)
 	jsonParser.Decode(config)
 	return err
+}
+
+func ReadCli() string {
+    cfg := flag.String("config", "./config.json", "Path to configuration file")
+    flag.Parse()
+    return *cfg
 }
 
 // Register an interrupt handler for Ctrl+C and similar. At signal,
@@ -86,9 +94,14 @@ func main() {
 		log.Print(err)
 		return
 	}
+	configfile := ReadCli()
 
 	// Load and check configuration
-	LoadConfiguration("config.json", &config)
+	err = LoadConfiguration(configfile, &config)
+	if (err != nil) {
+	    log.Print("Error reading configuration file ", configfile)
+	    return
+	}
 	if config.Interval <= 0 || time.Duration(config.Interval)*time.Second <= 0 {
 		log.Print("Configuration value 'interval' must be greater than zero")
 		return
