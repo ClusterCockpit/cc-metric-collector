@@ -38,19 +38,35 @@ The base class/configuration is located in `metricCollector.go`.
    * `cpi` (cpu)
    * `clock` (cpu)
 
+# InfiniBand collector
+The InfiniBand collector requires the LID file to read the data. It has to be configured in the collector itself (`LIDFILE` in `infinibandMetric.go`)
+
+# Lustre collector
+The Lustre collector requires the path to the Lustre stats file. It has to be configured in the collector itself (`LUSTREFILE` in `lustreMetric.go`)
+
 # LIKWID collector
-Only the `likwidMetric.go` requires preparation steps. For this, the `Makefile` can be used. The LIKWID build needs to be configured:
-* Version of LIKWID in `LIKWID_VERSION`
+The `likwidMetric.go` requires preparation steps. For this, the `Makefile` can be used.
+
+There two ways to configure the LIKWID build: use a central installation of LIKWID or build a fresh copy. This can be controlled with `CENTRAL_INSTALL = <true|false>`.
+
+If `CENTRAL_INSTALL = true`:
+* Set the `LIKWID_BASE` to the base folder of LIKWID (try `echo $(realpath $(dirname $(which likwid-topology))/..)`)
+* Set the `LIKWID_VERSION` to a related LIKWID version. At least similar minor release 5.0.x or 5.1.x.
+
+If `CENTRAL_INSTALL = false`:
+* Version of LIKWID in `LIKWID_VERSION` to download from official FTP server
 * Target user for LIKWID's accessdaemon in `DAEMON_USER`. The user has to have enough permissions to read the `msr` and `pci` device files
 * Target group for LIKWID's accessdaemon in `DAEMON_GROUP`
+* **No** need to change `LIKWID_BASE`!
 
-It performs the following steps:
+Calling `make` performs the following steps:
 * Download LIKWID tarball
 * Unpacking
-* Adjusting configuration for LIKWID build
+* Adjusting configuration to build LIKWID as static library
 * Build it
 * Copy all required files into `collectors/likwid`
-* The accessdaemon is installed with the suid bit set using `sudo` also into `collectors/likwid`
+* If `CENTRAL_INSTALL = false`, the accessdaemon is installed with the suid bit set using `sudo` with the configured `DAEMON_USER` and `DAEMON_GROUP`.
+* Adjust group path in LIKWID collector
 
 ## Custom metrics for LIKWID
 The `likwidMetric.go` collector uses it's own performance group tree by copying it from the LIKWID sources. By adding groups to this directory tree, you can use them in the collector. Additionally, you have to tell the collector which group to measure and which event count or derived metric should be used.
@@ -63,7 +79,7 @@ var likwid_metrics = map[string][]LikwidMetric{
 }
 ```
 
-The collector will measure both groups `MEM_DP` and `FLOPS_DP` for `duration` seconds (global `config.json`). It matches the LIKWID name by using the `search` string and submits the value with the given `name` as field name in either the `socket` or the `cpu` metric depending on the `socket_scope` flag.
+The collector will measure both groups `MEM_DP` and `FLOPS_SP` for `duration` seconds (global `config.json`). It matches the LIKWID name by using the `search` string and submits the value with the given `name` as field name in either the `socket` or the `cpu` metric depending on the `socket_scope` flag.
 
 ## Todos
 * Aggregate a per-hwthread metric to a socket metric if `socket_scope=true`
