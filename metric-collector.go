@@ -24,6 +24,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"ibstat":     &collectors.InfinibandCollector{},
 	"lustrestat": &collectors.LustreCollector{},
 	"cpustat": &collectors.CpustatCollector{},
+	"topprocs": &collectors.TopProcsCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{

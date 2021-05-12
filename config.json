@@ -16,6 +16,7 @@
         "netstat",
         "ibstat",
         "lustrestat",
-        "cpustat"
+        "cpustat",
+        "topprocs"
     ]
 }
