@@ -15,6 +15,7 @@
         "loadavg",
         "netstat",
         "ibstat",
-        "lustrestat"
+        "lustrestat",
+        "cpustat"
     ]
 }

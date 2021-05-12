@@ -23,6 +23,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"netstat":    &collectors.NetstatCollector{},
 	"ibstat":     &collectors.InfinibandCollector{},
 	"lustrestat": &collectors.LustreCollector{},
+	"cpustat": &collectors.CpustatCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
