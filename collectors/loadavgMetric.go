@@ -32,6 +32,11 @@ func (m *LoadavgCollector) Read(interval time.Duration) {
 	m.node["load_five"] = float64(loadFive)
 	loadFifteen, _ := strconv.ParseFloat(ls[2], 64)
 	m.node["load_fifteen"] = float64(loadFifteen)
+	lv := strings.Split(ls[3], `/`)
+	proc_run, _ := strconv.ParseFloat(lv[0], 64)
+	proc_total, _ := strconv.ParseFloat(lv[1], 64)
+	m.node["proc_total"] = float64(proc_total)
+	m.node["proc_run"] = float64(proc_run)
 }
 
 func (m *LoadavgCollector) Close() {
