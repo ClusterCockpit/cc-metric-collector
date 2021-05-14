@@ -14,9 +14,11 @@ type LustreCollector struct {
 	MetricCollector
 }
 
-func (m *LustreCollector) Init() {
+func (m *LustreCollector) Init() error {
 	m.name = "LustreCollector"
 	m.setup()
+	_, err := ioutil.ReadFile(string(LUSTREFILE))
+	return err
 }
 
 func (m *LustreCollector) Read(interval time.Duration) {

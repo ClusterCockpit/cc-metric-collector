@@ -71,7 +71,7 @@ func getSocketCpus() map[C.int]int {
 	return outmap
 }
 
-func (m *LikwidCollector) Init() {
+func (m *LikwidCollector) Init() error {
 	m.name = "LikwidCollector"
 	m.setup()
 	cpulist := CpuList()
@@ -111,6 +111,7 @@ func (m *LikwidCollector) Init() {
 		}
 		C.free(unsafe.Pointer(cstr))
 	}
+	return nil
 }
 
 func (m *LikwidCollector) Read(interval time.Duration) {

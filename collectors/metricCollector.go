@@ -10,7 +10,7 @@ import (
 
 type MetricGetter interface {
 	Name() string
-	Init()
+	Init() error
 	Read(time.Duration)
 	Close()
 	GetNodeMetric() map[string]interface{}

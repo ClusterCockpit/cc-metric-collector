@@ -15,9 +15,10 @@ type MemstatCollector struct {
 	MetricCollector
 }
 
-func (m *MemstatCollector) Init() {
+func (m *MemstatCollector) Init() error {
 	m.name = "MemstatCollector"
 	m.setup()
+	return nil
 }
 
 func (m *MemstatCollector) Read(interval time.Duration) {

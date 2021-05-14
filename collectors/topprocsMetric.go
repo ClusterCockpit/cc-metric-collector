@@ -14,9 +14,10 @@ type TopProcsCollector struct {
 	MetricCollector
 }
 
-func (m *TopProcsCollector) Init() {
+func (m *TopProcsCollector) Init() error {
 	m.name = "TopProcsCollector"
 	m.setup()
+	return nil
 }
 
 func (m *TopProcsCollector) Read(interval time.Duration) {

@@ -16,9 +16,11 @@ type InfinibandCollector struct {
 	MetricCollector
 }
 
-func (m *InfinibandCollector) Init() {
+func (m *InfinibandCollector) Init() error {
 	m.name = "InfinibandCollector"
 	m.setup()
+	_, err := ioutil.ReadFile(string(LIDFILE))
+	return err
 }
 
 func (m *InfinibandCollector) Read(interval time.Duration) {

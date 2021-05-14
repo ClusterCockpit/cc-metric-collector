@@ -15,9 +15,10 @@ type NetstatCollector struct {
 	MetricCollector
 }
 
-func (m *NetstatCollector) Init() {
+func (m *NetstatCollector) Init() error {
 	m.name = "NetstatCollector"
 	m.setup()
+	return nil
 }
 
 func (m *NetstatCollector) Read(interval time.Duration) {

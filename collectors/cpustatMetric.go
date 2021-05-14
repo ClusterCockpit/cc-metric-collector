@@ -13,9 +13,10 @@ type CpustatCollector struct {
 	MetricCollector
 }
 
-func (m *CpustatCollector) Init() {
+func (m *CpustatCollector) Init() error {
 	m.name = "CpustatCollector"
 	m.setup()
+	return nil
 }
 
 func ParseStatLine(line string, out map[string]interface{}) {

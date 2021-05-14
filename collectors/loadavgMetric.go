@@ -13,9 +13,10 @@ type LoadavgCollector struct {
 	MetricCollector
 }
 
-func (m *LoadavgCollector) Init() {
+func (m *LoadavgCollector) Init() error {
 	m.name = "LoadavgCollector"
 	m.setup()
+	return nil
 }
 
 func (m *LoadavgCollector) Read(interval time.Duration) {
