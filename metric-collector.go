@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
 	"github.com/ClusterCockpit/cc-metric-collector/sinks"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"flag"
 )
 
 // List of provided collectors. Which collector should be run can be
@@ -23,14 +23,15 @@ var Collectors = map[string]collectors.MetricGetter{
 	"netstat":    &collectors.NetstatCollector{},
 	"ibstat":     &collectors.InfinibandCollector{},
 	"lustrestat": &collectors.LustreCollector{},
-	"cpustat": &collectors.CpustatCollector{},
-	"topprocs": &collectors.TopProcsCollector{},
+	"cpustat":    &collectors.CpustatCollector{},
+	"topprocs":   &collectors.TopProcsCollector{},
+	"nvidia":     &collectors.NvidiaCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
 	"influxdb": &sinks.InfluxSink{},
-	"stdout": &sinks.StdoutSink{},
-	"nats": &sinks.NatsSink{},
+	"stdout":   &sinks.StdoutSink{},
+	"nats":     &sinks.NatsSink{},
 }
 
 // Structure of the configuration file
@@ -62,30 +63,30 @@ func LoadConfiguration(file string, config *GlobalConfig) error {
 }
 
 func ReadCli() map[string]string {
-    var m map[string]string
-    cfg := flag.String("config", "./config.json", "Path to configuration file")
-    logfile := flag.String("log", "stderr", "Path for logfile")
-    flag.Parse()
-    m = make(map[string]string)
-    m["configfile"] = *cfg
-    m["logfile"] = *logfile
-    return m
+	var m map[string]string
+	cfg := flag.String("config", "./config.json", "Path to configuration file")
+	logfile := flag.String("log", "stderr", "Path for logfile")
+	flag.Parse()
+	m = make(map[string]string)
+	m["configfile"] = *cfg
+	m["logfile"] = *logfile
+	return m
 }
 
 func SetLogging(logfile string) error {
-    var file *os.File
-    var err error
-    if (logfile != "stderr") {
-        file, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-        if err != nil {
-            log.Fatal(err)
-            return err
-        }
-    } else {
-        file = os.Stderr
-    }
-    log.SetOutput(file)
-    return nil
+	var file *os.File
+	var err error
+	if logfile != "stderr" {
+		file, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
+	} else {
+		file = os.Stderr
+	}
+	log.SetOutput(file)
+	return nil
 }
 
 // Register an interrupt handler for Ctrl+C and similar. At signal,
@@ -119,16 +120,16 @@ func main() {
 	}
 	clicfg := ReadCli()
 	err = SetLogging(clicfg["logfile"])
-	if (err != nil) {
-	    log.Print("Error setting up logging system to ", clicfg["logfile"])
-	    return
+	if err != nil {
+		log.Print("Error setting up logging system to ", clicfg["logfile"])
+		return
 	}
 
 	// Load and check configuration
 	err = LoadConfiguration(clicfg["configfile"], &config)
-	if (err != nil) {
-	    log.Print("Error reading configuration file ", clicfg["configfile"])
-	    return
+	if err != nil {
+		log.Print("Error reading configuration file ", clicfg["configfile"])
+		return
 	}
 	if config.Interval <= 0 || time.Duration(config.Interval)*time.Second <= 0 {
 		log.Print("Configuration value 'interval' must be greater than zero")
@@ -167,11 +168,18 @@ func main() {
 	shutdown(&wg, &config, sink)
 
 	// Initialize all collectors
+	tmp := make([]string, 0)
 	for _, c := range config.Collectors {
 		col := Collectors[c]
-		col.Init()
-		log.Print("Start ", col.Name())
+		err = col.Init()
+		if err != nil {
+			log.Print("SKIP ", col.Name())
+		} else {
+			log.Print("Start ", col.Name())
+			tmp = append(tmp, c)
+		}
 	}
+	config.Collectors = tmp
 
 	// Setup up ticker loop
 	log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
@@ -229,19 +237,25 @@ func main() {
 				}
 
 				// Send out node metrics
-				sink.Write("node", map[string]string{"host": host}, nodeFields, t)
+				if len(nodeFields) > 0 {
+					sink.Write("node", map[string]string{"host": host}, nodeFields, t)
+				}
 
 				// Send out socket metrics (if any)
 				if scount > 0 {
 					for sid, socket := range socketsFields {
-						sink.Write("socket", map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}, socket, t)
+						if len(socket) > 0 {
+							sink.Write("socket", map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}, socket, t)
+						}
 					}
 				}
 
 				// Send out CPU metrics (if any)
 				if ccount > 0 {
 					for cid, cpu := range cpuFields {
-						sink.Write("cpu", map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}, cpu, t)
+						if len(cpu) > 0 {
+							sink.Write("cpu", map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}, cpu, t)
+						}
 					}
 				}
 			}
