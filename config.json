@@ -19,6 +19,9 @@
         "cpustat",
         "topprocs"
     ],
+    "default_tags": {
+        "cluster": "testcluster"
+    },
     "receiver": {
         "type": "none"
     }
