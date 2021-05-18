@@ -1,22 +1,25 @@
 {
     "sink": {
-        "user": "admin",
-        "password": "12345",
-        "host": "localhost",
-        "port": "8080",
+        "user": "testuser",
+        "password": "testpass",
+        "host": "127.0.0.1",
+        "port": "8087",
         "database": "testdb",
-        "type": "stdout"
+        "organization": "testorg",
+        "type": "influxdb"
     },
     "interval" : 3,
     "duration" : 1,
     "collectors": [
         "memstat",
-        "likwid",
         "loadavg",
         "netstat",
         "ibstat",
         "lustrestat",
         "cpustat",
         "topprocs"
-    ]
+    ],
+    "receiver": {
+        "type": "none"
+    }
 }
