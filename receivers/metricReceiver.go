@@ -14,7 +14,7 @@ type ReceiverConfig struct {
 }
 
 type Receiver struct {
-    name         string
+	name         string
 	addr         string
 	port         string
 	database     string

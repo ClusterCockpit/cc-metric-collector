@@ -1,12 +1,12 @@
 package receivers
 
 import (
+	"errors"
 	s "github.com/ClusterCockpit/cc-metric-collector/sinks"
 	protocol "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
-	"errors"
 )
 
 type NatsReceiver struct {
@@ -19,7 +19,7 @@ var DefaultTime = func() time.Time {
 }
 
 func (r *NatsReceiver) Init(config ReceiverConfig, sink s.SinkFuncs) error {
-    if len(config.Addr) == 0 ||
+	if len(config.Addr) == 0 ||
 		len(config.Port) == 0 ||
 		len(config.Database) == 0 {
 		return errors.New("Not all configuration variables set required by NatsReceiver")
