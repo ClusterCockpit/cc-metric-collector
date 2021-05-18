@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
+	"github.com/ClusterCockpit/cc-metric-collector/receivers"
 	"github.com/ClusterCockpit/cc-metric-collector/sinks"
 	"log"
 	"os"
@@ -34,19 +35,17 @@ var Sinks = map[string]sinks.SinkFuncs{
 	"nats":     &sinks.NatsSink{},
 }
 
+var Receivers = map[string]receivers.ReceiverFuncs{
+	"nats": &receivers.NatsReceiver{},
+}
+
 // Structure of the configuration file
 type GlobalConfig struct {
-	Sink struct {
-		User     string `json:"user"`
-		Password string `json:"password"`
-		Host     string `json:"host"`
-		Port     string `json:"port"`
-		Database string `json:"database"`
-		Type     string `json:"type"`
-	} `json:"sink"`
-	Interval   int      `json:"interval"`
-	Duration   int      `json:"duration"`
-	Collectors []string `json:"collectors"`
+	Sink       sinks.SinkConfig         `json:"sink"`
+	Interval   int                      `json:"interval"`
+	Duration   int                      `json:"duration"`
+	Collectors []string                 `json:"collectors"`
+	Receiver   receivers.ReceiverConfig `json:"receiver"`
 }
 
 // Load JSON configuration file
@@ -91,7 +90,7 @@ func SetLogging(logfile string) error {
 
 // Register an interrupt handler for Ctrl+C and similar. At signal,
 // all collectors are closed
-func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs) {
+func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 
@@ -104,6 +103,9 @@ func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs) {
 			col.Close()
 		}
 		time.Sleep(1 * time.Second)
+		if recv != nil {
+			recv.Close()
+		}
 		sink.Close()
 		wg.Done()
 	}(wg)
@@ -112,6 +114,9 @@ func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs) {
 func main() {
 	var config GlobalConfig
 	var wg sync.WaitGroup
+	var recv receivers.ReceiverFuncs = nil
+	var use_recv bool
+	use_recv = false
 	wg.Add(1)
 	host, err := os.Hostname()
 	if err != nil {
@@ -159,13 +164,29 @@ func main() {
 	}
 	// Setup sink
 	sink := Sinks[config.Sink.Type]
-	err = sink.Init(config.Sink.Host, config.Sink.Port, config.Sink.User, config.Sink.Password, config.Sink.Database)
+	err = sink.Init(config.Sink)
 	if err != nil {
+		log.Print(err)
 		return
+	}
+	// Setup receiver
+	if config.Receiver.Type != "none" {
+		if _, found := Receivers[config.Receiver.Type]; !found {
+			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
+			return
+		} else {
+			recv = Receivers[config.Receiver.Type]
+			err = recv.Init(config.Receiver, sink)
+			if err == nil {
+				use_recv = true
+			} else {
+				log.Print(err)
+			}
+		}
 	}
 
 	// Register interrupt handler
-	shutdown(&wg, &config, sink)
+	shutdown(&wg, &config, sink, recv)
 
 	// Initialize all collectors
 	tmp := make([]string, 0)
@@ -201,6 +222,11 @@ func main() {
 	cpuFields := make(map[int]map[string]interface{}, len(clist))
 	for _, s := range clist {
 		cpuFields[s] = make(map[string]interface{})
+	}
+
+	// Start receiver
+	if use_recv {
+		recv.Start()
 	}
 
 	go func() {

@@ -2,6 +2,7 @@ package sinks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
@@ -11,25 +12,40 @@ import (
 
 type InfluxSink struct {
 	Sink
-	client       influxdb2.Client
-	writeApi     influxdb2Api.WriteAPIBlocking
-	retPolicy    string
-	organization string
+	client    influxdb2.Client
+	writeApi  influxdb2Api.WriteAPIBlocking
+	retPolicy string
 }
 
-func (s *InfluxSink) Init(host string, port string, user string, password string, database string) error {
-	s.host = host
-	s.port = port
-	s.user = user
-	s.password = password
-	s.database = database
-	s.organization = ""
-	uri := fmt.Sprintf("http://%s:%s", host, port)
-	auth := fmt.Sprintf("%s:%s", user, password)
-	log.Print("Using URI ", uri, " for connection")
+func (s *InfluxSink) connect() error {
+	var auth string
+	uri := fmt.Sprintf("http://%s:%s", s.host, s.port)
+	if len(s.user) == 0 {
+		auth = s.password
+	} else {
+		auth = fmt.Sprintf("%s:%s", s.user, s.password)
+	}
+	log.Print("Using URI ", uri, " Org ", s.organization, " Bucket ", s.database)
 	s.client = influxdb2.NewClient(uri, auth)
 	s.writeApi = s.client.WriteAPIBlocking(s.organization, s.database)
 	return nil
+}
+
+func (s *InfluxSink) Init(config SinkConfig) error {
+	if len(config.Host) == 0 ||
+		len(config.Port) == 0 ||
+		len(config.Database) == 0 ||
+		len(config.Organization) == 0 ||
+		len(config.Password) == 0 {
+		return errors.New("Not all configuration variables set required by InfluxSink")
+	}
+	s.host = config.Host
+	s.port = config.Port
+	s.database = config.Database
+	s.organization = config.Organization
+	s.user = config.User
+	s.password = config.Password
+	return s.connect()
 }
 
 func (s *InfluxSink) Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error {

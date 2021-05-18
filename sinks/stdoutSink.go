@@ -11,12 +11,7 @@ type StdoutSink struct {
 	Sink
 }
 
-func (s *StdoutSink) Init(host string, port string, user string, password string, database string) error {
-	s.host = host
-	s.port = port
-	s.user = user
-	s.password = password
-	s.database = database
+func (s *StdoutSink) Init(config SinkConfig) error {
 	return nil
 }
 
@@ -27,13 +22,13 @@ func (s *StdoutSink) Write(measurement string, tags map[string]string, fields ma
 		tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", k, v))
 	}
 	for k, v := range fields {
-	    switch v.(type) {
-	    case float64:
-		    if !math.IsNaN(v.(float64)) {
-			    fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", k, v.(float64)))
-		    }
+		switch v.(type) {
+		case float64:
+			if !math.IsNaN(v.(float64)) {
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", k, v.(float64)))
+			}
 		case string:
-		    fieldstr = append(fieldstr, fmt.Sprintf("%s=%q", k, v.(string)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%q", k, v.(string)))
 		}
 	}
 	if len(tagsstr) > 0 {
