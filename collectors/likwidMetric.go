@@ -72,6 +72,7 @@ func getSocketCpus() map[C.int]int {
 }
 
 func (m *LikwidCollector) Init() error {
+	var ret C.int
 	m.name = "LikwidCollector"
 	m.setup()
 	cpulist := CpuList()
@@ -86,54 +87,84 @@ func (m *LikwidCollector) Init() error {
 		}
 	}
 	m.metrics = make(map[C.int]map[string]int)
-	C.topology_init()
-	C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
+	m.groups = make(map[string]C.int)
+	ret = C.topology_init()
+	if ret != 0 {
+		return errors.New("Failed to initialize LIKWID topology")
+	}
+	ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
+	if ret != 0 {
+		C.topology_finalize()
+		return errors.New("Failed to initialize LIKWID topology")
+	}
 	gpath := C.CString(GROUPPATH)
 	C.config_setGroupPath(gpath)
 	C.free(unsafe.Pointer(gpath))
-	m.init = true
-	m.groups = make(map[string]C.int)
+
 	for g, metrics := range likwid_metrics {
 		cstr := C.CString(g)
 		gid := C.perfmon_addEventSet(cstr)
 		if gid >= 0 {
-			m.groups[g] = gid
+			gmetrics := 0
 			for i, metric := range metrics {
 				idx, err := getMetricId(gid, metric.search)
 				if err != nil {
 					log.Print(err)
 				} else {
 					likwid_metrics[g][i].group_idx = idx
+					gmetrics++
 				}
+			}
+			if gmetrics > 0 {
+				m.groups[g] = gid
 			}
 		} else {
 			log.Print("Failed to add events set ", g)
 		}
 		C.free(unsafe.Pointer(cstr))
 	}
+	if len(m.groups) == 0 {
+		C.perfmon_finalize()
+		C.topology_finalize()
+		return errors.New("No LIKWID performance group initialized")
+	}
+	m.init = true
 	return nil
 }
 
 func (m *LikwidCollector) Read(interval time.Duration) {
 	if m.init {
+		var ret C.int
 		for gname, gid := range m.groups {
-			C.perfmon_setupCounters(gid)
-			C.perfmon_startCounters()
+			ret = C.perfmon_setupCounters(gid)
+			if ret != 0 {
+				log.Print("Failed to setup performance group ", gname)
+				continue
+			}
+			ret = C.perfmon_startCounters()
+			if ret != 0 {
+				log.Print("Failed to start performance group ", gname)
+				continue
+			}
 			time.Sleep(interval)
-			C.perfmon_stopCounters()
+			ret = C.perfmon_stopCounters()
+			if ret != 0 {
+				log.Print("Failed to stop performance group ", gname)
+				continue
+			}
 
 			for _, lmetric := range likwid_metrics[gname] {
 				if lmetric.socket_scope {
 					for sid, tid := range m.sock2tid {
 						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
 						m.sockets[int(sid)][lmetric.name] = float64(res)
-						//	                    log.Print("Metric '", lmetric.name,"' on Socket ",int(sid)," returns ", m.sockets[int(sid)][lmetric.name])
+						// log.Print("Metric '", lmetric.name,"' on Socket ",int(sid)," returns ", m.sockets[int(sid)][lmetric.name])
 					}
 				} else {
 					for tid, cpu := range m.cpulist {
 						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
 						m.cpus[int(cpu)][lmetric.name] = float64(res)
-						//            	        log.Print("Metric '", lmetric.name,"' on CPU ",int(cpu)," returns ", m.cpus[int(cpu)][lmetric.name])
+						// log.Print("Metric '", lmetric.name,"' on CPU ",int(cpu)," returns ", m.cpus[int(cpu)][lmetric.name])
 					}
 				}
 			}
@@ -161,8 +192,10 @@ func (m *LikwidCollector) Read(interval time.Duration) {
 }
 
 func (m *LikwidCollector) Close() {
-	C.perfmon_finalize()
-	C.topology_finalize()
-	m.init = false
+	if m.init {
+		C.perfmon_finalize()
+		C.topology_finalize()
+		m.init = false
+	}
 	return
 }
