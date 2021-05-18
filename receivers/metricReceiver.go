@@ -7,7 +7,7 @@ import (
 )
 
 type ReceiverConfig struct {
-	Addr     string `json:"host"`
+	Addr     string `json:"address"`
 	Port     string `json:"port"`
 	Database string `json:"database"`
 	Type     string `json:"type"`
