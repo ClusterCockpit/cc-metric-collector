@@ -21,7 +21,7 @@ func (m *TopProcsCollector) Init() error {
 }
 
 func (m *TopProcsCollector) Read(interval time.Duration) {
-	command := exec.Command("/usr/bin/ps", "-Ao", "comm", "--sort=-pcpu")
+	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
 	command.Wait()
 	stdout, err := command.Output()
 	if err != nil {
