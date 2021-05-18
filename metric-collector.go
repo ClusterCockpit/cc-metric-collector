@@ -170,7 +170,7 @@ func main() {
 		return
 	}
 	// Setup receiver
-	if config.Receiver.Type != "none" {
+	if len(config.Receiver.Type) > 0 && config.Receiver.Type != "none" {
 		if _, found := Receivers[config.Receiver.Type]; !found {
 			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
 			return
