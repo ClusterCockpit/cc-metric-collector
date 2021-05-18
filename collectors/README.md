@@ -37,6 +37,11 @@ The base class/configuration is located in `metricCollector.go`.
    * `flops_any` (cpu, `2*flops_dp + flops_sp`)
    * `cpi` (cpu)
    * `clock` (cpu)
+* `cpustatMetric.go`: Read CPU specific values from `/proc/stat`
+* `topprocsMetric.go`: Reads the Top5 processes by their CPU usage
+* `nvidiaMetric.go`: Read data about Nvidia GPUs using the NVML library
+
+If any of the collectors cannot be initialized, it is excluded from all further reads. Like if the Lustre stat file is not a valid path, no Lustre specific metrics will be recorded.
 
 # InfiniBand collector
 The InfiniBand collector requires the LID file to read the data. It has to be configured in the collector itself (`LIDFILE` in `infinibandMetric.go`)
