@@ -34,12 +34,12 @@ Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-spe
         "topprocs",
         "cpustat",
         "nvidia"
-    ]
+    ],
     "receiver": {
-        "type": "none"
+        "type": "none",
         "address": "127.0.0.1",
         "port": "4222",
-        "database": "testdb",
+        "database": "testdb"
     }
 }
 ```
