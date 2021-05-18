@@ -46,6 +46,7 @@ type GlobalConfig struct {
 	Duration   int                      `json:"duration"`
 	Collectors []string                 `json:"collectors"`
 	Receiver   receivers.ReceiverConfig `json:"receiver"`
+	DefTags    map[string]string        `json:"default_tags"`
 }
 
 // Load JSON configuration file
@@ -264,14 +265,22 @@ func main() {
 
 				// Send out node metrics
 				if len(nodeFields) > 0 {
-					sink.Write("node", map[string]string{"host": host}, nodeFields, t)
+					nodeTags := map[string]string{"host": host}
+					for _, k := range config.DefTags {
+						nodeTags[k] = config.DefTags[k]
+					}
+					sink.Write("node", nodeTags, nodeFields, t)
 				}
 
 				// Send out socket metrics (if any)
 				if scount > 0 {
 					for sid, socket := range socketsFields {
 						if len(socket) > 0 {
-							sink.Write("socket", map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}, socket, t)
+							socketTags := map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}
+							for _, k := range config.DefTags {
+								socketTags[k] = config.DefTags[k]
+							}
+							sink.Write("socket", socketTags, socket, t)
 						}
 					}
 				}
@@ -280,7 +289,11 @@ func main() {
 				if ccount > 0 {
 					for cid, cpu := range cpuFields {
 						if len(cpu) > 0 {
-							sink.Write("cpu", map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}, cpu, t)
+							cpuTags := map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}
+							for _, k := range config.DefTags {
+								cpuTags[k] = config.DefTags[k]
+							}
+							sink.Write("cpu", cpuTags, cpu, t)
 						}
 					}
 				}
