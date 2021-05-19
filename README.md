@@ -1,10 +1,5 @@
 # cc-metric-collector
-A node agent for measuring, processing and forwarding node level metrics.
-
-Open questions:
-
-* Are hostname unique with a computing center or is it required to store the cluster name in addition to the hostname?
-* What about memory domain granularity?
+A node agent for measuring, processing and forwarding node level metrics part of the ClusterCockpit ecosystem.
 
 # Configuration
 
@@ -91,3 +86,5 @@ The receiver runs as a go routine side-by-side with the timer loop and asynchron
 
 - [ ] Use only non-blocking APIs for the sinks
 - [ ] Collector specific configuration in global JSON file? Changing the configuration inside the Go code is not user-friendly.
+- [ ] Metrics in memory domain granularity?
+
