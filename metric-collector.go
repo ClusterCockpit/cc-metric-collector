@@ -66,10 +66,12 @@ func ReadCli() map[string]string {
 	var m map[string]string
 	cfg := flag.String("config", "./config.json", "Path to configuration file")
 	logfile := flag.String("log", "stderr", "Path for logfile")
+	pidfile := flag.String("pidfile", "/var/run/cc-metric-collector.pid", "Path for PID file")
 	flag.Parse()
 	m = make(map[string]string)
 	m["configfile"] = *cfg
 	m["logfile"] = *logfile
+	m["pidfile"] = *pidfile
 	return m
 }
 
@@ -89,9 +91,28 @@ func SetLogging(logfile string) error {
 	return nil
 }
 
+func CreatePidfile(pidfile string) error {
+    file, err := os.OpenFile(pidfile, os.O_CREATE|os.O_RDWR, 0600)
+    if err != nil {
+        log.Print(err)
+        return err
+    }
+    file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
+    file.Close()
+    return nil
+}
+
+func RemovePidfile(pidfile string) error {
+    info, err := os.Stat(pidfile)
+    if !os.IsNotExist(err) && !info.IsDir() {
+        os.Remove(pidfile)
+    }
+    return nil
+}
+
 // Register an interrupt handler for Ctrl+C and similar. At signal,
 // all collectors are closed
-func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs) {
+func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs, pidfile string) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 
@@ -108,6 +129,7 @@ func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, re
 			recv.Close()
 		}
 		sink.Close()
+		RemovePidfile(pidfile)
 		wg.Done()
 	}(wg)
 }
@@ -125,6 +147,7 @@ func main() {
 		return
 	}
 	clicfg := ReadCli()
+	err = CreatePidfile(clicfg["pidfile"])
 	err = SetLogging(clicfg["logfile"])
 	if err != nil {
 		log.Print("Error setting up logging system to ", clicfg["logfile"])
@@ -187,7 +210,7 @@ func main() {
 	}
 
 	// Register interrupt handler
-	shutdown(&wg, &config, sink, recv)
+	shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
 
 	// Initialize all collectors
 	tmp := make([]string, 0)
@@ -266,8 +289,8 @@ func main() {
 				// Send out node metrics
 				if len(nodeFields) > 0 {
 					nodeTags := map[string]string{"host": host}
-					for _, k := range config.DefTags {
-						nodeTags[k] = config.DefTags[k]
+					for k, v := range config.DefTags {
+						nodeTags[k] = v
 					}
 					sink.Write("node", nodeTags, nodeFields, t)
 				}
@@ -277,8 +300,8 @@ func main() {
 					for sid, socket := range socketsFields {
 						if len(socket) > 0 {
 							socketTags := map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}
-							for _, k := range config.DefTags {
-								socketTags[k] = config.DefTags[k]
+							for k, v := range config.DefTags {
+								socketTags[k] = v
 							}
 							sink.Write("socket", socketTags, socket, t)
 						}
@@ -290,8 +313,8 @@ func main() {
 					for cid, cpu := range cpuFields {
 						if len(cpu) > 0 {
 							cpuTags := map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}
-							for _, k := range config.DefTags {
-								cpuTags[k] = config.DefTags[k]
+							for k, v := range config.DefTags {
+								cpuTags[k] = v
 							}
 							sink.Write("cpu", cpuTags, cpu, t)
 						}
