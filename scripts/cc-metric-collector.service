@@ -1,0 +1,27 @@
+[Unit]
+Description=ClusterCockpit metric collector
+Documentation=https://github.com/ClusterCockpit/cc-metric-collector
+Wants=network-online.target
+After=network-online.target
+After=postgresql.service mariadb.service mysql.service
+
+[Service]
+EnvironmentFile=/etc/default/cc-metric-collector
+User=clustercockpit
+Group=clustercockpit
+Type=simple
+Restart=on-failure
+WorkingDirectory=/tmp
+RuntimeDirectory=cc-metric-collector
+RuntimeDirectoryMode=0750
+ExecStart=/usr/sbin/cc-metric-collector                                             \
+                            --config=${CONF_FILE}                                   \
+                            --pidfile=${PID_FILE_DIR}/cc-metric-collector.pid
+
+
+LimitNOFILE=10000
+TimeoutStopSec=20
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
