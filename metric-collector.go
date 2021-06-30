@@ -33,6 +33,7 @@ var Sinks = map[string]sinks.SinkFuncs{
 	"influxdb": &sinks.InfluxSink{},
 	"stdout":   &sinks.StdoutSink{},
 	"nats":     &sinks.NatsSink{},
+	"influxasync": &sinks.InfluxAsyncSink{},
 }
 
 var Receivers = map[string]receivers.ReceiverFuncs{
