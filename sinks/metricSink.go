@@ -12,6 +12,7 @@ type SinkConfig struct {
 	Password     string `json:"password"`
 	Organization string `json:"organization"`
 	Type         string `json:"type"`
+	SSL          bool   `json:"ssl"`
 }
 
 type Sink struct {
@@ -21,6 +22,7 @@ type Sink struct {
 	password     string
 	database     string
 	organization string
+	ssl          bool
 }
 
 type SinkFuncs interface {
