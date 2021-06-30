@@ -11,6 +11,7 @@ import (
 )
 
 const LIDFILE = `/sys/class/infiniband/mlx4_0/ports/1/lid`
+const PERFQUERY = `/usr/sbin/perfquery`
 
 type InfinibandCollector struct {
 	MetricCollector
@@ -20,6 +21,13 @@ func (m *InfinibandCollector) Init() error {
 	m.name = "InfinibandCollector"
 	m.setup()
 	_, err := ioutil.ReadFile(string(LIDFILE))
+	if err != nil {
+		return err
+	}
+	_, err = ioutil.ReadFile(string(PERFQUERY))
+	if err != nil {
+		return err
+	}
 	return err
 }
 
@@ -33,7 +41,7 @@ func (m *InfinibandCollector) Read(interval time.Duration) {
 
 	args := fmt.Sprintf("-r %s 1 0xf000", string(buffer))
 
-	command := exec.Command("/usr/sbin/perfquery", args)
+	command := exec.Command(PERFQUERY, args)
 	command.Wait()
 	stdout, err := command.Output()
 	if err != nil {
