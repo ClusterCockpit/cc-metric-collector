@@ -66,7 +66,7 @@ func (s *NatsSink) Write(measurement string, tags map[string]string, fields map[
 			return err
 		}
 		s.client.Publish(s.database, s.buffer.Bytes())
-
+		s.buffer.Reset()
 	}
 	return nil
 }
