@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"fmt"
+	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"os/exec"
@@ -14,16 +15,21 @@ const LIDFILE = `/sys/class/infiniband/mlx4_0/ports/1/lid`
 
 type InfinibandCollector struct {
 	MetricCollector
+	tags map[string]string
 }
 
 func (m *InfinibandCollector) Init() error {
 	m.name = "InfinibandCollector"
 	m.setup()
+	m.tags = map[string]string{"type": "node"}
 	_, err := ioutil.ReadFile(string(LIDFILE))
+	if err == nil {
+	    m.init = true
+	}
 	return err
 }
 
-func (m *InfinibandCollector) Read(interval time.Duration) {
+func (m *InfinibandCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 	buffer, err := ioutil.ReadFile(string(LIDFILE))
 
 	if err != nil {
@@ -48,19 +54,26 @@ func (m *InfinibandCollector) Read(interval time.Duration) {
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				m.node["ib_recv"] = float64(v)
+				y, err := lp.New("ib_recv", m.tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
 			}
 		}
 		if strings.HasPrefix(line, "PortXmitData") || strings.HasPrefix(line, "XmtData") {
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				m.node["ib_xmit"] = float64(v)
+				y, err := lp.New("ib_xmit", m.tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
 			}
 		}
 	}
 }
 
 func (m *InfinibandCollector) Close() {
+    m.init = false
 	return
 }

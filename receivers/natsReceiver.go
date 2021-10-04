@@ -3,7 +3,7 @@ package receivers
 import (
 	"errors"
 	s "github.com/ClusterCockpit/cc-metric-collector/sinks"
-	protocol "github.com/influxdata/line-protocol"
+	lp "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
@@ -51,15 +51,16 @@ func (r *NatsReceiver) Start() {
 }
 
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
-	handler := protocol.NewMetricHandler()
-	parser := protocol.NewParser(handler)
+	handler := lp.NewMetricHandler()
+	parser := lp.NewParser(handler)
 	parser.SetTimeFunc(DefaultTime)
 	metrics, err := parser.Parse(m.Data)
 	if err == nil {
 		for _, m := range metrics {
-			tags := Tags2Map(m)
-			fields := Fields2Map(m)
-			r.sink.Write(m.Name(), tags, fields, m.Time())
+			y, err := lp.New(m.Name(), Tags2Map(m), Fields2Map(m), m.Time())
+			if err == nil {
+				r.sink.Write(y)
+			}
 		}
 	}
 }
