@@ -58,6 +58,6 @@ func (m *LoadavgCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 }
 
 func (m *LoadavgCollector) Close() {
-    m.init = false
+	m.init = false
 	return
 }

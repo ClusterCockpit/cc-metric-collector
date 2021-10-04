@@ -36,8 +36,8 @@ func (m *MemstatCollector) Init() error {
 	m.setup()
 	_, err := ioutil.ReadFile(string(MEMSTATFILE))
 	if err == nil {
-    	m.init = true
-    }
+		m.init = true
+	}
 	return nil
 }
 
@@ -97,6 +97,6 @@ func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 }
 
 func (m *MemstatCollector) Close() {
-    m.init = false
+	m.init = false
 	return
 }

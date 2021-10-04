@@ -69,6 +69,6 @@ func (m *CpustatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 }
 
 func (m *CpustatCollector) Close() {
-    m.init = false
+	m.init = false
 	return
 }

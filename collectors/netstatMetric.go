@@ -29,8 +29,8 @@ func (m *NetstatCollector) Init() error {
 	}
 	_, err := ioutil.ReadFile(string(NETSTATFILE))
 	if err == nil {
-    	m.init = true
-    }
+		m.init = true
+	}
 	return nil
 }
 
@@ -65,6 +65,6 @@ func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 }
 
 func (m *NetstatCollector) Close() {
-    m.init = false
+	m.init = false
 	return
 }

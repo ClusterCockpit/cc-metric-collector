@@ -31,7 +31,7 @@ func (m *LustreCollector) Init() error {
 		"inode_permission": {"inode_permission": 1}}
 	_, err := ioutil.ReadFile(string(LUSTREFILE))
 	if err == nil {
-	    m.init = true
+		m.init = true
 	}
 	return err
 }
@@ -65,6 +65,6 @@ func (m *LustreCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 }
 
 func (m *LustreCollector) Close() {
-    m.init = false
+	m.init = false
 	return
 }

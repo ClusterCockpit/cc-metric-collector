@@ -24,7 +24,7 @@ func (m *TopProcsCollector) Init() error {
 	command.Wait()
 	_, err := command.Output()
 	if err == nil {
-	    m.init = true
+		m.init = true
 	}
 	return nil
 }
@@ -49,6 +49,6 @@ func (m *TopProcsCollector) Read(interval time.Duration, out *[]lp.MutableMetric
 }
 
 func (m *TopProcsCollector) Close() {
-    m.init = false
+	m.init = false
 	return
 }

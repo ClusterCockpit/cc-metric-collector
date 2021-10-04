@@ -14,17 +14,17 @@ type MetricGetter interface {
 	Init() error
 	Read(time.Duration, *[]lp.MutableMetric)
 	Close()
-//	GetNodeMetric() map[string]interface{}
-//	GetSocketMetrics() map[int]map[string]interface{}
-//	GetCpuMetrics() map[int]map[string]interface{}
+	//	GetNodeMetric() map[string]interface{}
+	//	GetSocketMetrics() map[int]map[string]interface{}
+	//	GetCpuMetrics() map[int]map[string]interface{}
 }
 
 type MetricCollector struct {
-	name    string
-	init    bool
-//	node    map[string]interface{}
-//	sockets map[int]map[string]interface{}
-//	cpus    map[int]map[string]interface{}
+	name string
+	init bool
+	//	node    map[string]interface{}
+	//	sockets map[int]map[string]interface{}
+	//	cpus    map[int]map[string]interface{}
 }
 
 func (c *MetricCollector) Name() string {
@@ -44,17 +44,17 @@ func (c *MetricCollector) Name() string {
 //}
 
 func (c *MetricCollector) setup() error {
-//	slist := SocketList()
-//	clist := CpuList()
-//	c.node = make(map[string]interface{})
-//	c.sockets = make(map[int]map[string]interface{}, len(slist))
-//	for _, s := range slist {
-//		c.sockets[s] = make(map[string]interface{})
-//	}
-//	c.cpus = make(map[int]map[string]interface{}, len(clist))
-//	for _, s := range clist {
-//		c.cpus[s] = make(map[string]interface{})
-//	}
+	//	slist := SocketList()
+	//	clist := CpuList()
+	//	c.node = make(map[string]interface{})
+	//	c.sockets = make(map[int]map[string]interface{}, len(slist))
+	//	for _, s := range slist {
+	//		c.sockets[s] = make(map[string]interface{})
+	//	}
+	//	c.cpus = make(map[int]map[string]interface{}, len(clist))
+	//	for _, s := range clist {
+	//		c.cpus[s] = make(map[string]interface{})
+	//	}
 	return nil
 }
 
