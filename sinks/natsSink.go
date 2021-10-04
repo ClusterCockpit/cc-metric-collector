@@ -74,7 +74,7 @@ func (s *NatsSink) Write(point lp.MutableMetric) error {
 			return err
 		}
 		s.client.Publish(s.database, s.buffer.Bytes())
-
+		s.buffer.Reset()
 	}
 	return nil
 }
