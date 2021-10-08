@@ -28,6 +28,8 @@ var Collectors = map[string]collectors.MetricGetter{
 	"cpustat":    &collectors.CpustatCollector{},
 	"topprocs":   &collectors.TopProcsCollector{},
 	"nvidia":     &collectors.NvidiaCollector{},
+	"customcmd":  &collectors.CustomCmdCollector{},
+	"diskstat":   &collectors.DiskstatCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
@@ -226,6 +228,7 @@ func main() {
 		}
 	}
 	config.Collectors = tmp
+	config.DefTags["hostname"] = host
 
 	// Setup up ticker loop
 	log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
