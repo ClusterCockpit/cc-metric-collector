@@ -38,7 +38,7 @@ func (m *MemstatCollector) Init() error {
 	if err == nil {
 		m.init = true
 	}
-	return nil
+	return err
 }
 
 func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
