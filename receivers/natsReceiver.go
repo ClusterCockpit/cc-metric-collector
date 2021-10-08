@@ -11,7 +11,9 @@ import (
 
 type NatsReceiver struct {
 	Receiver
-	nc *nats.Conn
+	nc      *nats.Conn
+	handler *lp.MetricHandler
+	parser  *lp.Parser
 }
 
 var DefaultTime = func() time.Time {
@@ -42,6 +44,9 @@ func (r *NatsReceiver) Init(config ReceiverConfig, sink s.SinkFuncs) error {
 		log.Print(err)
 		r.nc = nil
 	}
+	r.handler = lp.NewMetricHandler()
+	r.parser = lp.NewParser(r.handler)
+	r.parser.SetTimeFunc(DefaultTime)
 	return err
 }
 
@@ -51,10 +56,7 @@ func (r *NatsReceiver) Start() {
 }
 
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
-	handler := lp.NewMetricHandler()
-	parser := lp.NewParser(handler)
-	parser.SetTimeFunc(DefaultTime)
-	metrics, err := parser.Parse(m.Data)
+	metrics, err := r.parser.Parse(m.Data)
 	if err == nil {
 		for _, m := range metrics {
 			y, err := lp.New(m.Name(), Tags2Map(m), Fields2Map(m), m.Time())
