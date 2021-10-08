@@ -25,11 +25,11 @@ func (m *InfinibandCollector) Init() error {
 	m.tags = map[string]string{"type": "node"}
 	_, err := ioutil.ReadFile(string(LIDFILE))
 	if err == nil {
-    _, err = ioutil.ReadFile(string(PERFQUERY))
-    if err == nil {
-       m.init = true
-    }
-  }
+		_, err = ioutil.ReadFile(string(PERFQUERY))
+		if err == nil {
+			m.init = true
+		}
+	}
 	return err
 }
 
