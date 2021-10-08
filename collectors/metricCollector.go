@@ -116,3 +116,19 @@ func CpuList() []int {
 	}
 	return cpulist
 }
+
+func Tags2Map(metric lp.Metric) map[string]string {
+	tags := make(map[string]string)
+	for _, t := range metric.TagList() {
+		tags[t.Key] = t.Value
+	}
+	return tags
+}
+
+func Fields2Map(metric lp.Metric) map[string]interface{} {
+	fields := make(map[string]interface{})
+	for _, f := range metric.FieldList() {
+		fields[f.Key] = f.Value
+	}
+	return fields
+}
