@@ -46,7 +46,7 @@ The `interval` defines how often the metrics should be read and send to the sink
 
 All available collectors are listed in the above JSON. A more detailed list can be found in the [README for collectors](./collectors/README.md).
 
-There are currently three sinks supported `influxdb`, `nats` and `stdout`. See [README for sinks](./sinks/README.md).
+There are currently four sinks supported `influxdb`, `nats`, `http` and `stdout`. See [README for sinks](./sinks/README.md).
 
 In the `default_tags` section, one can define key-value-pairs (only strings) that are added to each sent out metric. This can be useful for cluster names like in the example JSON or information like rank or island for orientation.
 
