@@ -79,6 +79,10 @@ func (s *NatsSink) Write(point lp.MutableMetric) error {
 	return nil
 }
 
+func (s *NatsSink) Flush() error {
+	return nil
+}
+
 func (s *NatsSink) Close() {
 	log.Print("Closing Nats connection")
 	if s.client != nil {

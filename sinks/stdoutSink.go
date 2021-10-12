@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
 	//	"time"
 	lp "github.com/influxdata/line-protocol"
 )
@@ -51,6 +52,10 @@ func (s *StdoutSink) Write(point lp.MutableMetric) error {
 	} else {
 		fmt.Printf("%s %s %d\n", point.Name(), strings.Join(fieldstr, ","), point.Time().Unix())
 	}
+	return nil
+}
+
+func (s *StdoutSink) Flush() error {
 	return nil
 }
 

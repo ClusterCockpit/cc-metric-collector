@@ -269,6 +269,10 @@ func main() {
 						tmpPoints = tmpPoints[1:]
 					}
 				}
+
+				if err := sink.Flush(); err != nil {
+					log.Printf("sink error: %s\n", err)
+				}
 			}
 		}
 	}()

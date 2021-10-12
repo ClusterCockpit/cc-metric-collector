@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	lp "github.com/influxdata/line-protocol"
@@ -57,8 +58,8 @@ func (s *InfluxSink) Init(config SinkConfig) error {
 }
 
 func (s *InfluxSink) Write(point lp.MutableMetric) error {
-	var tags map[string]string
-	var fields map[string]interface{}
+	tags := map[string]string{}
+	fields := map[string]interface{}{}
 	for _, t := range point.TagList() {
 		tags[t.Key] = t.Value
 	}
@@ -68,6 +69,10 @@ func (s *InfluxSink) Write(point lp.MutableMetric) error {
 	p := influxdb2.NewPoint(point.Name(), tags, fields, point.Time())
 	err := s.writeApi.WritePoint(context.Background(), p)
 	return err
+}
+
+func (s *InfluxSink) Flush() error {
+	return nil
 }
 
 func (s *InfluxSink) Close() {

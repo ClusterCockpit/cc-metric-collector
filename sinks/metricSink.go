@@ -29,5 +29,6 @@ type Sink struct {
 type SinkFuncs interface {
 	Init(config SinkConfig) error
 	Write(point lp.MutableMetric) error
+	Flush() error
 	Close()
 }
