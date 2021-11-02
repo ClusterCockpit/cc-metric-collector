@@ -161,6 +161,12 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 				if lmetric.name == "pwr1" || lmetric.name == "pwr2" {
 					continue
 				}
+				mname := lmetric.name
+				inverse := false
+				if mname == "cpi" {
+					mname = "ipc"
+					inverse = true
+				}
 				if lmetric.socket_scope {
 					for sid, tid := range m.sock2tid {
 						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
@@ -176,9 +182,13 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 				} else {
 					for tid, cpu := range m.cpulist {
 						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
-						y, err := lp.New(lmetric.name,
+						value := float64(res)
+						if inverse {
+							value = 1.0 / value
+						}
+						y, err := lp.New(mname,
 							map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", int(cpu))},
-							map[string]interface{}{"value": float64(res)},
+							map[string]interface{}{"value": value},
 							time.Now())
 						if err == nil {
 							*out = append(*out, y)
