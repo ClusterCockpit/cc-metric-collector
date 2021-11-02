@@ -7,6 +7,7 @@ import (
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
 	"github.com/ClusterCockpit/cc-metric-collector/receivers"
 	"github.com/ClusterCockpit/cc-metric-collector/sinks"
+	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os"
 	"os/signal"
@@ -27,12 +28,15 @@ var Collectors = map[string]collectors.MetricGetter{
 	"cpustat":    &collectors.CpustatCollector{},
 	"topprocs":   &collectors.TopProcsCollector{},
 	"nvidia":     &collectors.NvidiaCollector{},
+	"customcmd":  &collectors.CustomCmdCollector{},
+	"diskstat":   &collectors.DiskstatCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
 	"influxdb": &sinks.InfluxSink{},
 	"stdout":   &sinks.StdoutSink{},
 	"nats":     &sinks.NatsSink{},
+	"http":     &sinks.HttpSink{},
 }
 
 var Receivers = map[string]receivers.ReceiverFuncs{
@@ -92,22 +96,22 @@ func SetLogging(logfile string) error {
 }
 
 func CreatePidfile(pidfile string) error {
-    file, err := os.OpenFile(pidfile, os.O_CREATE|os.O_RDWR, 0600)
-    if err != nil {
-        log.Print(err)
-        return err
-    }
-    file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
-    file.Close()
-    return nil
+	file, err := os.OpenFile(pidfile, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
+	file.Close()
+	return nil
 }
 
 func RemovePidfile(pidfile string) error {
-    info, err := os.Stat(pidfile)
-    if !os.IsNotExist(err) && !info.IsDir() {
-        os.Remove(pidfile)
-    }
-    return nil
+	info, err := os.Stat(pidfile)
+	if !os.IsNotExist(err) && !info.IsDir() {
+		os.Remove(pidfile)
+	}
+	return nil
 }
 
 // Register an interrupt handler for Ctrl+C and similar. At signal,
@@ -150,7 +154,7 @@ func main() {
 	err = CreatePidfile(clicfg["pidfile"])
 	err = SetLogging(clicfg["logfile"])
 	if err != nil {
-		log.Print("Error setting up logging system to ", clicfg["logfile"])
+		log.Print("Error setting up logging system to ", clicfg["logfile"], " on ", host)
 		return
 	}
 
@@ -225,6 +229,7 @@ func main() {
 		}
 	}
 	config.Collectors = tmp
+	config.DefTags["hostname"] = host
 
 	// Setup up ticker loop
 	log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
@@ -232,21 +237,7 @@ func main() {
 	done := make(chan bool)
 
 	// Storage for all node metrics
-	nodeFields := make(map[string]interface{})
-
-	// Storage for all socket metrics
-	slist := collectors.SocketList()
-	socketsFields := make(map[int]map[string]interface{}, len(slist))
-	for _, s := range slist {
-		socketsFields[s] = make(map[string]interface{})
-	}
-
-	// Storage for all CPU metrics
-	clist := collectors.CpuList()
-	cpuFields := make(map[int]map[string]interface{}, len(clist))
-	for _, s := range clist {
-		cpuFields[s] = make(map[string]interface{})
-	}
+	tmpPoints := make([]lp.MutableMetric, 0)
 
 	// Start receiver
 	if use_recv {
@@ -259,66 +250,29 @@ func main() {
 			case <-done:
 				return
 			case t := <-ticker.C:
-				// Count how many socket and cpu metrics are returned
-				scount := 0
-				ccount := 0
 
 				// Read all collectors are sort the results in the right
 				// storage locations
 				for _, c := range config.Collectors {
 					col := Collectors[c]
-					col.Read(time.Duration(config.Duration))
+					col.Read(time.Duration(config.Duration), &tmpPoints)
 
-					for key, val := range col.GetNodeMetric() {
-						nodeFields[key] = val
-					}
-					for sid, socket := range col.GetSocketMetrics() {
-						for key, val := range socket {
-							socketsFields[sid][key] = val
-							scount++
+					for {
+						if len(tmpPoints) == 0 {
+							break
 						}
-					}
-					for cid, cpu := range col.GetCpuMetrics() {
-						for key, val := range cpu {
-							cpuFields[cid][key] = val
-							ccount++
+						p := tmpPoints[0]
+						for k, v := range config.DefTags {
+							p.AddTag(k, v)
+							p.SetTime(t)
 						}
+						sink.Write(p)
+						tmpPoints = tmpPoints[1:]
 					}
 				}
 
-				// Send out node metrics
-				if len(nodeFields) > 0 {
-					nodeTags := map[string]string{"host": host}
-					for k, v := range config.DefTags {
-						nodeTags[k] = v
-					}
-					sink.Write("node", nodeTags, nodeFields, t)
-				}
-
-				// Send out socket metrics (if any)
-				if scount > 0 {
-					for sid, socket := range socketsFields {
-						if len(socket) > 0 {
-							socketTags := map[string]string{"socket": fmt.Sprintf("%d", sid), "host": host}
-							for k, v := range config.DefTags {
-								socketTags[k] = v
-							}
-							sink.Write("socket", socketTags, socket, t)
-						}
-					}
-				}
-
-				// Send out CPU metrics (if any)
-				if ccount > 0 {
-					for cid, cpu := range cpuFields {
-						if len(cpu) > 0 {
-							cpuTags := map[string]string{"cpu": fmt.Sprintf("%d", cid), "host": host}
-							for k, v := range config.DefTags {
-								cpuTags[k] = v
-							}
-							sink.Write("cpu", cpuTags, cpu, t)
-						}
-					}
+				if err := sink.Flush(); err != nil {
+					log.Printf("sink error: %s\n", err)
 				}
 			}
 		}

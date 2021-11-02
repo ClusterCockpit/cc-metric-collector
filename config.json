@@ -3,21 +3,23 @@
         "user": "testuser",
         "password": "testpass",
         "host": "127.0.0.1",
-        "port": "8087",
+        "port": "9090",
         "database": "testdb",
         "organization": "testorg",
-        "type": "influxdb"
+        "type": "stdout"
     },
     "interval" : 3,
     "duration" : 1,
     "collectors": [
-        "memstat",
-        "loadavg",
-        "netstat",
-        "ibstat",
-        "lustrestat",
         "cpustat",
-        "topprocs"
+        "loadavg",
+        "memstat",
+        "netstat",
+        "topprocs",
+        "lustrestat",
+        "ibstat",
+        "nvidia",
+        "likwid"
     ],
     "default_tags": {
         "cluster": "testcluster"

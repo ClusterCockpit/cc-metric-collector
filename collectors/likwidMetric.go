@@ -11,6 +11,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	lp "github.com/influxdata/line-protocol"
 	"log"
 	"strings"
 	"time"
@@ -23,7 +24,6 @@ type LikwidCollector struct {
 	sock2tid map[int]int
 	metrics  map[C.int]map[string]int
 	groups   map[string]C.int
-	init     bool
 }
 
 type LikwidMetric struct {
@@ -132,9 +132,13 @@ func (m *LikwidCollector) Init() error {
 	return nil
 }
 
-func (m *LikwidCollector) Read(interval time.Duration) {
+func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 	if m.init {
 		var ret C.int
+		core_fp_any := make(map[int]float64, len(m.cpulist))
+		for _, cpu := range m.cpulist {
+			core_fp_any[int(cpu)] = 0.0
+		}
 		for gname, gid := range m.groups {
 			ret = C.perfmon_setupCounters(gid)
 			if ret != 0 {
@@ -154,37 +158,68 @@ func (m *LikwidCollector) Read(interval time.Duration) {
 			}
 
 			for _, lmetric := range likwid_metrics[gname] {
+				if lmetric.name == "pwr1" || lmetric.name == "pwr2" {
+					continue
+				}
 				if lmetric.socket_scope {
 					for sid, tid := range m.sock2tid {
 						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
-						m.sockets[int(sid)][lmetric.name] = float64(res)
+						y, err := lp.New(lmetric.name,
+							map[string]string{"type": "socket", "type-id": fmt.Sprintf("%d", int(sid))},
+							map[string]interface{}{"value": float64(res)},
+							time.Now())
+						if err == nil {
+							*out = append(*out, y)
+						}
 						// log.Print("Metric '", lmetric.name,"' on Socket ",int(sid)," returns ", m.sockets[int(sid)][lmetric.name])
 					}
 				} else {
 					for tid, cpu := range m.cpulist {
 						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
-						m.cpus[int(cpu)][lmetric.name] = float64(res)
+						y, err := lp.New(lmetric.name,
+							map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", int(cpu))},
+							map[string]interface{}{"value": float64(res)},
+							time.Now())
+						if err == nil {
+							*out = append(*out, y)
+						}
+						if lmetric.name == "flops_dp" {
+							core_fp_any[int(cpu)] += 2 * float64(res)
+						}
+						if lmetric.name == "flops_sp" {
+							core_fp_any[int(cpu)] += float64(res)
+						}
 						// log.Print("Metric '", lmetric.name,"' on CPU ",int(cpu)," returns ", m.cpus[int(cpu)][lmetric.name])
 					}
 				}
 			}
-			for cpu := range m.cpus {
-				if flops_dp, found := m.cpus[cpu]["flops_dp"]; found {
-					if flops_sp, found := m.cpus[cpu]["flops_sp"]; found {
-						m.cpus[cpu]["flops_any"] = (2 * flops_dp.(float64)) + flops_sp.(float64)
+			for sid, tid := range m.sock2tid {
+				sum := 0.0
+				valid := false
+				for _, lmetric := range likwid_metrics[gname] {
+					if lmetric.name == "pwr1" || lmetric.name == "pwr2" {
+						res := C.perfmon_getLastMetric(gid, C.int(lmetric.group_idx), C.int(tid))
+						sum += float64(res)
+						valid = true
+					}
+				}
+				if valid {
+					y, err := lp.New("power",
+						map[string]string{"type": "socket", "type-id": fmt.Sprintf("%d", int(sid))},
+						map[string]interface{}{"value": float64(sum)},
+						time.Now())
+					if err == nil {
+						*out = append(*out, y)
 					}
 				}
 			}
-			for sid := range m.sockets {
-				if pwr1, found := m.sockets[int(sid)]["pwr1"]; found {
-					if pwr2, found := m.sockets[int(sid)]["pwr2"]; found {
-						sum := pwr1.(float64) + pwr2.(float64)
-						if sum > 0 {
-							m.sockets[int(sid)]["power"] = sum
-						}
-						delete(m.sockets[int(sid)], "pwr2")
-					}
-					delete(m.sockets[int(sid)], "pwr1")
+			for cpu := range m.cpulist {
+				y, err := lp.New("flops_any",
+					map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", int(cpu))},
+					map[string]interface{}{"value": float64(core_fp_any[int(cpu)])},
+					time.Now())
+				if err == nil {
+					*out = append(*out, y)
 				}
 			}
 		}

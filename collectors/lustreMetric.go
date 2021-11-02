@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -12,16 +13,30 @@ const LUSTREFILE = `/proc/fs/lustre/llite/lnec-XXXXXX/stats`
 
 type LustreCollector struct {
 	MetricCollector
+	tags    map[string]string
+	matches map[string]map[string]int
 }
 
 func (m *LustreCollector) Init() error {
 	m.name = "LustreCollector"
 	m.setup()
+	m.tags = map[string]string{"type": "node"}
+	m.matches = map[string]map[string]int{"read_bytes": {"read_bytes": 6, "read_requests": 1},
+		"write_bytes":      {"write_bytes": 6, "write_requests": 1},
+		"open":             {"open": 1},
+		"close":            {"close": 1},
+		"setattr":          {"setattr": 1},
+		"getattr":          {"getattr": 1},
+		"statfs":           {"statfs": 1},
+		"inode_permission": {"inode_permission": 1}}
 	_, err := ioutil.ReadFile(string(LUSTREFILE))
+	if err == nil {
+		m.init = true
+	}
 	return err
 }
 
-func (m *LustreCollector) Read(interval time.Duration) {
+func (m *LustreCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 	buffer, err := ioutil.ReadFile(string(LUSTREFILE))
 
 	if err != nil {
@@ -32,31 +47,24 @@ func (m *LustreCollector) Read(interval time.Duration) {
 	for _, line := range strings.Split(string(buffer), "\n") {
 		lf := strings.Fields(line)
 		if len(lf) > 1 {
-			switch lf[0] {
-			case "read_bytes":
-				m.node["read_bytes"], err = strconv.ParseInt(lf[6], 0, 64)
-				m.node["read_requests"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "write_bytes":
-				m.node["write_bytes"], err = strconv.ParseInt(lf[6], 0, 64)
-				m.node["write_requests"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "open":
-				m.node["open"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "close":
-				m.node["close"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "setattr":
-				m.node["setattr"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "getattr":
-				m.node["getattr"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "statfs":
-				m.node["statfs"], err = strconv.ParseInt(lf[1], 0, 64)
-			case "inode_permission":
-				m.node["inode_permission"], err = strconv.ParseInt(lf[1], 0, 64)
+			for match, fields := range m.matches {
+				if lf[0] == match {
+					for name, idx := range fields {
+						x, err := strconv.ParseInt(lf[idx], 0, 64)
+						if err == nil {
+							y, err := lp.New(name, m.tags, map[string]interface{}{"value": x}, time.Now())
+							if err == nil {
+								*out = append(*out, y)
+							}
+						}
+					}
+				}
 			}
-
 		}
 	}
 }
 
 func (m *LustreCollector) Close() {
+	m.init = false
 	return
 }

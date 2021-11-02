@@ -1,6 +1,8 @@
 package collectors
 
 import (
+	"fmt"
+	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -16,34 +18,34 @@ type CpustatCollector struct {
 func (m *CpustatCollector) Init() error {
 	m.name = "CpustatCollector"
 	m.setup()
+	m.init = true
 	return nil
 }
 
-func ParseStatLine(line string, out map[string]interface{}) {
+func ParseStatLine(line string, cpu int, out *[]lp.MutableMetric) {
 	ls := strings.Fields(line)
-	user, _ := strconv.ParseInt(ls[1], 0, 64)
-	out["cpu_user"] = float64(user)
-	nice, _ := strconv.ParseInt(ls[2], 0, 64)
-	out["cpu_nice"] = float64(nice)
-	system, _ := strconv.ParseInt(ls[3], 0, 64)
-	out["cpu_system"] = float64(system)
-	idle, _ := strconv.ParseInt(ls[4], 0, 64)
-	out["cpu_idle"] = float64(idle)
-	iowait, _ := strconv.ParseInt(ls[5], 0, 64)
-	out["cpu_iowait"] = float64(iowait)
-	irq, _ := strconv.ParseInt(ls[6], 0, 64)
-	out["cpu_irq"] = float64(irq)
-	softirq, _ := strconv.ParseInt(ls[7], 0, 64)
-	out["cpu_softirq"] = float64(softirq)
-	steal, _ := strconv.ParseInt(ls[8], 0, 64)
-	out["cpu_steal"] = float64(steal)
-	guest, _ := strconv.ParseInt(ls[9], 0, 64)
-	out["cpu_guest"] = float64(guest)
-	guest_nice, _ := strconv.ParseInt(ls[10], 0, 64)
-	out["cpu_guest_nice"] = float64(guest_nice)
+	matches := []string{"", "cpu_user", "cpu_nice", "cpu_system", "cpu_idle", "cpu_iowait", "cpu_irq", "cpu_softirq", "cpu_steal", "cpu_guest", "cpu_guest_nice"}
+
+	var tags map[string]string
+	if cpu < 0 {
+		tags = map[string]string{"type": "node"}
+	} else {
+		tags = map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", cpu)}
+	}
+	for i, m := range matches {
+		if len(m) > 0 {
+			x, err := strconv.ParseInt(ls[i], 0, 64)
+			if err == nil {
+				y, err := lp.New(m, tags, map[string]interface{}{"value": int(x)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
+			}
+		}
+	}
 }
 
-func (m *CpustatCollector) Read(interval time.Duration) {
+func (m *CpustatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 	buffer, err := ioutil.ReadFile(string(CPUSTATFILE))
 
 	if err != nil {
@@ -57,15 +59,16 @@ func (m *CpustatCollector) Read(interval time.Duration) {
 		}
 		ls := strings.Fields(line)
 		if strings.Compare(ls[0], "cpu") == 0 {
-			ParseStatLine(line, m.node)
+			ParseStatLine(line, -1, out)
 		} else if strings.HasPrefix(ls[0], "cpu") {
 			cpustr := strings.TrimLeft(ls[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
-			ParseStatLine(line, m.cpus[cpu])
+			ParseStatLine(line, cpu, out)
 		}
 	}
 }
 
 func (m *CpustatCollector) Close() {
+	m.init = false
 	return
 }

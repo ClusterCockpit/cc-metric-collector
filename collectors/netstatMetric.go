@@ -1,7 +1,7 @@
 package collectors
 
 import (
-	"fmt"
+	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -13,25 +13,32 @@ const NETSTATFILE = `/proc/net/dev`
 
 type NetstatCollector struct {
 	MetricCollector
+	matches map[int]string
+	tags    map[string]string
 }
 
 func (m *NetstatCollector) Init() error {
 	m.name = "NetstatCollector"
 	m.setup()
-	return nil
-}
-
-func (m *NetstatCollector) Read(interval time.Duration) {
-	data, err := ioutil.ReadFile(string(NETSTATFILE))
-	if err != nil {
-		log.Print(err.Error())
-		return
-	}
-	var matches = map[int]string{
+	m.tags = map[string]string{"type": "node"}
+	m.matches = map[int]string{
 		1:  "bytes_in",
 		9:  "bytes_out",
 		2:  "pkts_in",
 		10: "pkts_out",
+	}
+	_, err := ioutil.ReadFile(string(NETSTATFILE))
+	if err == nil {
+		m.init = true
+	}
+	return nil
+}
+
+func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+	data, err := ioutil.ReadFile(string(NETSTATFILE))
+	if err != nil {
+		log.Print(err.Error())
+		return
 	}
 
 	lines := strings.Split(string(data), "\n")
@@ -44,10 +51,13 @@ func (m *NetstatCollector) Read(interval time.Duration) {
 		if dev == "lo" {
 			continue
 		}
-		for i, name := range matches {
+		for i, name := range m.matches {
 			v, err := strconv.ParseInt(f[i], 10, 0)
 			if err == nil {
-				m.node[fmt.Sprintf("%s_%s", dev, name)] = float64(v) * 1.0e-3
+				y, err := lp.New(name, m.tags, map[string]interface{}{"value": int(float64(v) * 1.0e-3)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
 			}
 		}
 	}
@@ -55,5 +65,6 @@ func (m *NetstatCollector) Read(interval time.Duration) {
 }
 
 func (m *NetstatCollector) Close() {
+	m.init = false
 	return
 }

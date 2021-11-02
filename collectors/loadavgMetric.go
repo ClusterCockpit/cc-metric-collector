@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -11,15 +12,23 @@ const LOADAVGFILE = `/proc/loadavg`
 
 type LoadavgCollector struct {
 	MetricCollector
+	tags         map[string]string
+	load_matches []string
+	proc_matches []string
 }
 
 func (m *LoadavgCollector) Init() error {
 	m.name = "LoadavgCollector"
 	m.setup()
+	m.tags = map[string]string{"type": "node"}
+	m.load_matches = []string{"load_one", "load_five", "load_fifteen"}
+	m.proc_matches = []string{"proc_run", "proc_total"}
+	m.init = true
 	return nil
 }
 
-func (m *LoadavgCollector) Read(interval time.Duration) {
+func (m *LoadavgCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+
 	buffer, err := ioutil.ReadFile(string(LOADAVGFILE))
 
 	if err != nil {
@@ -27,19 +36,28 @@ func (m *LoadavgCollector) Read(interval time.Duration) {
 	}
 
 	ls := strings.Split(string(buffer), ` `)
-	loadOne, _ := strconv.ParseFloat(ls[0], 64)
-	m.node["load_one"] = float64(loadOne)
-	loadFive, _ := strconv.ParseFloat(ls[1], 64)
-	m.node["load_five"] = float64(loadFive)
-	loadFifteen, _ := strconv.ParseFloat(ls[2], 64)
-	m.node["load_fifteen"] = float64(loadFifteen)
+	for i, name := range m.load_matches {
+		x, err := strconv.ParseFloat(ls[i], 64)
+		if err == nil {
+			y, err := lp.New(name, m.tags, map[string]interface{}{"value": float64(x)}, time.Now())
+			if err == nil {
+				*out = append(*out, y)
+			}
+		}
+	}
 	lv := strings.Split(ls[3], `/`)
-	proc_run, _ := strconv.ParseFloat(lv[0], 64)
-	proc_total, _ := strconv.ParseFloat(lv[1], 64)
-	m.node["proc_total"] = float64(proc_total)
-	m.node["proc_run"] = float64(proc_run)
+	for i, name := range m.proc_matches {
+		x, err := strconv.ParseFloat(lv[i], 64)
+		if err == nil {
+			y, err := lp.New(name, m.tags, map[string]interface{}{"value": float64(x)}, time.Now())
+			if err == nil {
+				*out = append(*out, y)
+			}
+		}
+	}
 }
 
 func (m *LoadavgCollector) Close() {
+	m.init = false
 	return
 }
