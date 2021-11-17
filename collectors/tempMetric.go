@@ -22,8 +22,9 @@ func (m *TempCollector) Init() error {
 	m.name = "TempCollector"
 	m.setup()
 	m.init = true
-	m.tag_override = map[string]map[string]string{"hwmon0": {"type": "socket", "type-id": "0"},
-		"hwmon1": {"type": "socket", "type-id": "1"}}
+	//	m.tag_override = map[string]map[string]string{"hwmon0": {"type": "socket", "type-id": "0"},
+	//		"hwmon1": {"type": "socket", "type-id": "1"}}
+	m.tag_override = map[string]map[string]string{}
 	return nil
 }
 
