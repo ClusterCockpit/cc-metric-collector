@@ -9,7 +9,7 @@ jobs:
 
     - name: Install Golang
       run: |
-           apt install golang
+           sudo apt install -y golang
 
     - name: build RPM package
       id: rpm
