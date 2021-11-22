@@ -48,4 +48,5 @@ install -Dpm 644 scripts/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 
 
 %changelog
-* Initial spec file
+* Mon Nov 22 2021 Thomas Gruber - 0.1
+- Initial spec file
