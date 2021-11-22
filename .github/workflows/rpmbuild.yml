@@ -7,6 +7,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Install Golang
+      run: |
+           apt install golang
+
     - name: build RPM package
       id: rpm
       uses: naveenrajm7/rpmbuild@master
