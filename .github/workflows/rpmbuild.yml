@@ -7,17 +7,14 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install Golang
-      run: |
-           sudo apt install -y golang
+    - name: Setup Golang
+      uses: actions/setup-go@v2.1.4
 
-    - name: build RPM package
+    - name: Build RPM package
       id: rpm
       uses: naveenrajm7/rpmbuild@centos8
       with:
         spec_file: "scripts/cc-metric-collector.spec"
-      run: |
-           sudo yum install golang
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
