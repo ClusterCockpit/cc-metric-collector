@@ -7,7 +7,6 @@ License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  golang
-BuildRequires:  systemd-rpm-macros
 
 Provides:       %{name} = %{version}
 
