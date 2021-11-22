@@ -13,9 +13,11 @@ jobs:
 
     - name: build RPM package
       id: rpm
-      uses: naveenrajm7/rpmbuild@master
+      uses: naveenrajm7/rpmbuild@centos8
       with:
         spec_file: "scripts/cc-metric-collector.spec"
+      run: |
+           sudo yum install golang
 
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
