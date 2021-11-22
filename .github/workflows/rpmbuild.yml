@@ -3,7 +3,7 @@ on: push
 
 jobs:
   build:
-    runs-on: alpine_latest
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
 
