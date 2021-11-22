@@ -48,4 +48,4 @@ install -Dpm 644 scripts/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 
 
 %changelog
-- Initial spec file
+* Initial spec file
