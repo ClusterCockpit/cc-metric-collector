@@ -12,7 +12,7 @@ jobs:
 
     - name: Build RPM package
       id: rpm
-      uses: naveenrajm7/rpmbuild@centos8
+      uses: naveenrajm7/rpmbuild@master
       with:
         spec_file: "scripts/cc-metric-collector.spec"
 
