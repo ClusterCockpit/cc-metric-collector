@@ -1,0 +1,14 @@
+name: Run Test
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Golang
+      uses: actions/setup-go@v2.1.4
+
+    - name: Run MetricCollector
+      run: go run metric-collector.go --once
