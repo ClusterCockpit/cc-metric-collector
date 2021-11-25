@@ -30,6 +30,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"nvidia":     &collectors.NvidiaCollector{},
 	"customcmd":  &collectors.CustomCmdCollector{},
 	"diskstat":   &collectors.DiskstatCollector{},
+	"tempstat":   &collectors.TempCollector{},
 	"ipmistat" :  &collectors.IpmiCollector{},
 }
 

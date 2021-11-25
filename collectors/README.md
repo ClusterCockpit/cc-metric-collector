@@ -40,6 +40,7 @@ The base class/configuration is located in `metricCollector.go`.
 * `cpustatMetric.go`: Read CPU specific values from `/proc/stat`
 * `topprocsMetric.go`: Reads the Top5 processes by their CPU usage
 * `nvidiaMetric.go`: Read data about Nvidia GPUs using the NVML library
+* `tempMetric.go`: Read temperature data from `/sys/class/hwmon/hwmon*`
 * `ipmiMetric.go`: Collect data from `ipmitool` or as fallback `ipmi-sensors`
 
 If any of the collectors cannot be initialized, it is excluded from all further reads. Like if the Lustre stat file is not a valid path, no Lustre specific metrics will be recorded.
@@ -49,6 +50,9 @@ The InfiniBand collector requires the LID file to read the data. It has to be co
 
 # Lustre collector
 The Lustre collector requires the path to the Lustre stats file. It has to be configured in the collector itself (`LUSTREFILE` in `lustreMetric.go`)
+
+# Temperature collector
+This is optional configuration of the temperature collector. On multi-socket system there are multiple hwmon devices, one for each CPU socket but there is no field to determine which hwmon device corresponds to which CPU socket. After you determined the mapping, you can add it to the `tag_override` map in the collector.
 
 # LIKWID collector
 The `likwidMetric.go` requires preparation steps. For this, the `Makefile` can be used.
