@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	protocol "github.com/influxdata/line-protocol"
+	lp "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
@@ -13,7 +13,7 @@ import (
 type NatsSink struct {
 	Sink
 	client  *nats.Conn
-	encoder *protocol.Encoder
+	encoder *lp.Encoder
 	buffer  *bytes.Buffer
 }
 
@@ -46,28 +46,40 @@ func (s *NatsSink) Init(config SinkConfig) error {
 	// Setup Influx line protocol
 	s.buffer = &bytes.Buffer{}
 	s.buffer.Grow(1025)
-	s.encoder = protocol.NewEncoder(s.buffer)
+	s.encoder = lp.NewEncoder(s.buffer)
 	s.encoder.SetPrecision(time.Second)
 	s.encoder.SetMaxLineBytes(1024)
 	// Setup infos for connection
 	return s.connect()
 }
 
-func (s *NatsSink) Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error {
+func (s *NatsSink) Write(point lp.MutableMetric) error {
 	if s.client != nil {
-		m, err := protocol.New(measurement, tags, fields, t)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-		_, err = s.encoder.Encode(m)
+		//	    var tags map[string]string
+		//        var fields map[string]interface{}
+		//        for _, t := range point.TagList() {
+		//            tags[t.Key] = t.Value
+		//        }
+		//        for _, f := range point.FieldList() {
+		//            fields[f.Key] = f.Value
+		//        }
+		//		m, err := protocol.New(point.Name(), tags, fields, point.Time())
+		//		if err != nil {
+		//			log.Print(err)
+		//			return err
+		//		}
+		_, err := s.encoder.Encode(point)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
 		s.client.Publish(s.database, s.buffer.Bytes())
-
+		s.buffer.Reset()
 	}
+	return nil
+}
+
+func (s *NatsSink) Flush() error {
 	return nil
 }
 

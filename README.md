@@ -4,7 +4,7 @@ A node agent for measuring, processing and forwarding node level metrics part of
 # Configuration
 
 Configuration is implemented using a single json document that is distributed over network and may be persisted as file.
-Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol.md).
+Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol_alternative.md).
 
 ``` json
 {
@@ -46,7 +46,7 @@ The `interval` defines how often the metrics should be read and send to the sink
 
 All available collectors are listed in the above JSON. A more detailed list can be found in the [README for collectors](./collectors/README.md).
 
-There are currently three sinks supported `influxdb`, `nats` and `stdout`. See [README for sinks](./sinks/README.md).
+There are currently four sinks supported `influxdb`, `nats`, `http` and `stdout`. See [README for sinks](./sinks/README.md).
 
 In the `default_tags` section, one can define key-value-pairs (only strings) that are added to each sent out metric. This can be useful for cluster names like in the example JSON or information like rank or island for orientation.
 
@@ -86,5 +86,4 @@ The receiver runs as a go routine side-by-side with the timer loop and asynchron
 
 - [ ] Use only non-blocking APIs for the sinks
 - [ ] Collector specific configuration in global JSON file? Changing the configuration inside the Go code is not user-friendly.
-- [ ] Metrics in memory domain granularity?
 
