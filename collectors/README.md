@@ -40,6 +40,7 @@ The base class/configuration is located in `metricCollector.go`.
 * `cpustatMetric.go`: Read CPU specific values from `/proc/stat`
 * `topprocsMetric.go`: Reads the Top5 processes by their CPU usage
 * `nvidiaMetric.go`: Read data about Nvidia GPUs using the NVML library
+* `ipmiMetric.go`: Collect data from `ipmitool` or as fallback `ipmi-sensors`
 
 If any of the collectors cannot be initialized, it is excluded from all further reads. Like if the Lustre stat file is not a valid path, no Lustre specific metrics will be recorded.
 
