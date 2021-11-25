@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	lp "github.com/influxdata/line-protocol"
@@ -9,13 +10,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
 )
 
 const MEMSTATFILE = `/proc/meminfo`
 
 type MemstatCollectorConfig struct {
-    ExcludeMetrics []string                 `json:"exclude_metrics"`
+	ExcludeMetrics []string `json:"exclude_metrics"`
 }
 
 type MemstatCollector struct {
@@ -23,17 +23,17 @@ type MemstatCollector struct {
 	stats   map[string]int64
 	tags    map[string]string
 	matches map[string]string
-	config MemstatCollectorConfig
+	config  MemstatCollectorConfig
 }
 
 func (m *MemstatCollector) Init(config []byte) error {
-    var err error
+	var err error
 	m.name = "MemstatCollector"
 	if len(config) > 0 {
-	    err = json.Unmarshal(config, &m.config)
-	    if err != nil {
-	        return err
-	    }
+		err = json.Unmarshal(config, &m.config)
+		if err != nil {
+			return err
+		}
 	}
 	m.stats = make(map[string]int64)
 	m.matches = make(map[string]string)
@@ -48,13 +48,13 @@ func (m *MemstatCollector) Init(config []byte) error {
 		"MemAvailable": "mem_available",
 		"SwapFree":     "swap_free"}
 	for k, v := range matches {
-	    _, skip := stringArrayContains(m.config.ExcludeMetrics, k)
-	    if (!skip) {
-	        m.matches[k] = v
-	    }
+		_, skip := stringArrayContains(m.config.ExcludeMetrics, k)
+		if !skip {
+			m.matches[k] = v
+		}
 	}
 	if len(m.matches) == 0 {
-	    return errors.New("No metrics to collect")
+		return errors.New("No metrics to collect")
 	}
 	m.setup()
 	_, err = ioutil.ReadFile(string(MEMSTATFILE))
@@ -65,9 +65,9 @@ func (m *MemstatCollector) Init(config []byte) error {
 }
 
 func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
-    if !m.init {
-        return
-    }
+	if !m.init {
+		return
+	}
 
 	buffer, err := ioutil.ReadFile(string(MEMSTATFILE))
 	if err != nil {
@@ -115,7 +115,7 @@ func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 		}
 	}
 	if _, found := m.stats[`MemShared`]; found {
-	    _, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_shared")
+		_, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_shared")
 		y, err := lp.New("mem_shared", m.tags, map[string]interface{}{"value": int(float64(m.stats[`MemShared`]) * 1.0e-3)}, time.Now())
 		if err == nil && !skip {
 			*out = append(*out, y)

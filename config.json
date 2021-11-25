@@ -42,6 +42,8 @@
       ]
     },
     "likwid": {
+      "accessmode" : "accessdaemon",
+      "daemon_path" : "/apps/likwid/5.2.0/sbin",
       "eventsets": [
         {
           "events": {

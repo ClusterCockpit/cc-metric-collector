@@ -1,40 +1,40 @@
 package collectors
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os/exec"
 	"strings"
 	"time"
-	"encoding/json"
-	"errors"
 )
 
 const MAX_NUM_PROCS = 10
 
 type TopProcsCollectorConfig struct {
-    num_procs int                 `json:"num_procs"`
+	num_procs int `json:"num_procs"`
 }
 
 type TopProcsCollector struct {
 	MetricCollector
-	tags map[string]string
+	tags   map[string]string
 	config TopProcsCollectorConfig
 }
 
 func (m *TopProcsCollector) Init(config []byte) error {
-    var err error
+	var err error
 	m.name = "TopProcsCollector"
 	m.tags = map[string]string{"type": "node"}
 	if len(config) > 0 {
-	    err = json.Unmarshal(config, &m.config)
-	    if err != nil {
-	        return err
-	    }
+		err = json.Unmarshal(config, &m.config)
+		if err != nil {
+			return err
+		}
 	}
 	if m.config.num_procs <= 0 || m.config.num_procs > MAX_NUM_PROCS {
-	    return errors.New(fmt.Sprintf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS))
+		return errors.New(fmt.Sprintf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS))
 	}
 	m.setup()
 	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
@@ -48,9 +48,9 @@ func (m *TopProcsCollector) Init(config []byte) error {
 }
 
 func (m *TopProcsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
-    if !m.init {
-        return
-    }
+	if !m.init {
+		return
+	}
 	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
 	command.Wait()
 	stdout, err := command.Output()

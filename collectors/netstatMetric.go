@@ -1,24 +1,24 @@
 package collectors
 
 import (
+	"encoding/json"
 	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
 )
 
 const NETSTATFILE = `/proc/net/dev`
 
 type NetstatCollectorConfig struct {
-    ExcludeDevices []string                 `json:"exclude_devices, omitempty"`
+	ExcludeDevices []string `json:"exclude_devices, omitempty"`
 }
 
 type NetstatCollector struct {
 	MetricCollector
-	config NetstatCollectorConfig
+	config  NetstatCollectorConfig
 	matches map[int]string
 }
 
@@ -33,8 +33,8 @@ func (m *NetstatCollector) Init(config []byte) error {
 	}
 	err := json.Unmarshal(config, &m.config)
 	if err != nil {
-	    log.Print(err.Error())
-	    return err
+		log.Print(err.Error())
+		return err
 	}
 	_, err = ioutil.ReadFile(string(NETSTATFILE))
 	if err == nil {
@@ -59,14 +59,14 @@ func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 		dev := f[0][0 : len(f[0])-1]
 		cont := false
 		for _, d := range m.config.ExcludeDevices {
-		    if d == dev {
-		        cont = true
-		    }
+			if d == dev {
+				cont = true
+			}
 		}
 		if cont {
 			continue
 		}
-		tags := map[string]string{"device" : dev, "type": "node"}
+		tags := map[string]string{"device": dev, "type": "node"}
 		for i, name := range m.matches {
 			v, err := strconv.ParseInt(f[i], 10, 0)
 			if err == nil {

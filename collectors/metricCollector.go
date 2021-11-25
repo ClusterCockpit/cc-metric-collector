@@ -1,13 +1,13 @@
 package collectors
 
 import (
+	"errors"
 	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
-	"errors"
 )
 
 type MetricGetter interface {
@@ -69,7 +69,7 @@ func intArrayContains(array []int, str int) (int, bool) {
 }
 
 func stringArrayContains(array []string, str string) (int, bool) {
-    for i, a := range array {
+	for i, a := range array {
 		if a == str {
 			return i, true
 		}
@@ -144,11 +144,10 @@ func Fields2Map(metric lp.Metric) map[string]interface{} {
 }
 
 func RemoveFromStringList(s []string, r string) ([]string, error) {
-    for i, item := range s {
-        if r == item {
-            return append(s[:i], s[i+1:]...), nil
-        }
-    }
-    return s, errors.New("No such string in list")
+	for i, item := range s {
+		if r == item {
+			return append(s[:i], s[i+1:]...), nil
+		}
+	}
+	return s, errors.New("No such string in list")
 }
-
