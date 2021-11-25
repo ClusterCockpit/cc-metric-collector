@@ -1,6 +1,8 @@
 package collectors
 
 import (
+	"errors"
+	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -10,53 +12,34 @@ import (
 
 type MetricGetter interface {
 	Name() string
-	Init() error
-	Read(time.Duration)
+	Init(config []byte) error
+	Read(time.Duration, *[]lp.MutableMetric)
 	Close()
-	GetNodeMetric() map[string]interface{}
-	GetSocketMetrics() map[int]map[string]interface{}
-	GetCpuMetrics() map[int]map[string]interface{}
 }
 
 type MetricCollector struct {
-	name    string
-	node    map[string]interface{}
-	sockets map[int]map[string]interface{}
-	cpus    map[int]map[string]interface{}
+	name string
+	init bool
 }
 
 func (c *MetricCollector) Name() string {
 	return c.name
 }
 
-func (c *MetricCollector) GetNodeMetric() map[string]interface{} {
-	return c.node
-}
-
-func (c *MetricCollector) GetSocketMetrics() map[int]map[string]interface{} {
-	return c.sockets
-}
-
-func (c *MetricCollector) GetCpuMetrics() map[int]map[string]interface{} {
-	return c.cpus
-}
-
 func (c *MetricCollector) setup() error {
-	slist := SocketList()
-	clist := CpuList()
-	c.node = make(map[string]interface{})
-	c.sockets = make(map[int]map[string]interface{}, len(slist))
-	for _, s := range slist {
-		c.sockets[s] = make(map[string]interface{})
-	}
-	c.cpus = make(map[int]map[string]interface{}, len(clist))
-	for _, s := range clist {
-		c.cpus[s] = make(map[string]interface{})
-	}
 	return nil
 }
 
 func intArrayContains(array []int, str int) (int, bool) {
+	for i, a := range array {
+		if a == str {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+func stringArrayContains(array []string, str string) (int, bool) {
 	for i, a := range array {
 		if a == str {
 			return i, true
@@ -113,4 +96,29 @@ func CpuList() []int {
 		}
 	}
 	return cpulist
+}
+
+func Tags2Map(metric lp.Metric) map[string]string {
+	tags := make(map[string]string)
+	for _, t := range metric.TagList() {
+		tags[t.Key] = t.Value
+	}
+	return tags
+}
+
+func Fields2Map(metric lp.Metric) map[string]interface{} {
+	fields := make(map[string]interface{})
+	for _, f := range metric.FieldList() {
+		fields[f.Key] = f.Value
+	}
+	return fields
+}
+
+func RemoveFromStringList(s []string, r string) ([]string, error) {
+	for i, item := range s {
+		if r == item {
+			return append(s[:i], s[i+1:]...), nil
+		}
+	}
+	return s, errors.New("No such string in list")
 }

@@ -1,7 +1,8 @@
 package sinks
 
 import (
-	"time"
+	//	"time"
+	lp "github.com/influxdata/line-protocol"
 )
 
 type SinkConfig struct {
@@ -12,6 +13,7 @@ type SinkConfig struct {
 	Password     string `json:"password"`
 	Organization string `json:"organization"`
 	Type         string `json:"type"`
+	SSL          bool   `json:"ssl"`
 }
 
 type Sink struct {
@@ -21,10 +23,12 @@ type Sink struct {
 	password     string
 	database     string
 	organization string
+	ssl          bool
 }
 
 type SinkFuncs interface {
 	Init(config SinkConfig) error
-	Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error
+	Write(point lp.MutableMetric) error
+	Flush() error
 	Close()
 }

@@ -1,25 +1,36 @@
 {
-    "sink": {
-        "user": "testuser",
-        "password": "testpass",
-        "host": "127.0.0.1",
-        "port": "8087",
-        "database": "testdb",
-        "organization": "testorg",
-        "type": "influxdb"
-    },
-    "interval" : 3,
-    "duration" : 1,
-    "collectors": [
-        "memstat",
-        "loadavg",
-        "netstat",
-        "ibstat",
-        "lustrestat",
-        "cpustat",
-        "topprocs"
-    ],
-    "receiver": {
-        "type": "none"
+  "sink": {
+    "user": "testuser",
+    "password": "testpass",
+    "host": "127.0.0.1",
+    "port": "9090",
+    "database": "testdb",
+    "organization": "testorg",
+    "type": "stdout"
+  },
+  "interval": 3,
+  "duration": 1,
+  "collectors": [
+    "tempstat"
+  ],
+  "default_tags": {
+    "cluster": "testcluster"
+  },
+  "receiver": {
+    "type": "none"
+  },
+  "collect_config": {
+    "tempstat": {
+      "tag_override": {
+        "hwmon0" : {
+            "type" : "socket",
+            "type-id" : "0"
+        },
+        "hwmon1" : {
+            "type" : "socket",
+            "type-id" : "1"
+        }
+      }
     }
+  }
 }
