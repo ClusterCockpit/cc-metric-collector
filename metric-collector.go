@@ -46,12 +46,13 @@ var Receivers = map[string]receivers.ReceiverFuncs{
 
 // Structure of the configuration file
 type GlobalConfig struct {
-	Sink       sinks.SinkConfig         `json:"sink"`
-	Interval   int                      `json:"interval"`
-	Duration   int                      `json:"duration"`
-	Collectors []string                 `json:"collectors"`
-	Receiver   receivers.ReceiverConfig `json:"receiver"`
-	DefTags    map[string]string        `json:"default_tags"`
+	Sink           sinks.SinkConfig           `json:"sink"`
+	Interval       int                        `json:"interval"`
+	Duration       int                        `json:"duration"`
+	Collectors     []string                   `json:"collectors"`
+	Receiver       receivers.ReceiverConfig   `json:"receiver"`
+	DefTags        map[string]string          `json:"default_tags"`
+	CollectConfigs map[string]json.RawMessage `json:"collect_config"`
 }
 
 // Load JSON configuration file
@@ -63,7 +64,7 @@ func LoadConfiguration(file string, config *GlobalConfig) error {
 		return err
 	}
 	jsonParser := json.NewDecoder(configFile)
-	jsonParser.Decode(config)
+	err = jsonParser.Decode(config)
 	return err
 }
 
@@ -72,11 +73,17 @@ func ReadCli() map[string]string {
 	cfg := flag.String("config", "./config.json", "Path to configuration file")
 	logfile := flag.String("log", "stderr", "Path for logfile")
 	pidfile := flag.String("pidfile", "/var/run/cc-metric-collector.pid", "Path for PID file")
+	once := flag.Bool("once", false, "Run all collectors only once")
 	flag.Parse()
 	m = make(map[string]string)
 	m["configfile"] = *cfg
 	m["logfile"] = *logfile
 	m["pidfile"] = *pidfile
+	if *once {
+		m["once"] = "true"
+	} else {
+		m["once"] = "false"
+	}
 	return m
 }
 
@@ -115,27 +122,33 @@ func RemovePidfile(pidfile string) error {
 	return nil
 }
 
+// General shutdown function that gets executed in case of interrupt or graceful shutdown
+func shutdown(wg *sync.WaitGroup, collectors []string, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs, pidfile string) {
+	log.Print("Shutdown...")
+	for _, c := range collectors {
+		col := Collectors[c]
+		log.Print("Stop ", col.Name())
+		col.Close()
+	}
+	time.Sleep(1 * time.Second)
+	if recv != nil {
+		recv.Close()
+	}
+	sink.Close()
+	RemovePidfile(pidfile)
+	wg.Done()
+}
+
 // Register an interrupt handler for Ctrl+C and similar. At signal,
 // all collectors are closed
-func shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs, pidfile string) {
+func prepare_shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs, pidfile string) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 
 	go func(wg *sync.WaitGroup) {
 		<-sigs
 		log.Print("Shutdown...")
-		for _, c := range config.Collectors {
-			col := Collectors[c]
-			log.Print("Stop ", col.Name())
-			col.Close()
-		}
-		time.Sleep(1 * time.Second)
-		if recv != nil {
-			recv.Close()
-		}
-		sink.Close()
-		RemovePidfile(pidfile)
-		wg.Done()
+		shutdown(wg, config.Collectors, sink, recv, pidfile)
 	}(wg)
 }
 
@@ -163,6 +176,7 @@ func main() {
 	err = LoadConfiguration(clicfg["configfile"], &config)
 	if err != nil {
 		log.Print("Error reading configuration file ", clicfg["configfile"])
+		log.Print(err.Error())
 		return
 	}
 	if config.Interval <= 0 || time.Duration(config.Interval)*time.Second <= 0 {
@@ -215,15 +229,19 @@ func main() {
 	}
 
 	// Register interrupt handler
-	shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
+	prepare_shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
 
 	// Initialize all collectors
 	tmp := make([]string, 0)
 	for _, c := range config.Collectors {
 		col := Collectors[c]
-		err = col.Init()
+		conf, found := config.CollectConfigs[c]
+		if !found {
+			conf = json.RawMessage("")
+		}
+		err = col.Init([]byte(conf))
 		if err != nil {
-			log.Print("SKIP ", col.Name())
+			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
 		} else {
 			log.Print("Start ", col.Name())
 			tmp = append(tmp, c)
@@ -233,7 +251,11 @@ func main() {
 	config.DefTags["hostname"] = host
 
 	// Setup up ticker loop
-	log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
+	if clicfg["once"] != "true" {
+		log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
+	} else {
+		log.Print("Running loop only once")
+	}
 	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
 	done := make(chan bool)
 
@@ -274,6 +296,10 @@ func main() {
 
 				if err := sink.Flush(); err != nil {
 					log.Printf("sink error: %s\n", err)
+				}
+				if clicfg["once"] == "true" {
+					shutdown(&wg, config.Collectors, sink, recv, clicfg["pidfile"])
+					return
 				}
 			}
 		}
