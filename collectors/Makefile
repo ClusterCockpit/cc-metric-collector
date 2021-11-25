@@ -1,14 +1,20 @@
 # Use central installation
-CENTRAL_INSTALL = false
+CENTRAL_INSTALL = true
 
 # Path to central installation (if CENTRAL_INSTALL=true)
-LIKWID_BASE=/usr/local
+LIKWID_BASE=/apps/likwid/5.2.0
 # LIKWID version (should be same major version as central installation, 5.1.x)
-LIKWID_VERSION = 5.1.0
-# Target user for LIKWID's accessdaemon (if CENTRAL_INSTALL=false)
-DAEMON_USER=root
-# Target group for LIKWID's accessdaemon (if CENTRAL_INSTALL=false)
-DAEMON_GROUP=root
+LIKWID_VERSION = 5.2.0
+
+#######################################################################
+# if CENTRAL_INSTALL=false
+#######################################################################
+# Target user for LIKWID's accessdaemon
+DAEMON_USER=unrz139
+# Target group for LIKWID's accessdaemon
+DAEMON_GROUP=unrz
+# Folder for the group files
+GROUP_FOLDER=/usr/local/share/likwid/perfgroups/
 
 
 #################################################
@@ -21,7 +27,7 @@ ifneq ($(strip $(CENTRAL_INSTALL)),true)
 LIKWID_BASE := $(shell pwd)/$(INSTALL_FOLDER)
 DAEMON_BASE := $(LIKWID_BASE)
 GROUPS_BASE := $(LIKWID_BASE)/groups
-all: $(INSTALL_FOLDER)/liblikwid.a $(INSTALL_FOLDER)/likwid-accessD cleanup prepare_collector
+all: $(INSTALL_FOLDER)/liblikwid.a cleanup prepare_collector
 else
 DAEMON_BASE= $(LIKWID_BASE)/sbin
 GROUPS_BASE := $(LIKWID_BASE)/share/likwid/perfgroups
@@ -45,6 +51,7 @@ $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION): $(BUILD_FOLDER)/likwid-$(LIKWID_VERSIO
 $(INSTALL_FOLDER)/liblikwid.a: $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION) $(INSTALL_FOLDER)
 	sed -i -e s+"PREFIX ?= .*"+"PREFIX = $(LIKWID_BASE)"+g \
 		-e s+"SHARED_LIBRARY = .*"+"SHARED_LIBRARY = false"+g \
+		-e s+"ACCESSMODE = .*"+"ACCESSMODE = accessdaemon"+g \
 		-e s+"INSTALLED_ACCESSDAEMON = .*"+"INSTALLED_ACCESSDAEMON = $(DAEMON_BASE)/likwid-accessD"+g \
 		-e s+"LIKWIDGROUPPATH = .*"+"LIKWIDGROUPPATH = $(GROUPS_BASE)"+g \
 		$(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/config.mk
@@ -64,3 +71,8 @@ prepare_collector: likwidMetric.go
 
 cleanup:
 	rm -rf $(BUILD_FOLDER)
+
+clean: cleanup
+	rm -rf likwid
+
+.PHONY: clean
