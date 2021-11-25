@@ -11,16 +11,7 @@
   "interval": 3,
   "duration": 1,
   "collectors": [
-    "loadavg",
-    "likwid",
-    "memstat",
-    "netstat",
-    "ibstat",
-    "lustrestat",
-    "cpustat",
-    "topprocs",
-    "nvidia",
-    "diskstat"
+    "tempstat"
   ],
   "default_tags": {
     "cluster": "testcluster"
@@ -29,101 +20,17 @@
     "type": "none"
   },
   "collect_config": {
-    "netstat": {
-      "exclude_devices": [
-        "enp195s0f1",
-        "lo"
-      ]
-    },
-    "ibstat": {
-      "exclude_devices": [
-        "mlx5_0",
-        "mlx5_1"
-      ]
-    },
-    "likwid": {
-      "accessmode" : "accessdaemon",
-      "daemon_path" : "/apps/likwid/5.2.0/sbin",
-      "eventsets": [
-        {
-          "events": {
-            "FIXC1": "ACTUAL_CPU_CLOCK",
-            "FIXC2": "MAX_CPU_CLOCK",
-            "PMC0": "RETIRED_INSTRUCTIONS",
-            "PMC1": "CPU_CLOCKS_UNHALTED",
-            "PMC2": "RETIRED_SSE_AVX_FLOPS_ALL",
-            "PMC3": "MERGE",
-            "DFC0": "DRAM_CHANNEL_0",
-            "DFC1": "DRAM_CHANNEL_1",
-            "DFC2": "DRAM_CHANNEL_2",
-            "DFC3": "DRAM_CHANNEL_3"
-          },
-          "metrics": [
-            {
-              "name": "ipc",
-              "calc": "PMC0/PMC1",
-              "socket_scope": false,
-              "publish": true
-            },
-            {
-              "name": "flops_any",
-              "calc": "0.000001*PMC2/time",
-              "socket_scope": false,
-              "publish": true
-            },
-            {
-              "name": "clock_mhz",
-              "calc": "0.000001*(FIXC1/FIXC2)/inverseClock",
-              "socket_scope": false,
-              "publish": true
-            },
-            {
-              "name": "mem1",
-              "calc": "0.000001*(DFC0+DFC1+DFC2+DFC3)*64.0/time",
-              "socket_scope": true,
-              "publish": false
-            }
-          ]
+    "tempstat": {
+      "tag_override": {
+        "hwmon0" : {
+            "type" : "socket",
+            "type-id" : "0"
         },
-        {
-          "events": {
-            "DFC0": "DRAM_CHANNEL_4",
-            "DFC1": "DRAM_CHANNEL_5",
-            "DFC2": "DRAM_CHANNEL_6",
-            "DFC3": "DRAM_CHANNEL_7",
-            "PWR0": "RAPL_CORE_ENERGY",
-            "PWR1": "RAPL_PKG_ENERGY"
-          },
-          "metrics": [
-            {
-              "name": "pwr_core",
-              "calc": "PWR0/time",
-              "socket_scope": false,
-              "publish": true
-            },
-            {
-              "name": "pwr_pkg",
-              "calc": "PWR1/time",
-              "socket_scope": true,
-              "publish": true
-            },
-            {
-              "name": "mem2",
-              "calc": "0.000001*(DFC0+DFC1+DFC2+DFC3)*64.0/time",
-              "socket_scope": true,
-              "publish": false
-            }
-          ]
+        "hwmon1" : {
+            "type" : "socket",
+            "type-id" : "1"
         }
-      ],
-      "globalmetrics": [
-        {
-          "name": "mem_bw",
-          "calc": "mem1+mem2",
-          "socket_scope": true,
-          "publish": true
-        }
-      ]
+      }
     }
   }
 }

@@ -9,22 +9,32 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"encoding/json"
 )
 
 const HWMON_PATH = `/sys/class/hwmon`
 
-type TempCollector struct {
-	MetricCollector
-	tag_override map[string]map[string]string // if outer key in path, use additional tags
+
+type TempCollectorConfig struct {
+	ExcludeMetrics []string `json:"exclude_metrics"`
+	TagOverride map[string]map[string]string `json:"tag_override"`
 }
 
-func (m *TempCollector) Init() error {
+type TempCollector struct {
+	MetricCollector
+	config TempCollectorConfig
+}
+
+func (m *TempCollector) Init(config []byte) error {
 	m.name = "TempCollector"
 	m.setup()
 	m.init = true
-	//	m.tag_override = map[string]map[string]string{"hwmon0": {"type": "socket", "type-id": "0"},
-	//		"hwmon1": {"type": "socket", "type-id": "1"}}
-	m.tag_override = map[string]map[string]string{}
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &m.config)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -73,7 +83,7 @@ func (m *TempCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 	for _, files := range sensors {
 		for name, file := range files {
 			tags := map[string]string{"type": "node"}
-			for key, newtags := range m.tag_override {
+			for key, newtags := range m.config.TagOverride {
 				if strings.Contains(file, key) {
 					tags = newtags
 					break
