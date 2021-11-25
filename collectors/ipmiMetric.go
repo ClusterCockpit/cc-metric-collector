@@ -39,6 +39,12 @@ func (m *IpmiCollector) Init(config []byte) error {
 	}
 	_, err1 := os.Stat(m.config.IpmitoolPath)
 	_, err2 := os.Stat(m.config.IpmisensorsPath)
+	if err1 != nil {
+	    m.config.IpmitoolPath = ""
+	}
+	if err2 != nil {
+	    m.config.IpmisensorsPath = ""
+	}
 	if err1 != nil && err2 != nil {
 	    return errors.New("No IPMI reader found")
 	}
@@ -47,7 +53,7 @@ func (m *IpmiCollector) Init(config []byte) error {
 }
 
 func ReadIpmiTool(cmd string, out *[]lp.MutableMetric) {
-	command := exec.Command(cmd, "")
+	command := exec.Command(cmd, "sensor")
 	command.Wait()
 	stdout, err := command.Output()
 	if err != nil {
@@ -58,11 +64,25 @@ func ReadIpmiTool(cmd string, out *[]lp.MutableMetric) {
 	ll := strings.Split(string(stdout), "\n")
 
 	for _, line := range ll {
-		lv := strings.Split(line, ",")
-		v, err := strconv.ParseFloat(lv[3], 64)
+		lv := strings.Split(line, "|")
+		if len(lv) < 3 {
+            continue
+        }
+		v, err := strconv.ParseFloat(strings.Trim(lv[1], " "), 64)
 		if err == nil {
-			name := strings.ToLower(strings.Replace(lv[1], " ", "_", -1))
-			y, err := lp.New(name, map[string]string{"type" : "node"}, map[string]interface{}{"value": v}, time.Now())
+			name := strings.ToLower(strings.Replace(strings.Trim(lv[0], " "), " ", "_", -1))
+			unit := strings.Trim(lv[2], " ")
+			if unit == "Volts" {
+			    unit = "V"
+			} else if unit == "degrees C" {
+			    unit = "C"
+			} else if unit == "degrees F" {
+			    unit = "F"
+			} else if unit == "Watts" {
+			    unit = "W"
+			}
+			
+			y, err := lp.New(name, map[string]string{"unit": unit, "type" : "node"}, map[string]interface{}{"value": v}, time.Now())
 			if err == nil {
 				*out = append(*out, y)
 			}
@@ -72,7 +92,7 @@ func ReadIpmiTool(cmd string, out *[]lp.MutableMetric) {
 
 func ReadIpmiSensors(cmd string, out *[]lp.MutableMetric) {
 
-	command := exec.Command(cmd, "--comma-separated-output")
+	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
 	command.Wait()
 	stdout, err := command.Output()
 	if err != nil {
