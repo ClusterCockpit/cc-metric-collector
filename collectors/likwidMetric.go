@@ -63,30 +63,6 @@ type LikwidMetric struct {
 	group_idx    int
 }
 
-const GROUPPATH = `/apps/likwid/5.2.0/share/likwid/perfgroups`
-
-var likwid_metrics = map[string][]LikwidMetric{
-	"MEM_DP": {LikwidMetric{name: "mem_bw", search: "Memory bandwidth [MBytes/s]", socket_scope: true},
-		LikwidMetric{name: "pwr1", search: "Power [W]", socket_scope: true},
-		LikwidMetric{name: "pwr2", search: "Power DRAM [W]", socket_scope: true},
-		LikwidMetric{name: "flops_dp", search: "DP [MFLOP/s]", socket_scope: false}},
-	"FLOPS_SP": {LikwidMetric{name: "clock", search: "Clock [MHz]", socket_scope: false},
-		LikwidMetric{name: "cpi", search: "CPI", socket_scope: false},
-		LikwidMetric{name: "flops_sp", search: "SP [MFLOP/s]", socket_scope: false}},
-}
-
-func getMetricId(group C.int, search string) (int, error) {
-	for i := 0; i < int(C.perfmon_getNumberOfMetrics(group)); i++ {
-		mname := C.perfmon_getMetricName(group, C.int(i))
-		go_mname := C.GoString(mname)
-		if strings.Contains(go_mname, search) {
-			return i, nil
-		}
-
-	}
-	return -1, errors.New(fmt.Sprintf("Cannot find metric for search string '%s' in group %d", search, int(group)))
-}
-
 func eventsToEventStr(events map[string]string) string {
 	elist := make([]string, 0)
 	for k, v := range events {
@@ -188,7 +164,6 @@ func (m *LikwidCollector) Init(config []byte) error {
 		return errors.New("No LIKWID performance group initialized")
 	}
 	m.basefreq = getBaseFreq()
-	log.Print(m.basefreq)
 	m.init = true
 	return nil
 }
