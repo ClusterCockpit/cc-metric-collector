@@ -1,25 +1,65 @@
 package collectors
 
 import (
-	"fmt"
+	"errors"
 	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"os/exec"
 	"time"
+	"encoding/json"
+	"strings"
 )
 
 const CUSTOMCMDPATH = `/home/unrz139/Work/cc-metric-collector/collectors/custom`
+
+type CustomCmdCollectorConfig struct {
+    commands []string `json:"commands"`
+    files []string `json:"files"`
+    ExcludeMetrics []string                 `json:"exclude_metrics"`
+}
 
 type CustomCmdCollector struct {
 	MetricCollector
 	handler *lp.MetricHandler
 	parser  *lp.Parser
+	config CustomCmdCollectorConfig
+	commands []string
+	files []string
 }
 
-func (m *CustomCmdCollector) Init() error {
+func (m *CustomCmdCollector) Init(config []byte) error {
+    var err error
 	m.name = "CustomCmdCollector"
+	if len(config) > 0 {
+	    err = json.Unmarshal(config, &m.config)
+	    if err != nil {
+	        log.Print(err.Error())
+	        return err
+	    }
+	}
 	m.setup()
+	for _, c := range m.config.commands {
+	    cmdfields := strings.Fields(c)
+	    command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
+	    command.Wait()
+	    _, err = command.Output()
+	    if err != nil {
+            m.commands = append(m.commands, c)
+        }
+	}
+	for _, f := range m.config.files {
+	    _, err = ioutil.ReadFile(f)
+	    if err == nil {
+	        m.files = append(m.files, f)
+	    } else {
+	        log.Print(err.Error())
+	        continue
+	    }
+	}
+	if len(m.files) == 0 && len(m.commands) == 0 {
+		return errors.New("No metrics to collect")
+	}
 	m.handler = lp.NewMetricHandler()
 	m.parser = lp.NewParser(m.handler)
 	m.parser.SetTimeFunc(DefaultTime)
@@ -32,73 +72,55 @@ var DefaultTime = func() time.Time {
 }
 
 func (m *CustomCmdCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
-	files, err := ioutil.ReadDir(string(CUSTOMCMDPATH))
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	for _, file := range files {
-		//		stat, err := os.Stat(file)
-		//		if err != nil {
-		//			log.Print(err)
-		//			continue
-		//		}
-		//		mode := stat.Mode()
-		//		if mode & 0o555 {
-		path := fmt.Sprintf("%s/%s", string(CUSTOMCMDPATH), file.Name())
-		command := exec.Command(path, "")
+    if !m.init {
+        return
+    }
+	for _, cmd := range m.commands {
+		cmdfields := strings.Fields(cmd)
+		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
 		command.Wait()
 		stdout, err := command.Output()
 		if err != nil {
 			log.Print(err)
 			continue
 		}
-		metrics, err := m.parser.Parse(stdout)
+		cmdmetrics, err := m.parser.Parse(stdout)
 		if err != nil {
 			log.Print(err)
 			continue
 		}
-		for _, m := range metrics {
-			y, err := lp.New(m.Name(), Tags2Map(m), Fields2Map(m), m.Time())
-			if err == nil {
-				*out = append(*out, y)
-			}
-			//				switch m.Name() {
-			//				case "node":
-			//					for k, v := range m.FieldList() {
-			//						m.node[k] = float64(v)
-			//					}
-			//				case "socket":
-			//					tlist := m.TagList()
-			//					if id, found := tlist["socket"]; found {
-			//						for k, v := range m.FieldList() {
-			//							m.socket[id][k] = float64(v)
-			//						}
-			//					}
-			//				case "cpu":
-			//					tlist := m.TagList()
-			//					if id, found := tlist["cpu"]; found {
-			//						for k, v := range m.FieldList() {
-			//							m.cpu[id][k] = float64(v)
-			//						}
-			//					}
-			//				case "network":
-			//					tlist := m.TagList()
-			//					if id, found := tlist["device"]; found {
-			//						for k, v := range m.FieldList() {
-			//							m.network[id][k] = float64(v)
-			//						}
-			//					}
-			//				case "accelerator":
-			//					tlist := m.TagList()
-			//					if id, found := tlist["device"]; found {
-			//						for k, v := range m.FieldList() {
-			//							m.accelerator[id][k] = float64(v)
-			//						}
-			//					}
-			//				}
+        for _, c := range cmdmetrics {
+            _, skip := stringArrayContains(m.config.ExcludeMetrics, c.Name())
+            if skip {
+                continue
+            }
+            y, err := lp.New(c.Name(), Tags2Map(c), Fields2Map(c), c.Time())
+		    if err == nil {
+			    *out = append(*out, y)
+		    }
+        }
+	}
+	for _, file := range m.files {
+	    buffer, err := ioutil.ReadFile(file)
+	    if err != nil {
+		    log.Print(err)
+		    return
+	    }
+	    fmetrics, err := m.parser.Parse(buffer)
+		if err != nil {
+			log.Print(err)
+			continue
 		}
-		//		} if file is executable check
+        for _, f := range fmetrics {
+            _, skip := stringArrayContains(m.config.ExcludeMetrics, f.Name())
+            if skip {
+                continue
+            }
+            y, err := lp.New(f.Name(), Tags2Map(f), Fields2Map(f), f.Time())
+		    if err == nil {
+			    *out = append(*out, y)
+		    }
+        }
 	}
 }
 
