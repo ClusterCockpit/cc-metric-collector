@@ -12,7 +12,15 @@
   "duration": 1,
   "collectors": [
     "loadavg",
-    "likwid"
+    "likwid",
+    "memstat",
+    "netstat",
+    "ibstat",
+    "lustrestat",
+    "cpustat",
+    "topprocs",
+    "nvidia",
+    "diskstat"
   ],
   "default_tags": {
     "cluster": "testcluster"
@@ -33,30 +41,7 @@
         "mlx5_1"
       ]
     },
-    "cpustat": {
-      "exclude_metrics": [
-        "cpu_softirq"
-      ]
-    },
-    "diskstat": {
-      "exclude_metrics": [
-        "writes_merged"
-      ]
-    },
-    "nvidia": {
-      "exclude_metrics": [
-        "util"
-      ]
-    },
-    "loadavg": {
-      "exclude_metrics": [
-        "load_fifteen"
-      ]
-    },
     "likwid": {
-      "exclude_metrics": [
-        "load_fifteen"
-      ],
       "eventsets": [
         {
           "events": {
