@@ -10,5 +10,8 @@ jobs:
     - name: Setup Golang
       uses: actions/setup-go@v2.1.4
 
+    - name: Build MetricCollector
+      run: make
+
     - name: Run MetricCollector
-      run: go run metric-collector.go --once
+      run: ./metric-collector --once
