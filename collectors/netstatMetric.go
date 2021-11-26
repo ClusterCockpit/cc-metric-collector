@@ -13,7 +13,7 @@ import (
 const NETSTATFILE = `/proc/net/dev`
 
 type NetstatCollectorConfig struct {
-	ExcludeDevices []string `json:"exclude_devices, omitempty"`
+	ExcludeDevices []string `json:"exclude_devices"`
 }
 
 type NetstatCollector struct {
@@ -31,10 +31,12 @@ func (m *NetstatCollector) Init(config []byte) error {
 		2:  "pkts_in",
 		10: "pkts_out",
 	}
-	err := json.Unmarshal(config, &m.config)
-	if err != nil {
-		log.Print(err.Error())
-		return err
+	if len(config) > 0 {
+	    err := json.Unmarshal(config, &m.config)
+	    if err != nil {
+		    log.Print(err.Error())
+		    return err
+	    }
 	}
 	_, err = ioutil.ReadFile(string(NETSTATFILE))
 	if err == nil {
