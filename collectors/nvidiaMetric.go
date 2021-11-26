@@ -21,14 +21,11 @@ type NvidiaCollector struct {
 	config   NvidiaCollectorConfig
 }
 
-func (m *NvidiaCollector) CatchPanic() error {
-
+func (m *NvidiaCollector) CatchPanic() {
 	if rerr := recover(); rerr != nil {
-		log.Print("CatchPanic ", string(rerr.(string)))
-		err := errors.New(rerr.(string))
-		return err
+		log.Print(rerr)
+		m.init = false
 	}
-	return nil
 }
 
 func (m *NvidiaCollector) Init(config []byte) error {
