@@ -243,9 +243,11 @@ func main() {
 		err = col.Init([]byte(conf))
 		if err != nil {
 			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
-		} else {
-			log.Print("Start ", col.Name())
-			tmp = append(tmp, c)
+		} else if !col.Initialized() {
+		    log.Print("SKIP ", col.Name(), " (Not initialized)")
+	    } else {
+		    log.Print("Start ", col.Name())
+		    tmp = append(tmp, c)
 		}
 	}
 	config.Collectors = tmp
