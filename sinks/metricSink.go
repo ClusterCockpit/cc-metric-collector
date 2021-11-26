@@ -32,3 +32,19 @@ type SinkFuncs interface {
 	Flush() error
 	Close()
 }
+
+func Tags2Map(metric lp.MutableMetric) map[string]string {
+	tags := make(map[string]string)
+	for _, t := range metric.TagList() {
+		tags[t.Key] = t.Value
+	}
+	return tags
+}
+
+func Fields2Map(metric lp.MutableMetric) map[string]interface{} {
+	fields := make(map[string]interface{})
+	for _, f := range metric.FieldList() {
+		fields[f.Key] = f.Value
+	}
+	return fields
+}
