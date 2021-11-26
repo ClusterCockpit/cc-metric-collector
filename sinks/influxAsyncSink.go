@@ -69,6 +69,10 @@ func (s *InfluxAsyncSink) Init(config SinkConfig) error {
 func (s *InfluxAsyncSink) Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error {
 	p := influxdb2.NewPoint(measurement, tags, fields, t)
 	s.writeApi.WritePoint(p)
+	return nil
+}
+
+func (s *InfluxAsyncSink) Flush() error {
 	s.writeApi.Flush()
 	return nil
 }
