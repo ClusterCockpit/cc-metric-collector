@@ -286,8 +286,8 @@ Since some metrics can only be gathered in multiple measurements (like the memor
 
 ## Todos
 
-[ ] Exclude devices for `diskstat` collector
-[ ] Aggreate metrics to higher topology entity (sum hwthread metrics to socket metric, ...). Needs to be configurable
+* [ ] Exclude devices for `diskstat` collector
+* [ ] Aggreate metrics to higher topology entity (sum hwthread metrics to socket metric, ...). Needs to be configurable
 
 # Contributing own collectors
 A collector reads data from any source, parses it to metrics and submits these metrics to the `metric-collector`. A collector provides three function:
