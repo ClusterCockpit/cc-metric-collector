@@ -12,6 +12,7 @@ import (
 )
 
 const MAX_NUM_PROCS = 10
+const DEFAULT_NUM_PROCS = 2
 
 type TopProcsCollectorConfig struct {
 	num_procs int `json:"num_procs"`
@@ -32,6 +33,8 @@ func (m *TopProcsCollector) Init(config []byte) error {
 		if err != nil {
 			return err
 		}
+	} else {
+	    m.config.num_procs = int(DEFAULT_NUM_PROCS)
 	}
 	if m.config.num_procs <= 0 || m.config.num_procs > MAX_NUM_PROCS {
 		return errors.New(fmt.Sprintf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS))
