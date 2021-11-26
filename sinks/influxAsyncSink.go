@@ -8,7 +8,7 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	"log"
-	"time"
+	lp "github.com/influxdata/line-protocol"
 )
 
 type InfluxAsyncSink struct {
@@ -66,8 +66,8 @@ func (s *InfluxAsyncSink) Init(config SinkConfig) error {
 	return err
 }
 
-func (s *InfluxAsyncSink) Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error {
-	p := influxdb2.NewPoint(measurement, tags, fields, t)
+func (s *InfluxAsyncSink) Write(point lp.MutableMetric) error {
+	p := influxdb2.NewPoint(point.Name(), Tags2Map(point), Fields2Map(point), point.Time())
 	s.writeApi.WritePoint(p)
 	return nil
 }
