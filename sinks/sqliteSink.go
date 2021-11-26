@@ -127,6 +127,10 @@ func (s *SqliteSink) Write(measurement string, tags map[string]string, fields ma
 	return nil
 }
 
+func (s *SqliteSink) Flush() error {
+	return nil
+}
+
 func (s *SqliteSink) Close() {
     log.Print("Closing Sqlite3 database ", s.database)
     if s.db != nil {
