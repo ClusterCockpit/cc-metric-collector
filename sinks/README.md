@@ -21,10 +21,12 @@ A sink contains three functions and is derived from the type `Sink` (in `metricS
 
 The data structures should be set up in `Init()` like opening a file or server connection. The `Write()` function takes a measurement, tags, fields and a timestamp and writes/sends the data. For non-blocking sinks, the `Flush()` method tells the sink to drain its internal buffers. The `Close()` function should tear down anything created in `Init()`.
 
-Finally, the sink needs to be registered in the `metric-collector.go`. There is a list of sinks called `Sinks` which is a map (sink_type_string -> pointer to sink). Add a new entry with a descriptive name and the new sink. Afterwards, it can be configured in the main configuration file at `type`:
+Finally, the sink needs to be registered in the `metric-collector.go`. There is a list of sinks called `Sinks` which is a map (sink_type_string -> pointer to sink). Add a new entry with a descriptive name and the new sink.
+
+
+# Sink configuration
 
 ```json
-{
   "sink": {
     "user": "testuser",
     "password": "testpass",
@@ -35,14 +37,12 @@ Finally, the sink needs to be registered in the `metric-collector.go`. There is 
     "ssl": false
     "type": "stdout"
   }
-}
 ```
-# Sink configuration
 
-## `stdoutSink`
+## `stdout`
 When configuring `type = stdout`, all metrics are printed to stdout. No further configuration is required or touched, so you can leave your other-sink-config in there and just change the `type` for debugging purposes
 
-## `influxSink`
+## `influxdb`
 The InfluxDB sink uses blocking write operations to write to an InfluxDB database using the v2 API. It uses the following configuration options:
 * `host`: Hostname of the database instance
 * `port`: Portnumber (as string) of the database
@@ -52,13 +52,13 @@ The InfluxDB sink uses blocking write operations to write to an InfluxDB databas
 * `user`: Although the v2 API uses API keys instead of username and password, this field can be used if the sink should authentificate with `username:password`. If you want to use an API key, leave this field empty.
 * `password`: API key for the InfluxDB v2 API or password if `user` is set
 
-## `natsSink`
+## `nats`
 * `host`: Hostname of the NATS server
 * `port`: Portnumber (as string) of the NATS server
 * `user`: Username for authentification in the NATS transport system
 * `password`: Password for authentification in the NATS transport system
 
-## `httpSink`
+## `http`
 * `host`: Hostname of the HTTP server
 * `port`: Portnumber (as string) of the HTTP server
 * `database`: Endpoint to write to. HTTP POST requests are performed on `http://<host>:<port>/<database>`
