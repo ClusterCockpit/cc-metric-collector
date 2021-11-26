@@ -38,7 +38,7 @@ func (m *NetstatCollector) Init(config []byte) error {
 		    return err
 	    }
 	}
-	_, err = ioutil.ReadFile(string(NETSTATFILE))
+	_, err := ioutil.ReadFile(string(NETSTATFILE))
 	if err == nil {
 		m.init = true
 	}
