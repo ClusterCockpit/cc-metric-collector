@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"errors"
+	lp "github.com/influxdata/line-protocol"
 )
 
 type SqliteSink struct {
@@ -93,9 +94,26 @@ func (s *SqliteSink) PrepareLists(measurement string, tags map[string]string, fi
 	return keytype, keys, values
 }
 
-func (s *SqliteSink) Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error {
+func Tags2Map(metric lp.MutableMetric) map[string]string {
+	tags := make(map[string]string)
+	for _, t := range metric.TagList() {
+		tags[t.Key] = t.Value
+	}
+	return tags
+}
+
+func Fields2Map(metric lp.MutableMetric) map[string]interface{} {
+	fields := make(map[string]interface{})
+	for _, f := range metric.FieldList() {
+		fields[f.Key] = f.Value
+	}
+	return fields
+}
+
+func (s *SqliteSink) Write(point lp.MutableMetric) error {
     if s.db != nil {
-	    keytype, keys, values := s.PrepareLists(measurement, tags, fields, t)
+        measurement := point.Name()
+	    keytype, keys, values := s.PrepareLists(measurement, Tags2Map(point), Fields2Map(point), point.Time())
 	    prim_key := []string{"time", "host"}
 	    if measurement == "cpu" {
 		    prim_key = append(prim_key, "cpu")
