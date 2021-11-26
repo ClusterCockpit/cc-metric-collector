@@ -12,18 +12,6 @@ The base class/configuration is located in `metricSink.go`.
 # Installation
 Nothing to do, all sinks are pure Go code
 
-# Contributing own sinks
-A sink contains three functions and is derived from the type `Sink` (in `metricSink.go`):
-* `Init(config SinkConfig) error`
-* `Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error`
-* `Flush() error`
-* `Close()`
-
-The data structures should be set up in `Init()` like opening a file or server connection. The `Write()` function takes a measurement, tags, fields and a timestamp and writes/sends the data. For non-blocking sinks, the `Flush()` method tells the sink to drain its internal buffers. The `Close()` function should tear down anything created in `Init()`.
-
-Finally, the sink needs to be registered in the `metric-collector.go`. There is a list of sinks called `Sinks` which is a map (sink_type_string -> pointer to sink). Add a new entry with a descriptive name and the new sink.
-
-
 # Sink configuration
 
 ```json
@@ -63,3 +51,15 @@ The InfluxDB sink uses blocking write operations to write to an InfluxDB databas
 * `port`: Portnumber (as string) of the HTTP server
 * `database`: Endpoint to write to. HTTP POST requests are performed on `http://<host>:<port>/<database>`
 * `password`: JSON Web token used for authentification
+
+
+# Contributing own sinks
+A sink contains three functions and is derived from the type `Sink` (in `metricSink.go`):
+* `Init(config SinkConfig) error`
+* `Write(measurement string, tags map[string]string, fields map[string]interface{}, t time.Time) error`
+* `Flush() error`
+* `Close()`
+
+The data structures should be set up in `Init()` like opening a file or server connection. The `Write()` function takes a measurement, tags, fields and a timestamp and writes/sends the data. For non-blocking sinks, the `Flush()` method tells the sink to drain its internal buffers. The `Close()` function should tear down anything created in `Init()`.
+
+Finally, the sink needs to be registered in the `metric-collector.go`. There is a list of sinks called `Sinks` which is a map (sink_type_string -> pointer to sink). Add a new entry with a descriptive name and the new sink.
