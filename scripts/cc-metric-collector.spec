@@ -45,7 +45,7 @@ install -Dpm 600 scripts/%{name}.config %{buildroot}%{_sysconfdir}/default/%{nam
 %dir %{_sysconfdir}/%{name}
 %{_sbindir}/%{name}
 %{_unitdir}/%{name}.service
-%dir %{_sysconfdir}/default/%{name}
+%{_sysconfdir}/default/%{name}
 %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
 
 
