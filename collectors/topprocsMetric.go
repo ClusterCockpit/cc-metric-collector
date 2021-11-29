@@ -34,7 +34,7 @@ func (m *TopProcsCollector) Init(config []byte) error {
 			return err
 		}
 	} else {
-	    m.config.num_procs = int(DEFAULT_NUM_PROCS)
+		m.config.num_procs = int(DEFAULT_NUM_PROCS)
 	}
 	if m.config.num_procs <= 0 || m.config.num_procs > MAX_NUM_PROCS {
 		return errors.New(fmt.Sprintf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS))

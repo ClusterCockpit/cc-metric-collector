@@ -32,11 +32,11 @@ func (m *NetstatCollector) Init(config []byte) error {
 		10: "pkts_out",
 	}
 	if len(config) > 0 {
-	    err := json.Unmarshal(config, &m.config)
-	    if err != nil {
-		    log.Print(err.Error())
-		    return err
-	    }
+		err := json.Unmarshal(config, &m.config)
+		if err != nil {
+			log.Print(err.Error())
+			return err
+		}
 	}
 	_, err := ioutil.ReadFile(string(NETSTATFILE))
 	if err == nil {

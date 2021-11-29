@@ -31,7 +31,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"customcmd":  &collectors.CustomCmdCollector{},
 	"diskstat":   &collectors.DiskstatCollector{},
 	"tempstat":   &collectors.TempCollector{},
-	"ipmistat" :  &collectors.IpmiCollector{},
+	"ipmistat":   &collectors.IpmiCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
@@ -244,10 +244,10 @@ func main() {
 		if err != nil {
 			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
 		} else if !col.Initialized() {
-		    log.Print("SKIP ", col.Name(), " (Not initialized)")
-	    } else {
-		    log.Print("Start ", col.Name())
-		    tmp = append(tmp, c)
+			log.Print("SKIP ", col.Name(), " (Not initialized)")
+		} else {
+			log.Print("Start ", col.Name())
+			tmp = append(tmp, c)
 		}
 	}
 	config.Collectors = tmp
