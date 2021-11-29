@@ -11,6 +11,7 @@ jobs:
       name: Build RPM package on CentOS7
       with:
         spec_file: "./scripts/cc-metric-collector.spec"
+        build_requires: "golang"
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v1.0.0
       with:
