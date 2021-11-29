@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	"encoding/json"
 	"fmt"
 	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
@@ -9,15 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
 )
 
 const HWMON_PATH = `/sys/class/hwmon`
 
-
 type TempCollectorConfig struct {
-	ExcludeMetrics []string `json:"exclude_metrics"`
-	TagOverride map[string]map[string]string `json:"tag_override"`
+	ExcludeMetrics []string                     `json:"exclude_metrics"`
+	TagOverride    map[string]map[string]string `json:"tag_override"`
 }
 
 type TempCollector struct {

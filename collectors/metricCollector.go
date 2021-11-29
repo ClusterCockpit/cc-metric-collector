@@ -13,6 +13,7 @@ import (
 type MetricGetter interface {
 	Name() string
 	Init(config []byte) error
+	Initialized() bool
 	Read(time.Duration, *[]lp.MutableMetric)
 	Close()
 }
@@ -28,6 +29,10 @@ func (c *MetricCollector) Name() string {
 
 func (c *MetricCollector) setup() error {
 	return nil
+}
+
+func (c *MetricCollector) Initialized() bool {
+	return c.init == true
 }
 
 func intArrayContains(array []int, str int) (int, bool) {

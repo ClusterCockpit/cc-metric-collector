@@ -7,9 +7,6 @@ $(APP): metric-collector.go
 	go get
 	go build -o $(APP) metric-collector.go
 
-runonce: $(APP)
-	./$(APP) --once
-
 clean:
 	make -C collectors clean
 	rm -f $(APP)

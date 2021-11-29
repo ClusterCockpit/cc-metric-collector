@@ -9,6 +9,21 @@ The base class/configuration is located in `metricReceiver.go`.
 # Installation
 Nothing to do, all receivers are pure Go code
 
+# Receiver configuration
+
+```json
+  "receiver": {
+    "type": "nats",
+    "address": "nats://my-url"
+    "port" : "4222",
+    "database": "testcluster"
+  },
+```
+
+## `nats`
+
+The receiver connects to `address` and `port` and subscribes itself for all messages with topic `database`. The default port is `4222`.
+
 # Contributing own receivers
 A receiver contains three functions and is derived from the type `Receiver` (in `metricReceiver.go`):
 * `Init(config ReceiverConfig) error`
