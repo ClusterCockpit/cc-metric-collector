@@ -1,0 +1,18 @@
+name: Run RPM Build
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: TomTheBear/rpmbuild@master
+      id: rpm
+      name: Build RPM package on CentOS7
+      with:
+        spec_file: "./scripts/cc-metric-collector.spec"
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: cc-metric-collector RPM CentOS7
+        path: ${{ steps.rpm.outputs.rpm_dir_path }}
