@@ -6,7 +6,7 @@ Summary:        Metric collection daemon from the ClusterCockpit suite
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 
-BuildRequires:  golang
+BuildRequires:  go-toolset
 
 Provides:       %{name} = %{version}
 
