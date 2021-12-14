@@ -39,6 +39,7 @@ var Sinks = map[string]sinks.SinkFuncs{
 	"stdout":   &sinks.StdoutSink{},
 	"nats":     &sinks.NatsSink{},
 	"http":     &sinks.HttpSink{},
+	"ganglia":  &sinks.GangliaSink{},
 }
 
 var Receivers = map[string]receivers.ReceiverFuncs{
