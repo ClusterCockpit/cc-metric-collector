@@ -4,6 +4,11 @@
             "key" : "cluster",
             "value" : "testcluster",
             "if" : "*"
+        },
+        {
+            "key" : "test",
+            "value" : "testing",
+            "if" : "name == 'temp_package_id_0'"
         }
     ],
     "delete_tags" : [
