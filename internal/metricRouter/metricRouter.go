@@ -6,6 +6,9 @@ import (
     "log"
     "encoding/json"
     "os"
+    "time"
+    "gopkg.in/Knetic/govaluate.v2"
+    mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
 
 type metricRounterTagConfig struct {
@@ -25,29 +28,27 @@ type metricRouter struct {
 	outputs     []chan lp.CCMetric
 	done        chan bool
 	wg          *sync.WaitGroup
+	timestamp   time.Time
+	ticker      mct.MultiChanTicker
 	config      metricRouterConfig
 }
 
 type MetricRouter interface {
-	Init(routerDone chan bool, wg *sync.WaitGroup) error
+	Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error
 	AddInput(input chan lp.CCMetric)
 	AddOutput(output chan lp.CCMetric)
-	ReadConfig(filename string) error
 	Start()
 	Close()
 }
 
 
-func (r *metricRouter) Init(routerDone chan bool, wg *sync.WaitGroup) error {
+func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error {
     r.inputs = make([]chan lp.CCMetric, 0)
     r.outputs = make([]chan lp.CCMetric, 0)
-    r.done = routerDone
+    r.done = make(chan bool)
     r.wg = wg
-    return nil
-}
-
-func (r *metricRouter) ReadConfig(filename string) error {
-    configFile, err := os.Open(filename)
+    r.ticker = ticker
+    configFile, err := os.Open(routerConfigFile)
     if err != nil {
         log.Print(err.Error())
         return err
@@ -62,8 +63,93 @@ func (r *metricRouter) ReadConfig(filename string) error {
     return nil
 }
 
+func (r *metricRouter) StartTimer() {
+    m := make(chan time.Time)
+    r.ticker.AddChannel(m)
+    go func() {
+        for {
+            select {
+            case t := <- m:
+                r.timestamp = t
+            }
+        }
+    }()
+}
+
+func (r *metricRouter) EvalCondition(Cond string, point lp.CCMetric) (bool, error){
+    expression, err := govaluate.NewEvaluableExpression(Cond)
+    if err != nil {
+		log.Print(Cond, " = ", err.Error())
+		return false, err
+	}
+	params := make(map[string]interface{})
+	params["name"] = point.Name()
+	for _,t := range point.TagList() {
+	    params[t.Key] = t.Value
+	}
+	for _,m := range point.MetaList() {
+	    params[m.Key] = m.Value
+	}
+	for _,f := range point.FieldList() {
+	    params[f.Key] = f.Value
+	}
+	params["timestamp"] = point.Time()
+	
+    result, err := expression.Evaluate(params)
+    if err != nil {
+		log.Print(Cond, " = ", err.Error())
+		return false, err
+	}
+	return bool(result.(bool)), err
+}
+
+func (r *metricRouter) DoAddTags(point lp.CCMetric) {
+    for _, m := range r.config.AddTags {
+        var res bool
+        var err error
+        
+        if m.Condition == "*" {
+            res = true
+            err = nil
+        } else {
+            res, err = r.EvalCondition(m.Condition, point)
+            if err != nil {
+                log.Print(err.Error())
+                res = false
+            }
+        }
+        if res == true {
+            point.AddTag(m.Key, m.Value)
+        }
+    }
+}
+
+func (r *metricRouter) DoDelTags(point lp.CCMetric) {
+    for _, m := range r.config.DelTags {
+        var res bool
+        var err error
+        if m.Condition == "*" {
+            res = true
+            err = nil
+        } else {
+            res, err = r.EvalCondition(m.Condition, point)
+            if err != nil {
+                log.Print(err.Error())
+                res = false
+            }
+        }
+        if res == true {
+            point.RemoveTag(m.Key)
+        }
+    }
+}
+
 func (r *metricRouter) Start() {
     r.wg.Add(1)
+    r.timestamp = time.Now()
+    if r.config.IntervalStamp == true {
+        r.StartTimer()
+    }
     go func() {
         for {
 RouterLoop:
@@ -82,6 +168,11 @@ RouterInputLoop:
                         break RouterInputLoop
                     case p := <- c:
                         log.Print("[MetricRouter] FORWARD ",p)
+                        r.DoAddTags(p)
+                        r.DoDelTags(p)
+                        if r.config.IntervalStamp == true {
+                            p.SetTime(r.timestamp)
+                        }
                         for _, o := range r.outputs {
                             o <- p
                         }
@@ -108,9 +199,9 @@ func (r *metricRouter) Close() {
     log.Print("[MetricRouter] CLOSE\n")
 }
 
-func New(done chan bool, wg *sync.WaitGroup) (MetricRouter, error) {
+func New(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) (MetricRouter, error) {
     r := &metricRouter{}
-    err := r.Init(done, wg)
+    err := r.Init(ticker, wg, routerConfigFile)
     if err != nil {
         return nil, err
     }

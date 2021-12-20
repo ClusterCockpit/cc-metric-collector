@@ -23,6 +23,7 @@ type CCMetric interface {
     lp.MutableMetric
     AddMeta(key, value string)
     MetaList() []*lp.Tag
+    RemoveTag(key string)
 }
 
 func (m *ccMetric) Meta() map[string]string {
