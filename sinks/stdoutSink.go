@@ -6,22 +6,29 @@ import (
 	"strings"
 
 	//	"time"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 type StdoutSink struct {
-	Sink
+	sink
 }
 
-func (s *StdoutSink) Init(config SinkConfig) error {
+func (s *StdoutSink) Init(config sinkConfig) error {
+    s.name = "StdoutSink"
+    s.meta_as_tags = config.MetaAsTags
 	return nil
 }
 
-func (s *StdoutSink) Write(point lp.MutableMetric) error {
+func (s *StdoutSink) Write(point lp.CCMetric) error {
 	var tagsstr []string
 	var fieldstr []string
 	for _, t := range point.TagList() {
 		tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", t.Key, t.Value))
+	}
+	if s.meta_as_tags {
+	    for _, m := range point.MetaList() {
+		    tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", m.Key, m.Value))
+	    }
 	}
 	for _, f := range point.FieldList() {
 		switch f.Value.(type) {

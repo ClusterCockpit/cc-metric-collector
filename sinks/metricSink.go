@@ -2,21 +2,22 @@ package sinks
 
 import (
 	//	"time"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-type SinkConfig struct {
-	Host         string `json:"host"`
-	Port         string `json:"port"`
-	Database     string `json:"database"`
-	User         string `json:"user"`
-	Password     string `json:"password"`
-	Organization string `json:"organization"`
-	Type         string `json:"type"`
-	SSL          bool   `json:"ssl"`
+type sinkConfig struct {
+    Type         string `json:"type"`
+	Host         string `json:"host", omitempty`
+	Port         string `json:"port", omitempty`
+	Database     string `json:"database, omitempty"`
+	User         string `json:"user, omitempty"`
+	Password     string `json:"password", omitempty`
+	Organization string `json:"organization", omitempty`
+	SSL          bool   `json:"ssl", omitempty`
+	MetaAsTags   bool   `json:"meta_as_tags", omitempty`
 }
 
-type Sink struct {
+type sink struct {
 	host         string
 	port         string
 	user         string
@@ -24,11 +25,18 @@ type Sink struct {
 	database     string
 	organization string
 	ssl          bool
+	meta_as_tags bool
+	name         string
 }
 
-type SinkFuncs interface {
-	Init(config SinkConfig) error
-	Write(point lp.MutableMetric) error
+type Sink interface {
+	Init(config sinkConfig) error
+	Write(point lp.CCMetric) error
 	Flush() error
 	Close()
+	Name() string
+}
+
+func (s *sink) Name() string {
+	return s.name
 }

@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
+	influx "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
 )
 
 type NatsSink struct {
-	Sink
+	sink
 	client  *nats.Conn
-	encoder *lp.Encoder
+	encoder *influx.Encoder
 	buffer  *bytes.Buffer
 }
 
@@ -31,7 +32,8 @@ func (s *NatsSink) connect() error {
 	return nil
 }
 
-func (s *NatsSink) Init(config SinkConfig) error {
+func (s *NatsSink) Init(config sinkConfig) error {
+    s.name = "NatsSink"
 	if len(config.Host) == 0 ||
 		len(config.Port) == 0 ||
 		len(config.Database) == 0 {
@@ -46,14 +48,14 @@ func (s *NatsSink) Init(config SinkConfig) error {
 	// Setup Influx line protocol
 	s.buffer = &bytes.Buffer{}
 	s.buffer.Grow(1025)
-	s.encoder = lp.NewEncoder(s.buffer)
+	s.encoder = influx.NewEncoder(s.buffer)
 	s.encoder.SetPrecision(time.Second)
 	s.encoder.SetMaxLineBytes(1024)
 	// Setup infos for connection
 	return s.connect()
 }
 
-func (s *NatsSink) Write(point lp.MutableMetric) error {
+func (s *NatsSink) Write(point lp.CCMetric) error {
 	if s.client != nil {
 		//	    var tags map[string]string
 		//        var fields map[string]interface{}

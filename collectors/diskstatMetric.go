@@ -1,7 +1,7 @@
 package collectors
 
 import (
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	//	"log"
 	"encoding/json"
@@ -19,14 +19,15 @@ type DiskstatCollectorConfig struct {
 }
 
 type DiskstatCollector struct {
-	MetricCollector
+	metricCollector
 	matches map[int]string
 	config  DiskstatCollectorConfig
 }
 
-func (m *DiskstatCollector) Init(config []byte) error {
+func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "DiskstatCollector"
+	m.meta = map[string]string{"source" : m.name, "group" : "Disk"}
 	m.setup()
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
@@ -71,7 +72,7 @@ func (m *DiskstatCollector) Init(config []byte) error {
 	return err
 }
 
-func (m *DiskstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	var lines []string
 	if !m.init {
 		return
@@ -99,9 +100,9 @@ func (m *DiskstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric
 			if idx < len(f) {
 				x, err := strconv.ParseInt(f[idx], 0, 64)
 				if err == nil {
-					y, err := lp.New(name, tags, map[string]interface{}{"value": int(x)}, time.Now())
+					y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": int(x)}, time.Now())
 					if err == nil {
-						*out = append(*out, y)
+						output <- y
 					}
 				}
 			}

@@ -7,19 +7,21 @@ import (
 	"net/http"
 	"time"
 
-	lp "github.com/influxdata/line-protocol"
+	influx "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 type HttpSink struct {
-	Sink
+	sink
 	client   *http.Client
 	url, jwt string
-	encoder  *lp.Encoder
+	encoder  *influx.Encoder
 	buffer   *bytes.Buffer
 }
 
-func (s *HttpSink) Init(config SinkConfig) error {
-	if len(config.Host) == 0 || len(config.Port) == 0 {
+func (s *HttpSink) Init(config sinkConfig) error {
+    s.name = "HttpSink"
+	if len(config.Host) == 0 || len(config.Port) == 0 || len(config.Database) == 0 {
 		return errors.New("`host`, `port` and `database` config options required for TCP sink")
 	}
 
@@ -28,13 +30,13 @@ func (s *HttpSink) Init(config SinkConfig) error {
 	s.port = config.Port
 	s.jwt = config.Password
 	s.buffer = &bytes.Buffer{}
-	s.encoder = lp.NewEncoder(s.buffer)
+	s.encoder = influx.NewEncoder(s.buffer)
 	s.encoder.SetPrecision(time.Second)
 
 	return nil
 }
 
-func (s *HttpSink) Write(point lp.MutableMetric) error {
+func (s *HttpSink) Write(point lp.CCMetric) error {
 	_, err := s.encoder.Encode(point)
 	return err
 }

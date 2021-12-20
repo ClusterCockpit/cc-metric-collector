@@ -1,0 +1,17 @@
+{
+    "add_tags" : [
+        {
+            "key" : "cluster",
+            "value" : "testcluster",
+            "if" : "*"
+        }
+    ],
+    "delete_tags" : [
+        {
+            "key" : "unit",
+            "value" : "*",
+            "if" : "*"
+        }
+    ],
+    "interval_timestamp" : true
+}

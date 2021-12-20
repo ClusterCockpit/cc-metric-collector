@@ -2,36 +2,40 @@ package collectors
 
 import (
 	"errors"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+	"encoding/json"
 )
 
-type MetricGetter interface {
+type MetricCollector interface {
 	Name() string
-	Init(config []byte) error
+	Init(config json.RawMessage) error
 	Initialized() bool
-	Read(time.Duration, *[]lp.MutableMetric)
+	Read(duration time.Duration, output chan lp.CCMetric)
 	Close()
 }
 
-type MetricCollector struct {
+type metricCollector struct {
+    output chan lp.CCMetric
 	name string
 	init bool
+	meta map[string]string
 }
 
-func (c *MetricCollector) Name() string {
+func (c *metricCollector) Name() string {
 	return c.name
 }
 
-func (c *MetricCollector) setup() error {
+func (c *metricCollector) setup() error {
 	return nil
 }
 
-func (c *MetricCollector) Initialized() bool {
+func (c *metricCollector) Initialized() bool {
 	return c.init == true
 }
 
@@ -103,7 +107,7 @@ func CpuList() []int {
 	return cpulist
 }
 
-func Tags2Map(metric lp.Metric) map[string]string {
+func Tags2Map(metric influx.Metric) map[string]string {
 	tags := make(map[string]string)
 	for _, t := range metric.TagList() {
 		tags[t.Key] = t.Value
@@ -111,7 +115,7 @@ func Tags2Map(metric lp.Metric) map[string]string {
 	return tags
 }
 
-func Fields2Map(metric lp.Metric) map[string]interface{} {
+func Fields2Map(metric influx.Metric) map[string]interface{} {
 	fields := make(map[string]interface{})
 	for _, f := range metric.FieldList() {
 		fields[f.Key] = f.Value

@@ -5,15 +5,14 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 )
 
 type InfluxSink struct {
-	Sink
+	sink
 	client    influxdb2.Client
 	writeApi  influxdb2Api.WriteAPIBlocking
 	retPolicy string
@@ -39,7 +38,8 @@ func (s *InfluxSink) connect() error {
 	return nil
 }
 
-func (s *InfluxSink) Init(config SinkConfig) error {
+func (s *InfluxSink) Init(config sinkConfig) error {
+    s.name = "InfluxSink"
 	if len(config.Host) == 0 ||
 		len(config.Port) == 0 ||
 		len(config.Database) == 0 ||
@@ -54,14 +54,20 @@ func (s *InfluxSink) Init(config SinkConfig) error {
 	s.user = config.User
 	s.password = config.Password
 	s.ssl = config.SSL
+	s.meta_as_tags = config.MetaAsTags
 	return s.connect()
 }
 
-func (s *InfluxSink) Write(point lp.MutableMetric) error {
+func (s *InfluxSink) Write(point lp.CCMetric) error {
 	tags := map[string]string{}
 	fields := map[string]interface{}{}
 	for _, t := range point.TagList() {
 		tags[t.Key] = t.Value
+	}
+	if s.meta_as_tags {
+	    for _, m := range point.MetaList() {
+		    tags[m.Key] = m.Value
+	    }
 	}
 	for _, f := range point.FieldList() {
 		fields[f.Key] = f.Value

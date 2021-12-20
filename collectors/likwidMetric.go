@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"gopkg.in/Knetic/govaluate.v2"
 	"io/ioutil"
 	"log"
@@ -24,10 +24,23 @@ import (
 	"unsafe"
 )
 
+type MetricScope int
+
+const (
+    METRIC_SCOPE_HWTHREAD = iota
+    METRIC_SCOPE_SOCKET
+    METRIC_SCOPE_NUMA
+    METRIC_SCOPE_NODE
+)
+
+func (ms MetricScope) String() string {
+    return []string{"Head", "Shoulder", "Knee", "Toe"}[ms]
+}
+
 type LikwidCollectorMetricConfig struct {
 	Name         string `json:"name"`
 	Calc         string `json:"calc"`
-	Socket_scope bool   `json:"socket_scope"`
+	Scope        MetricScope `json:"socket_scope"`
 	Publish      bool   `json:"publish"`
 }
 
@@ -44,7 +57,7 @@ type LikwidCollectorConfig struct {
 }
 
 type LikwidCollector struct {
-	MetricCollector
+	metricCollector
 	cpulist   []C.int
 	sock2tid  map[int]int
 	metrics   map[C.int]map[string]int
@@ -104,7 +117,7 @@ func getSocketCpus() map[C.int]int {
 	return outmap
 }
 
-func (m *LikwidCollector) Init(config []byte) error {
+func (m *LikwidCollector) Init(config json.RawMessage) error {
 	var ret C.int
 	m.name = "LikwidCollector"
 	if len(config) > 0 {
@@ -114,11 +127,13 @@ func (m *LikwidCollector) Init(config []byte) error {
 		}
 	}
 	m.setup()
+	m.meta = map[string]string{"source" : m.name, "group" : "PerfCounter"}
 	cpulist := CpuList()
 	m.cpulist = make([]C.int, len(cpulist))
 	slist := getSocketCpus()
 
 	m.sock2tid = make(map[int]int)
+//	m.numa2tid = make(map[int]int)
 	for i, c := range cpulist {
 		m.cpulist[i] = C.int(c)
 		if sid, found := slist[m.cpulist[i]]; found {
@@ -168,7 +183,7 @@ func (m *LikwidCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -245,24 +260,28 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 		for _, metric := range evset.Metrics {
 			_, skip := stringArrayContains(m.config.ExcludeMetrics, metric.Name)
 			if metric.Publish && !skip {
-				if metric.Socket_scope {
+				if metric.Scope.String() == "socket" {
 					for sid, tid := range m.sock2tid {
 						y, err := lp.New(metric.Name,
-							map[string]string{"type": "socket", "type-id": fmt.Sprintf("%d", int(sid))},
+							map[string]string{"type": "socket",
+							                  "type-id": fmt.Sprintf("%d", int(sid))},
+							m.meta,
 							map[string]interface{}{"value": m.mresults[i][tid][metric.Name]},
 							time.Now())
 						if err == nil {
-							*out = append(*out, y)
+							output <- y
 						}
 					}
-				} else {
+				} else if metric.Scope.String() == "hwthread" {
 					for tid, cpu := range m.cpulist {
 						y, err := lp.New(metric.Name,
-							map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", int(cpu))},
+							map[string]string{"type": "cpu",
+							                  "type-id": fmt.Sprintf("%d", int(cpu))},
+							m.meta,
 							map[string]interface{}{"value": m.mresults[i][tid][metric.Name]},
 							time.Now())
 						if err == nil {
-							*out = append(*out, y)
+							output <- y
 						}
 					}
 				}
@@ -272,24 +291,28 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 	for _, metric := range m.config.Metrics {
 		_, skip := stringArrayContains(m.config.ExcludeMetrics, metric.Name)
 		if metric.Publish && !skip {
-			if metric.Socket_scope {
+			if metric.Scope.String() == "socket" {
 				for sid, tid := range m.sock2tid {
 					y, err := lp.New(metric.Name,
-						map[string]string{"type": "socket", "type-id": fmt.Sprintf("%d", int(sid))},
+						map[string]string{"type": "socket",
+						                  "type-id": fmt.Sprintf("%d", int(sid))},
+						m.meta,
 						map[string]interface{}{"value": m.gmresults[tid][metric.Name]},
 						time.Now())
 					if err == nil {
-						*out = append(*out, y)
+						output <- y
 					}
 				}
 			} else {
 				for tid, cpu := range m.cpulist {
 					y, err := lp.New(metric.Name,
-						map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", int(cpu))},
+						map[string]string{"type": "cpu",
+						                  "type-id": fmt.Sprintf("%d", int(cpu))},
+						m.meta,
 						map[string]interface{}{"value": m.gmresults[tid][metric.Name]},
 						time.Now())
 					if err == nil {
-						*out = append(*out, y)
+						output <- y
 					}
 				}
 			}

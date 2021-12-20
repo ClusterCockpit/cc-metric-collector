@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -19,14 +19,14 @@ type MemstatCollectorConfig struct {
 }
 
 type MemstatCollector struct {
-	MetricCollector
+	metricCollector
 	stats   map[string]int64
 	tags    map[string]string
 	matches map[string]string
 	config  MemstatCollectorConfig
 }
 
-func (m *MemstatCollector) Init(config []byte) error {
+func (m *MemstatCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "MemstatCollector"
 	if len(config) > 0 {
@@ -35,6 +35,7 @@ func (m *MemstatCollector) Init(config []byte) error {
 			return err
 		}
 	}
+	m.meta = map[string]string{"source" : m.name, "group" : "Memory", "unit": "kByte"}
 	m.stats = make(map[string]int64)
 	m.matches = make(map[string]string)
 	m.tags = map[string]string{"type": "node"}
@@ -64,7 +65,7 @@ func (m *MemstatCollector) Init(config []byte) error {
 	return err
 }
 
-func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -96,9 +97,9 @@ func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 			log.Print(err)
 			continue
 		}
-		y, err := lp.New(name, m.tags, map[string]interface{}{"value": int(float64(m.stats[match]) * 1.0e-3)}, time.Now())
+		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": int(float64(m.stats[match]) * 1.0e-3)}, time.Now())
 		if err == nil {
-			*out = append(*out, y)
+			output <- y
 		}
 	}
 
@@ -107,18 +108,18 @@ func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 			if _, cached := m.stats[`Cached`]; cached {
 				memUsed := m.stats[`MemTotal`] - (m.stats[`MemFree`] + m.stats[`Buffers`] + m.stats[`Cached`])
 				_, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_used")
-				y, err := lp.New("mem_used", m.tags, map[string]interface{}{"value": int(float64(memUsed) * 1.0e-3)}, time.Now())
+				y, err := lp.New("mem_used", m.tags, m.meta, map[string]interface{}{"value": int(float64(memUsed) * 1.0e-3)}, time.Now())
 				if err == nil && !skip {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
 	}
 	if _, found := m.stats[`MemShared`]; found {
 		_, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_shared")
-		y, err := lp.New("mem_shared", m.tags, map[string]interface{}{"value": int(float64(m.stats[`MemShared`]) * 1.0e-3)}, time.Now())
+		y, err := lp.New("mem_shared", m.tags, m.meta, map[string]interface{}{"value": int(float64(m.stats[`MemShared`]) * 1.0e-3)}, time.Now())
 		if err == nil && !skip {
-			*out = append(*out, y)
+			output <- y
 		}
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"log"
 	"os/exec"
 	"strings"
@@ -19,15 +19,16 @@ type TopProcsCollectorConfig struct {
 }
 
 type TopProcsCollector struct {
-	MetricCollector
+	metricCollector
 	tags   map[string]string
 	config TopProcsCollectorConfig
 }
 
-func (m *TopProcsCollector) Init(config []byte) error {
+func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "TopProcsCollector"
 	m.tags = map[string]string{"type": "node"}
+	m.meta = map[string]string{"source" : m.name, "group" : "TopProcs"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -50,7 +51,7 @@ func (m *TopProcsCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *TopProcsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -65,9 +66,9 @@ func (m *TopProcsCollector) Read(interval time.Duration, out *[]lp.MutableMetric
 	lines := strings.Split(string(stdout), "\n")
 	for i := 1; i < m.config.num_procs+1; i++ {
 		name := fmt.Sprintf("topproc%d", i)
-		y, err := lp.New(name, m.tags, map[string]interface{}{"value": string(lines[i])}, time.Now())
+		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": string(lines[i])}, time.Now())
 		if err == nil {
-			*out = append(*out, y)
+			output <- y
 		}
 	}
 }

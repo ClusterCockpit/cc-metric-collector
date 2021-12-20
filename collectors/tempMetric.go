@@ -3,13 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"log"
 )
 
 const HWMON_PATH = `/sys/class/hwmon`
@@ -20,20 +21,21 @@ type TempCollectorConfig struct {
 }
 
 type TempCollector struct {
-	MetricCollector
+	metricCollector
 	config TempCollectorConfig
 }
 
-func (m *TempCollector) Init(config []byte) error {
+func (m *TempCollector) Init(config json.RawMessage) error {
 	m.name = "TempCollector"
 	m.setup()
-	m.init = true
+	m.meta = map[string]string{"source" : m.name, "group" : "IPMI", "unit": "degC"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
+	m.init = true
 	return nil
 }
 
@@ -73,7 +75,7 @@ func get_hwmon_sensors() (map[string]map[string]string, error) {
 	return sensors, nil
 }
 
-func (m *TempCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 	sensors, err := get_hwmon_sensors()
 	if err != nil {
@@ -88,15 +90,20 @@ func (m *TempCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 					break
 				}
 			}
+            mname := strings.Replace(name, " ", "_", -1)
+            if !strings.Contains(mname, "temp") {
+                mname = fmt.Sprintf("temp_%s", mname)
+            }
 			buffer, err := ioutil.ReadFile(string(file))
 			if err != nil {
 				continue
 			}
 			x, err := strconv.ParseInt(strings.Replace(string(buffer), "\n", "", -1), 0, 64)
 			if err == nil {
-				y, err := lp.New(strings.ToLower(name), tags, map[string]interface{}{"value": float64(x) / 1000}, time.Now())
+				y, err := lp.New(strings.ToLower(mname), tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+				    log.Print("[", m.name, "] ",y)
+					output <- y
 				}
 			}
 		}

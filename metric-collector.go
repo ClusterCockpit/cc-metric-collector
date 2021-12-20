@@ -7,58 +7,57 @@ import (
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
 	"github.com/ClusterCockpit/cc-metric-collector/receivers"
 	"github.com/ClusterCockpit/cc-metric-collector/sinks"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
+//	"strings"
 	"sync"
 	"time"
+	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 // List of provided collectors. Which collector should be run can be
 // configured at 'collectors' list  in 'config.json'.
-var Collectors = map[string]collectors.MetricGetter{
-	"likwid":     &collectors.LikwidCollector{},
-	"loadavg":    &collectors.LoadavgCollector{},
-	"memstat":    &collectors.MemstatCollector{},
-	"netstat":    &collectors.NetstatCollector{},
-	"ibstat":     &collectors.InfinibandCollector{},
-	"lustrestat": &collectors.LustreCollector{},
-	"cpustat":    &collectors.CpustatCollector{},
-	"topprocs":   &collectors.TopProcsCollector{},
-	"nvidia":     &collectors.NvidiaCollector{},
-	"customcmd":  &collectors.CustomCmdCollector{},
-	"diskstat":   &collectors.DiskstatCollector{},
-	"tempstat":   &collectors.TempCollector{},
-	"ipmistat":   &collectors.IpmiCollector{},
-}
+//var Collectors = map[string]collectors.MetricCollector{
+//	"likwid":     &collectors.LikwidCollector{},
+//	"loadavg":    &collectors.LoadavgCollector{},
+//	"memstat":    &collectors.MemstatCollector{},
+//	"netstat":    &collectors.NetstatCollector{},
+//	"ibstat":     &collectors.InfinibandCollector{},
+//	"lustrestat": &collectors.LustreCollector{},
+//	"cpustat":    &collectors.CpustatCollector{},
+//	"topprocs":   &collectors.TopProcsCollector{},
+//	"nvidia":     &collectors.NvidiaCollector{},
+//	"customcmd":  &collectors.CustomCmdCollector{},
+//	"diskstat":   &collectors.DiskstatCollector{},
+//	"tempstat":   &collectors.TempCollector{},
+//	"ipmistat":   &collectors.IpmiCollector{},
+//}
 
-var Sinks = map[string]sinks.SinkFuncs{
-	"influxdb": &sinks.InfluxSink{},
-	"stdout":   &sinks.StdoutSink{},
-	"nats":     &sinks.NatsSink{},
-	"http":     &sinks.HttpSink{},
-}
+//var Sinks = map[string]sinks.Sink{
+//	"influxdb": &sinks.InfluxSink{},
+//	"stdout":   &sinks.StdoutSink{},
+//	"nats":     &sinks.NatsSink{},
+//	"http":     &sinks.HttpSink{},
+//}
 
-var Receivers = map[string]receivers.ReceiverFuncs{
-	"nats": &receivers.NatsReceiver{},
-}
+//var Receivers = map[string]receivers.ReceiverFuncs{
+//	"nats": &receivers.NatsReceiver{},
+//}
 
-// Structure of the configuration file
-type GlobalConfig struct {
-	Sink           sinks.SinkConfig           `json:"sink"`
-	Interval       int                        `json:"interval"`
+type CentralConfigFile struct {
+    Interval       int                        `json:"interval"`
 	Duration       int                        `json:"duration"`
-	Collectors     []string                   `json:"collectors"`
-	Receiver       receivers.ReceiverConfig   `json:"receiver"`
-	DefTags        map[string]string          `json:"default_tags"`
-	CollectConfigs map[string]json.RawMessage `json:"collect_config"`
+	Pidfile        string                     `json:"pidfile", omitempty`
+	CollectorConfigFile string                `json:"collectors"`
+	RouterConfigFile string                   `json:"router"`
+	SinkConfigFile string                     `json:"sinks"`
+	ReceiverConfigFile string                 `json:"receivers", omitempty`
 }
 
-// Load JSON configuration file
-func LoadConfiguration(file string, config *GlobalConfig) error {
-	configFile, err := os.Open(file)
+func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
+    configFile, err := os.Open(file)
 	defer configFile.Close()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -68,6 +67,59 @@ func LoadConfiguration(file string, config *GlobalConfig) error {
 	err = jsonParser.Decode(config)
 	return err
 }
+
+type RuntimeConfig struct {
+    Hostname    string
+    Interval    time.Duration
+    Duration    time.Duration
+    CliArgs     map[string]string
+    ConfigFile  CentralConfigFile
+    
+    Router      mr.MetricRouter
+    RouterDone  chan bool
+    CollectManager collectors.CollectorManager
+    CollectManagerDone  chan bool
+    SinkManager   sinks.SinkManager
+    SinkManagerDone  chan bool
+    ReceiveManager receivers.ReceiveManager
+    ReceiveManagerDone  chan bool
+
+    Channels    []chan lp.CCMetric
+    Sync        sync.WaitGroup
+}
+
+func prepare_runcfg() RuntimeConfig {
+    r := RuntimeConfig{}
+    r.Router = nil
+    r.CollectManager = nil
+    r.SinkManager = nil
+    r.ReceiveManager = nil
+    return r
+}
+
+//// Structure of the configuration file
+//type GlobalConfig struct {
+//	Sink           sinks.SinkConfig           `json:"sink"`
+//	Interval       int                        `json:"interval"`
+//	Duration       int                        `json:"duration"`
+//	Collectors     []string                   `json:"collectors"`
+//	Receiver       receivers.ReceiverConfig   `json:"receiver"`
+//	DefTags        map[string]string          `json:"default_tags"`
+//	CollectConfigs map[string]json.RawMessage `json:"collect_config"`
+//}
+
+//// Load JSON configuration file
+//func LoadConfiguration(file string, config *GlobalConfig) error {
+//	configFile, err := os.Open(file)
+//	defer configFile.Close()
+//	if err != nil {
+//		fmt.Println(err.Error())
+//		return err
+//	}
+//	jsonParser := json.NewDecoder(configFile)
+//	err = jsonParser.Decode(config)
+//	return err
+//}
 
 func ReadCli() map[string]string {
 	var m map[string]string
@@ -88,226 +140,297 @@ func ReadCli() map[string]string {
 	return m
 }
 
-func SetLogging(logfile string) error {
-	var file *os.File
-	var err error
-	if logfile != "stderr" {
-		file, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-	} else {
-		file = os.Stderr
-	}
-	log.SetOutput(file)
-	return nil
-}
+//func SetLogging(logfile string) error {
+//	var file *os.File
+//	var err error
+//	if logfile != "stderr" {
+//		file, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+//		if err != nil {
+//			log.Fatal(err)
+//			return err
+//		}
+//	} else {
+//		file = os.Stderr
+//	}
+//	log.SetOutput(file)
+//	return nil
+//}
 
-func CreatePidfile(pidfile string) error {
-	file, err := os.OpenFile(pidfile, os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
-	file.Close()
-	return nil
-}
+//func CreatePidfile(pidfile string) error {
+//	file, err := os.OpenFile(pidfile, os.O_CREATE|os.O_RDWR, 0600)
+//	if err != nil {
+//		log.Print(err)
+//		return err
+//	}
+//	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
+//	file.Close()
+//	return nil
+//}
 
-func RemovePidfile(pidfile string) error {
-	info, err := os.Stat(pidfile)
-	if !os.IsNotExist(err) && !info.IsDir() {
-		os.Remove(pidfile)
-	}
-	return nil
-}
+//func RemovePidfile(pidfile string) error {
+//	info, err := os.Stat(pidfile)
+//	if !os.IsNotExist(err) && !info.IsDir() {
+//		os.Remove(pidfile)
+//	}
+//	return nil
+//}
 
 // General shutdown function that gets executed in case of interrupt or graceful shutdown
-func shutdown(wg *sync.WaitGroup, collectors []string, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs, pidfile string) {
+func shutdown(config *RuntimeConfig) {
 	log.Print("Shutdown...")
-	for _, c := range collectors {
-		col := Collectors[c]
-		log.Print("Stop ", col.Name())
-		col.Close()
-	}
-	time.Sleep(1 * time.Second)
-	if recv != nil {
-		recv.Close()
-	}
-	sink.Close()
-	RemovePidfile(pidfile)
-	wg.Done()
+	if config.CollectManager != nil {
+	    log.Print("Shutdown CollectManager...")
+    	config.CollectManager.Close()
+    }
+    if config.ReceiveManager != nil {
+        log.Print("Shutdown ReceiveManager...")
+    	config.ReceiveManager.Close()
+    }
+    if config.Router != nil {
+        log.Print("Shutdown Router...")
+    	config.Router.Close()
+    }
+	if config.SinkManager != nil {
+	    log.Print("Shutdown SinkManager...")
+    	config.SinkManager.Close()
+    }
+	
+//	pidfile := config.ConfigFile.Pidfile
+//	RemovePidfile(pidfile)
+//	pidfile = config.CliArgs["pidfile"]
+//	RemovePidfile(pidfile)
+	config.Sync.Done()
 }
 
 // Register an interrupt handler for Ctrl+C and similar. At signal,
 // all collectors are closed
-func prepare_shutdown(wg *sync.WaitGroup, config *GlobalConfig, sink sinks.SinkFuncs, recv receivers.ReceiverFuncs, pidfile string) {
+func prepare_shutdown(config *RuntimeConfig) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 
-	go func(wg *sync.WaitGroup) {
+	go func(config *RuntimeConfig) {
 		<-sigs
 		log.Print("Shutdown...")
-		shutdown(wg, config.Collectors, sink, recv, pidfile)
-	}(wg)
+		shutdown(config)
+	}(config)
 }
 
 func main() {
-	var config GlobalConfig
-	var wg sync.WaitGroup
-	var recv receivers.ReceiverFuncs = nil
-	var use_recv bool
-	use_recv = false
-	wg.Add(1)
-	host, err := os.Hostname()
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	clicfg := ReadCli()
-	err = CreatePidfile(clicfg["pidfile"])
-	err = SetLogging(clicfg["logfile"])
-	if err != nil {
-		log.Print("Error setting up logging system to ", clicfg["logfile"], " on ", host)
-		return
-	}
+    var err error
+	use_recv := false
+
+	rcfg := prepare_runcfg()
+	rcfg.CliArgs = ReadCli()
 
 	// Load and check configuration
-	err = LoadConfiguration(clicfg["configfile"], &config)
+	err = LoadCentralConfiguration(rcfg.CliArgs["configfile"], &rcfg.ConfigFile)
 	if err != nil {
-		log.Print("Error reading configuration file ", clicfg["configfile"])
+		log.Print("Error reading configuration file ", rcfg.CliArgs["configfile"])
 		log.Print(err.Error())
 		return
 	}
-	if config.Interval <= 0 || time.Duration(config.Interval)*time.Second <= 0 {
+	if rcfg.ConfigFile.Interval <= 0 || time.Duration(rcfg.ConfigFile.Interval)*time.Second <= 0 {
 		log.Print("Configuration value 'interval' must be greater than zero")
 		return
 	}
-	if config.Duration <= 0 {
+	rcfg.Interval = time.Duration(rcfg.ConfigFile.Interval)*time.Second
+	if rcfg.ConfigFile.Duration <= 0 || time.Duration(rcfg.ConfigFile.Duration)*time.Second <= 0 {
 		log.Print("Configuration value 'duration' must be greater than zero")
 		return
 	}
-	if len(config.Collectors) == 0 {
-		var keys []string
-		for k := range Collectors {
-			keys = append(keys, k)
-		}
-		log.Print("Configuration value 'collectors' does not contain any collector. Available: ", strings.Join(keys, ", "))
-		return
-	}
-	for _, name := range config.Collectors {
-		if _, found := Collectors[name]; !found {
-			log.Print("Invalid collector '", name, "' in configuration")
-			return
-		}
-	}
-	if _, found := Sinks[config.Sink.Type]; !found {
-		log.Print("Invalid sink type '", config.Sink.Type, "' in configuration")
-		return
-	}
-	// Setup sink
-	sink := Sinks[config.Sink.Type]
-	err = sink.Init(config.Sink)
+	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration)*time.Second
+	
+	
+	rcfg.Hostname, err = os.Hostname()
 	if err != nil {
-		log.Print(err)
+		log.Print(err.Error())
 		return
 	}
-	// Setup receiver
-	if len(config.Receiver.Type) > 0 && config.Receiver.Type != "none" {
-		if _, found := Receivers[config.Receiver.Type]; !found {
-			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
-			return
-		} else {
-			recv = Receivers[config.Receiver.Type]
-			err = recv.Init(config.Receiver, sink)
-			if err == nil {
-				use_recv = true
-			} else {
-				log.Print(err)
-			}
-		}
-	}
-
-	// Register interrupt handler
-	prepare_shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
-
-	// Initialize all collectors
-	tmp := make([]string, 0)
-	for _, c := range config.Collectors {
-		col := Collectors[c]
-		conf, found := config.CollectConfigs[c]
-		if !found {
-			conf = json.RawMessage("")
-		}
-		err = col.Init([]byte(conf))
-		if err != nil {
-			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
-		} else if !col.Initialized() {
-			log.Print("SKIP ", col.Name(), " (Not initialized)")
-		} else {
-			log.Print("Start ", col.Name())
-			tmp = append(tmp, c)
-		}
-	}
-	config.Collectors = tmp
-	config.DefTags["hostname"] = host
-
-	// Setup up ticker loop
-	if clicfg["once"] != "true" {
-		log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
-	} else {
-		log.Print("Running loop only once")
-	}
-	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
-	done := make(chan bool)
-
-	// Storage for all node metrics
-	tmpPoints := make([]lp.MutableMetric, 0)
-
-	// Start receiver
+//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
+//	err = SetLogging(rcfg.CliArgs["logfile"])
+//	if err != nil {
+//		log.Print("Error setting up logging system to ", rcfg.CliArgs["logfile"], " on ", rcfg.Hostname)
+//		return
+//	}
+	
+    if len(rcfg.ConfigFile.RouterConfigFile) > 0 {
+        rcfg.RouterDone = make(chan bool)
+        rcfg.Router, err = mr.New(rcfg.RouterDone, &rcfg.Sync)
+        if err != nil {
+		    log.Print(err.Error())
+		    return
+	    }
+    	rcfg.Router.ReadConfig(rcfg.ConfigFile.RouterConfigFile)
+    }
+    if len(rcfg.ConfigFile.SinkConfigFile) > 0 {
+        rcfg.SinkManagerDone = make(chan bool)
+        rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
+        if err != nil {
+		    log.Print(err.Error())
+		    return
+	    }
+//    	rcfg.SinkManager.ReadConfig(rcfg.ConfigFile.SinkConfigFile)
+    	RouterToSinksChannel := make(chan lp.CCMetric)
+    	rcfg.SinkManager.AddInput(RouterToSinksChannel)
+    	rcfg.Router.AddOutput(RouterToSinksChannel)
+    }
+    if len(rcfg.ConfigFile.CollectorConfigFile) > 0 {
+//        rcfg.CollectManagerDone = make(chan bool)
+        rcfg.CollectManager, err = collectors.New(rcfg.Interval, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
+	    if err != nil {
+		    log.Print(err.Error())
+		    return
+	    }
+//    	rcfg.CollectManager.ReadConfig(rcfg.ConfigFile.CollectorConfigFile)
+//    	if err != nil {
+//		    log.Print(err.Error())
+//		    return
+//	    }
+	    CollectToRouterChannel := make(chan lp.CCMetric)
+    	rcfg.CollectManager.AddOutput(CollectToRouterChannel)
+    	rcfg.Router.AddInput(CollectToRouterChannel)
+    }
+    if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
+        rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
+        if err != nil {
+		    log.Print(err.Error())
+		    return
+	    }
+	    ReceiveToRouterChannel := make(chan lp.CCMetric)
+    	rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
+    	rcfg.Router.AddInput(ReceiveToRouterChannel)
+    	use_recv = true
+    }
+    prepare_shutdown(&rcfg)
+	rcfg.Sync.Add(1)
+	rcfg.Router.Start()
+	rcfg.SinkManager.Start()
+	rcfg.CollectManager.Start()
 	if use_recv {
-		recv.Start()
-	}
+    	rcfg.ReceiveManager.Start()
+    }
+//	if len(config.Collectors) == 0 {
+//		var keys []string
+//		for k := range Collectors {
+//			keys = append(keys, k)
+//		}
+//		log.Print("Configuration value 'collectors' does not contain any collector. Available: ", strings.Join(keys, ", "))
+//		return
+//	}
+//	for _, name := range config.Collectors {
+//		if _, found := Collectors[name]; !found {
+//			log.Print("Invalid collector '", name, "' in configuration")
+//			return
+//		}
+//	}
+//	if _, found := Sinks[config.Sink.Type]; !found {
+//		log.Print("Invalid sink type '", config.Sink.Type, "' in configuration")
+//		return
+//	}
+//	// Setup sink
+//	sink := Sinks[config.Sink.Type]
+//	err = sink.Init(config.Sink)
+//	if err != nil {
+//		log.Print(err)
+//		return
+//	}
+//	sinkChannel := make(chan bool)
+//	mproxy.Init(sinkChannel, &wg)
+//	// Setup receiver
+//	if len(config.Receiver.Type) > 0 && config.Receiver.Type != "none" {
+//		if _, found := Receivers[config.Receiver.Type]; !found {
+//			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
+//			return
+//		} else {
+//			recv = Receivers[config.Receiver.Type]
+//			err = recv.Init(config.Receiver, sink)
+//			if err == nil {
+//				use_recv = true
+//			} else {
+//				log.Print(err)
+//			}
+//		}
+//	}
 
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			case t := <-ticker.C:
+//	// Register interrupt handler
+//	prepare_shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
 
-				// Read all collectors are sort the results in the right
-				// storage locations
-				for _, c := range config.Collectors {
-					col := Collectors[c]
-					col.Read(time.Duration(config.Duration), &tmpPoints)
+//	// Initialize all collectors
+//	tmp := make([]string, 0)
+//	for _, c := range config.Collectors {
+//		col := Collectors[c]
+//		conf, found := config.CollectConfigs[c]
+//		if !found {
+//			conf = json.RawMessage("")
+//		}
+//		err = col.Init([]byte(conf))
+//		if err != nil {
+//			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
+//		} else if !col.Initialized() {
+//			log.Print("SKIP ", col.Name(), " (Not initialized)")
+//		} else {
+//			log.Print("Start ", col.Name())
+//			tmp = append(tmp, c)
+//		}
+//	}
+//	config.Collectors = tmp
+//	config.DefTags["hostname"] = host
 
-					for {
-						if len(tmpPoints) == 0 {
-							break
-						}
-						p := tmpPoints[0]
-						for k, v := range config.DefTags {
-							p.AddTag(k, v)
-							p.SetTime(t)
-						}
-						sink.Write(p)
-						tmpPoints = tmpPoints[1:]
-					}
-				}
+//	// Setup up ticker loop
+//	if clicfg["once"] != "true" {
+//		log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
+//	} else {
+//		log.Print("Running loop only once")
+//	}
+//	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
+//	done := make(chan bool)
 
-				if err := sink.Flush(); err != nil {
-					log.Printf("sink error: %s\n", err)
-				}
-				if clicfg["once"] == "true" {
-					shutdown(&wg, config.Collectors, sink, recv, clicfg["pidfile"])
-					return
-				}
-			}
-		}
-	}()
+//	// Storage for all node metrics
+//	tmpPoints := make([]lp.MutableMetric, 0)
+
+//	// Start receiver
+//	if use_recv {
+//		recv.Start()
+//	}
+
+//	go func() {
+//		for {
+//			select {
+//			case <-done:
+//				return
+//			case t := <-ticker.C:
+
+//				// Read all collectors are sort the results in the right
+//				// storage locations
+//				for _, c := range config.Collectors {
+//					col := Collectors[c]
+//					col.Read(time.Duration(config.Duration), &tmpPoints)
+
+//					for {
+//						if len(tmpPoints) == 0 {
+//							break
+//						}
+//						p := tmpPoints[0]
+//						for k, v := range config.DefTags {
+//							p.AddTag(k, v)
+//							p.SetTime(t)
+//						}
+//						sink.Write(p)
+//						tmpPoints = tmpPoints[1:]
+//					}
+//				}
+
+//				if err := sink.Flush(); err != nil {
+//					log.Printf("sink error: %s\n", err)
+//				}
+//				if clicfg["once"] == "true" {
+//					shutdown(&wg, config.Collectors, sink, recv, clicfg["pidfile"])
+//					return
+//				}
+//			}
+//		}
+//	}()
 
 	// Wait until receiving an interrupt
-	wg.Wait()
+	rcfg.Sync.Wait()
 }
