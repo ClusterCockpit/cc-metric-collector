@@ -1,50 +1,21 @@
+# CCMetric collectors
+
 This folder contains the collectors for the cc-metric-collector.
 
-# `metricCollector.go`
-The base class/configuration is located in `metricCollector.go`.
-
-# Collectors
-
-* `memstatMetric.go`: Reads `/proc/meminfo` to calculate **node** metrics. It also combines values to the metric `mem_used`
-* `loadavgMetric.go`: Reads `/proc/loadavg` and submits **node** metrics:
-* `netstatMetric.go`: Reads `/proc/net/dev` and submits for all network devices as the **node** metrics.
-* `lustreMetric.go`: Reads Lustre's stats files and submits **node** metrics:
-* `infinibandMetric.go`: Reads InfiniBand metrics. It uses the `perfquery` command to read the **node** metrics but can fallback to sysfs counters in case `perfquery` does not work.
-* `likwidMetric.go`: Reads hardware performance events using LIKWID. It submits **socket** and **cpu** metrics
-* `cpustatMetric.go`: Read CPU specific values from `/proc/stat`
-* `topprocsMetric.go`: Reads the TopX processes by their CPU usage. X is configurable
-* `nvidiaMetric.go`: Read data about Nvidia GPUs using the NVML library
-* `tempMetric.go`: Read temperature data from `/sys/class/hwmon/hwmon*`
-* `ipmiMetric.go`: Collect data from `ipmitool` or as fallback `ipmi-sensors`
-* `customCmdMetric.go`: Run commands or read files and submit the output (output has to be in InfluxDB line protocol!)
-
-If any of the collectors cannot be initialized, it is excluded from all further reads. Like if the Lustre stat file is not a valid path, no Lustre specific metrics will be recorded.
-
-# Collector configuration
+# Configuration
 
 ```json
-  "collectors": [
-    "tempstat"
-  ],
-  "collect_config": {
-    "tempstat": {
-      "tag_override": {
-        "hwmon0" : {
-            "type" : "socket",
-            "type-id" : "0"
-        },
-        "hwmon1" : {
-            "type" : "socket",
-            "type-id" : "1"
-        }
-      }
+{
+    "collector_type" : {
+        <collector specific configuration>
     }
-  }
+}
 ```
 
-The configuration of the collectors in the main config files consists of two parts: active collectors (`collectors`) and collector configuration (`collect_config`). At startup, all collectors in the `collectors` list is initialized and, if successfully initialized, added to the active collectors for metric retrieval. At initialization the collector-specific configuration from the `collect_config` section is handed over. Each collector has own configuration options, check at the collector-specific section.
+In contrast to the configuration files for sinks and receivers, the collectors configuration is not a list but a set of dicts. This is required because we didn't manage to partially read the type before loading the remaining configuration. We are eager to change this to the same format.
 
-## `memstat`
+
+## `memstat` collector
 
 ```json
   "memstat": {
@@ -70,7 +41,7 @@ Metrics:
 * `swap_free`
 * `mem_used` = `mem_total` - (`mem_free` + `mem_buffers` + `mem_cached`)
 
-## `loadavg`
+## `loadavg` collector
 ```json
   "loadavg": {
     "exclude_metrics": [
@@ -88,7 +59,7 @@ Metrics:
 * `proc_run`
 * `proc_total`
 
-## `netstat`
+## `netstat` collector
 ```json
   "netstat": {
     "exclude_devices": [
@@ -108,7 +79,7 @@ Metrics:
 The device name is added as tag `device`.
 
 
-## `diskstat`
+## `diskstat` collector
 
 ```json
   "diskstat": {
@@ -142,7 +113,7 @@ Metrics:
 
 The device name is added as tag `device`.
 
-## `cpustat`
+## `cpustat` collector
 ```json
   "netstat": {
     "exclude_metrics": [
@@ -165,7 +136,7 @@ Metrics:
 * `cpu_guest`
 * `cpu_guest_nice`
 
-## `likwid`
+## `likwid` collector
 ```json
   "likwid": {
     "eventsets": [
@@ -292,64 +263,14 @@ Since some metrics can only be gathered in multiple measurements (like the memor
 # Contributing own collectors
 A collector reads data from any source, parses it to metrics and submits these metrics to the `metric-collector`. A collector provides three function:
 
-* `Init(config []byte) error`: Initializes the collector using the given collector-specific config in JSON.
-* `Read(duration time.Duration, out *[]lp.MutableMetric) error`: Read, parse and submit data to the `out` list. If the collector has to measure anything for some duration, use the provided function argument `duration`. 
+* `Name() string`: Return the name of the collector
+* `Init(config json.RawMessage) error`: Initializes the collector using the given collector-specific config in JSON. Check if needed files/commands exists, ...
+* `Initialized() bool`: Check if a collector is successfully initialized
+* `Read(duration time.Duration, output chan ccMetric.CCMetric)`: Read, parse and submit data to the `output` channel as [`CCMetric`](../internal/ccMetric/README.md). If the collector has to measure anything for some duration, use the provided function argument `duration`. 
 * `Close()`: Closes down the collector.
 
 It is recommanded to call `setup()` in the `Init()` function.
 
-Finally, the collector needs to be registered in the `metric-collector.go`. There is a list of collectors called `Collectors` which is a map (string -> pointer to collector). Add a new entry with a descriptive name and the new collector.
+Finally, the collector needs to be registered in the `collectorManager.go`. There is a list of collectors called `AvailableCollectors` which is a map (`collector_type_string` -> `pointer to MetricCollector interface`). Add a new entry with a descriptive name and the new collector.
 
-## Sample collector
 
-```go
-package collectors
-
-import (
-    "encoding/json"
-    lp "github.com/influxdata/line-protocol"
-    "time"
-)
-
-// Struct for the collector-specific JSON config
-type SampleCollectorConfig struct {
-    ExcludeMetrics []string `json:"exclude_metrics"`
-}
-
-type SampleCollector struct {
-    MetricCollector
-    config SampleCollectorConfig
-}
-
-func (m *SampleCollector) Init(config []byte) error {
-    m.name = "SampleCollector"
-    m.setup()
-    if len(config) > 0 {
-        err := json.Unmarshal(config, &m.config)
-        if err != nil {
-            return err
-        }
-    }
-    m.init = true
-    return nil
-}
-
-func (m *SampleCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
-    if !m.init {
-        return
-    }
-    // tags for the metric, if type != node use proper type and type-id
-    tags := map[string][string]{"type" : "node"}
-    // Each metric has exactly one field: value !
-    value := map[string]interface{}{"value": int(x)}
-    y, err := lp.New("sample_metric", tags, value, time.Now())
-    if err == nil {
-        *out = append(*out, y)
-    }
-}
-
-func (m *SampleCollector) Close() {
-    m.init = false
-    return
-}
-```
