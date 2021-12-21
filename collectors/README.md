@@ -136,6 +136,113 @@ Metrics:
 * `cpu_guest`
 * `cpu_guest_nice`
 
+## `ibstat` collector
+
+```json
+  "ibstat": {
+    "perfquery_path" : "<path to perfquery command>",
+    "exclude_devices": [
+      "mlx4"
+    ]
+  }
+```
+
+The `ibstat` collector reads either data through the `perfquery` command or the sysfs files below `/sys/class/infiniband/<device>`.
+
+Metrics:
+* `ib_recv`
+* `ib_xmit`
+
+
+## `lustrestat` collector
+
+```json
+  "lustrestat": {
+    "procfiles" : [
+      "/proc/fs/lustre/llite/lnec-XXXXXX/stats"
+    ],
+    "exclude_metrics": [
+      "setattr",
+      "getattr"
+    ]
+  }
+```
+
+The `lustrestat` collector reads from the procfs stat files for Lustre like `/proc/fs/lustre/llite/lnec-XXXXXX/stats`.
+
+Metrics:
+* `read_bytes`
+* `read_requests`
+* `write_bytes`
+* `write_requests`
+* `open`
+* `close`
+* `getattr`
+* `setattr`
+* `statfs`
+* `inode_permission`
+
+## `nvidia` collector
+
+```json
+  "lustrestat": {
+    "exclude_devices" : [
+      "0","1"
+    ],
+    "exclude_metrics": [
+      "fb_memory",
+      "fan"
+    ]
+  }
+```
+
+Metrics:
+* `util`
+* `mem_util`
+* `mem_total`
+* `fb_memory`
+* `temp`
+* `fan`
+* `ecc_mode`
+* `perf_state`
+* `power_usage_report`
+* `graphics_clock_report`
+* `sm_clock_report`
+* `mem_clock_report`
+* `max_graphics_clock`
+* `max_sm_clock`
+* `max_mem_clock`
+* `ecc_db_error`
+* `ecc_sb_error`
+* `power_man_limit`
+* `encoder_util`
+* `decoder_util`
+
+It uses a separate `type` in the metrics. The output metric looks like this:
+`<name>,type=accelerator,type-id=<nvidia-gpu-id> value=<metric value> <timestamp>`
+
+## `tempstat` collector
+
+```json
+  "lustrestat": {
+    "tag_override" : {
+        "<device like hwmon1>" : {
+            "type" : "socket",
+            "type-id" : "0"
+        }
+    },
+    "exclude_metrics": [
+      "metric1",
+      "metric2"
+    ]
+  }
+```
+
+The `tempstat` collector reads the data from `/sys/class/hwmon/<device>/tempX_{input,label}`
+
+Metrics:
+* `temp_*`: The metric name is taken from the `label` files.
+
 ## `likwid` collector
 ```json
   "likwid": {
