@@ -24,7 +24,7 @@ type CpustatCollector struct {
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "CPU"}
+	m.meta = map[string]string{"source": m.name, "group": "CPU"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {

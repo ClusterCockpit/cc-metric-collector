@@ -31,7 +31,7 @@ type IpmiCollector struct {
 func (m *IpmiCollector) Init(config json.RawMessage) error {
 	m.name = "IpmiCollector"
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "IPMI"}
+	m.meta = map[string]string{"source": m.name, "group": "IPMI"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -85,7 +85,7 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 
 			y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 			if err == nil {
-			    y.AddMeta("unit", unit)
+				y.AddMeta("unit", unit)
 				output <- y
 			}
 		}
@@ -112,9 +112,9 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
 				name := strings.ToLower(strings.Replace(lv[1], " ", "_", -1))
 				y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 				if err == nil {
-				    if len(lv) > 4 {
-    				    y.AddMeta("unit", lv[4])
-    				}
+					if len(lv) > 4 {
+						y.AddMeta("unit", lv[4])
+					}
 					output <- y
 				}
 			}

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"log"
 	"time"
 )
@@ -32,7 +32,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "NvidiaCollector"
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "Nvidia"}
+	m.meta = map[string]string{"source": m.name, "group": "Nvidia"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -91,14 +91,14 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "mem_total")
 			y, err := lp.New("mem_total", tags, m.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil && !skip {
-			    y.AddMeta("unit", "MByte")
+				y.AddMeta("unit", "MByte")
 				output <- y
 			}
 			f := float64(meminfo.Used) / (1024 * 1024)
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "fb_memory")
 			y, err = lp.New("fb_memory", tags, m.meta, map[string]interface{}{"value": f}, time.Now())
 			if err == nil && !skip {
-			    y.AddMeta("unit", "MByte")
+				y.AddMeta("unit", "MByte")
 				output <- y
 			}
 		}
@@ -108,7 +108,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "temp")
 			y, err := lp.New("temp", tags, m.meta, map[string]interface{}{"value": float64(temp)}, time.Now())
 			if err == nil && !skip {
-			    y.AddMeta("unit", "degC")
+				y.AddMeta("unit", "degC")
 				output <- y
 			}
 		}

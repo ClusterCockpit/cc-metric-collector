@@ -35,7 +35,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.meta = map[string]string{"source" : m.name, "group" : "Memory", "unit": "kByte"}
+	m.meta = map[string]string{"source": m.name, "group": "Memory", "unit": "kByte"}
 	m.stats = make(map[string]int64)
 	m.matches = make(map[string]string)
 	m.tags = map[string]string{"type": "node"}

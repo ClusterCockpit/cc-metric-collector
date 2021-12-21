@@ -6,7 +6,7 @@ import (
 )
 
 type sinkConfig struct {
-    Type         string `json:"type"`
+	Type         string `json:"type"`
 	Host         string `json:"host", omitempty`
 	Port         string `json:"port", omitempty`
 	Database     string `json:"database, omitempty"`

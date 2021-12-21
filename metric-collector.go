@@ -10,12 +10,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
-//	"strings"
+	//	"strings"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
+	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 	"sync"
 	"time"
-	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
 
 // List of provided collectors. Which collector should be run can be
@@ -48,17 +48,17 @@ import (
 //}
 
 type CentralConfigFile struct {
-    Interval       int                        `json:"interval"`
-	Duration       int                        `json:"duration"`
-	Pidfile        string                     `json:"pidfile", omitempty`
-	CollectorConfigFile string                `json:"collectors"`
-	RouterConfigFile string                   `json:"router"`
-	SinkConfigFile string                     `json:"sinks"`
-	ReceiverConfigFile string                 `json:"receivers", omitempty`
+	Interval            int    `json:"interval"`
+	Duration            int    `json:"duration"`
+	Pidfile             string `json:"pidfile", omitempty`
+	CollectorConfigFile string `json:"collectors"`
+	RouterConfigFile    string `json:"router"`
+	SinkConfigFile      string `json:"sinks"`
+	ReceiverConfigFile  string `json:"receivers", omitempty`
 }
 
 func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
-    configFile, err := os.Open(file)
+	configFile, err := os.Open(file)
 	defer configFile.Close()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -70,29 +70,29 @@ func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
 }
 
 type RuntimeConfig struct {
-    Hostname    string
-    Interval    time.Duration
-    Duration    time.Duration
-    CliArgs     map[string]string
-    ConfigFile  CentralConfigFile
-    
-    Router      mr.MetricRouter
-    CollectManager collectors.CollectorManager
-    SinkManager   sinks.SinkManager
-    ReceiveManager receivers.ReceiveManager
-    Ticker        mct.MultiChanTicker
+	Hostname   string
+	Interval   time.Duration
+	Duration   time.Duration
+	CliArgs    map[string]string
+	ConfigFile CentralConfigFile
 
-    Channels    []chan lp.CCMetric
-    Sync        sync.WaitGroup
+	Router         mr.MetricRouter
+	CollectManager collectors.CollectorManager
+	SinkManager    sinks.SinkManager
+	ReceiveManager receivers.ReceiveManager
+	Ticker         mct.MultiChanTicker
+
+	Channels []chan lp.CCMetric
+	Sync     sync.WaitGroup
 }
 
 func prepare_runcfg() RuntimeConfig {
-    r := RuntimeConfig{}
-    r.Router = nil
-    r.CollectManager = nil
-    r.SinkManager = nil
-    r.ReceiveManager = nil
-    return r
+	r := RuntimeConfig{}
+	r.Router = nil
+	r.CollectManager = nil
+	r.SinkManager = nil
+	r.ReceiveManager = nil
+	return r
 }
 
 //// Structure of the configuration file
@@ -177,26 +177,26 @@ func ReadCli() map[string]string {
 func shutdown(config *RuntimeConfig) {
 	log.Print("Shutdown...")
 	if config.CollectManager != nil {
-	    log.Print("Shutdown CollectManager...")
-    	config.CollectManager.Close()
-    }
-    if config.ReceiveManager != nil {
-        log.Print("Shutdown ReceiveManager...")
-    	config.ReceiveManager.Close()
-    }
-    if config.Router != nil {
-        log.Print("Shutdown Router...")
-    	config.Router.Close()
-    }
+		log.Print("Shutdown CollectManager...")
+		config.CollectManager.Close()
+	}
+	if config.ReceiveManager != nil {
+		log.Print("Shutdown ReceiveManager...")
+		config.ReceiveManager.Close()
+	}
+	if config.Router != nil {
+		log.Print("Shutdown Router...")
+		config.Router.Close()
+	}
 	if config.SinkManager != nil {
-	    log.Print("Shutdown SinkManager...")
-    	config.SinkManager.Close()
-    }
-	
-//	pidfile := config.ConfigFile.Pidfile
-//	RemovePidfile(pidfile)
-//	pidfile = config.CliArgs["pidfile"]
-//	RemovePidfile(pidfile)
+		log.Print("Shutdown SinkManager...")
+		config.SinkManager.Close()
+	}
+
+	//	pidfile := config.ConfigFile.Pidfile
+	//	RemovePidfile(pidfile)
+	//	pidfile = config.CliArgs["pidfile"]
+	//	RemovePidfile(pidfile)
 	config.Sync.Done()
 }
 
@@ -214,7 +214,7 @@ func prepare_shutdown(config *RuntimeConfig) {
 }
 
 func main() {
-    var err error
+	var err error
 	use_recv := false
 
 	rcfg := prepare_runcfg()
@@ -231,194 +231,193 @@ func main() {
 		log.Print("Configuration value 'interval' must be greater than zero")
 		return
 	}
-	rcfg.Interval = time.Duration(rcfg.ConfigFile.Interval)*time.Second
+	rcfg.Interval = time.Duration(rcfg.ConfigFile.Interval) * time.Second
 	if rcfg.ConfigFile.Duration <= 0 || time.Duration(rcfg.ConfigFile.Duration)*time.Second <= 0 {
 		log.Print("Configuration value 'duration' must be greater than zero")
 		return
 	}
-	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration)*time.Second
-	
-	
+	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration) * time.Second
+
 	rcfg.Hostname, err = os.Hostname()
 	if err != nil {
 		log.Print(err.Error())
 		return
 	}
-//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
-//	err = SetLogging(rcfg.CliArgs["logfile"])
-//	if err != nil {
-//		log.Print("Error setting up logging system to ", rcfg.CliArgs["logfile"], " on ", rcfg.Hostname)
-//		return
-//	}
+	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
+	//	err = SetLogging(rcfg.CliArgs["logfile"])
+	//	if err != nil {
+	//		log.Print("Error setting up logging system to ", rcfg.CliArgs["logfile"], " on ", rcfg.Hostname)
+	//		return
+	//	}
 	rcfg.Ticker = mct.NewTicker(rcfg.Interval)
-    if len(rcfg.ConfigFile.RouterConfigFile) > 0 {
-        rcfg.Router, err = mr.New(rcfg.Ticker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
-        if err != nil {
-		    log.Print(err.Error())
-		    return
-	    }
-    }
-    if len(rcfg.ConfigFile.SinkConfigFile) > 0 {
-        rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
-        if err != nil {
-		    log.Print(err.Error())
-		    return
-	    }
-    	RouterToSinksChannel := make(chan lp.CCMetric)
-    	rcfg.SinkManager.AddInput(RouterToSinksChannel)
-    	rcfg.Router.AddOutput(RouterToSinksChannel)
-    }
-    if len(rcfg.ConfigFile.CollectorConfigFile) > 0 {
-        rcfg.CollectManager, err = collectors.New(rcfg.Ticker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
-	    if err != nil {
-		    log.Print(err.Error())
-		    return
-	    }
-	    CollectToRouterChannel := make(chan lp.CCMetric)
-    	rcfg.CollectManager.AddOutput(CollectToRouterChannel)
-    	rcfg.Router.AddInput(CollectToRouterChannel)
-    }
-    if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
-        rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
-        if err != nil {
-		    log.Print(err.Error())
-		    return
-	    }
-	    ReceiveToRouterChannel := make(chan lp.CCMetric)
-    	rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
-    	rcfg.Router.AddInput(ReceiveToRouterChannel)
-    	use_recv = true
-    }
-    prepare_shutdown(&rcfg)
+	if len(rcfg.ConfigFile.RouterConfigFile) > 0 {
+		rcfg.Router, err = mr.New(rcfg.Ticker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+	}
+	if len(rcfg.ConfigFile.SinkConfigFile) > 0 {
+		rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		RouterToSinksChannel := make(chan lp.CCMetric)
+		rcfg.SinkManager.AddInput(RouterToSinksChannel)
+		rcfg.Router.AddOutput(RouterToSinksChannel)
+	}
+	if len(rcfg.ConfigFile.CollectorConfigFile) > 0 {
+		rcfg.CollectManager, err = collectors.New(rcfg.Ticker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		CollectToRouterChannel := make(chan lp.CCMetric)
+		rcfg.CollectManager.AddOutput(CollectToRouterChannel)
+		rcfg.Router.AddInput(CollectToRouterChannel)
+	}
+	if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
+		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		ReceiveToRouterChannel := make(chan lp.CCMetric)
+		rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
+		rcfg.Router.AddInput(ReceiveToRouterChannel)
+		use_recv = true
+	}
+	prepare_shutdown(&rcfg)
 	rcfg.Sync.Add(1)
 	rcfg.Router.Start()
 	rcfg.SinkManager.Start()
 	rcfg.CollectManager.Start()
-	
+
 	if use_recv {
-    	rcfg.ReceiveManager.Start()
-    }
-//	if len(config.Collectors) == 0 {
-//		var keys []string
-//		for k := range Collectors {
-//			keys = append(keys, k)
-//		}
-//		log.Print("Configuration value 'collectors' does not contain any collector. Available: ", strings.Join(keys, ", "))
-//		return
-//	}
-//	for _, name := range config.Collectors {
-//		if _, found := Collectors[name]; !found {
-//			log.Print("Invalid collector '", name, "' in configuration")
-//			return
-//		}
-//	}
-//	if _, found := Sinks[config.Sink.Type]; !found {
-//		log.Print("Invalid sink type '", config.Sink.Type, "' in configuration")
-//		return
-//	}
-//	// Setup sink
-//	sink := Sinks[config.Sink.Type]
-//	err = sink.Init(config.Sink)
-//	if err != nil {
-//		log.Print(err)
-//		return
-//	}
-//	sinkChannel := make(chan bool)
-//	mproxy.Init(sinkChannel, &wg)
-//	// Setup receiver
-//	if len(config.Receiver.Type) > 0 && config.Receiver.Type != "none" {
-//		if _, found := Receivers[config.Receiver.Type]; !found {
-//			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
-//			return
-//		} else {
-//			recv = Receivers[config.Receiver.Type]
-//			err = recv.Init(config.Receiver, sink)
-//			if err == nil {
-//				use_recv = true
-//			} else {
-//				log.Print(err)
-//			}
-//		}
-//	}
+		rcfg.ReceiveManager.Start()
+	}
+	//	if len(config.Collectors) == 0 {
+	//		var keys []string
+	//		for k := range Collectors {
+	//			keys = append(keys, k)
+	//		}
+	//		log.Print("Configuration value 'collectors' does not contain any collector. Available: ", strings.Join(keys, ", "))
+	//		return
+	//	}
+	//	for _, name := range config.Collectors {
+	//		if _, found := Collectors[name]; !found {
+	//			log.Print("Invalid collector '", name, "' in configuration")
+	//			return
+	//		}
+	//	}
+	//	if _, found := Sinks[config.Sink.Type]; !found {
+	//		log.Print("Invalid sink type '", config.Sink.Type, "' in configuration")
+	//		return
+	//	}
+	//	// Setup sink
+	//	sink := Sinks[config.Sink.Type]
+	//	err = sink.Init(config.Sink)
+	//	if err != nil {
+	//		log.Print(err)
+	//		return
+	//	}
+	//	sinkChannel := make(chan bool)
+	//	mproxy.Init(sinkChannel, &wg)
+	//	// Setup receiver
+	//	if len(config.Receiver.Type) > 0 && config.Receiver.Type != "none" {
+	//		if _, found := Receivers[config.Receiver.Type]; !found {
+	//			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
+	//			return
+	//		} else {
+	//			recv = Receivers[config.Receiver.Type]
+	//			err = recv.Init(config.Receiver, sink)
+	//			if err == nil {
+	//				use_recv = true
+	//			} else {
+	//				log.Print(err)
+	//			}
+	//		}
+	//	}
 
-//	// Register interrupt handler
-//	prepare_shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
+	//	// Register interrupt handler
+	//	prepare_shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
 
-//	// Initialize all collectors
-//	tmp := make([]string, 0)
-//	for _, c := range config.Collectors {
-//		col := Collectors[c]
-//		conf, found := config.CollectConfigs[c]
-//		if !found {
-//			conf = json.RawMessage("")
-//		}
-//		err = col.Init([]byte(conf))
-//		if err != nil {
-//			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
-//		} else if !col.Initialized() {
-//			log.Print("SKIP ", col.Name(), " (Not initialized)")
-//		} else {
-//			log.Print("Start ", col.Name())
-//			tmp = append(tmp, c)
-//		}
-//	}
-//	config.Collectors = tmp
-//	config.DefTags["hostname"] = host
+	//	// Initialize all collectors
+	//	tmp := make([]string, 0)
+	//	for _, c := range config.Collectors {
+	//		col := Collectors[c]
+	//		conf, found := config.CollectConfigs[c]
+	//		if !found {
+	//			conf = json.RawMessage("")
+	//		}
+	//		err = col.Init([]byte(conf))
+	//		if err != nil {
+	//			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
+	//		} else if !col.Initialized() {
+	//			log.Print("SKIP ", col.Name(), " (Not initialized)")
+	//		} else {
+	//			log.Print("Start ", col.Name())
+	//			tmp = append(tmp, c)
+	//		}
+	//	}
+	//	config.Collectors = tmp
+	//	config.DefTags["hostname"] = host
 
-//	// Setup up ticker loop
-//	if clicfg["once"] != "true" {
-//		log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
-//	} else {
-//		log.Print("Running loop only once")
-//	}
-//	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
-//	done := make(chan bool)
+	//	// Setup up ticker loop
+	//	if clicfg["once"] != "true" {
+	//		log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
+	//	} else {
+	//		log.Print("Running loop only once")
+	//	}
+	//	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
+	//	done := make(chan bool)
 
-//	// Storage for all node metrics
-//	tmpPoints := make([]lp.MutableMetric, 0)
+	//	// Storage for all node metrics
+	//	tmpPoints := make([]lp.MutableMetric, 0)
 
-//	// Start receiver
-//	if use_recv {
-//		recv.Start()
-//	}
+	//	// Start receiver
+	//	if use_recv {
+	//		recv.Start()
+	//	}
 
-//	go func() {
-//		for {
-//			select {
-//			case <-done:
-//				return
-//			case t := <-ticker.C:
+	//	go func() {
+	//		for {
+	//			select {
+	//			case <-done:
+	//				return
+	//			case t := <-ticker.C:
 
-//				// Read all collectors are sort the results in the right
-//				// storage locations
-//				for _, c := range config.Collectors {
-//					col := Collectors[c]
-//					col.Read(time.Duration(config.Duration), &tmpPoints)
+	//				// Read all collectors are sort the results in the right
+	//				// storage locations
+	//				for _, c := range config.Collectors {
+	//					col := Collectors[c]
+	//					col.Read(time.Duration(config.Duration), &tmpPoints)
 
-//					for {
-//						if len(tmpPoints) == 0 {
-//							break
-//						}
-//						p := tmpPoints[0]
-//						for k, v := range config.DefTags {
-//							p.AddTag(k, v)
-//							p.SetTime(t)
-//						}
-//						sink.Write(p)
-//						tmpPoints = tmpPoints[1:]
-//					}
-//				}
+	//					for {
+	//						if len(tmpPoints) == 0 {
+	//							break
+	//						}
+	//						p := tmpPoints[0]
+	//						for k, v := range config.DefTags {
+	//							p.AddTag(k, v)
+	//							p.SetTime(t)
+	//						}
+	//						sink.Write(p)
+	//						tmpPoints = tmpPoints[1:]
+	//					}
+	//				}
 
-//				if err := sink.Flush(); err != nil {
-//					log.Printf("sink error: %s\n", err)
-//				}
-//				if clicfg["once"] == "true" {
-//					shutdown(&wg, config.Collectors, sink, recv, clicfg["pidfile"])
-//					return
-//				}
-//			}
-//		}
-//	}()
+	//				if err := sink.Flush(); err != nil {
+	//					log.Printf("sink error: %s\n", err)
+	//				}
+	//				if clicfg["once"] == "true" {
+	//					shutdown(&wg, config.Collectors, sink, recv, clicfg["pidfile"])
+	//					return
+	//				}
+	//			}
+	//		}
+	//	}()
 
 	// Wait until receiving an interrupt
 	rcfg.Sync.Wait()

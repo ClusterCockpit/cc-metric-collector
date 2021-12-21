@@ -16,5 +16,6 @@ fmt:
 	go fmt sinks/*.go
 	go fmt receivers/*.go
 	go fmt metric-collector.go
+	find . -name "*.go" -exec go fmt {} \;
 
 .PHONY: clean

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	influx "github.com/influxdata/line-protocol"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
@@ -33,7 +33,7 @@ func (s *NatsSink) connect() error {
 }
 
 func (s *NatsSink) Init(config sinkConfig) error {
-    s.name = "NatsSink"
+	s.name = "NatsSink"
 	if len(config.Host) == 0 ||
 		len(config.Port) == 0 ||
 		len(config.Database) == 0 {

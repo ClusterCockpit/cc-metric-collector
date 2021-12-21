@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	influx "github.com/influxdata/line-protocol"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
 )
 
 type HttpSink struct {
@@ -20,7 +20,7 @@ type HttpSink struct {
 }
 
 func (s *HttpSink) Init(config sinkConfig) error {
-    s.name = "HttpSink"
+	s.name = "HttpSink"
 	if len(config.Host) == 0 || len(config.Port) == 0 || len(config.Database) == 0 {
 		return errors.New("`host`, `port` and `database` config options required for TCP sink")
 	}

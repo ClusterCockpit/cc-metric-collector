@@ -54,7 +54,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	m.name = "InfinibandCollector"
 	m.use_perfquery = false
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "Network"}
+	m.meta = map[string]string{"source": m.name, "group": "Network"}
 	m.tags = map[string]string{"type": "node"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)

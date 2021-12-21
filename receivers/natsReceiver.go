@@ -2,16 +2,16 @@ package receivers
 
 import (
 	"errors"
-	influx "github.com/influxdata/line-protocol"
+	"fmt"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 	"log"
 	"time"
-	"fmt"
 )
 
 type NatsReceiverConfig struct {
-    Addr     string `json:"address"`
+	Addr     string `json:"address"`
 	Port     string `json:"port"`
 	Database string `json:"database"`
 }
@@ -37,7 +37,7 @@ func (r *NatsReceiver) Init(config ReceiverConfig) error {
 		len(r.config.Database) == 0 {
 		return errors.New("Not all configuration variables set required by NatsReceiver")
 	}
-	r.meta = map[string]string{"source" : r.name}
+	r.meta = map[string]string{"source": r.name}
 	r.addr = r.config.Addr
 	if len(r.addr) == 0 {
 		r.addr = nats.DefaultURL
@@ -71,10 +71,10 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 	metrics, err := r.parser.Parse(m.Data)
 	if err == nil {
 		for _, m := range metrics {
-		    y := lp.FromInfluxMetric(m)
-		    for k, v := range r.meta {
-		        y.AddMeta(k, v)
-		    }
+			y := lp.FromInfluxMetric(m)
+			for k, v := range r.meta {
+				y.AddMeta(k, v)
+			}
 			//y, err := lp.New(m.Name(), Tags2Map(m), r.meta, Fields2Map(m), m.Time())
 			if r.sink != nil {
 				r.sink <- y
@@ -89,4 +89,3 @@ func (r *NatsReceiver) Close() {
 		r.nc.Close()
 	}
 }
-

@@ -14,8 +14,8 @@ type StdoutSink struct {
 }
 
 func (s *StdoutSink) Init(config sinkConfig) error {
-    s.name = "StdoutSink"
-    s.meta_as_tags = config.MetaAsTags
+	s.name = "StdoutSink"
+	s.meta_as_tags = config.MetaAsTags
 	return nil
 }
 
@@ -26,9 +26,9 @@ func (s *StdoutSink) Write(point lp.CCMetric) error {
 		tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", t.Key, t.Value))
 	}
 	if s.meta_as_tags {
-	    for _, m := range point.MetaList() {
-		    tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", m.Key, m.Value))
-	    }
+		for _, m := range point.MetaList() {
+			tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", m.Key, m.Value))
+		}
 	}
 	for _, f := range point.FieldList() {
 		switch f.Value.(type) {

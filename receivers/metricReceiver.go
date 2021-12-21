@@ -2,17 +2,16 @@ package receivers
 
 import (
 	//	"time"
-	influx "github.com/influxdata/line-protocol"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-
+	influx "github.com/influxdata/line-protocol"
 )
 
 type ReceiverConfig struct {
-	Addr     string `json:"address"`
-	Port     string `json:"port"`
-	Database string `json:"database"`
+	Addr         string `json:"address"`
+	Port         string `json:"port"`
+	Database     string `json:"database"`
 	Organization string `json:"organization", omitempty`
-	Type     string `json:"type"`
+	Type         string `json:"type"`
 }
 
 type receiver struct {
@@ -37,7 +36,7 @@ func (r *receiver) Name() string {
 }
 
 func (r *receiver) SetSink(sink chan lp.CCMetric) {
-    r.sink = sink
+	r.sink = sink
 }
 
 func Tags2Map(metric influx.Metric) map[string]string {

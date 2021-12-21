@@ -32,7 +32,7 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.meta = map[string]string{"source" : m.name, "group" : "LOAD"}
+	m.meta = map[string]string{"source": m.name, "group": "LOAD"}
 	m.tags = map[string]string{"type": "node"}
 	m.load_matches = []string{"load_one", "load_five", "load_fifteen"}
 	m.proc_matches = []string{"proc_run", "proc_total"}

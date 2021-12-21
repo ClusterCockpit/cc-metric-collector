@@ -1,10 +1,10 @@
 package ccmetric
 
 import (
-    lp "github.com/influxdata/line-protocol" // MIT license
-    "time"
-    "sort"
-    "fmt"
+	"fmt"
+	lp "github.com/influxdata/line-protocol" // MIT license
+	"sort"
+	"time"
 )
 
 // Most functions are derived from github.com/influxdata/line-protocol/metric.go
@@ -12,18 +12,18 @@ import (
 // type.
 
 type ccMetric struct {
-    name   string
+	name   string
 	tags   []*lp.Tag
 	fields []*lp.Field
 	tm     time.Time
-    meta   []*lp.Tag
+	meta   []*lp.Tag
 }
 
 type CCMetric interface {
-    lp.MutableMetric
-    AddMeta(key, value string)
-    MetaList() []*lp.Tag
-    RemoveTag(key string)
+	lp.MutableMetric
+	AddMeta(key, value string)
+	MetaList() []*lp.Tag
+	RemoveTag(key string)
 }
 
 func (m *ccMetric) Meta() map[string]string {
@@ -187,9 +187,6 @@ func (m *ccMetric) AddField(key string, value interface{}) {
 	m.fields = append(m.fields, &lp.Field{Key: key, Value: convertField(value)})
 }
 
-
-
-
 func New(
 	name string,
 	tags map[string]string,
@@ -202,7 +199,7 @@ func New(
 		tags:   nil,
 		fields: nil,
 		tm:     tm,
-		meta: nil,
+		meta:   nil,
 	}
 
 	if len(tags) > 0 {

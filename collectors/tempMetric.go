@@ -5,12 +5,12 @@ import (
 	"fmt"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-	"log"
 )
 
 const HWMON_PATH = `/sys/class/hwmon`
@@ -28,7 +28,7 @@ type TempCollector struct {
 func (m *TempCollector) Init(config json.RawMessage) error {
 	m.name = "TempCollector"
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "IPMI", "unit": "degC"}
+	m.meta = map[string]string{"source": m.name, "group": "IPMI", "unit": "degC"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -90,10 +90,10 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 					break
 				}
 			}
-            mname := strings.Replace(name, " ", "_", -1)
-            if !strings.Contains(mname, "temp") {
-                mname = fmt.Sprintf("temp_%s", mname)
-            }
+			mname := strings.Replace(name, " ", "_", -1)
+			if !strings.Contains(mname, "temp") {
+				mname = fmt.Sprintf("temp_%s", mname)
+			}
 			buffer, err := ioutil.ReadFile(string(file))
 			if err != nil {
 				continue
@@ -102,7 +102,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err == nil {
 				y, err := lp.New(strings.ToLower(mname), tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
 				if err == nil {
-				    log.Print("[", m.name, "] ",y)
+					log.Print("[", m.name, "] ", y)
 					output <- y
 				}
 			}

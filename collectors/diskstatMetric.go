@@ -27,7 +27,7 @@ type DiskstatCollector struct {
 func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "DiskstatCollector"
-	m.meta = map[string]string{"source" : m.name, "group" : "Disk"}
+	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	m.setup()
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)

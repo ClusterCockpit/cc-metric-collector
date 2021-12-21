@@ -27,21 +27,21 @@ import (
 type MetricScope int
 
 const (
-    METRIC_SCOPE_HWTHREAD = iota
-    METRIC_SCOPE_SOCKET
-    METRIC_SCOPE_NUMA
-    METRIC_SCOPE_NODE
+	METRIC_SCOPE_HWTHREAD = iota
+	METRIC_SCOPE_SOCKET
+	METRIC_SCOPE_NUMA
+	METRIC_SCOPE_NODE
 )
 
 func (ms MetricScope) String() string {
-    return []string{"Head", "Shoulder", "Knee", "Toe"}[ms]
+	return []string{"Head", "Shoulder", "Knee", "Toe"}[ms]
 }
 
 type LikwidCollectorMetricConfig struct {
-	Name         string `json:"name"`
-	Calc         string `json:"calc"`
-	Scope        MetricScope `json:"socket_scope"`
-	Publish      bool   `json:"publish"`
+	Name    string      `json:"name"`
+	Calc    string      `json:"calc"`
+	Scope   MetricScope `json:"socket_scope"`
+	Publish bool        `json:"publish"`
 }
 
 type LikwidCollectorEventsetConfig struct {
@@ -127,13 +127,13 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		}
 	}
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "PerfCounter"}
+	m.meta = map[string]string{"source": m.name, "group": "PerfCounter"}
 	cpulist := CpuList()
 	m.cpulist = make([]C.int, len(cpulist))
 	slist := getSocketCpus()
 
 	m.sock2tid = make(map[int]int)
-//	m.numa2tid = make(map[int]int)
+	//	m.numa2tid = make(map[int]int)
 	for i, c := range cpulist {
 		m.cpulist[i] = C.int(c)
 		if sid, found := slist[m.cpulist[i]]; found {
@@ -264,7 +264,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					for sid, tid := range m.sock2tid {
 						y, err := lp.New(metric.Name,
 							map[string]string{"type": "socket",
-							                  "type-id": fmt.Sprintf("%d", int(sid))},
+								"type-id": fmt.Sprintf("%d", int(sid))},
 							m.meta,
 							map[string]interface{}{"value": m.mresults[i][tid][metric.Name]},
 							time.Now())
@@ -276,7 +276,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					for tid, cpu := range m.cpulist {
 						y, err := lp.New(metric.Name,
 							map[string]string{"type": "cpu",
-							                  "type-id": fmt.Sprintf("%d", int(cpu))},
+								"type-id": fmt.Sprintf("%d", int(cpu))},
 							m.meta,
 							map[string]interface{}{"value": m.mresults[i][tid][metric.Name]},
 							time.Now())
@@ -295,7 +295,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				for sid, tid := range m.sock2tid {
 					y, err := lp.New(metric.Name,
 						map[string]string{"type": "socket",
-						                  "type-id": fmt.Sprintf("%d", int(sid))},
+							"type-id": fmt.Sprintf("%d", int(sid))},
 						m.meta,
 						map[string]interface{}{"value": m.gmresults[tid][metric.Name]},
 						time.Now())
@@ -307,7 +307,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				for tid, cpu := range m.cpulist {
 					y, err := lp.New(metric.Name,
 						map[string]string{"type": "cpu",
-						                  "type-id": fmt.Sprintf("%d", int(cpu))},
+							"type-id": fmt.Sprintf("%d", int(cpu))},
 						m.meta,
 						map[string]interface{}{"value": m.gmresults[tid][metric.Name]},
 						time.Now())

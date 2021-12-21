@@ -37,7 +37,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	}
 	m.setup()
 	m.tags = map[string]string{"type": "node"}
-	m.meta = map[string]string{"source" : m.name, "group" : "Lustre"}
+	m.meta = map[string]string{"source": m.name, "group": "Lustre"}
 	m.matches = map[string]map[string]int{"read_bytes": {"read_bytes": 6, "read_requests": 1},
 		"write_bytes":      {"write_bytes": 6, "write_requests": 1},
 		"open":             {"open": 1},
@@ -90,9 +90,9 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 							if err == nil {
 								y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, time.Now())
 								if err == nil {
-								    if strings.Contains(name, "byte") {
-								        y.AddMeta("unit", "Byte")
-								    }
+									if strings.Contains(name, "byte") {
+										y.AddMeta("unit", "Byte")
+									}
 									output <- y
 								}
 							}

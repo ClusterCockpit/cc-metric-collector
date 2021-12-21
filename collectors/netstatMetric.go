@@ -25,7 +25,7 @@ type NetstatCollector struct {
 func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
-	m.meta = map[string]string{"source" : m.name, "group" : "Memory"}
+	m.meta = map[string]string{"source": m.name, "group": "Memory"}
 	m.matches = map[int]string{
 		1:  "bytes_in",
 		9:  "bytes_out",
@@ -75,12 +75,12 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			if err == nil {
 				y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": int(float64(v) * 1.0e-3)}, time.Now())
 				if err == nil {
-				    switch {
-				    case strings.Contains(name, "byte"):
-				        y.AddMeta("unit", "Byte")
-				    case strings.Contains(name, "pkt"):
-				        y.AddMeta("unit", "Packets")
-				    }
+					switch {
+					case strings.Contains(name, "byte"):
+						y.AddMeta("unit", "Byte")
+					case strings.Contains(name, "pkt"):
+						y.AddMeta("unit", "Packets")
+					}
 					output <- y
 				}
 			}

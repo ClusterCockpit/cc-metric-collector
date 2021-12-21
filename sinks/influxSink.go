@@ -39,7 +39,7 @@ func (s *InfluxSink) connect() error {
 }
 
 func (s *InfluxSink) Init(config sinkConfig) error {
-    s.name = "InfluxSink"
+	s.name = "InfluxSink"
 	if len(config.Host) == 0 ||
 		len(config.Port) == 0 ||
 		len(config.Database) == 0 ||
@@ -65,9 +65,9 @@ func (s *InfluxSink) Write(point lp.CCMetric) error {
 		tags[t.Key] = t.Value
 	}
 	if s.meta_as_tags {
-	    for _, m := range point.MetaList() {
-		    tags[m.Key] = m.Value
-	    }
+		for _, m := range point.MetaList() {
+			tags[m.Key] = m.Value
+		}
 	}
 	for _, f := range point.FieldList() {
 		fields[f.Key] = f.Value

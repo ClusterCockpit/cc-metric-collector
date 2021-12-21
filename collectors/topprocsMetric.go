@@ -28,7 +28,7 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "TopProcsCollector"
 	m.tags = map[string]string{"type": "node"}
-	m.meta = map[string]string{"source" : m.name, "group" : "TopProcs"}
+	m.meta = map[string]string{"source": m.name, "group": "TopProcs"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {

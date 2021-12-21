@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	"encoding/json"
 	"errors"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
@@ -9,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
 )
 
 type MetricCollector interface {
@@ -21,10 +21,10 @@ type MetricCollector interface {
 }
 
 type metricCollector struct {
-    output chan lp.CCMetric
-	name string
-	init bool
-	meta map[string]string
+	output chan lp.CCMetric
+	name   string
+	init   bool
+	meta   map[string]string
 }
 
 func (c *metricCollector) Name() string {
