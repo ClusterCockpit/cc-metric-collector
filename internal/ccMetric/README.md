@@ -4,7 +4,7 @@ As described in the [ClusterCockpit specifications](https://github.com/ClusterCo
 
 It is basically a copy of the [InfluxDB line protocol](https://github.com/influxdata/line-protocol) `MutableMetric` interface with one extension. Besides the tags and fields, it contains a list of meta information (re-using the `Tag` structure of the original protocol):
 
-```
+```golang
 type ccMetric struct {
     name   string            // same as
     tags   []*influx.Tag     // original
@@ -17,7 +17,7 @@ type CCMetric interface {
     influx.MutableMetric        // the same functions as defined by influx.MutableMetric
     RemoveTag(key string)       // this is not published by the original influx.MutableMetric
     Meta() map[string]string
-    MetaList() []*lp.Tag
+    MetaList() []*inlux.Tag
     AddMeta(key, value string)
     HasMeta(key string) bool
     GetMeta(key string) (string, bool)
