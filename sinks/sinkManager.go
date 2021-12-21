@@ -8,10 +8,6 @@ import (
 	"sync"
 )
 
-type SinkEntity struct {
-	config json.RawMessage
-	output Sink
-}
 
 var AvailableSinks = map[string]Sink{
 	"influxdb": &InfluxSink{},
