@@ -7,12 +7,26 @@ It is basically a copy of the [InfluxDB line protocol](https://github.com/influx
 ```
 type ccMetric struct {
     name   string            // same as
-	tags   []*influx.Tag     // original
-	fields []*influx.Field   // Influx
-	tm     time.Time         // line-protocol
-	meta   []*influx.Tag
+    tags   []*influx.Tag     // original
+    fields []*influx.Field   // Influx
+    tm     time.Time         // line-protocol
+    meta   []*influx.Tag
+}
+
+type CCMetric interface {
+    influx.MutableMetric        // the same functions as defined by influx.MutableMetric
+    RemoveTag(key string)       // this is not published by the original influx.MutableMetric
+    Meta() map[string]string
+    MetaList() []*lp.Tag
+    AddMeta(key, value string)
+    HasMeta(key string) bool
+    GetMeta(key string) (string, bool)
+    RemoveMeta(key string)
 }
 ```
 
-The `CCMetric` interface provides the same functions as the `MutableMetric` like `{Add, Remove, Has}{Tag, Field}` and additionally provides `{Add, Remove, Has}Meta`
+The `CCMetric` interface provides the same functions as the `MutableMetric` like `{Add, Remove, Has}{Tag, Field}` and additionally provides `{Add, Remove, Has}Meta`.
 
+The InfluxDB protocol creates a new metric with `influx.New(name, tags, fields, time)` while CCMetric uses `ccMetric.New(name, tags, meta, fields, time)` where `tags` and `meta` are both of type `map[string]string`.
+
+You can copy a CCMetric with `FromMetric(other CCMetric) CCMetric`. If you get an `influx.Metric` from a function, like the line protocol parser, you can use `FromInfluxMetric(other influx.Metric) CCMetric` to get a CCMetric out of it (see `NatsReceiver` for an example).
