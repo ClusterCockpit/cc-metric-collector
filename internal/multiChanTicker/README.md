@@ -26,9 +26,9 @@ t.AddChannel(c2)
 
 for {
     select {
-    case t1 :<- c1:
+    case t1 := <- c1:
         log.Print(t1)
-    case t2 :<- c2:
+    case t2 := <- c2:
         log.Print(t2)
     }
 }
