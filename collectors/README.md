@@ -22,7 +22,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`loadavg`](./loadavgMetric.md)
 * [`netstat`](./netstatMetric.md)
 * [`ibstat`](./infinibandMetric.md)
-* [`tempstat`](./tempstatMetric.md)
+* [`tempstat`](./tempMetric.md)
 * [`lustre`](./lustreMetric.md)
 * [`likwid`](./likwidMetric.md)
 * [`nvidia`](./nvidiaMetric.md)

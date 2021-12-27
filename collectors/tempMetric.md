@@ -2,7 +2,7 @@
 ## `tempstat` collector
 
 ```json
-  "lustrestat": {
+  "tempstat": {
     "tag_override" : {
         "<device like hwmon1>" : {
             "type" : "socket",
