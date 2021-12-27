@@ -11,7 +11,7 @@
     ],
     "commands" : [
       "/usr/local/bin/getmetrics.pl"
-    ],
+    ]
   }
 ```
 
