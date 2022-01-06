@@ -215,7 +215,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				res := C.perfmon_getLastResult(gid, eidx, C.int(tid))
 				m.results[i][tid][gctr] = float64(res)
 			}
-			m.results[i][tid]["time"] = float64(interval)
+			m.results[i][tid]["time"] = interval.Seconds()
 			m.results[i][tid]["inverseClock"] = float64(1.0 / m.basefreq)
 			for _, metric := range evset.Metrics {
 				expression, err := govaluate.NewEvaluableExpression(metric.Calc)
