@@ -281,7 +281,7 @@ func main() {
 				// storage locations
 				for _, c := range config.Collectors {
 					col := Collectors[c]
-					col.Read(time.Duration(config.Duration), &tmpPoints)
+					col.Read(time.Duration(config.Duration)*time.Second, &tmpPoints)
 
 					for {
 						if len(tmpPoints) == 0 {
