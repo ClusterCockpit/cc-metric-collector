@@ -121,6 +121,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				continue
 			}
 
+			/* requires go 1.17
 			// unix epoch in microseconds
 			timestampInt, err := strconv.ParseInt(key_value["_t_"]+key_value["_tu_"], 10, 64)
 			timestamp := time.UnixMicro(timestampInt)
@@ -130,6 +131,8 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 					key_value["_t_"]+key_value["_tu_"], err.Error())
 				continue
 			}
+			*/
+			timestamp := time.Now()
 
 			// bytes read
 			bytesRead, err := strconv.ParseInt(key_value["_br_"], 10, 64)
