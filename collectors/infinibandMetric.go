@@ -47,6 +47,8 @@ func (m *InfinibandCollector) Help() {
 	fmt.Println("Metrics:")
 	fmt.Println("- ib_recv")
 	fmt.Println("- ib_xmit")
+	fmt.Println("- ib_recv_pkts")
+	fmt.Println("- ib_xmit_pkts")
 }
 
 func (m *InfinibandCollector) Init(config []byte) error {
@@ -143,6 +145,26 @@ func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[strin
 				}
 			}
 		}
+		if strings.HasPrefix(line, "PortRcvPkts") || strings.HasPrefix(line, "RcvPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_recv_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
+			}
+		}
+		if strings.HasPrefix(line, "PortXmitPkts") || strings.HasPrefix(line, "XmtPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_xmit_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -166,6 +188,28 @@ func DoSysfsRead(dev string, lid string, port string, tags map[string]string, ou
 		v, err := strconv.ParseFloat(data, 64)
 		if err == nil {
 			y, err := lp.New("ib_xmit", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+			if err == nil {
+				*out = append(*out, y)
+			}
+		}
+	}
+	buffer, err = ioutil.ReadFile(fmt.Sprintf("%s/port_rcv_packets", path))
+	if err == nil {
+		data := strings.Replace(string(buffer), "\n", "", -1)
+		v, err := strconv.ParseFloat(data, 64)
+		if err == nil {
+			y, err := lp.New("ib_recv_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+			if err == nil {
+				*out = append(*out, y)
+			}
+		}
+	}
+	buffer, err = ioutil.ReadFile(fmt.Sprintf("%s/port_xmit_packets", path))
+	if err == nil {
+		data := strings.Replace(string(buffer), "\n", "", -1)
+		v, err := strconv.ParseFloat(data, 64)
+		if err == nil {
+			y, err := lp.New("ib_xmit_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
 			if err == nil {
 				*out = append(*out, y)
 			}
