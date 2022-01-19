@@ -166,6 +166,8 @@ func main() {
 		log.Print(err)
 		return
 	}
+	// Drop domain part of host name
+	host = strings.SplitN(host, `.`, 2)[0]
 	clicfg := ReadCli()
 	err = CreatePidfile(clicfg["pidfile"])
 	err = SetLogging(clicfg["logfile"])
