@@ -4,18 +4,22 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ClusterCockpit/cc-metric-collector/collectors"
-	"github.com/ClusterCockpit/cc-metric-collector/receivers"
-	"github.com/ClusterCockpit/cc-metric-collector/sinks"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
+
+	"github.com/ClusterCockpit/cc-metric-collector/collectors"
+	"github.com/ClusterCockpit/cc-metric-collector/receivers"
+	"github.com/ClusterCockpit/cc-metric-collector/sinks"
+
 	//	"strings"
+	"sync"
+	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
-	"sync"
-	"time"
 )
 
 // List of provided collectors. Which collector should be run can be
@@ -243,6 +247,8 @@ func main() {
 		log.Print(err.Error())
 		return
 	}
+	// Drop domain part of host name
+	rcfg.Hostname = strings.SplitN(rcfg.Hostname, `.`, 2)[0]
 	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
 	//	err = SetLogging(rcfg.CliArgs["logfile"])
 	//	if err != nil {
