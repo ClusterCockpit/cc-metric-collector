@@ -32,6 +32,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"diskstat":   &collectors.DiskstatCollector{},
 	"tempstat":   &collectors.TempCollector{},
 	"ipmistat":   &collectors.IpmiCollector{},
+	"gpfs":       &collectors.GpfsCollector{},
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
