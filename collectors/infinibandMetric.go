@@ -2,10 +2,12 @@ package collectors
 
 import (
 	"fmt"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"log"
 	"os/exec"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+
 	//	"os"
 	"encoding/json"
 	"errors"
@@ -47,6 +49,8 @@ func (m *InfinibandCollector) Help() {
 	fmt.Println("Metrics:")
 	fmt.Println("- ib_recv")
 	fmt.Println("- ib_xmit")
+	fmt.Println("- ib_recv_pkts")
+	fmt.Println("- ib_xmit_pkts")
 }
 
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
@@ -144,6 +148,26 @@ func (m *InfinibandCollector) doPerfQuery(cmd string, dev string, lid string, po
 				}
 			}
 		}
+		if strings.HasPrefix(line, "PortRcvPkts") || strings.HasPrefix(line, "RcvPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					output <- y
+				}
+			}
+		}
+		if strings.HasPrefix(line, "PortXmitPkts") || strings.HasPrefix(line, "XmtPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					output <- y
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -172,6 +196,29 @@ func (m *InfinibandCollector) doSysfsRead(dev string, lid string, port string, t
 			}
 		}
 	}
+	buffer, err = ioutil.ReadFile(fmt.Sprintf("%s/port_rcv_packets", path))
+	if err == nil {
+		data := strings.Replace(string(buffer), "\n", "", -1)
+		v, err := strconv.ParseFloat(data, 64)
+		if err == nil {
+			y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
+			if err == nil {
+				output <- y
+			}
+		}
+	}
+	buffer, err = ioutil.ReadFile(fmt.Sprintf("%s/port_xmit_packets", path))
+	if err == nil {
+		data := strings.Replace(string(buffer), "\n", "", -1)
+		v, err := strconv.ParseFloat(data, 64)
+		if err == nil {
+			y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
+			if err == nil {
+				output <- y
+			}
+		}
+	}
+
 	return nil
 }
 
