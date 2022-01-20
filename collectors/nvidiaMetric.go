@@ -11,8 +11,8 @@ import (
 )
 
 type NvidiaCollectorConfig struct {
-	ExcludeMetrics []string `json:"exclude_metrics, omitempty"`
-	ExcludeDevices []string `json:"exclude_devices, omitempty"`
+	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+	ExcludeDevices []string `json:"exclude_devices,omitempty"`
 }
 
 type NvidiaCollector struct {
