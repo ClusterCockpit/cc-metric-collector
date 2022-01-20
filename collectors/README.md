@@ -48,4 +48,59 @@ It is recommanded to call `setup()` in the `Init()` function.
 
 Finally, the collector needs to be registered in the `collectorManager.go`. There is a list of collectors called `AvailableCollectors` which is a map (`collector_type_string` -> `pointer to MetricCollector interface`). Add a new entry with a descriptive name and the new collector.
 
+## Sample collector
 
+```go
+package collectors
+
+import (
+    "encoding/json"
+    "time"
+
+    lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+)
+
+// Struct for the collector-specific JSON config
+type SampleCollectorConfig struct {
+    ExcludeMetrics []string `json:"exclude_metrics"`
+}
+
+type SampleCollector struct {
+    metricCollector
+    config SampleCollectorConfig
+}
+
+func (m *SampleCollector) Init(config json.RawMessage) error {
+    m.name = "SampleCollector"
+    m.setup()
+    if len(config) > 0 {
+        err := json.Unmarshal(config, &m.config)
+        if err != nil {
+            return err
+        }
+    }
+    m.meta = map[string]string{"source": m.name, "group": "Sample"}
+
+    m.init = true
+    return nil
+}
+
+func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+    if !m.init {
+        return
+    }
+    // tags for the metric, if type != node use proper type and type-id
+    tags := map[string]string{"type" : "node"}
+    // Each metric has exactly one field: value !
+    value := map[string]interface{}{"value": int(x)}
+    y, err := lp.New("sample_metric", tags, m.meta, value, time.Now())
+    if err == nil {
+        output <- y
+    }
+}
+
+func (m *SampleCollector) Close() {
+    m.init = false
+    return
+}
+```
