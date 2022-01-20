@@ -25,3 +25,14 @@ fmt:
 	go fmt $(GOSRC_RECEIVERS)
 	go fmt $(GOSRC_APP)
 
+# Examine Go source code and reports suspicious constructs
+.PHONY: vet
+	go vet ./...
+
+
+# Run linter for the Go programming language.
+# Using static analysis, it finds bugs and performance issues, offers simplifications, and enforces style rules
+.PHONY: staticcheck
+staticcheck:
+	go install honnef.co/go/tools/cmd/staticcheck@latest
+	$$(go env GOPATH)/bin/staticcheck ./...
