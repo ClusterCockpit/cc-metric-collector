@@ -28,6 +28,7 @@ fmt:
 
 # Examine Go source code and reports suspicious constructs
 .PHONY: vet
+vet:
 	go vet ./...
 
 
