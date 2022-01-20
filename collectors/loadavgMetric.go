@@ -12,7 +12,7 @@ import (
 const LOADAVGFILE = `/proc/loadavg`
 
 type LoadavgCollectorConfig struct {
-	ExcludeMetrics []string `json:"exclude_metrics, omitempty"`
+	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 }
 
 type LoadavgCollector struct {

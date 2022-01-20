@@ -7,14 +7,14 @@ import (
 
 type sinkConfig struct {
 	Type         string `json:"type"`
-	Host         string `json:"host", omitempty`
-	Port         string `json:"port", omitempty`
-	Database     string `json:"database, omitempty"`
-	User         string `json:"user, omitempty"`
-	Password     string `json:"password", omitempty`
-	Organization string `json:"organization", omitempty`
-	SSL          bool   `json:"ssl", omitempty`
-	MetaAsTags   bool   `json:"meta_as_tags", omitempty`
+	Host         string `json:"host,omitempty"`
+	Port         string `json:"port,omitempty"`
+	Database     string `json:"database,omitempty"`
+	User         string `json:"user,omitempty"`
+	Password     string `json:"password,omitempty"`
+	Organization string `json:"organization,omitempty"`
+	SSL          bool   `json:"ssl,omitempty"`
+	MetaAsTags   bool   `json:"meta_as_tags,omitempty"`
 }
 
 type sink struct {

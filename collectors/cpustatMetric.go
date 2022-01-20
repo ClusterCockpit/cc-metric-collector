@@ -13,7 +13,7 @@ import (
 const CPUSTATFILE = `/proc/stat`
 
 type CpustatCollectorConfig struct {
-	ExcludeMetrics []string `json:"exclude_metrics, omitempty"`
+	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 }
 
 type CpustatCollector struct {

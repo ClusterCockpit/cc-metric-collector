@@ -22,7 +22,7 @@ const LIDFILE = `/sys/class/infiniband/mlx4_0/ports/1/lid`
 const PERFQUERY = `/usr/sbin/perfquery`
 
 type InfinibandCollectorConfig struct {
-	ExcludeDevices []string `json:"exclude_devices, omitempty"`
+	ExcludeDevices []string `json:"exclude_devices,omitempty"`
 	PerfQueryPath  string   `json:"perfquery_path"`
 }
 

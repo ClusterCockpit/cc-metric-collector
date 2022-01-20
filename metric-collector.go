@@ -54,11 +54,11 @@ import (
 type CentralConfigFile struct {
 	Interval            int    `json:"interval"`
 	Duration            int    `json:"duration"`
-	Pidfile             string `json:"pidfile", omitempty`
+	Pidfile             string `json:"pidfile,omitempty"`
 	CollectorConfigFile string `json:"collectors"`
 	RouterConfigFile    string `json:"router"`
 	SinkConfigFile      string `json:"sinks"`
-	ReceiverConfigFile  string `json:"receivers", omitempty`
+	ReceiverConfigFile  string `json:"receivers,omitempty"`
 }
 
 func LoadCentralConfiguration(file string, config *CentralConfigFile) error {

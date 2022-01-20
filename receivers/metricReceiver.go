@@ -10,7 +10,7 @@ type ReceiverConfig struct {
 	Addr         string `json:"address"`
 	Port         string `json:"port"`
 	Database     string `json:"database"`
-	Organization string `json:"organization", omitempty`
+	Organization string `json:"organization,omitempty"`
 	Type         string `json:"type"`
 }
 

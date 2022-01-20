@@ -15,7 +15,7 @@ const DISKSTATFILE = `/proc/diskstats`
 const DISKSTAT_SYSFSPATH = `/sys/block`
 
 type DiskstatCollectorConfig struct {
-	ExcludeMetrics []string `json:"exclude_metrics, omitempty"`
+	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 }
 
 type DiskstatCollector struct {
