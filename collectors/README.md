@@ -339,7 +339,7 @@ func (m *SampleCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
         return
     }
     // tags for the metric, if type != node use proper type and type-id
-    tags := map[string][string]{"type" : "node"}
+    tags := map[string]string{"type" : "node"}
     // Each metric has exactly one field: value !
     value := map[string]interface{}{"value": int(x)}
     y, err := lp.New("sample_metric", tags, value, time.Now())
