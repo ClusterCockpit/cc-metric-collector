@@ -2,12 +2,13 @@ package collectors
 
 import (
 	"encoding/json"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
 
 var AvailableCollectors = map[string]MetricCollector{
@@ -24,6 +25,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"diskstat":   &DiskstatCollector{},
 	"tempstat":   &TempCollector{},
 	"ipmistat":   &IpmiCollector{},
+	"gpfs":       &GpfsCollector{},
 }
 
 type collectorManager struct {
