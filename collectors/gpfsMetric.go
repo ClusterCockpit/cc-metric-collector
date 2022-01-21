@@ -17,13 +17,11 @@ import (
 	lp "github.com/influxdata/line-protocol"
 )
 
-type GpfsCollectorConfig struct {
-	Mmpmon string `json:"mmpmon"`
-}
-
 type GpfsCollector struct {
 	MetricCollector
-	config GpfsCollectorConfig
+	config struct {
+		Mmpmon string `json:"mmpmon"`
+	}
 }
 
 func (m *GpfsCollector) Init(config []byte) error {
@@ -297,5 +295,4 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 
 func (m *GpfsCollector) Close() {
 	m.init = false
-	return
 }

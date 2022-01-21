@@ -1,8 +1,10 @@
 package collectors
 
 import (
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
+
+	lp "github.com/influxdata/line-protocol"
+
 	//	"log"
 	"encoding/json"
 	"errors"
@@ -107,10 +109,8 @@ func (m *DiskstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric
 			}
 		}
 	}
-	return
 }
 
 func (m *DiskstatCollector) Close() {
 	m.init = false
-	return
 }

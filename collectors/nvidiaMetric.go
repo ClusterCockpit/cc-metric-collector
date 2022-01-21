@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 	"time"
+
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	lp "github.com/influxdata/line-protocol"
 )
 
 type NvidiaCollectorConfig struct {
@@ -267,5 +268,4 @@ func (m *NvidiaCollector) Close() {
 		nvml.Shutdown()
 		m.init = false
 	}
-	return
 }

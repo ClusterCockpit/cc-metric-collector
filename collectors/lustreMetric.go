@@ -3,12 +3,13 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const LUSTREFILE = `/proc/fs/lustre/llite/lnec-XXXXXX/stats`
@@ -102,5 +103,4 @@ func (m *LustreCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 
 func (m *LustreCollector) Close() {
 	m.init = false
-	return
 }

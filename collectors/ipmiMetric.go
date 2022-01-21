@@ -3,13 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const IPMITOOL_PATH = `/usr/bin/ipmitool`
@@ -133,5 +134,4 @@ func (m *IpmiCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 
 func (m *IpmiCollector) Close() {
 	m.init = false
-	return
 }

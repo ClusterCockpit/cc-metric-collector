@@ -2,10 +2,12 @@ package collectors
 
 import (
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"os/exec"
+
+	lp "github.com/influxdata/line-protocol"
+
 	//	"os"
 	"encoding/json"
 	"errors"
@@ -278,5 +280,4 @@ func (m *InfinibandCollector) Read(interval time.Duration, out *[]lp.MutableMetr
 
 func (m *InfinibandCollector) Close() {
 	m.init = false
-	return
 }
