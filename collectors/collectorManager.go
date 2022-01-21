@@ -25,7 +25,8 @@ var AvailableCollectors = map[string]MetricCollector{
 	"diskstat":   &DiskstatCollector{},
 	"tempstat":   &TempCollector{},
 	"ipmistat":   &IpmiCollector{},
-	"gpfs":       &GpfsCollector{},
+	"gpfs":       new(GpfsCollector),
+	"cpufreq":    new(CPUFreqCollector),
 }
 
 type collectorManager struct {
