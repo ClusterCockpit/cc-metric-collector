@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ClusterCockpit/cc-metric-collector/collectors"
-	"github.com/ClusterCockpit/cc-metric-collector/receivers"
-	"github.com/ClusterCockpit/cc-metric-collector/sinks"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ClusterCockpit/cc-metric-collector/collectors"
+	"github.com/ClusterCockpit/cc-metric-collector/receivers"
+	"github.com/ClusterCockpit/cc-metric-collector/sinks"
+	lp "github.com/influxdata/line-protocol"
 )
 
 // List of provided collectors. Which collector should be run can be
@@ -32,7 +33,8 @@ var Collectors = map[string]collectors.MetricGetter{
 	"diskstat":   &collectors.DiskstatCollector{},
 	"tempstat":   &collectors.TempCollector{},
 	"ipmistat":   &collectors.IpmiCollector{},
-	"gpfs":       &collectors.GpfsCollector{},
+	"gpfs":       new(collectors.GpfsCollector),
+	"cpufreq":    new(collectors.CPUFreqCollector),
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
