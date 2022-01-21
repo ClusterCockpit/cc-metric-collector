@@ -12,8 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
-	"gopkg.in/Knetic/govaluate.v2"
 	"io/ioutil"
 	"log"
 	"math"
@@ -22,6 +20,9 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+
+	lp "github.com/influxdata/line-protocol"
+	"gopkg.in/Knetic/govaluate.v2"
 )
 
 type LikwidCollectorMetricConfig struct {
@@ -303,5 +304,4 @@ func (m *LikwidCollector) Close() {
 		C.perfmon_finalize()
 		C.topology_finalize()
 	}
-	return
 }

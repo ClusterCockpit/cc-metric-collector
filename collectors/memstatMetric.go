@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const MEMSTATFILE = `/proc/meminfo`
@@ -125,5 +126,4 @@ func (m *MemstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 
 func (m *MemstatCollector) Close() {
 	m.init = false
-	return
 }

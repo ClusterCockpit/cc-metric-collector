@@ -3,11 +3,12 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const CPUSTATFILE = `/proc/stat`
@@ -88,5 +89,4 @@ func (m *CpustatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 
 func (m *CpustatCollector) Close() {
 	m.init = false
-	return
 }

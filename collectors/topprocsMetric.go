@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os/exec"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const MAX_NUM_PROCS = 10
@@ -74,5 +75,4 @@ func (m *TopProcsCollector) Read(interval time.Duration, out *[]lp.MutableMetric
 
 func (m *TopProcsCollector) Close() {
 	m.init = false
-	return
 }

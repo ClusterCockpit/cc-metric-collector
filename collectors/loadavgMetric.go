@@ -2,11 +2,12 @@ package collectors
 
 import (
 	"encoding/json"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const LOADAVGFILE = `/proc/loadavg`
@@ -76,5 +77,4 @@ func (m *LoadavgCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 
 func (m *LoadavgCollector) Close() {
 	m.init = false
-	return
 }

@@ -2,12 +2,13 @@ package collectors
 
 import (
 	"encoding/json"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const NETSTATFILE = `/proc/net/dev`
@@ -84,5 +85,4 @@ func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 
 func (m *NetstatCollector) Close() {
 	m.init = false
-	return
 }

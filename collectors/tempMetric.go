@@ -3,13 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/influxdata/line-protocol"
 )
 
 const HWMON_PATH = `/sys/class/hwmon`
@@ -105,5 +106,4 @@ func (m *TempCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 
 func (m *TempCollector) Close() {
 	m.init = false
-	return
 }
