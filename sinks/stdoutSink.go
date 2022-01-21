@@ -66,6 +66,4 @@ func (s *StdoutSink) Flush() error {
 	return nil
 }
 
-func (s *StdoutSink) Close() {
-	return
-}
+func (s *StdoutSink) Close() {}

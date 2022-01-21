@@ -3,13 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	influx "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"os/exec"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
 )
 
 const CUSTOMCMDPATH = `/home/unrz139/Work/cc-metric-collector/collectors/custom`
@@ -128,5 +129,4 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 
 func (m *CustomCmdCollector) Close() {
 	m.init = false
-	return
 }

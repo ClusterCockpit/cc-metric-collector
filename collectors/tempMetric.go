@@ -3,7 +3,6 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const HWMON_PATH = `/sys/class/hwmon`
@@ -112,5 +113,4 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 func (m *TempCollector) Close() {
 	m.init = false
-	return
 }

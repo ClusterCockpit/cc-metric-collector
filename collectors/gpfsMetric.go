@@ -17,14 +17,12 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-type GpfsCollectorConfig struct {
-	Mmpmon string `json:"mmpmon"`
-}
-
 type GpfsCollector struct {
 	metricCollector
 	tags   map[string]string
-	config GpfsCollectorConfig
+	config struct {
+		Mmpmon string `json:"mmpmon"`
+	}
 }
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
@@ -243,5 +241,4 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 func (m *GpfsCollector) Close() {
 	m.init = false
-	return
 }

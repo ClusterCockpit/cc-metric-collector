@@ -2,12 +2,13 @@ package collectors
 
 import (
 	"encoding/json"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const NETSTATFILE = `/proc/net/dev`
@@ -91,5 +92,4 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 func (m *NetstatCollector) Close() {
 	m.init = false
-	return
 }

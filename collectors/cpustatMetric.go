@@ -3,11 +3,12 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const CPUSTATFILE = `/proc/stat`
@@ -89,5 +90,4 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 func (m *CpustatCollector) Close() {
 	m.init = false
-	return
 }

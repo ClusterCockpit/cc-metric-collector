@@ -3,12 +3,13 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const LUSTREFILE = `/proc/fs/lustre/llite/lnec-XXXXXX/stats`
@@ -106,5 +107,4 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 
 func (m *LustreCollector) Close() {
 	m.init = false
-	return
 }

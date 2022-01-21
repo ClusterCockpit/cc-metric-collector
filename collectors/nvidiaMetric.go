@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"log"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 type NvidiaCollectorConfig struct {
@@ -271,5 +272,4 @@ func (m *NvidiaCollector) Close() {
 		nvml.Shutdown()
 		m.init = false
 	}
-	return
 }

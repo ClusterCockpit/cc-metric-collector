@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const MEMSTATFILE = `/proc/meminfo`
@@ -126,5 +127,4 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 func (m *MemstatCollector) Close() {
 	m.init = false
-	return
 }

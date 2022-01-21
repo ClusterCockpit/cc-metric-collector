@@ -2,11 +2,12 @@ package collectors
 
 import (
 	"encoding/json"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const LOADAVGFILE = `/proc/loadavg`
@@ -77,5 +78,4 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 func (m *LoadavgCollector) Close() {
 	m.init = false
-	return
 }

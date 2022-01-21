@@ -1,8 +1,10 @@
 package collectors
 
 import (
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"io/ioutil"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+
 	//	"log"
 	"encoding/json"
 	"errors"
@@ -108,10 +110,8 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 			}
 		}
 	}
-	return
 }
 
 func (m *DiskstatCollector) Close() {
 	m.init = false
-	return
 }

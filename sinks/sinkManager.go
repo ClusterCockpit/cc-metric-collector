@@ -2,12 +2,12 @@ package sinks
 
 import (
 	"encoding/json"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"log"
 	"os"
 	"sync"
-)
 
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+)
 
 var AvailableSinks = map[string]Sink{
 	"influxdb": &InfluxSink{},
@@ -129,7 +129,6 @@ func (sm *sinkManager) AddOutput(rawConfig json.RawMessage) error {
 func (sm *sinkManager) Close() {
 	sm.done <- true
 	log.Print("[SinkManager] CLOSE")
-	return
 }
 
 func New(wg *sync.WaitGroup, sinkConfigFile string) (SinkManager, error) {

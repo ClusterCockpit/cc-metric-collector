@@ -240,5 +240,4 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 
 func (m *InfinibandCollector) Close() {
 	m.init = false
-	return
 }

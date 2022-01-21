@@ -3,13 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const IPMITOOL_PATH = `/usr/bin/ipmitool`
@@ -138,5 +139,4 @@ func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 func (m *IpmiCollector) Close() {
 	m.init = false
-	return
 }

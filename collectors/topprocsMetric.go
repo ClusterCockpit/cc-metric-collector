@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"log"
 	"os/exec"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const MAX_NUM_PROCS = 10
@@ -75,5 +76,4 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric
 
 func (m *TopProcsCollector) Close() {
 	m.init = false
-	return
 }
