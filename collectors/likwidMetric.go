@@ -152,7 +152,7 @@ func (m *LikwidCollector) Init(config []byte) error {
 		C.free(unsafe.Pointer(cstr))
 		m.results[i] = make(map[int]map[string]interface{})
 		m.mresults[i] = make(map[int]map[string]float64)
-		for tid, _ := range m.cpulist {
+		for tid := range m.cpulist {
 			m.results[i][tid] = make(map[string]interface{})
 			m.mresults[i][tid] = make(map[string]float64)
 			m.gmresults[tid] = make(map[string]float64)
@@ -194,7 +194,7 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 			continue
 		}
 		var eidx C.int
-		for tid, _ := range m.cpulist {
+		for tid := range m.cpulist {
 			for eidx = 0; int(eidx) < len(evset.Events); eidx++ {
 				ctr := C.perfmon_getCounterName(gid, eidx)
 				gctr := C.GoString(ctr)
@@ -220,7 +220,7 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 	}
 
 	for _, metric := range m.config.Metrics {
-		for tid, _ := range m.cpulist {
+		for tid := range m.cpulist {
 			var params map[string]interface{}
 			expression, err := govaluate.NewEvaluableExpression(metric.Calc)
 			if err != nil {
@@ -228,7 +228,7 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 				continue
 			}
 			params = make(map[string]interface{})
-			for j, _ := range m.groups {
+			for j := range m.groups {
 				for mname, mres := range m.mresults[j][tid] {
 					params[mname] = mres
 				}
@@ -241,7 +241,7 @@ func (m *LikwidCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 			m.gmresults[tid][metric.Name] = float64(result.(float64))
 		}
 	}
-	for i, _ := range m.groups {
+	for i := range m.groups {
 		evset := m.config.Eventsets[i]
 		for _, metric := range evset.Metrics {
 			_, skip := stringArrayContains(m.config.ExcludeMetrics, metric.Name)
