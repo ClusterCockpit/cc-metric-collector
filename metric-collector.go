@@ -20,21 +20,22 @@ import (
 // List of provided collectors. Which collector should be run can be
 // configured at 'collectors' list  in 'config.json'.
 var Collectors = map[string]collectors.MetricGetter{
-	"likwid":     &collectors.LikwidCollector{},
-	"loadavg":    &collectors.LoadavgCollector{},
-	"memstat":    &collectors.MemstatCollector{},
-	"netstat":    &collectors.NetstatCollector{},
-	"ibstat":     &collectors.InfinibandCollector{},
-	"lustrestat": &collectors.LustreCollector{},
-	"cpustat":    &collectors.CpustatCollector{},
-	"topprocs":   &collectors.TopProcsCollector{},
-	"nvidia":     &collectors.NvidiaCollector{},
-	"customcmd":  &collectors.CustomCmdCollector{},
-	"diskstat":   &collectors.DiskstatCollector{},
-	"tempstat":   &collectors.TempCollector{},
-	"ipmistat":   &collectors.IpmiCollector{},
-	"gpfs":       new(collectors.GpfsCollector),
-	"cpufreq":    new(collectors.CPUFreqCollector),
+	"likwid":          &collectors.LikwidCollector{},
+	"loadavg":         &collectors.LoadavgCollector{},
+	"memstat":         &collectors.MemstatCollector{},
+	"netstat":         &collectors.NetstatCollector{},
+	"ibstat":          &collectors.InfinibandCollector{},
+	"lustrestat":      &collectors.LustreCollector{},
+	"cpustat":         &collectors.CpustatCollector{},
+	"topprocs":        &collectors.TopProcsCollector{},
+	"nvidia":          &collectors.NvidiaCollector{},
+	"customcmd":       &collectors.CustomCmdCollector{},
+	"diskstat":        &collectors.DiskstatCollector{},
+	"tempstat":        &collectors.TempCollector{},
+	"ipmistat":        &collectors.IpmiCollector{},
+	"gpfs":            new(collectors.GpfsCollector),
+	"cpufreq":         new(collectors.CPUFreqCollector),
+	"cpufreq_cpuinfo": new(collectors.CPUFreqCpuInfoCollector),
 }
 
 var Sinks = map[string]sinks.SinkFuncs{
