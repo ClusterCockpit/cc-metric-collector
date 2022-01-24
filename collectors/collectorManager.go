@@ -12,22 +12,24 @@ import (
 )
 
 var AvailableCollectors = map[string]MetricCollector{
-	"likwid":     &LikwidCollector{},
-	"loadavg":    &LoadavgCollector{},
-	"memstat":    &MemstatCollector{},
-	"netstat":    &NetstatCollector{},
-	"ibstat":     &InfinibandCollector{},
-	"lustrestat": &LustreCollector{},
-	"cpustat":    &CpustatCollector{},
-	"topprocs":   &TopProcsCollector{},
-	"nvidia":     &NvidiaCollector{},
-	"customcmd":  &CustomCmdCollector{},
-	"diskstat":   &DiskstatCollector{},
-	"tempstat":   &TempCollector{},
-	"ipmistat":   &IpmiCollector{},
-	"gpfs":       new(GpfsCollector),
-	"cpufreq":    new(CPUFreqCollector),
-	"nfsstat":    new(NfsCollector),
+
+	"likwid":          &LikwidCollector{},
+	"loadavg":         &LoadavgCollector{},
+	"memstat":         &MemstatCollector{},
+	"netstat":         &NetstatCollector{},
+	"ibstat":          &InfinibandCollector{},
+	"lustrestat":      &LustreCollector{},
+	"cpustat":         &CpustatCollector{},
+	"topprocs":        &TopProcsCollector{},
+	"nvidia":          &NvidiaCollector{},
+	"customcmd":       &CustomCmdCollector{},
+	"diskstat":        &DiskstatCollector{},
+	"tempstat":        &TempCollector{},
+	"ipmistat":        &IpmiCollector{},
+	"gpfs":            new(GpfsCollector),
+	"cpufreq":         new(CPUFreqCollector),
+	"cpufreq_cpuinfo": new(CPUFreqCpuInfoCollector),
+	"nfsstat":         new(NfsCollector),
 }
 
 type collectorManager struct {
