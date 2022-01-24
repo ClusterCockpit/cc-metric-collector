@@ -15,8 +15,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var warnLog *log.Logger = log.New(os.Stderr, "Warning: ", log.LstdFlags)
-
 //
 // readOneLine reads one line from a file.
 // It returns ok when file was successfully read.
@@ -44,7 +42,7 @@ type CPUFreqCollectorCPU struct {
 // CPUFreqCollector
 // a metric collector to measure the current frequency of the CPUs
 // as obtained from the hardware (in KHz)
-// Only measured on the first hyper thread
+// Only measure on the first hyper thread
 //
 // See: https://www.kernel.org/doc/html/latest/admin-guide/pm/cpufreq.html
 //
@@ -142,7 +140,8 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 				m.cpus,
 				CPUFreqCollectorCPU{
 					tagSet: map[string]string{
-						"coreID":    strings.TrimSpace(coreID),
+						"type":      "cpu",
+						"type-id":   strings.TrimSpace(coreID),
 						"packageID": strings.TrimSpace(packageID),
 					},
 					scalingCurFreqFile: scalingCurFreqFile,
@@ -154,8 +153,9 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	numPackages := strconv.Itoa(maxPackageID + 1)
 	numCores := strconv.Itoa(maxCoreID + 1)
 	for i := range m.cpus {
-		m.cpus[i].tagSet["num_core"] = numCores
-		m.cpus[i].tagSet["num_package"] = numPackages
+		c := &m.cpus[i]
+		c.tagSet["num_core"] = numCores
+		c.tagSet["num_package"] = numPackages
 	}
 
 	m.init = true
@@ -167,21 +167,23 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		return
 	}
 
-	for _, cpu := range m.cpus {
+	now := time.Now()
+	for i := range m.cpus {
+		cpu := &m.cpus[i]
+
 		// Read current frequency
 		line, ok := readOneLine(cpu.scalingCurFreqFile)
 		if !ok {
-			warnLog.Printf("CPUFreqCollector.Read(): Failed to read one line from file '%s'", cpu.scalingCurFreqFile)
+			log.Printf("CPUFreqCollector.Read(): Failed to read one line from file '%s'", cpu.scalingCurFreqFile)
 			continue
 		}
 		cpuFreq, err := strconv.Atoi(line)
 		if err != nil {
-			warnLog.Printf("CPUFreqCollector.Read(): Failed to convert CPU frequency '%s': %v", line, err)
+			log.Printf("CPUFreqCollector.Read(): Failed to convert CPU frequency '%s': %v", line, err)
 			continue
 		}
 
-		value := map[string]interface{}{"value": cpuFreq}
-		y, err := lp.New("cpufreq", cpu.tagSet, m.meta, value, time.Now())
+		y, err := lp.New("cpufreq", cpu.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now)
 		if err == nil {
 			output <- y
 		}
