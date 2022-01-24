@@ -33,18 +33,18 @@ func readOneLine(filename string) (text string, ok bool) {
 }
 
 type CPUFreqCollectorTopology struct {
-	processor          string // logical processor number (continuous, starting at 0)
-	coreID             string // socket local core ID
-	coreID_int         int
-	physicalID         string // socket / package ID
-	physicalID_int     int
-	numPhysicalID      string // number of  sockets / packages
-	numPhysicalID_int  int
-	isHT               bool
-	numNonHT           string // number of non hyperthreading processors
-	numNonHT_int       int
-	scalingCurFreqFile string
-	tagSet             map[string]string
+	processor               string // logical processor number (continuous, starting at 0)
+	coreID                  string // socket local core ID
+	coreID_int              int
+	physicalPackageID       string // socket / package ID
+	physicalPackageID_int   int
+	numPhysicalPackages     string // number of  sockets / packages
+	numPhysicalPackages_int int
+	isHT                    bool
+	numNonHT                string // number of non hyperthreading processors
+	numNonHT_int            int
+	scalingCurFreqFile      string
+	tagSet                  map[string]string
 }
 
 //
@@ -94,12 +94,12 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 		}
 
 		// Read package ID
-		packageIDFile := filepath.Join(cpuDir, "topology", "physical_package_id")
-		packageID, ok := readOneLine(packageIDFile)
+		physicalPackageIDFile := filepath.Join(cpuDir, "topology", "physical_package_id")
+		physicalPackageID, ok := readOneLine(physicalPackageIDFile)
 		if !ok {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to read physical package ID from %s", packageIDFile)
+			return fmt.Errorf("CPUFreqCollector.Init() unable to read physical package ID from %s", physicalPackageIDFile)
 		}
-		packageID_int, err := strconv.Atoi(packageID)
+		physicalPackageID_int, err := strconv.Atoi(physicalPackageID)
 		if err != nil {
 			return fmt.Errorf("CPUFreqCollector.Init() unable to convert packageID to int: %v", err)
 		}
@@ -124,8 +124,8 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 
 		t := &m.topology[processor_int]
 		t.processor = processor
-		t.physicalID = packageID
-		t.physicalID_int = packageID_int
+		t.physicalPackageID = physicalPackageID
+		t.physicalPackageID_int = physicalPackageID_int
 		t.coreID = coreID
 		t.coreID_int = coreID_int
 		t.scalingCurFreqFile = scalingCurFreqFile
@@ -136,7 +136,7 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 	for i := range m.topology {
 		t := &m.topology[i]
 
-		globalID := t.physicalID + ":" + t.coreID
+		globalID := t.physicalPackageID + ":" + t.coreID
 		t.isHT = coreSeenBefore[globalID]
 		coreSeenBefore[globalID] = true
 	}
@@ -148,8 +148,8 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 		t := &m.topology[i]
 
 		// Update maxPackageID
-		if t.physicalID_int > maxPhysicalID {
-			maxPhysicalID = t.physicalID_int
+		if t.physicalPackageID_int > maxPhysicalID {
+			maxPhysicalID = t.physicalPackageID_int
 		}
 
 		if !t.isHT {
@@ -162,20 +162,19 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 	numNonHT := fmt.Sprint(numNonHT_int)
 	for i := range m.topology {
 		t := &m.topology[i]
-		t.numPhysicalID = numPhysicalID
-		t.numPhysicalID_int = numPhysicalID_int
+		t.numPhysicalPackages = numPhysicalID
+		t.numPhysicalPackages_int = numPhysicalID_int
 		t.numNonHT = numNonHT
 		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
 			"type":        "cpu",
 			"type-id":     t.processor,
 			"num_core":    t.numNonHT,
-			"package_id":  t.physicalID,
-			"num_package": t.numPhysicalID,
+			"package_id":  t.physicalPackageID,
+			"num_package": t.numPhysicalPackages,
 		}
 	}
 
-	fmt.Printf("%+v\n", m.topology)
 	m.init = true
 	return nil
 }
