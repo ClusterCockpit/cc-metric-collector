@@ -57,31 +57,22 @@ func (s *NatsSink) Init(config sinkConfig) error {
 
 func (s *NatsSink) Write(point lp.CCMetric) error {
 	if s.client != nil {
-		//	    var tags map[string]string
-		//        var fields map[string]interface{}
-		//        for _, t := range point.TagList() {
-		//            tags[t.Key] = t.Value
-		//        }
-		//        for _, f := range point.FieldList() {
-		//            fields[f.Key] = f.Value
-		//        }
-		//		m, err := protocol.New(point.Name(), tags, fields, point.Time())
-		//		if err != nil {
-		//			log.Print(err)
-		//			return err
-		//		}
 		_, err := s.encoder.Encode(point)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
-		s.client.Publish(s.database, s.buffer.Bytes())
-		s.buffer.Reset()
 	}
 	return nil
 }
 
 func (s *NatsSink) Flush() error {
+	if s.client != nil {
+		if err := s.client.Publish(s.database, s.buffer.Bytes()); err != nil {
+			return err
+		}
+		s.buffer.Reset()
+	}
 	return nil
 }
 
