@@ -8,8 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const LUSTREFILE = `/proc/fs/lustre/llite/lnec-XXXXXX/stats`
@@ -20,14 +19,14 @@ type LustreCollectorConfig struct {
 }
 
 type LustreCollector struct {
-	MetricCollector
+	metricCollector
 	tags    map[string]string
 	matches map[string]map[string]int
 	devices []string
 	config  LustreCollectorConfig
 }
 
-func (m *LustreCollector) Init(config []byte) error {
+func (m *LustreCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "LustreCollector"
 	if len(config) > 0 {
@@ -38,6 +37,7 @@ func (m *LustreCollector) Init(config []byte) error {
 	}
 	m.setup()
 	m.tags = map[string]string{"type": "node"}
+	m.meta = map[string]string{"source": m.name, "group": "Lustre"}
 	m.matches = map[string]map[string]int{"read_bytes": {"read_bytes": 6, "read_requests": 1},
 		"write_bytes":      {"write_bytes": 6, "write_requests": 1},
 		"open":             {"open": 1},
@@ -64,7 +64,7 @@ func (m *LustreCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *LustreCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -88,9 +88,12 @@ func (m *LustreCollector) Read(interval time.Duration, out *[]lp.MutableMetric) 
 							}
 							x, err := strconv.ParseInt(lf[idx], 0, 64)
 							if err == nil {
-								y, err := lp.New(name, m.tags, map[string]interface{}{"value": x}, time.Now())
+								y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, time.Now())
 								if err == nil {
-									*out = append(*out, y)
+									if strings.Contains(name, "byte") {
+										y.AddMeta("unit", "Byte")
+									}
+									output <- y
 								}
 							}
 						}

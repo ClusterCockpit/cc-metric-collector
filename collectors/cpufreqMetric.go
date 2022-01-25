@@ -10,8 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"golang.org/x/sys/unix"
 )
 
@@ -56,14 +55,14 @@ type CPUFreqCollectorTopology struct {
 // See: https://www.kernel.org/doc/html/latest/admin-guide/pm/cpufreq.html
 //
 type CPUFreqCollector struct {
-	MetricCollector
+	metricCollector
 	topology []CPUFreqCollectorTopology
 	config   struct {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 	}
 }
 
-func (m *CPUFreqCollector) Init(config []byte) error {
+func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	m.name = "CPUFreqCollector"
 	m.setup()
 	if len(config) > 0 {
@@ -71,6 +70,10 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 		if err != nil {
 			return err
 		}
+	}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "CPU Frequency",
 	}
 
 	// Loop for all CPU directories
@@ -179,7 +182,7 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *CPUFreqCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -205,9 +208,9 @@ func (m *CPUFreqCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 			continue
 		}
 
-		y, err := lp.New("cpufreq", t.tagSet, map[string]interface{}{"value": cpuFreq}, now)
+		y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now)
 		if err == nil {
-			*out = append(*out, y)
+			output <- y
 		}
 	}
 }

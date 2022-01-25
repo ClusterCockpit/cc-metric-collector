@@ -5,9 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
-
-	lp "github.com/influxdata/line-protocol"
-
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	//	"os"
 	"encoding/json"
 	"errors"
@@ -28,7 +26,7 @@ type InfinibandCollectorConfig struct {
 }
 
 type InfinibandCollector struct {
-	MetricCollector
+	metricCollector
 	tags          map[string]string
 	lids          map[string]map[string]string
 	config        InfinibandCollectorConfig
@@ -56,11 +54,12 @@ func (m *InfinibandCollector) Help() {
 	fmt.Println("- ib_xmit_pkts")
 }
 
-func (m *InfinibandCollector) Init(config []byte) error {
+func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "InfinibandCollector"
 	m.use_perfquery = false
 	m.setup()
+	m.meta = map[string]string{"source": m.name, "group": "Network"}
 	m.tags = map[string]string{"type": "node"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
@@ -117,7 +116,7 @@ func (m *InfinibandCollector) Init(config []byte) error {
 	return err
 }
 
-func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[string]string, out *[]lp.MutableMetric) error {
+func (m *InfinibandCollector) doPerfQuery(cmd string, dev string, lid string, port string, tags map[string]string, output chan lp.CCMetric) error {
 
 	args := fmt.Sprintf("-r %s %s 0xf000", lid, port)
 	command := exec.Command(cmd, args)
@@ -134,9 +133,9 @@ func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[strin
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				y, err := lp.New("ib_recv", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				y, err := lp.New("ib_recv", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
@@ -144,9 +143,9 @@ func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[strin
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				y, err := lp.New("ib_xmit", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				y, err := lp.New("ib_xmit", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
@@ -154,9 +153,9 @@ func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[strin
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				y, err := lp.New("ib_recv_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
@@ -164,9 +163,29 @@ func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[strin
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				y, err := lp.New("ib_xmit_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
+				}
+			}
+		}
+		if strings.HasPrefix(line, "PortRcvPkts") || strings.HasPrefix(line, "RcvPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					output <- y
+				}
+			}
+		}
+		if strings.HasPrefix(line, "PortXmitPkts") || strings.HasPrefix(line, "XmtPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					output <- y
 				}
 			}
 		}
@@ -174,16 +193,16 @@ func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[strin
 	return nil
 }
 
-func DoSysfsRead(dev string, lid string, port string, tags map[string]string, out *[]lp.MutableMetric) error {
+func (m *InfinibandCollector) doSysfsRead(dev string, lid string, port string, tags map[string]string, output chan lp.CCMetric) error {
 	path := fmt.Sprintf("%s/%s/ports/%s/counters/", string(IBBASEPATH), dev, port)
 	buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/port_rcv_data", path))
 	if err == nil {
 		data := strings.Replace(string(buffer), "\n", "", -1)
 		v, err := strconv.ParseFloat(data, 64)
 		if err == nil {
-			y, err := lp.New("ib_recv", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+			y, err := lp.New("ib_recv", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}
@@ -192,9 +211,9 @@ func DoSysfsRead(dev string, lid string, port string, tags map[string]string, ou
 		data := strings.Replace(string(buffer), "\n", "", -1)
 		v, err := strconv.ParseFloat(data, 64)
 		if err == nil {
-			y, err := lp.New("ib_xmit", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+			y, err := lp.New("ib_xmit", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}
@@ -203,9 +222,9 @@ func DoSysfsRead(dev string, lid string, port string, tags map[string]string, ou
 		data := strings.Replace(string(buffer), "\n", "", -1)
 		v, err := strconv.ParseFloat(data, 64)
 		if err == nil {
-			y, err := lp.New("ib_recv_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+			y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}
@@ -214,71 +233,29 @@ func DoSysfsRead(dev string, lid string, port string, tags map[string]string, ou
 		data := strings.Replace(string(buffer), "\n", "", -1)
 		v, err := strconv.ParseFloat(data, 64)
 		if err == nil {
-			y, err := lp.New("ib_xmit_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+			y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}
 	return nil
 }
 
-func (m *InfinibandCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 	if m.init {
 		for dev, ports := range m.lids {
 			for port, lid := range ports {
 				tags := map[string]string{"type": "node", "device": dev, "port": port}
 				if m.use_perfquery {
-					DoPerfQuery(m.config.PerfQueryPath, dev, lid, port, tags, out)
+					m.doPerfQuery(m.config.PerfQueryPath, dev, lid, port, tags, output)
 				} else {
-					DoSysfsRead(dev, lid, port, tags, out)
+					m.doSysfsRead(dev, lid, port, tags, output)
 				}
 			}
 		}
 	}
-
-	//	buffer, err := ioutil.ReadFile(string(LIDFILE))
-
-	//	if err != nil {
-	//		log.Print(err)
-	//		return
-	//	}
-
-	//	args := fmt.Sprintf("-r %s 1 0xf000", string(buffer))
-
-	//	command := exec.Command(PERFQUERY, args)
-	//	command.Wait()
-	//	stdout, err := command.Output()
-	//	if err != nil {
-	//		log.Print(err)
-	//		return
-	//	}
-
-	//	ll := strings.Split(string(stdout), "\n")
-
-	//	for _, line := range ll {
-	//		if strings.HasPrefix(line, "PortRcvData") || strings.HasPrefix(line, "RcvData") {
-	//			lv := strings.Fields(line)
-	//			v, err := strconv.ParseFloat(lv[1], 64)
-	//			if err == nil {
-	//				y, err := lp.New("ib_recv", m.tags, map[string]interface{}{"value": float64(v)}, time.Now())
-	//				if err == nil {
-	//					*out = append(*out, y)
-	//				}
-	//			}
-	//		}
-	//		if strings.HasPrefix(line, "PortXmitData") || strings.HasPrefix(line, "XmtData") {
-	//			lv := strings.Fields(line)
-	//			v, err := strconv.ParseFloat(lv[1], 64)
-	//			if err == nil {
-	//				y, err := lp.New("ib_xmit", m.tags, map[string]interface{}{"value": float64(v)}, time.Now())
-	//				if err == nil {
-	//					*out = append(*out, y)
-	//				}
-	//			}
-	//		}
-	//	}
 }
 
 func (m *InfinibandCollector) Close() {

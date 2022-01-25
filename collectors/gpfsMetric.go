@@ -13,18 +13,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	lp "github.com/influxdata/line-protocol"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 type GpfsCollector struct {
-	MetricCollector
+	metricCollector
+	tags   map[string]string
+
 	config struct {
 		Mmpmon string `json:"mmpmon"`
 	}
 }
 
-func (m *GpfsCollector) Init(config []byte) error {
+
+func (m *GpfsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "GpfsCollector"
 	m.setup()
@@ -39,6 +41,14 @@ func (m *GpfsCollector) Init(config []byte) error {
 			log.Print(err.Error())
 			return err
 		}
+	}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "GPFS",
+	}
+	m.tags = map[string]string{
+		"type":       "node",
+		"filesystem": "",
 	}
 
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
@@ -60,7 +70,7 @@ func (m *GpfsCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -108,6 +118,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				continue
 			}
 
+			m.tags["filesystem"] = filesystem
+
+
 			// return code
 			rc, err := strconv.Atoi(key_value["_rc_"])
 			if err != nil {
@@ -140,17 +153,10 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 					key_value["_br_"], err.Error())
 				continue
 			}
-			y, err := lp.New(
-				"gpfs_bytes_read",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": bytesRead,
-				},
-				timestamp)
+
+			y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// bytes written
@@ -161,17 +167,10 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 					key_value["_bw_"], err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_bytes_written",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": bytesWritten,
-				},
-				timestamp)
+
+			y, err = lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// number of opens
@@ -182,17 +181,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 					key_value["_oc_"], err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_num_opens",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": numOpens,
-				},
-				timestamp)
+			y, err = lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// number of closes
@@ -201,17 +192,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				fmt.Fprintf(os.Stderr, "GpfsCollector.Read(): Failed to convert number of closes: %s\n", err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_num_closes",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": numCloses,
-				},
-				timestamp)
+			y, err = lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// number of reads
@@ -220,17 +203,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				fmt.Fprintf(os.Stderr, "GpfsCollector.Read(): Failed to convert number of reads: %s\n", err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_num_reads",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": numReads,
-				},
-				timestamp)
+			y, err = lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// number of writes
@@ -239,17 +214,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				fmt.Fprintf(os.Stderr, "GpfsCollector.Read(): Failed to convert number of writes: %s\n", err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_num_writes",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": numWrites,
-				},
-				timestamp)
+			y, err = lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// number of read directories
@@ -258,17 +225,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				fmt.Fprintf(os.Stderr, "GpfsCollector.Read(): Failed to convert number of read directories: %s\n", err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_num_readdirs",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": numReaddirs,
-				},
-				timestamp)
+			y, err = lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 
 			// Number of inode updates
@@ -277,17 +236,9 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				fmt.Fprintf(os.Stderr, "GpfsCollector.Read(): Failed to convert Number of inode updates: %s\n", err.Error())
 				continue
 			}
-			y, err = lp.New(
-				"gpfs_num_inode_updates",
-				map[string]string{
-					"filesystem": filesystem,
-				},
-				map[string]interface{}{
-					"value": numInodeUpdates,
-				},
-				timestamp)
+			y, err = lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}

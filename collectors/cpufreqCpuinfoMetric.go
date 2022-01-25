@@ -2,14 +2,16 @@ package collectors
 
 import (
 	"bufio"
+	"encoding/json"
+
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 
-	lp "github.com/influxdata/line-protocol"
 )
 
 //
@@ -33,12 +35,16 @@ type CPUFreqCpuInfoCollectorTopology struct {
 }
 
 type CPUFreqCpuInfoCollector struct {
-	MetricCollector
+	metricCollector
 	topology []CPUFreqCpuInfoCollectorTopology
 }
 
-func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
+func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	m.name = "CPUFreqCpuInfoCollector"
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "cpufreq",
+	}
 
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
@@ -145,7 +151,8 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+
+func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -174,9 +181,9 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, out *[]lp.Mutable
 						log.Printf("Failed to convert cpu MHz to float: %v", err)
 						return
 					}
-					y, err := lp.New("cpufreq", t.tagSet, map[string]interface{}{"value": value}, now)
+					y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now)
 					if err == nil {
-						*out = append(*out, y)
+						output <- y
 					}
 				}
 				processorCounter++
