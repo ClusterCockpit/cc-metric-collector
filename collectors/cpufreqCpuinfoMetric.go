@@ -19,13 +19,17 @@ import (
 // Only measure on the first hyperthread
 //
 type CPUFreqCpuInfoCollectorTopology struct {
-	processor     string // logical processor number (continuous, starting at 0)
-	coreID        string // socket local core ID
-	physicalID    string // socket / package ID
-	numPhysicalID string // number of  sockets / packages
-	isHT          bool
-	numNonHT      string // number of non hyperthreading processors
-	tagSet        map[string]string
+	processor               string // logical processor number (continuous, starting at 0)
+	coreID                  string // socket local core ID
+	coreID_int              int
+	physicalPackageID       string // socket / package ID
+	physicalPackageID_int   int
+	numPhysicalPackages     string // number of  sockets / packages
+	numPhysicalPackages_int int
+	isHT                    bool
+	numNonHT                string // number of non hyperthreading processors
+	numNonHT_int            int
+	tagSet                  map[string]string
 }
 
 type CPUFreqCpuInfoCollector struct {
@@ -46,10 +50,10 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 	// Collect topology information from file cpuinfo
 	foundFreq := false
 	processor := ""
-	numNonHT := 0
+	numNonHT_int := 0
 	coreID := ""
-	physicalID := ""
-	maxPhysicalID := 0
+	physicalPackageID := ""
+	maxPhysicalPackageID := 0
 	m.topology = make([]CPUFreqCpuInfoCollectorTopology, 0)
 	coreSeenBefore := make(map[string]bool)
 	scanner := bufio.NewScanner(file)
@@ -67,7 +71,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 			case "core id":
 				coreID = value
 			case "physical id":
-				physicalID = value
+				physicalPackageID = value
 			}
 		}
 
@@ -75,55 +79,65 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 		if foundFreq &&
 			len(processor) > 0 &&
 			len(coreID) > 0 &&
-			len(physicalID) > 0 {
+			len(physicalPackageID) > 0 {
 
-			globalID := physicalID + ":" + coreID
+			coreID_int, err := strconv.Atoi(coreID)
+			if err != nil {
+				return fmt.Errorf("Unable to convert coreID to int: %v", err)
+			}
+			physicalPackageID_int, err := strconv.Atoi(physicalPackageID)
+			if err != nil {
+				return fmt.Errorf("Unable to convert physicalPackageID to int: %v", err)
+			}
+
+			// increase maximun socket / package ID, when required
+			if physicalPackageID_int > maxPhysicalPackageID {
+				maxPhysicalPackageID = physicalPackageID_int
+			}
+
+			globalID := physicalPackageID + ":" + coreID
 			isHT := coreSeenBefore[globalID]
 			coreSeenBefore[globalID] = true
 			if !isHT {
 				// increase number on non hyper thread cores
-				numNonHT++
-
-				// increase maximun socket / package ID, when required
-				physicalIDInt, err := strconv.Atoi(physicalID)
-				if err != nil {
-					return fmt.Errorf("Failed to convert physical id to int: %v", err)
-				}
-				if physicalIDInt > maxPhysicalID {
-					maxPhysicalID = physicalIDInt
-				}
+				numNonHT_int++
 			}
 
 			// store collected topology information
 			m.topology = append(
 				m.topology,
 				CPUFreqCpuInfoCollectorTopology{
-					processor:  processor,
-					coreID:     coreID,
-					physicalID: physicalID,
-					isHT:       isHT,
+					processor:             processor,
+					coreID:                coreID,
+					coreID_int:            coreID_int,
+					physicalPackageID:     physicalPackageID,
+					physicalPackageID_int: physicalPackageID_int,
+					isHT:                  isHT,
 				})
 
 			// reset topology information
 			foundFreq = false
 			processor = ""
 			coreID = ""
-			physicalID = ""
+			physicalPackageID = ""
 		}
 	}
 
-	numPhysicalID := fmt.Sprint(maxPhysicalID + 1)
-	numNonHTString := fmt.Sprint(numNonHT)
+	numPhysicalPackageID_int := maxPhysicalPackageID + 1
+	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
+	numNonHT := fmt.Sprint(numNonHT_int)
 	for i := range m.topology {
 		t := &m.topology[i]
-		t.numPhysicalID = numPhysicalID
-		t.numNonHT = numNonHTString
+		t.numPhysicalPackages = numPhysicalPackageID
+		t.numPhysicalPackages_int = numPhysicalPackageID_int
+		t.numNonHT = numNonHT
+		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
 			"type":        "cpu",
 			"type-id":     t.processor,
 			"num_core":    t.numNonHT,
-			"package_id":  t.physicalID,
-			"num_package": t.numPhysicalID,
+			"package_id":  t.physicalPackageID,
+			"num_package": t.numPhysicalPackages,
 		}
 	}
 
