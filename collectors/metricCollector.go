@@ -2,14 +2,15 @@ package collectors
 
 import (
 	"encoding/json"
-	"errors"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	influx "github.com/influxdata/line-protocol"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
 )
 
 type MetricCollector interface {
@@ -21,12 +22,12 @@ type MetricCollector interface {
 }
 
 type metricCollector struct {
-	output chan lp.CCMetric
-	name   string
-	init   bool
-	meta   map[string]string
+	name string
+	init bool
+	meta map[string]string
 }
 
+// Name() returns the name of the metric collector
 func (c *metricCollector) Name() string {
 	return c.name
 }
@@ -35,10 +36,14 @@ func (c *metricCollector) setup() error {
 	return nil
 }
 
+// Initialized() indicates whether the metric collector has been initialized.
 func (c *metricCollector) Initialized() bool {
-	return c.init == true
+	return c.init
 }
 
+// intArrayContains scans an array of ints if the value str is present in the array
+// If the specified value is found, the corresponding array index is returned.
+// The bool value is used to signal success or failure
 func intArrayContains(array []int, str int) (int, bool) {
 	for i, a := range array {
 		if a == str {
@@ -48,6 +53,9 @@ func intArrayContains(array []int, str int) (int, bool) {
 	return -1, false
 }
 
+// stringArrayContains scans an array of strings if the value str is present in the array
+// If the specified value is found, the corresponding array index is returned.
+// The bool value is used to signal success or failure
 func stringArrayContains(array []string, str string) (int, bool) {
 	for i, a := range array {
 		if a == str {
@@ -107,6 +115,7 @@ func CpuList() []int {
 	return cpulist
 }
 
+// Tags2Map stores a InfluxDB list of tags in a map of key value pairs
 func Tags2Map(metric influx.Metric) map[string]string {
 	tags := make(map[string]string)
 	for _, t := range metric.TagList() {
@@ -115,6 +124,7 @@ func Tags2Map(metric influx.Metric) map[string]string {
 	return tags
 }
 
+// Fields2Map stores a InfluxDB list of fields in a map of key value pairs
 func Fields2Map(metric influx.Metric) map[string]interface{} {
 	fields := make(map[string]interface{})
 	for _, f := range metric.FieldList() {
@@ -123,11 +133,13 @@ func Fields2Map(metric influx.Metric) map[string]interface{} {
 	return fields
 }
 
+// RemoveFromStringList removes the string r from the array of strings s
+// If r is not contained in the array an error is returned
 func RemoveFromStringList(s []string, r string) ([]string, error) {
 	for i, item := range s {
 		if r == item {
 			return append(s[:i], s[i+1:]...), nil
 		}
 	}
-	return s, errors.New("No such string in list")
+	return s, fmt.Errorf("No such string in list")
 }
