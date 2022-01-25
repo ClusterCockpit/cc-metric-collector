@@ -70,17 +70,17 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	}
 	for k, cfg := range cm.config {
 		if _, found := AvailableCollectors[k]; !found {
-			cclog.ComponentPrint("CollectorManager", "SKIP unknown collector ", k)
+			cclog.ComponentError("CollectorManager", "SKIP unknown collector", k)
 			continue
 		}
 		c := AvailableCollectors[k]
 
 		err = c.Init(cfg)
 		if err != nil {
-			cclog.ComponentPrint("CollectorManager", "Collector ", k, "initialization failed: ", err.Error())
+			cclog.ComponentError("CollectorManager", "Collector", k, "initialization failed:", err.Error())
 			continue
 		}
-		cclog.ComponentDebug("CollectorManager", "Collector ", k, "initialized")
+		cclog.ComponentDebug("CollectorManager", "ADD COLLECTOR", c.Name())
 		cm.collectors = append(cm.collectors, c)
 	}
 	return nil
@@ -99,7 +99,7 @@ func (cm *collectorManager) Start() {
 					c.Close()
 				}
 				cm.wg.Done()
-				cclog.ComponentPrint("CollectorManager", "DONE")
+				cclog.ComponentDebug("CollectorManager", "DONE")
 				break CollectorManagerLoop
 			case t := <-tick:
 				for _, c := range cm.collectors {
@@ -110,17 +110,17 @@ func (cm *collectorManager) Start() {
 							c.Close()
 						}
 						cm.wg.Done()
-						cclog.ComponentPrint("CollectorManager", "DONE")
+						cclog.ComponentDebug("CollectorManager", "DONE")
 						break CollectorManagerInputLoop
 					default:
-					    cclog.ComponentPrint("CollectorManager", c.Name(), " ", t)
+					    cclog.ComponentDebug("CollectorManager", c.Name(), t)
 						c.Read(cm.duration, cm.output)
 					}
 				}
 			}
 		}
 	}()
-	cclog.ComponentPrint("CollectorManager", "STARTED")
+	cclog.ComponentDebug("CollectorManager", "STARTED")
 }
 
 func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
@@ -129,7 +129,7 @@ func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
 
 func (cm *collectorManager) Close() {
 	cm.done <- true
-	cclog.ComponentPrint("CollectorManager", "CLOSE")
+	cclog.ComponentDebug("CollectorManager", "CLOSE")
 }
 
 func New(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) (CollectorManager, error) {

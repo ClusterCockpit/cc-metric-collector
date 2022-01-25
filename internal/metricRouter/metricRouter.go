@@ -2,7 +2,7 @@ package metricRouter
 
 import (
 	"encoding/json"
-	"log"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"os"
 	"sync"
 	"time"
@@ -50,14 +50,14 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	r.ticker = ticker
 	configFile, err := os.Open(routerConfigFile)
 	if err != nil {
-		log.Print(err.Error())
+		cclog.ComponentError("MetricRouter", err.Error())
 		return err
 	}
 	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
 	err = jsonParser.Decode(&r.config)
 	if err != nil {
-		log.Print(err.Error())
+		cclog.ComponentError("MetricRouter", err.Error())
 		return err
 	}
 	return nil
@@ -79,7 +79,7 @@ func (r *metricRouter) StartTimer() {
 func (r *metricRouter) EvalCondition(Cond string, point lp.CCMetric) (bool, error) {
 	expression, err := govaluate.NewEvaluableExpression(Cond)
 	if err != nil {
-		log.Print(Cond, " = ", err.Error())
+		cclog.ComponentDebug("MetricRouter", Cond, " = ", err.Error())
 		return false, err
 	}
 	params := make(map[string]interface{})
@@ -97,7 +97,7 @@ func (r *metricRouter) EvalCondition(Cond string, point lp.CCMetric) (bool, erro
 
 	result, err := expression.Evaluate(params)
 	if err != nil {
-		log.Print(Cond, " = ", err.Error())
+		cclog.ComponentDebug("MetricRouter", Cond, " = ", err.Error())
 		return false, err
 	}
 	return bool(result.(bool)), err
@@ -113,7 +113,7 @@ func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 			var err error
 			conditionMatches, err = r.EvalCondition(m.Condition, point)
 			if err != nil {
-				log.Print(err.Error())
+				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
 			}
 		}
@@ -133,7 +133,7 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 			var err error
 			conditionMatches, err = r.EvalCondition(m.Condition, point)
 			if err != nil {
-				log.Print(err.Error())
+				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
 			}
 		}
@@ -154,7 +154,7 @@ func (r *metricRouter) Start() {
 		RouterLoop:
 			select {
 			case <-r.done:
-				log.Print("[MetricRouter] DONE\n")
+				cclog.ComponentDebug("MetricRouter", "DONE")
 				r.wg.Done()
 				break RouterLoop
 			default:
@@ -162,11 +162,11 @@ func (r *metricRouter) Start() {
 				RouterInputLoop:
 					select {
 					case <-r.done:
-						log.Print("[MetricRouter] DONE\n")
+						cclog.ComponentDebug("MetricRouter", "DONE")
 						r.wg.Done()
 						break RouterInputLoop
 					case p := <-c:
-						log.Print("[MetricRouter] FORWARD ", p)
+						cclog.ComponentDebug("MetricRouter", "FORWARD", p)
 						r.DoAddTags(p)
 						r.DoDelTags(p)
 						if r.config.IntervalStamp {
@@ -180,9 +180,8 @@ func (r *metricRouter) Start() {
 				}
 			}
 		}
-		log.Print("[MetricRouter] EXIT\n")
 	}()
-	log.Print("[MetricRouter] STARTED\n")
+	cclog.ComponentDebug("MetricRouter", "STARTED")
 }
 
 func (r *metricRouter) AddInput(input chan lp.CCMetric) {
@@ -195,7 +194,7 @@ func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
 
 func (r *metricRouter) Close() {
 	r.done <- true
-	log.Print("[MetricRouter] CLOSE\n")
+	cclog.ComponentDebug("MetricRouter", "CLOSE")
 }
 
 func New(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) (MetricRouter, error) {

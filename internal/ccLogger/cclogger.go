@@ -21,68 +21,72 @@ var (
 
 func initLogger() {
     if debugLog == nil {
-        debugLog = log.New(stderr, "DEBUG", log.LstdFlags)
+        debugLog = log.New(stderr, "DEBUG ", log.LstdFlags)
     }
     if infoLog == nil {
-        infoLog = log.New(stdout, "INFO", log.LstdFlags)
+        infoLog = log.New(stdout, "INFO ", log.LstdFlags)
     }
     if errorLog == nil {
-        errorLog = log.New(stderr, "ERROR", log.LstdFlags)
+        errorLog = log.New(stderr, "ERROR ", log.LstdFlags)
     }
     if warnLog == nil {
-        warnLog = log.New(stderr, "WARN", log.LstdFlags)
+        warnLog = log.New(stderr, "WARN ", log.LstdFlags)
     }
     if defaultLog == nil {
         defaultLog = log.New(stdout, "", log.LstdFlags)
     }
 }
 
-func CCPrint(logger *log.Logger, e ... interface {}) {
-    if logger != nil {
-        logger.Print(e)
-    }
-}
-
 func Print(e ... interface{}) {
-    CCPrint(defaultLog, e)
+    initLogger()
+    defaultLog.Print(e)
 }
 
 func ComponentPrint(component string, e ... interface{}) {
-    CCPrint(defaultLog, fmt.Sprintf("[%s]", component), e)
+    initLogger()
+    defaultLog.Print(fmt.Sprintf("[%s] ", component), e)
 }
 
 func Info(e ... interface{}) {
-    CCPrint(infoLog, e)
+    initLogger()
+    infoLog.Print(e)
 }
 
 func ComponentInfo(component string, e ... interface{}) {
-    CCPrint(infoLog, fmt.Sprintf("[%s]", component), e)
+    initLogger()
+    infoLog.Print(fmt.Sprintf("[%s] ", component), e)
 }
 
 func Debug(e ... interface{}) {
-    if globalDebug {
-        CCPrint(debugLog, e)
+    initLogger()
+    if globalDebug == true {
+        debugLog.Print(e)
     }
 }
 
 func ComponentDebug(component string, e ... interface{}) {
-    if globalDebug {
-        CCPrint(debugLog, fmt.Sprintf("[%s]", component),  e)
+    initLogger()
+    if globalDebug == true && debugLog != nil {
+        //CCComponentPrint(debugLog, component,  e)
+        debugLog.Print(fmt.Sprintf("[%s] ", component), e)
     }
 }
 
 func Error(e ... interface{}) {
+    initLogger()
     _, fn, line, _ := runtime.Caller(1)
-    CCPrint(errorLog, fn, line, e)
+    errorLog.Print(fmt.Sprintf("[%s:%d] ", fn, line), e)
 }
 
 func ComponentError(component string, e ... interface{}) {
+    initLogger()
     _, fn, line, _ := runtime.Caller(1)
-    CCPrint(errorLog, fmt.Sprintf("[%s]", component), fn, line, e)
+    errorLog.Print(fmt.Sprintf("[%s|%s:%d] ", component, fn, line), e)
 }
 
 func SetDebug() {
     globalDebug = true
+    initLogger()
 }
 
 

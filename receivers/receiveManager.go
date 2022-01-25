@@ -3,7 +3,7 @@ package receivers
 import (
 	"encoding/json"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	"log"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"os"
 	"sync"
 )
@@ -36,7 +36,7 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	rm.config = make([]ReceiverConfig, 0)
 	configFile, err := os.Open(receiverConfigFile)
 	if err != nil {
-		log.Print(err.Error())
+		cclog.ComponentError("ReceiveManager", err.Error())
 		return err
 	}
 	defer configFile.Close()
@@ -44,23 +44,11 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	var rawConfigs []json.RawMessage
 	err = jsonParser.Decode(&rawConfigs)
 	if err != nil {
-		log.Print(err.Error())
+		cclog.ComponentError("ReceiveManager", err.Error())
 		return err
 	}
 	for _, raw := range rawConfigs {
-		log.Print("[ReceiveManager] ", string(raw))
 		rm.AddInput(raw)
-		//        if _, found := AvailableReceivers[k.Type]; !found {
-		//            log.Print("[ReceiveManager] SKIP Config specifies unknown receiver 'type': ", k.Type)
-		//            continue
-		//        }
-		//        r := AvailableReceivers[k.Type]
-		//        err = r.Init(k)
-		//        if err != nil {
-		//            log.Print("[ReceiveManager] SKIP Receiver ", k.Type, " cannot be initialized: ", err.Error())
-		//            continue
-		//        }
-		//        rm.inputs = append(rm.inputs, r)
 	}
 	return nil
 }
@@ -69,60 +57,32 @@ func (rm *receiveManager) Start() {
 	rm.wg.Add(1)
 
 	for _, r := range rm.inputs {
-		log.Print("[ReceiveManager] START ", r.Name())
+		cclog.ComponentDebug("ReceiveManager", "START", r.Name())
 		r.Start()
 	}
-	log.Print("[ReceiveManager] STARTED\n")
-	//    go func() {
-	//        for {
-	//ReceiveManagerLoop:
-	//            select {
-	//            case <- rm.done:
-	//                log.Print("ReceiveManager done\n")
-	//                rm.wg.Done()
-	//                break ReceiveManagerLoop
-	//            default:
-	//                for _, c := range rm.inputs {
-	//ReceiveManagerInputLoop:
-	//                    select {
-	//                    case <- rm.done:
-	//                        log.Print("ReceiveManager done\n")
-	//                        rm.wg.Done()
-	//                        break ReceiveManagerInputLoop
-	//                    case p := <- c:
-	//                        log.Print("ReceiveManager: ", p)
-	//                        rm.output <- p
-	//                    default:
-	//                    }
-	//                }
-	//            }
-	//        }
-	//    }()
-	//    for _, r := range rm.inputs {
-	//        r.Close()
-	//    }
+	cclog.ComponentDebug("ReceiveManager", "STARTED")
 }
 
 func (rm *receiveManager) AddInput(rawConfig json.RawMessage) error {
 	var config ReceiverConfig
 	err := json.Unmarshal(rawConfig, &config)
 	if err != nil {
-		log.Print("[ReceiveManager] SKIP ", config.Type, " JSON config error: ", err.Error())
-		log.Print(err.Error())
+		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "JSON config error:", err.Error())
 		return err
 	}
 	if _, found := AvailableReceivers[config.Type]; !found {
-		log.Print("[ReceiveManager] SKIP ", config.Type, " unknown receiver: ", err.Error())
+		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "unknown receiver:", err.Error())
 		return err
 	}
 	r := AvailableReceivers[config.Type]
 	err = r.Init(config)
 	if err != nil {
-		log.Print("[ReceiveManager] SKIP ", r.Name(), " initialization failed: ", err.Error())
+		cclog.ComponentError("ReceiveManager", "SKIP", r.Name(), "initialization failed:", err.Error())
 		return err
 	}
 	rm.inputs = append(rm.inputs, r)
 	rm.config = append(rm.config, config)
+	cclog.ComponentDebug("ReceiveManager", "ADD RECEIVER", r.Name())
 	return nil
 }
 
@@ -135,12 +95,11 @@ func (rm *receiveManager) AddOutput(output chan lp.CCMetric) {
 
 func (rm *receiveManager) Close() {
 	for _, r := range rm.inputs {
-		log.Print("[ReceiveManager] CLOSE ", r.Name())
+		cclog.ComponentDebug("ReceiveManager", "CLOSE", r.Name())
 		r.Close()
 	}
 	rm.wg.Done()
-	log.Print("[ReceiveManager] CLOSE\n")
-	log.Print("[ReceiveManager] EXIT\n")
+	cclog.ComponentDebug("ReceiveManager", "CLOSE")
 }
 
 func New(wg *sync.WaitGroup, receiverConfigFile string) (ReceiveManager, error) {

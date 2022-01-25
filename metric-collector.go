@@ -100,6 +100,7 @@ func ReadCli() map[string]string {
 	logfile := flag.String("log", "stderr", "Path for logfile")
 	pidfile := flag.String("pidfile", "/var/run/cc-metric-collector.pid", "Path for PID file")
 	once := flag.Bool("once", false, "Run all collectors only once")
+	debug := flag.Bool("debug", false, "Activate debug output")
 	flag.Parse()
 	m = make(map[string]string)
 	m["configfile"] = *cfg
@@ -109,6 +110,12 @@ func ReadCli() map[string]string {
 		m["once"] = "true"
 	} else {
 		m["once"] = "false"
+	}
+	if *debug {
+		m["debug"] = "true"
+		cclog.SetDebug()
+	} else {
+		m["debug"] = "false"
 	}
 	return m
 }
@@ -219,6 +226,10 @@ func mainFunc() int {
 	// Drop domain part of host name
 	rcfg.Hostname = strings.SplitN(rcfg.Hostname, `.`, 2)[0]
 	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
+
+	if rcfg.CliArgs["logfile"] != "stderr" {
+	    cclog.SetOutput(rcfg.CliArgs["logfile"])
+	}
 	//	err = SetLogging(rcfg.CliArgs["logfile"])
 	//	if err != nil {
 	//		log.Print("Error setting up logging system to ", rcfg.CliArgs["logfile"], " on ", rcfg.Hostname)

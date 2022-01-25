@@ -6,7 +6,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
-	"log"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"time"
 )
 
@@ -46,8 +46,8 @@ func (r *NatsReceiver) Init(config ReceiverConfig) error {
 	if len(r.port) == 0 {
 		r.port = "4222"
 	}
-	log.Print("[NatsReceiver] INIT")
 	uri := fmt.Sprintf("%s:%s", r.addr, r.port)
+	cclog.ComponentDebug("NatsReceiver", "INIT", uri)
 	nc, err := nats.Connect(uri)
 	if err == nil {
 		r.database = r.config.Database
@@ -63,7 +63,7 @@ func (r *NatsReceiver) Init(config ReceiverConfig) error {
 }
 
 func (r *NatsReceiver) Start() {
-	log.Print("[NatsReceiver] START")
+	cclog.ComponentDebug("NatsReceiver", "START")
 	r.nc.Subscribe(r.database, r._NatsReceive)
 }
 
@@ -75,7 +75,6 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 			for k, v := range r.meta {
 				y.AddMeta(k, v)
 			}
-			//y, err := lp.New(m.Name(), Tags2Map(m), r.meta, Fields2Map(m), m.Time())
 			if r.sink != nil {
 				r.sink <- y
 			}
@@ -85,7 +84,7 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 
 func (r *NatsReceiver) Close() {
 	if r.nc != nil {
-		log.Print("[NatsReceiver] CLOSE")
+		cclog.ComponentDebug("NatsReceiver", "CLOSE")
 		r.nc.Close()
 	}
 }

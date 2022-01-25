@@ -2,11 +2,12 @@ package sinks
 
 import (
 	"encoding/json"
-	"log"
+//	"log"
 	"os"
 	"sync"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 )
 
 var AvailableSinks = map[string]Sink{
@@ -41,7 +42,7 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 	if len(sinkConfigFile) > 0 {
 		configFile, err := os.Open(sinkConfigFile)
 		if err != nil {
-			log.Print("[SinkManager] ", err.Error())
+			cclog.ComponentError("SinkManager", err.Error())
 			return err
 		}
 		defer configFile.Close()
@@ -49,7 +50,7 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 		var rawConfigs []json.RawMessage
 		err = jsonParser.Decode(&rawConfigs)
 		if err != nil {
-			log.Print("[SinkManager] ", err.Error())
+			cclog.ComponentError("SinkManager", err.Error())
 			return err
 		}
 		for _, raw := range rawConfigs {
@@ -73,16 +74,16 @@ func (sm *sinkManager) Start() {
 				for _, s := range sm.outputs {
 					s.Close()
 				}
-				log.Print("[SinkManager] DONE\n")
+				cclog.ComponentDebug("SinkManager", "DONE")
 				sm.wg.Done()
 				break SinkManagerLoop
 			case p := <-sm.input:
-				log.Print("[SinkManager] WRITE ", p)
+				cclog.ComponentDebug("SinkManager", "WRITE", p)
 				for _, s := range sm.outputs {
 					s.Write(p)
 				}
 				if batchcount == 0 {
-					log.Print("[SinkManager] FLUSH")
+					cclog.ComponentDebug("SinkManager", "FLUSH")
 					for _, s := range sm.outputs {
 						s.Flush()
 					}
@@ -92,9 +93,8 @@ func (sm *sinkManager) Start() {
 			default:
 			}
 		}
-		log.Print("[SinkManager] EXIT\n")
 	}()
-	log.Print("[SinkManager] STARTED\n")
+	cclog.ComponentDebug("SinkManager", "STARTED")
 }
 
 func (sm *sinkManager) AddInput(input chan lp.CCMetric) {
@@ -107,28 +107,29 @@ func (sm *sinkManager) AddOutput(rawConfig json.RawMessage) error {
 	if len(rawConfig) > 3 {
 		err = json.Unmarshal(rawConfig, &config)
 		if err != nil {
-			log.Print("[SinkManager] SKIP ", config.Type, " JSON config error: ", err.Error())
+			cclog.ComponentError("SinkManager", "SKIP", config.Type, "JSON config error:", err.Error())
 			return err
 		}
 	}
 	if _, found := AvailableSinks[config.Type]; !found {
-		log.Print("[SinkManager] SKIP ", config.Type, " unknown sink: ", err.Error())
+		cclog.ComponentError("SinkManager", "SKIP", config.Type, "unknown sink:", err.Error())
 		return err
 	}
 	s := AvailableSinks[config.Type]
 	err = s.Init(config)
 	if err != nil {
-		log.Print("[SinkManager] SKIP ", s.Name(), " initialization failed: ", err.Error())
+		cclog.ComponentError("SinkManager", "SKIP", s.Name(), "initialization failed:", err.Error())
 		return err
 	}
 	sm.outputs = append(sm.outputs, s)
 	sm.config = append(sm.config, config)
+	cclog.ComponentDebug("SinkManager", "ADD SINK", s.Name())
 	return nil
 }
 
 func (sm *sinkManager) Close() {
 	sm.done <- true
-	log.Print("[SinkManager] CLOSE")
+	cclog.ComponentDebug("SinkManager", "CLOSE")
 }
 
 func New(wg *sync.WaitGroup, sinkConfigFile string) (SinkManager, error) {

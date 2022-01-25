@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -102,7 +102,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err == nil {
 				y, err := lp.New(strings.ToLower(mname), tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
 				if err == nil {
-					log.Print("[", m.name, "] ", y)
+					cclog.ComponentDebug(m.name, y)
 					output <- y
 				}
 			}
