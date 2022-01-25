@@ -286,7 +286,7 @@ func mainFunc() int {
 
 	// Wait until one tick has passed. This is a workaround
 	if rcfg.CliArgs["once"] == "true" {
-		x := 1.8 * float64(rcfg.ConfigFile.Interval)
+		x := 1.2 * float64(rcfg.ConfigFile.Interval)
 		time.Sleep(time.Duration(int(x)) * time.Second)
 		shutdown(&rcfg)
 	}
