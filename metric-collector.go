@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
@@ -278,7 +277,7 @@ func mainFunc() int {
 
 	// Wait until one tick has passed. This is a workaround
 	if rcfg.CliArgs["once"] == "true" {
-		var x int = (1.8 * float64(rcfg.ConfigFile.Interval))
+		x := 1.8 * float64(rcfg.ConfigFile.Interval)
 		time.Sleep(time.Duration(int(x)) * time.Second)
 		shutdown(&rcfg)
 	}
