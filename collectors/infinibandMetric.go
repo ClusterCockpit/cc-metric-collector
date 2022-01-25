@@ -17,9 +17,10 @@ import (
 	"time"
 )
 
-const IBBASEPATH = `/sys/class/infiniband/`
-const LIDFILE = `/sys/class/infiniband/mlx4_0/ports/1/lid`
-const PERFQUERY = `/usr/sbin/perfquery`
+const (
+	IBBASEPATH = `/sys/class/infiniband/`
+	PERFQUERY  = `/usr/sbin/perfquery`
+)
 
 type InfinibandCollectorConfig struct {
 	ExcludeDevices []string `json:"exclude_devices,omitempty"`
@@ -40,12 +41,14 @@ func (m *InfinibandCollector) Help() {
 	fmt.Println("The devices can be filtered with the 'exclude_devices' option in the configuration.")
 	fmt.Println("For each found LIDs the collector calls the 'perfquery' command")
 	fmt.Println("The path to the 'perfquery' command can be configured with the 'perfquery_path' option")
-	fmt.Println("in the configuration\n")
+	fmt.Println("in the configuration")
+	fmt.Println("")
 	fmt.Println("Full configuration object:")
 	fmt.Println("\"ibstat\" : {")
 	fmt.Println("  \"perfquery_path\" : \"path/to/perfquery\"  # if omitted, it searches in $PATH")
 	fmt.Println("  \"exclude_devices\" : [\"dev1\"]")
-	fmt.Println("}\n")
+	fmt.Println("}")
+	fmt.Println("")
 	fmt.Println("Metrics:")
 	fmt.Println("- ib_recv")
 	fmt.Println("- ib_xmit")
