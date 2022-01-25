@@ -91,12 +91,12 @@ type RuntimeConfig struct {
 }
 
 func prepare_runcfg() RuntimeConfig {
-	r := RuntimeConfig{}
-	r.Router = nil
-	r.CollectManager = nil
-	r.SinkManager = nil
-	r.ReceiveManager = nil
-	return r
+	return RuntimeConfig{
+		Router:         nil,
+		CollectManager: nil,
+		SinkManager:    nil,
+		ReceiveManager: nil,
+	}
 }
 
 //// Structure of the configuration file
