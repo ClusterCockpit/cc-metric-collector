@@ -189,7 +189,7 @@ func prepare_shutdown(config *RuntimeConfig) {
 	}(config)
 }
 
-func main() {
+func mainFunc() int {
 	var err error
 	use_recv := false
 
@@ -201,23 +201,23 @@ func main() {
 	if err != nil {
 		log.Print("Error reading configuration file ", rcfg.CliArgs["configfile"])
 		log.Print(err.Error())
-		return
+		return 1
 	}
 	if rcfg.ConfigFile.Interval <= 0 || time.Duration(rcfg.ConfigFile.Interval)*time.Second <= 0 {
 		log.Print("Configuration value 'interval' must be greater than zero")
-		return
+		return 1
 	}
 	rcfg.Interval = time.Duration(rcfg.ConfigFile.Interval) * time.Second
 	if rcfg.ConfigFile.Duration <= 0 || time.Duration(rcfg.ConfigFile.Duration)*time.Second <= 0 {
 		log.Print("Configuration value 'duration' must be greater than zero")
-		return
+		return 1
 	}
 	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration) * time.Second
 
 	rcfg.Hostname, err = os.Hostname()
 	if err != nil {
 		log.Print(err.Error())
-		return
+		return 1
 	}
 	// Drop domain part of host name
 	rcfg.Hostname = strings.SplitN(rcfg.Hostname, `.`, 2)[0]
@@ -232,14 +232,14 @@ func main() {
 		rcfg.Router, err = mr.New(rcfg.Ticker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return 1
 		}
 	}
 	if len(rcfg.ConfigFile.SinkConfigFile) > 0 {
 		rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return 1
 		}
 		RouterToSinksChannel := make(chan lp.CCMetric)
 		rcfg.SinkManager.AddInput(RouterToSinksChannel)
@@ -249,7 +249,7 @@ func main() {
 		rcfg.CollectManager, err = collectors.New(rcfg.Ticker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return 1
 		}
 		CollectToRouterChannel := make(chan lp.CCMetric)
 		rcfg.CollectManager.AddOutput(CollectToRouterChannel)
@@ -259,7 +259,7 @@ func main() {
 		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
 		if err != nil {
 			log.Print(err.Error())
-			return
+			return 1
 		}
 		ReceiveToRouterChannel := make(chan lp.CCMetric)
 		rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
@@ -276,6 +276,19 @@ func main() {
 		rcfg.ReceiveManager.Start()
 	}
 
+	// Wait until one tick has passed. This is a workaround
+	if rcfg.CliArgs["once"] == "true" {
+		var x int = (1.8 * float64(rcfg.ConfigFile.Interval))
+		time.Sleep(time.Duration(int(x)) * time.Second)
+		shutdown(&rcfg)
+	}
+
 	// Wait until receiving an interrupt
 	rcfg.Sync.Wait()
+	return 0
+}
+
+func main() {
+	exitCode := mainFunc()
+	os.Exit(exitCode)
 }
