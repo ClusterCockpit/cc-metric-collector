@@ -16,7 +16,7 @@ const MAX_NUM_PROCS = 10
 const DEFAULT_NUM_PROCS = 2
 
 type TopProcsCollectorConfig struct {
-	num_procs int `json:"num_procs"`
+	Num_procs int `json:"num_procs"`
 }
 
 type TopProcsCollector struct {
@@ -35,9 +35,9 @@ func (m *TopProcsCollector) Init(config []byte) error {
 			return err
 		}
 	} else {
-		m.config.num_procs = int(DEFAULT_NUM_PROCS)
+		m.config.Num_procs = int(DEFAULT_NUM_PROCS)
 	}
-	if m.config.num_procs <= 0 || m.config.num_procs > MAX_NUM_PROCS {
+	if m.config.Num_procs <= 0 || m.config.Num_procs > MAX_NUM_PROCS {
 		return errors.New(fmt.Sprintf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS))
 	}
 	m.setup()
@@ -64,7 +64,7 @@ func (m *TopProcsCollector) Read(interval time.Duration, out *[]lp.MutableMetric
 	}
 
 	lines := strings.Split(string(stdout), "\n")
-	for i := 1; i < m.config.num_procs+1; i++ {
+	for i := 1; i < m.config.Num_procs+1; i++ {
 		name := fmt.Sprintf("topproc%d", i)
 		y, err := lp.New(name, m.tags, map[string]interface{}{"value": string(lines[i])}, time.Now())
 		if err == nil {

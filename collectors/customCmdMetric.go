@@ -15,8 +15,8 @@ import (
 const CUSTOMCMDPATH = `/home/unrz139/Work/cc-metric-collector/collectors/custom`
 
 type CustomCmdCollectorConfig struct {
-	commands       []string `json:"commands"`
-	files          []string `json:"files"`
+	Commands       []string `json:"commands"`
+	Files          []string `json:"files"`
 	ExcludeMetrics []string `json:"exclude_metrics"`
 }
 
@@ -40,7 +40,7 @@ func (m *CustomCmdCollector) Init(config []byte) error {
 		}
 	}
 	m.setup()
-	for _, c := range m.config.commands {
+	for _, c := range m.config.Commands {
 		cmdfields := strings.Fields(c)
 		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
 		command.Wait()
@@ -49,7 +49,7 @@ func (m *CustomCmdCollector) Init(config []byte) error {
 			m.commands = append(m.commands, c)
 		}
 	}
-	for _, f := range m.config.files {
+	for _, f := range m.config.Files {
 		_, err = ioutil.ReadFile(f)
 		if err == nil {
 			m.files = append(m.files, f)
