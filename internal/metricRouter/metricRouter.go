@@ -105,20 +105,19 @@ func (r *metricRouter) EvalCondition(Cond string, point lp.CCMetric) (bool, erro
 
 func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 	for _, m := range r.config.AddTags {
-		var res bool
-		var err error
+		var conditionMatches bool
 
 		if m.Condition == "*" {
-			res = true
-			err = nil
+			conditionMatches = true
 		} else {
-			res, err = r.EvalCondition(m.Condition, point)
+			var err error
+			conditionMatches, err = r.EvalCondition(m.Condition, point)
 			if err != nil {
 				log.Print(err.Error())
-				res = false
+				conditionMatches = false
 			}
 		}
-		if res == true {
+		if conditionMatches {
 			point.AddTag(m.Key, m.Value)
 		}
 	}
@@ -126,19 +125,19 @@ func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 
 func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 	for _, m := range r.config.DelTags {
-		var res bool
-		var err error
+		var conditionMatches bool
+
 		if m.Condition == "*" {
-			res = true
-			err = nil
+			conditionMatches = true
 		} else {
-			res, err = r.EvalCondition(m.Condition, point)
+			var err error
+			conditionMatches, err = r.EvalCondition(m.Condition, point)
 			if err != nil {
 				log.Print(err.Error())
-				res = false
+				conditionMatches = false
 			}
 		}
-		if res == true {
+		if conditionMatches {
 			point.RemoveTag(m.Key)
 		}
 	}
@@ -147,7 +146,7 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 func (r *metricRouter) Start() {
 	r.wg.Add(1)
 	r.timestamp = time.Now()
-	if r.config.IntervalStamp == true {
+	if r.config.IntervalStamp {
 		r.StartTimer()
 	}
 	go func() {
@@ -170,7 +169,7 @@ func (r *metricRouter) Start() {
 						log.Print("[MetricRouter] FORWARD ", p)
 						r.DoAddTags(p)
 						r.DoDelTags(p)
-						if r.config.IntervalStamp == true {
+						if r.config.IntervalStamp {
 							p.SetTime(r.timestamp)
 						}
 						for _, o := range r.outputs {
@@ -200,7 +199,7 @@ func (r *metricRouter) Close() {
 }
 
 func New(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) (MetricRouter, error) {
-	r := &metricRouter{}
+	r := new(metricRouter)
 	err := r.Init(ticker, wg, routerConfigFile)
 	if err != nil {
 		return nil, err
