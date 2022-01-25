@@ -2,13 +2,13 @@ package collectors
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"sync"
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 )
 
 var AvailableCollectors = map[string]MetricCollector{
@@ -58,29 +58,29 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	cm.duration = duration
 	configFile, err := os.Open(collectConfigFile)
 	if err != nil {
-		log.Print(err.Error())
+		cclog.Error(err.Error())
 		return err
 	}
 	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
 	err = jsonParser.Decode(&cm.config)
 	if err != nil {
-		log.Print(err.Error())
+		cclog.Error(err.Error())
 		return err
 	}
 	for k, cfg := range cm.config {
-		log.Print(k, " ", cfg)
 		if _, found := AvailableCollectors[k]; !found {
-			log.Print("[CollectorManager] SKIP unknown collector ", k)
+			cclog.ComponentPrint("CollectorManager", "SKIP unknown collector ", k)
 			continue
 		}
 		c := AvailableCollectors[k]
 
 		err = c.Init(cfg)
 		if err != nil {
-			log.Print("[CollectorManager] Collector ", k, "initialization failed: ", err.Error())
+			cclog.ComponentPrint("CollectorManager", "Collector ", k, "initialization failed: ", err.Error())
 			continue
 		}
+		cclog.ComponentDebug("CollectorManager", "Collector ", k, "initialized")
 		cm.collectors = append(cm.collectors, c)
 	}
 	return nil
@@ -99,7 +99,7 @@ func (cm *collectorManager) Start() {
 					c.Close()
 				}
 				cm.wg.Done()
-				log.Print("[CollectorManager] DONE\n")
+				cclog.ComponentPrint("CollectorManager", "DONE")
 				break CollectorManagerLoop
 			case t := <-tick:
 				for _, c := range cm.collectors {
@@ -110,18 +110,17 @@ func (cm *collectorManager) Start() {
 							c.Close()
 						}
 						cm.wg.Done()
-						log.Print("[CollectorManager] DONE\n")
+						cclog.ComponentPrint("CollectorManager", "DONE")
 						break CollectorManagerInputLoop
 					default:
-						log.Print("[CollectorManager] ", c.Name(), " ", t)
+					    cclog.ComponentPrint("CollectorManager", c.Name(), " ", t)
 						c.Read(cm.duration, cm.output)
 					}
 				}
 			}
 		}
-		log.Print("[CollectorManager] EXIT\n")
 	}()
-	log.Print("[CollectorManager] STARTED\n")
+	cclog.ComponentPrint("CollectorManager", "STARTED")
 }
 
 func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
@@ -130,7 +129,7 @@ func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
 
 func (cm *collectorManager) Close() {
 	cm.done <- true
-	log.Print("[CollectorManager] CLOSE")
+	cclog.ComponentPrint("CollectorManager", "CLOSE")
 }
 
 func New(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) (CollectorManager, error) {

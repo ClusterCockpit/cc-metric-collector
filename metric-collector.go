@@ -3,8 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
-	"log"
+//	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
@@ -37,7 +36,7 @@ func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
 	configFile, err := os.Open(file)
 	defer configFile.Close()
 	if err != nil {
-		fmt.Println(err.Error())
+		cclog.Error(err.Error())
 		return err
 	}
 	jsonParser := json.NewDecoder(configFile)
@@ -151,21 +150,21 @@ func ReadCli() map[string]string {
 
 // General shutdown function that gets executed in case of interrupt or graceful shutdown
 func shutdown(config *RuntimeConfig) {
-	log.Print("Shutdown...")
+	cclog.Info("Shutdown...")
 	if config.CollectManager != nil {
-		log.Print("Shutdown CollectManager...")
+		cclog.Debug("Shutdown CollectManager...")
 		config.CollectManager.Close()
 	}
 	if config.ReceiveManager != nil {
-		log.Print("Shutdown ReceiveManager...")
+		cclog.Debug("Shutdown ReceiveManager...")
 		config.ReceiveManager.Close()
 	}
 	if config.Router != nil {
-		log.Print("Shutdown Router...")
+		cclog.Debug("Shutdown Router...")
 		config.Router.Close()
 	}
 	if config.SinkManager != nil {
-		log.Print("Shutdown SinkManager...")
+		cclog.Debug("Shutdown SinkManager...")
 		config.SinkManager.Close()
 	}
 
@@ -184,7 +183,6 @@ func prepare_shutdown(config *RuntimeConfig) {
 
 	go func(config *RuntimeConfig) {
 		<-sigs
-		log.Print("Shutdown...")
 		shutdown(config)
 	}(config)
 }
@@ -199,24 +197,23 @@ func mainFunc() int {
 	// Load and check configuration
 	err = LoadCentralConfiguration(rcfg.CliArgs["configfile"], &rcfg.ConfigFile)
 	if err != nil {
-		log.Print("Error reading configuration file ", rcfg.CliArgs["configfile"])
-		log.Print(err.Error())
+		cclog.Error("Error reading configuration file ", rcfg.CliArgs["configfile"], ": ", err.Error())
 		return 1
 	}
 	if rcfg.ConfigFile.Interval <= 0 || time.Duration(rcfg.ConfigFile.Interval)*time.Second <= 0 {
-		log.Print("Configuration value 'interval' must be greater than zero")
+		cclog.Error("Configuration value 'interval' must be greater than zero")
 		return 1
 	}
 	rcfg.Interval = time.Duration(rcfg.ConfigFile.Interval) * time.Second
 	if rcfg.ConfigFile.Duration <= 0 || time.Duration(rcfg.ConfigFile.Duration)*time.Second <= 0 {
-		log.Print("Configuration value 'duration' must be greater than zero")
+		cclog.Error("Configuration value 'duration' must be greater than zero")
 		return 1
 	}
 	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration) * time.Second
 
 	rcfg.Hostname, err = os.Hostname()
 	if err != nil {
-		log.Print(err.Error())
+		cclog.Error(err.Error())
 		return 1
 	}
 	// Drop domain part of host name
@@ -231,14 +228,14 @@ func mainFunc() int {
 	if len(rcfg.ConfigFile.RouterConfigFile) > 0 {
 		rcfg.Router, err = mr.New(rcfg.Ticker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
 		if err != nil {
-			log.Print(err.Error())
+			cclog.Error(err.Error())
 			return 1
 		}
 	}
 	if len(rcfg.ConfigFile.SinkConfigFile) > 0 {
 		rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
 		if err != nil {
-			log.Print(err.Error())
+			cclog.Error(err.Error())
 			return 1
 		}
 		RouterToSinksChannel := make(chan lp.CCMetric)
@@ -248,7 +245,7 @@ func mainFunc() int {
 	if len(rcfg.ConfigFile.CollectorConfigFile) > 0 {
 		rcfg.CollectManager, err = collectors.New(rcfg.Ticker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
 		if err != nil {
-			log.Print(err.Error())
+			cclog.Error(err.Error())
 			return 1
 		}
 		CollectToRouterChannel := make(chan lp.CCMetric)
@@ -258,7 +255,7 @@ func mainFunc() int {
 	if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
 		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
 		if err != nil {
-			log.Print(err.Error())
+			cclog.Error(err.Error())
 			return 1
 		}
 		ReceiveToRouterChannel := make(chan lp.CCMetric)
@@ -278,7 +275,7 @@ func mainFunc() int {
 
 	// Wait until one tick has passed. This is a workaround
 	if rcfg.CliArgs["once"] == "true" {
-		var x int = (1.8 * float64(rcfg.ConfigFile.Interval))
+		var x float64 = (1.8 * float64(rcfg.ConfigFile.Interval))
 		time.Sleep(time.Duration(int(x)) * time.Second)
 		shutdown(&rcfg)
 	}

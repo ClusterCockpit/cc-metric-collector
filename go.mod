@@ -9,5 +9,6 @@ require (
 	github.com/nats-io/nats.go v1.10.0
 	github.com/nats-io/nkeys v0.1.4 // indirect
 	github.com/prometheus/client_golang v1.10.0 // indirect
+	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
 	gopkg.in/Knetic/govaluate.v2 v2.3.0
 )
