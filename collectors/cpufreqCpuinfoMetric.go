@@ -3,14 +3,15 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
+
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+
 )
 
 //
@@ -149,6 +150,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	m.init = true
 	return nil
 }
+
 
 func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {

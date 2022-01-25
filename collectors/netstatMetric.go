@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 

@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 	"unsafe"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"gopkg.in/Knetic/govaluate.v2"
 )

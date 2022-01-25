@@ -13,17 +13,18 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 type GpfsCollector struct {
 	metricCollector
 	tags   map[string]string
+
 	config struct {
 		Mmpmon string `json:"mmpmon"`
 	}
 }
+
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
 	var err error
@@ -116,7 +117,9 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				fmt.Fprintf(os.Stderr, "GpfsCollector.Read(): Failed to get filesystem name.\n")
 				continue
 			}
+
 			m.tags["filesystem"] = filesystem
+
 
 			// return code
 			rc, err := strconv.Atoi(key_value["_rc_"])
@@ -150,6 +153,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 					key_value["_br_"], err.Error())
 				continue
 			}
+
 			y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp)
 			if err == nil {
 				output <- y
@@ -163,6 +167,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 					key_value["_bw_"], err.Error())
 				continue
 			}
+
 			y, err = lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp)
 			if err == nil {
 				output <- y

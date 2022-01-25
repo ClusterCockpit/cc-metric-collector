@@ -5,9 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-
 	//	"os"
 	"encoding/json"
 	"errors"
@@ -171,6 +169,26 @@ func (m *InfinibandCollector) doPerfQuery(cmd string, dev string, lid string, po
 				}
 			}
 		}
+		if strings.HasPrefix(line, "PortRcvPkts") || strings.HasPrefix(line, "RcvPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_recv_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
+			}
+		}
+		if strings.HasPrefix(line, "PortXmitPkts") || strings.HasPrefix(line, "XmtPkts") {
+			lv := strings.Fields(line)
+			v, err := strconv.ParseFloat(lv[1], 64)
+			if err == nil {
+				y, err := lp.New("ib_xmit_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				if err == nil {
+					*out = append(*out, y)
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -221,7 +239,6 @@ func (m *InfinibandCollector) doSysfsRead(dev string, lid string, port string, t
 			}
 		}
 	}
-
 	return nil
 }
 

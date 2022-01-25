@@ -2,9 +2,7 @@ package collectors
 
 import (
 	"io/ioutil"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-
 	//	"log"
 	"encoding/json"
 	"errors"

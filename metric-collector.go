@@ -17,39 +17,11 @@ import (
 	"sync"
 	"time"
 
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
-
-// List of provided collectors. Which collector should be run can be
-// configured at 'collectors' list  in 'config.json'.
-//var Collectors = map[string]collectors.MetricCollector{
-//	"likwid":     &collectors.LikwidCollector{},
-//	"loadavg":    &collectors.LoadavgCollector{},
-//	"memstat":    &collectors.MemstatCollector{},
-//	"netstat":    &collectors.NetstatCollector{},
-//	"ibstat":     &collectors.InfinibandCollector{},
-//	"lustrestat": &collectors.LustreCollector{},
-//	"cpustat":    &collectors.CpustatCollector{},
-//	"topprocs":   &collectors.TopProcsCollector{},
-//	"nvidia":     &collectors.NvidiaCollector{},
-//	"customcmd":  &collectors.CustomCmdCollector{},
-//	"diskstat":   &collectors.DiskstatCollector{},
-//	"tempstat":   &collectors.TempCollector{},
-//	"ipmistat":   &collectors.IpmiCollector{},
-//}
-
-//var Sinks = map[string]sinks.Sink{
-//	"influxdb": &sinks.InfluxSink{},
-//	"stdout":   &sinks.StdoutSink{},
-//	"nats":     &sinks.NatsSink{},
-//	"http":     &sinks.HttpSink{},
-//}
-
-//var Receivers = map[string]receivers.ReceiverFuncs{
-//	"nats": &receivers.NatsReceiver{},
-//}
 
 type CentralConfigFile struct {
 	Interval            int    `json:"interval"`
@@ -303,127 +275,6 @@ func main() {
 	if use_recv {
 		rcfg.ReceiveManager.Start()
 	}
-	//	if len(config.Collectors) == 0 {
-	//		var keys []string
-	//		for k := range Collectors {
-	//			keys = append(keys, k)
-	//		}
-	//		log.Print("Configuration value 'collectors' does not contain any collector. Available: ", strings.Join(keys, ", "))
-	//		return
-	//	}
-	//	for _, name := range config.Collectors {
-	//		if _, found := Collectors[name]; !found {
-	//			log.Print("Invalid collector '", name, "' in configuration")
-	//			return
-	//		}
-	//	}
-	//	if _, found := Sinks[config.Sink.Type]; !found {
-	//		log.Print("Invalid sink type '", config.Sink.Type, "' in configuration")
-	//		return
-	//	}
-	//	// Setup sink
-	//	sink := Sinks[config.Sink.Type]
-	//	err = sink.Init(config.Sink)
-	//	if err != nil {
-	//		log.Print(err)
-	//		return
-	//	}
-	//	sinkChannel := make(chan bool)
-	//	mproxy.Init(sinkChannel, &wg)
-	//	// Setup receiver
-	//	if len(config.Receiver.Type) > 0 && config.Receiver.Type != "none" {
-	//		if _, found := Receivers[config.Receiver.Type]; !found {
-	//			log.Print("Invalid receiver type '", config.Receiver.Type, "' in configuration")
-	//			return
-	//		} else {
-	//			recv = Receivers[config.Receiver.Type]
-	//			err = recv.Init(config.Receiver, sink)
-	//			if err == nil {
-	//				use_recv = true
-	//			} else {
-	//				log.Print(err)
-	//			}
-	//		}
-	//	}
-
-	//	// Register interrupt handler
-	//	prepare_shutdown(&wg, &config, sink, recv, clicfg["pidfile"])
-
-	//	// Initialize all collectors
-	//	tmp := make([]string, 0)
-	//	for _, c := range config.Collectors {
-	//		col := Collectors[c]
-	//		conf, found := config.CollectConfigs[c]
-	//		if !found {
-	//			conf = json.RawMessage("")
-	//		}
-	//		err = col.Init([]byte(conf))
-	//		if err != nil {
-	//			log.Print("SKIP ", col.Name(), " (", err.Error(), ")")
-	//		} else if !col.Initialized() {
-	//			log.Print("SKIP ", col.Name(), " (Not initialized)")
-	//		} else {
-	//			log.Print("Start ", col.Name())
-	//			tmp = append(tmp, c)
-	//		}
-	//	}
-	//	config.Collectors = tmp
-	//	config.DefTags["hostname"] = host
-
-	//	// Setup up ticker loop
-	//	if clicfg["once"] != "true" {
-	//		log.Print("Running loop every ", time.Duration(config.Interval)*time.Second)
-	//	} else {
-	//		log.Print("Running loop only once")
-	//	}
-	//	ticker := time.NewTicker(time.Duration(config.Interval) * time.Second)
-	//	done := make(chan bool)
-
-	//	// Storage for all node metrics
-	//	tmpPoints := make([]lp.MutableMetric, 0)
-
-	//	// Start receiver
-	//	if use_recv {
-	//		recv.Start()
-	//	}
-
-	//	go func() {
-	//		for {
-	//			select {
-	//			case <-done:
-	//				return
-	//			case t := <-ticker.C:
-
-	//				// Read all collectors are sort the results in the right
-	//				// storage locations
-	//				for _, c := range config.Collectors {
-	//					col := Collectors[c]
-	//					col.Read(time.Duration(config.Duration), &tmpPoints)
-
-	//					for {
-	//						if len(tmpPoints) == 0 {
-	//							break
-	//						}
-	//						p := tmpPoints[0]
-	//						for k, v := range config.DefTags {
-	//							p.AddTag(k, v)
-	//							p.SetTime(t)
-	//						}
-	//						sink.Write(p)
-	//						tmpPoints = tmpPoints[1:]
-	//					}
-	//				}
-
-	//				if err := sink.Flush(); err != nil {
-	//					log.Printf("sink error: %s\n", err)
-	//				}
-	//				if clicfg["once"] == "true" {
-	//					shutdown(&wg, config.Collectors, sink, recv, clicfg["pidfile"])
-	//					return
-	//				}
-	//			}
-	//		}
-	//	}()
 
 	// Wait until receiving an interrupt
 	rcfg.Sync.Wait()
