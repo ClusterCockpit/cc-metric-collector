@@ -143,13 +143,13 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 
 	// number of non hyper thread cores and packages / sockets
 	numNonHT_int := 0
-	maxPhysicalID := 0
+	maxPhysicalPackageID := 0
 	for i := range m.topology {
 		t := &m.topology[i]
 
 		// Update maxPackageID
-		if t.physicalPackageID_int > maxPhysicalID {
-			maxPhysicalID = t.physicalPackageID_int
+		if t.physicalPackageID_int > maxPhysicalPackageID {
+			maxPhysicalPackageID = t.physicalPackageID_int
 		}
 
 		if !t.isHT {
@@ -157,13 +157,13 @@ func (m *CPUFreqCollector) Init(config []byte) error {
 		}
 	}
 
-	numPhysicalID_int := maxPhysicalID + 1
-	numPhysicalID := fmt.Sprint(numPhysicalID_int)
+	numPhysicalPackageID_int := maxPhysicalPackageID + 1
+	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
 	numNonHT := fmt.Sprint(numNonHT_int)
 	for i := range m.topology {
 		t := &m.topology[i]
-		t.numPhysicalPackages = numPhysicalID
-		t.numPhysicalPackages_int = numPhysicalID_int
+		t.numPhysicalPackages = numPhysicalPackageID
+		t.numPhysicalPackages_int = numPhysicalPackageID_int
 		t.numNonHT = numNonHT
 		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
