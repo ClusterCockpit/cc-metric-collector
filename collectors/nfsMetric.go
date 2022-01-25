@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+
 	//	"os"
 	"os/exec"
 	"strconv"
@@ -22,14 +23,14 @@ type NfsCollector struct {
 	metricCollector
 	tags   map[string]string
 	config struct {
-		nfsutils       string   `json:"nfsutils"`
-		excludeMetrics []string `json:"exclude_metrics,omitempty"`
+		Nfsutils       string   `json:"nfsutils"`
+		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 	}
 	data map[string]map[string]NfsCollectorData
 }
 
 func (m *NfsCollector) initStats() error {
-	cmd := exec.Command(m.config.nfsutils, "-l")
+	cmd := exec.Command(m.config.Nfsutils, "-l")
 	cmd.Wait()
 	buffer, err := cmd.Output()
 	if err == nil {
@@ -57,7 +58,7 @@ func (m *NfsCollector) initStats() error {
 }
 
 func (m *NfsCollector) updateStats() error {
-	cmd := exec.Command(m.config.nfsutils, "-l")
+	cmd := exec.Command(m.config.Nfsutils, "-l")
 	cmd.Wait()
 	buffer, err := cmd.Output()
 	if err == nil {
@@ -90,7 +91,7 @@ func (m *NfsCollector) Init(config json.RawMessage) error {
 	m.setup()
 
 	// Set default mmpmon binary
-	m.config.nfsutils = "/usr/sbin/nfsstat"
+	m.config.Nfsutils = "/usr/sbin/nfsstat"
 
 	// Read JSON configuration
 	if len(config) > 0 {
@@ -108,9 +109,9 @@ func (m *NfsCollector) Init(config json.RawMessage) error {
 		"type": "node",
 	}
 	// Check if mmpmon is in executable search path
-	_, err = exec.LookPath(m.config.nfsutils)
+	_, err = exec.LookPath(m.config.Nfsutils)
 	if err != nil {
-		return fmt.Errorf("NfsCollector.Init(): Failed to find nfsstat binary '%s': %v", m.config.nfsutils, err)
+		return fmt.Errorf("NfsCollector.Init(): Failed to find nfsstat binary '%s': %v", m.config.Nfsutils, err)
 	}
 	m.data = make(map[string]map[string]NfsCollectorData)
 	m.initStats()
@@ -128,7 +129,7 @@ func (m *NfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 	for version, metrics := range m.data {
 		for name, data := range metrics {
-			if _, skip := stringArrayContains(m.config.excludeMetrics, name); skip {
+			if _, skip := stringArrayContains(m.config.ExcludeMetrics, name); skip {
 				continue
 			}
 			value := data.current - data.last

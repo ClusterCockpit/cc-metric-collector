@@ -15,7 +15,7 @@ import (
 const LUSTREFILE = `/proc/fs/lustre/llite/lnec-XXXXXX/stats`
 
 type LustreCollectorConfig struct {
-	procfiles      []string `json:"procfiles"`
+	Procfiles      []string `json:"procfiles"`
 	ExcludeMetrics []string `json:"exclude_metrics"`
 }
 
@@ -48,7 +48,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		"statfs":           {"statfs": 1},
 		"inode_permission": {"inode_permission": 1}}
 	m.devices = make([]string, 0)
-	for _, p := range m.config.procfiles {
+	for _, p := range m.config.Procfiles {
 		_, err := ioutil.ReadFile(p)
 		if err == nil {
 			m.devices = append(m.devices, p)
