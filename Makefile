@@ -26,7 +26,7 @@ fmt:
 	go fmt $(GOSRC_SINKS)
 	go fmt $(GOSRC_RECEIVERS)
 	go fmt $(GOSRC_APP)
-  @for F in $(GOSRC_INTERNAL); do go fmt $$F; done
+	@for F in $(GOSRC_INTERNAL); do go fmt $$F; done
 
 
 # Examine Go source code and reports suspicious constructs
