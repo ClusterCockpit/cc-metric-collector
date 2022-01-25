@@ -173,9 +173,9 @@ func (m *InfinibandCollector) doPerfQuery(cmd string, dev string, lid string, po
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				y, err := lp.New("ib_recv_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
@@ -183,9 +183,9 @@ func (m *InfinibandCollector) doPerfQuery(cmd string, dev string, lid string, po
 			lv := strings.Fields(line)
 			v, err := strconv.ParseFloat(lv[1], 64)
 			if err == nil {
-				y, err := lp.New("ib_xmit_pkts", tags, map[string]interface{}{"value": float64(v)}, time.Now())
+				y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
