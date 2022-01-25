@@ -2,25 +2,26 @@ package metricRouter
 
 import (
 	"encoding/json"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
-	"gopkg.in/Knetic/govaluate.v2"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
+	"gopkg.in/Knetic/govaluate.v2"
 )
 
-type metricRounterTagConfig struct {
+type metricRouterTagConfig struct {
 	Key       string `json:"key"`
 	Value     string `json:"value"`
 	Condition string `json:"if"`
 }
 
 type metricRouterConfig struct {
-	AddTags       []metricRounterTagConfig `json:"add_tags"`
-	DelTags       []metricRounterTagConfig `json:"delete_tags"`
-	IntervalStamp bool                     `json:"interval_timestamp"`
+	AddTags       []metricRouterTagConfig `json:"add_tags"`
+	DelTags       []metricRouterTagConfig `json:"delete_tags"`
+	IntervalStamp bool                    `json:"interval_timestamp"`
 }
 
 type metricRouter struct {
