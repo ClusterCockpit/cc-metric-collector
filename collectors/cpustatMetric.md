@@ -1,7 +1,7 @@
 
 ## `cpustat` collector
 ```json
-  "netstat": {
+  "cpustat": {
     "exclude_metrics": [
       "cpu_idle"
     ]
