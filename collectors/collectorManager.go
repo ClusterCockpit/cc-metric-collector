@@ -104,29 +104,33 @@ func (cm *collectorManager) Start() {
 	cm.wg.Add(1)
 	tick := make(chan time.Time)
 	cm.ticker.AddChannel(tick)
+
 	go func() {
+		// Collector manager is done
+		done := func() {
+			// close all metric collectors
+			for _, c := range cm.collectors {
+				c.Close()
+			}
+			cm.wg.Done()
+			cclog.ComponentDebug("CollectorManager", "DONE")
+		}
+
+		// Wait for done signal or timer event
 		for {
-		CollectorManagerLoop:
 			select {
 			case <-cm.done:
-				for _, c := range cm.collectors {
-					c.Close()
-				}
-				cm.wg.Done()
-				cclog.ComponentDebug("CollectorManager", "DONE")
-				break CollectorManagerLoop
+				done()
+				return
 			case t := <-tick:
 				for _, c := range cm.collectors {
-				CollectorManagerInputLoop:
+					// Wait for done signal or execute the collector
 					select {
 					case <-cm.done:
-						for _, c := range cm.collectors {
-							c.Close()
-						}
-						cm.wg.Done()
-						cclog.ComponentDebug("CollectorManager", "DONE")
-						break CollectorManagerInputLoop
+						done()
+						return
 					default:
+						// Read metrics from collector c
 						cclog.ComponentDebug("CollectorManager", c.Name(), t)
 						c.Read(cm.duration, cm.output)
 					}
@@ -134,6 +138,8 @@ func (cm *collectorManager) Start() {
 			}
 		}
 	}()
+
+	// Collector manager is started
 	cclog.ComponentDebug("CollectorManager", "STARTED")
 }
 

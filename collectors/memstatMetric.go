@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -93,7 +94,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 	for match, name := range m.matches {
 		if _, exists := m.stats[match]; !exists {
-			err = errors.New(fmt.Sprintf("Parse error for %s : %s", match, name))
+			err = fmt.Errorf("Parse error for %s : %s", match, name)
 			log.Print(err)
 			continue
 		}
