@@ -2,7 +2,7 @@
 ## `nvidia` collector
 
 ```json
-  "lustrestat": {
+  "nvidia": {
     "exclude_devices" : [
       "0","1"
     ],
