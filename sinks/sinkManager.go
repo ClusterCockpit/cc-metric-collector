@@ -2,12 +2,11 @@ package sinks
 
 import (
 	"encoding/json"
-//	"log"
 	"os"
 	"sync"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 var AvailableSinks = map[string]Sink{
@@ -67,16 +66,18 @@ func (sm *sinkManager) Start() {
 	sm.wg.Add(1)
 	batchcount := 20
 	go func() {
+		done := func() {
+			for _, s := range sm.outputs {
+				s.Close()
+			}
+			cclog.ComponentDebug("SinkManager", "DONE")
+			sm.wg.Done()
+		}
 		for {
-		SinkManagerLoop:
 			select {
 			case <-sm.done:
-				for _, s := range sm.outputs {
-					s.Close()
-				}
-				cclog.ComponentDebug("SinkManager", "DONE")
-				sm.wg.Done()
-				break SinkManagerLoop
+				done()
+				return
 			case p := <-sm.input:
 				cclog.ComponentDebug("SinkManager", "WRITE", p)
 				for _, s := range sm.outputs {
@@ -90,7 +91,6 @@ func (sm *sinkManager) Start() {
 					batchcount = 20
 				}
 				batchcount--
-			default:
 			}
 		}
 	}()
@@ -128,7 +128,10 @@ func (sm *sinkManager) AddOutput(rawConfig json.RawMessage) error {
 }
 
 func (sm *sinkManager) Close() {
-	sm.done <- true
+	select {
+	case sm.done <- true:
+	default:
+	}
 	cclog.ComponentDebug("SinkManager", "CLOSE")
 }
 
