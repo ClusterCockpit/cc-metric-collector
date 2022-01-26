@@ -30,7 +30,7 @@ type metricRouterConfig struct {
 type metricRouter struct {
 	inputs    []chan lp.CCMetric // List of all input channels
 	outputs   []chan lp.CCMetric // List of all output channels
-	done      chan bool          // channel to finish stop metric router
+	done      chan bool          // channel to finish / stop metric router
 	wg        *sync.WaitGroup
 	timestamp time.Time // timestamp
 	ticker    mct.MultiChanTicker
@@ -200,19 +200,23 @@ func (r *metricRouter) Start() {
 	cclog.ComponentDebug("MetricRouter", "STARTED")
 }
 
+// AddInput adds a input channel to the metric router
 func (r *metricRouter) AddInput(input chan lp.CCMetric) {
 	r.inputs = append(r.inputs, input)
 }
 
+// AddOutput adds a output channel to the metric router
 func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
 	r.outputs = append(r.outputs, output)
 }
 
+// Close finishes / stops the metric router
 func (r *metricRouter) Close() {
 	r.done <- true
 	cclog.ComponentDebug("MetricRouter", "CLOSE")
 }
 
+// New creates a new initialized metric router
 func New(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) (MetricRouter, error) {
 	r := new(metricRouter)
 	err := r.Init(ticker, wg, routerConfigFile)
