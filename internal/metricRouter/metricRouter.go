@@ -28,19 +28,22 @@ type metricRouterConfig struct {
 }
 
 type metricRouter struct {
-	inputs    []chan lp.CCMetric // List of all input channels
-	outputs   []chan lp.CCMetric // List of all output channels
-	done      chan bool          // channel to finish / stop metric router
-	wg        *sync.WaitGroup
-	timestamp time.Time // timestamp
-	ticker    mct.MultiChanTicker
-	config    metricRouterConfig
+	coll_input chan lp.CCMetric   // Input channel from CollectorManager
+	recv_input chan lp.CCMetric   // Input channel from ReceiveManager
+	outputs    []chan lp.CCMetric // List of all output channels
+	done       chan bool          // channel to finish / stop metric router
+	wg         *sync.WaitGroup
+	timestamp  time.Time // timestamp
+	timerdone  chan bool // channel to finish / stop timestamp updater
+	ticker     mct.MultiChanTicker
+	config     metricRouterConfig
 }
 
 // MetricRouter access functions
 type MetricRouter interface {
 	Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error
-	AddInput(input chan lp.CCMetric)
+	AddCollectorInput(input chan lp.CCMetric)
+	AddReceiverInput(input chan lp.CCMetric)
 	AddOutput(output chan lp.CCMetric)
 	Start()
 	Close()
@@ -53,7 +56,6 @@ type MetricRouter interface {
 // * ticker (from variable ticker)
 // * configuration (read from config file in variable routerConfigFile)
 func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error {
-	r.inputs = make([]chan lp.CCMetric, 0)
 	r.outputs = make([]chan lp.CCMetric, 0)
 	r.done = make(chan bool)
 	r.wg = wg
@@ -77,12 +79,19 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 func (r *metricRouter) StartTimer() {
 	m := make(chan time.Time)
 	r.ticker.AddChannel(m)
+	r.timerdone = make(chan bool)
 	go func() {
 		for {
-			t := <-m
-			r.timestamp = t
+			select {
+			case <-r.timerdone:
+				cclog.ComponentDebug("MetricRouter", "TIMER DONE")
+				return
+			case t := <-m:
+				r.timestamp = t
+			}
 		}
 	}()
+	cclog.ComponentDebug("MetricRouter", "TIMER START")
 }
 
 // EvalCondition evaluates condition Cond for metric data from point
@@ -165,35 +174,35 @@ func (r *metricRouter) Start() {
 	if r.config.IntervalStamp {
 		r.StartTimer()
 	}
+	done := func() {
+		r.wg.Done()
+		cclog.ComponentDebug("MetricRouter", "DONE")
+	}
+	forward := func(point lp.CCMetric) {
+		cclog.ComponentDebug("MetricRouter", "FORWARD", point)
+		r.DoAddTags(point)
+		r.DoDelTags(point)
+		for _, o := range r.outputs {
+			o <- point
+		}
+	}
 	go func() {
 		for {
-		RouterLoop:
+			//		RouterLoop:
 			select {
 			case <-r.done:
-				cclog.ComponentDebug("MetricRouter", "DONE")
-				r.wg.Done()
-				break RouterLoop
-			default:
-				for _, c := range r.inputs {
-				RouterInputLoop:
-					select {
-					case <-r.done:
-						cclog.ComponentDebug("MetricRouter", "DONE")
-						r.wg.Done()
-						break RouterInputLoop
-					case p := <-c:
-						cclog.ComponentDebug("MetricRouter", "FORWARD", p)
-						r.DoAddTags(p)
-						r.DoDelTags(p)
-						if r.config.IntervalStamp {
-							p.SetTime(r.timestamp)
-						}
-						for _, o := range r.outputs {
-							o <- p
-						}
-					default:
-					}
+				done()
+				return
+			case p := <-r.coll_input:
+				if r.config.IntervalStamp {
+					p.SetTime(r.timestamp)
 				}
+				forward(p)
+			case p := <-r.recv_input:
+				if r.config.IntervalStamp {
+					p.SetTime(r.timestamp)
+				}
+				forward(p)
 			}
 		}
 	}()
@@ -201,8 +210,12 @@ func (r *metricRouter) Start() {
 }
 
 // AddInput adds a input channel to the metric router
-func (r *metricRouter) AddInput(input chan lp.CCMetric) {
-	r.inputs = append(r.inputs, input)
+func (r *metricRouter) AddCollectorInput(input chan lp.CCMetric) {
+	r.coll_input = input
+}
+
+func (r *metricRouter) AddReceiverInput(input chan lp.CCMetric) {
+	r.recv_input = input
 }
 
 // AddOutput adds a output channel to the metric router
@@ -212,7 +225,17 @@ func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
 
 // Close finishes / stops the metric router
 func (r *metricRouter) Close() {
-	r.done <- true
+	select {
+	case r.done <- true:
+	default:
+	}
+	if r.config.IntervalStamp {
+		cclog.ComponentDebug("MetricRouter", "TIMER CLOSE")
+		select {
+		case r.timerdone <- true:
+		default:
+		}
+	}
 	cclog.ComponentDebug("MetricRouter", "CLOSE")
 }
 

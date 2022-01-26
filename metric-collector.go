@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-//	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -158,6 +157,7 @@ func ReadCli() map[string]string {
 // General shutdown function that gets executed in case of interrupt or graceful shutdown
 func shutdown(config *RuntimeConfig) {
 	cclog.Info("Shutdown...")
+	config.Ticker.Close()
 	if config.CollectManager != nil {
 		cclog.Debug("Shutdown CollectManager...")
 		config.CollectManager.Close()
@@ -228,7 +228,7 @@ func mainFunc() int {
 	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
 
 	if rcfg.CliArgs["logfile"] != "stderr" {
-	    cclog.SetOutput(rcfg.CliArgs["logfile"])
+		cclog.SetOutput(rcfg.CliArgs["logfile"])
 	}
 	//	err = SetLogging(rcfg.CliArgs["logfile"])
 	//	if err != nil {
@@ -261,7 +261,7 @@ func mainFunc() int {
 		}
 		CollectToRouterChannel := make(chan lp.CCMetric)
 		rcfg.CollectManager.AddOutput(CollectToRouterChannel)
-		rcfg.Router.AddInput(CollectToRouterChannel)
+		rcfg.Router.AddCollectorInput(CollectToRouterChannel)
 	}
 	if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
 		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
@@ -271,7 +271,7 @@ func mainFunc() int {
 		}
 		ReceiveToRouterChannel := make(chan lp.CCMetric)
 		rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
-		rcfg.Router.AddInput(ReceiveToRouterChannel)
+		rcfg.Router.AddReceiverInput(ReceiveToRouterChannel)
 		use_recv = true
 	}
 	prepare_shutdown(&rcfg)
