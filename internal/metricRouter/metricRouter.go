@@ -80,7 +80,10 @@ func (r *metricRouter) StartTimer() {
 	m := make(chan time.Time)
 	r.ticker.AddChannel(m)
 	r.timerdone = make(chan bool)
+
+	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		for {
 			select {
 			case <-r.timerdone:
@@ -169,13 +172,11 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 
 // Start starts the metric router
 func (r *metricRouter) Start() {
-	r.wg.Add(1)
 	r.timestamp = time.Now()
 	if r.config.IntervalStamp {
 		r.StartTimer()
 	}
 	done := func() {
-		r.wg.Done()
 		cclog.ComponentDebug("MetricRouter", "DONE")
 	}
 	forward := func(point lp.CCMetric) {
@@ -186,7 +187,10 @@ func (r *metricRouter) Start() {
 			o <- point
 		}
 	}
+
+	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		for {
 			//		RouterLoop:
 			select {

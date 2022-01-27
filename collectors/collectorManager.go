@@ -102,18 +102,18 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 
 // Start starts the metric collector manager
 func (cm *collectorManager) Start() {
-	cm.wg.Add(1)
 	tick := make(chan time.Time)
 	cm.ticker.AddChannel(tick)
 
+	cm.wg.Add(1)
 	go func() {
+		defer cm.wg.Done()
 		// Collector manager is done
 		done := func() {
 			// close all metric collectors
 			for _, c := range cm.collectors {
 				c.Close()
 			}
-			cm.wg.Done()
 			cclog.ComponentDebug("CollectorManager", "DONE")
 		}
 
