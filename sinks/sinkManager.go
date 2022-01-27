@@ -68,10 +68,11 @@ func (sm *sinkManager) Start() {
 	go func() {
 		done := func() {
 			for _, s := range sm.outputs {
+				s.Flush()
 				s.Close()
 			}
-			cclog.ComponentDebug("SinkManager", "DONE")
 			sm.wg.Done()
+			cclog.ComponentDebug("SinkManager", "DONE")
 		}
 		for {
 			select {
@@ -128,11 +129,8 @@ func (sm *sinkManager) AddOutput(rawConfig json.RawMessage) error {
 }
 
 func (sm *sinkManager) Close() {
-	select {
-	case sm.done <- true:
-	default:
-	}
 	cclog.ComponentDebug("SinkManager", "CLOSE")
+	sm.done <- true
 }
 
 func New(wg *sync.WaitGroup, sinkConfigFile string) (SinkManager, error) {

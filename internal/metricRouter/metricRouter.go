@@ -225,18 +225,12 @@ func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
 
 // Close finishes / stops the metric router
 func (r *metricRouter) Close() {
-	select {
-	case r.done <- true:
-	default:
-	}
+	cclog.ComponentDebug("MetricRouter", "CLOSE")
+	r.done <- true
 	if r.config.IntervalStamp {
 		cclog.ComponentDebug("MetricRouter", "TIMER CLOSE")
-		select {
-		case r.timerdone <- true:
-		default:
-		}
+		r.timerdone <- true
 	}
-	cclog.ComponentDebug("MetricRouter", "CLOSE")
 }
 
 // New creates a new initialized metric router

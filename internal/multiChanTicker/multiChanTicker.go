@@ -1,8 +1,9 @@
 package multiChanTicker
 
 import (
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 )
 
 type multiChanTicker struct {
@@ -49,8 +50,8 @@ func (t *multiChanTicker) AddChannel(channel chan time.Time) {
 }
 
 func (t *multiChanTicker) Close() {
-	t.done <- true
 	cclog.ComponentDebug("MultiChanTicker", "CLOSE")
+	t.done <- true
 }
 
 func NewTicker(duration time.Duration) MultiChanTicker {

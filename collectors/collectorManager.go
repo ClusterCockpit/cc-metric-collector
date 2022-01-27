@@ -151,11 +151,8 @@ func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
 
 // Close finishes / stops the metric collector manager
 func (cm *collectorManager) Close() {
-	select {
-	case cm.done <- true:
-	default:
-	}
 	cclog.ComponentDebug("CollectorManager", "CLOSE")
+	cm.done <- true
 }
 
 // New creates a new initialized metric collector manager

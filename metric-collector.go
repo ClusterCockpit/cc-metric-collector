@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
 	"github.com/ClusterCockpit/cc-metric-collector/receivers"
@@ -154,10 +155,19 @@ func ReadCli() map[string]string {
 //	return nil
 //}
 
-// General shutdown function that gets executed in case of interrupt or graceful shutdown
-func shutdown(config *RuntimeConfig) {
+// General shutdownHandler function that gets executed in case of interrupt or graceful shutdownHandler
+func shutdownHandler(config *RuntimeConfig, shutdownSignal chan os.Signal) {
+	<-shutdownSignal
+
+	// Remove shutdown handler
+	// every additional interrupt signal will stop without cleaning up
+	signal.Stop(shutdownSignal)
+
 	cclog.Info("Shutdown...")
+
+	cclog.Debug("Shutdown Ticker...")
 	config.Ticker.Close()
+
 	if config.CollectManager != nil {
 		cclog.Debug("Shutdown CollectManager...")
 		config.CollectManager.Close()
@@ -180,18 +190,6 @@ func shutdown(config *RuntimeConfig) {
 	//	pidfile = config.CliArgs["pidfile"]
 	//	RemovePidfile(pidfile)
 	config.Sync.Done()
-}
-
-// Register an interrupt handler for Ctrl+C and similar. At signal,
-// all collectors are closed
-func prepare_shutdown(config *RuntimeConfig) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt)
-
-	go func(config *RuntimeConfig) {
-		<-sigs
-		shutdown(config)
-	}(config)
 }
 
 func mainFunc() int {
@@ -249,7 +247,7 @@ func mainFunc() int {
 			cclog.Error(err.Error())
 			return 1
 		}
-		RouterToSinksChannel := make(chan lp.CCMetric)
+		RouterToSinksChannel := make(chan lp.CCMetric, 200)
 		rcfg.SinkManager.AddInput(RouterToSinksChannel)
 		rcfg.Router.AddOutput(RouterToSinksChannel)
 	}
@@ -259,7 +257,7 @@ func mainFunc() int {
 			cclog.Error(err.Error())
 			return 1
 		}
-		CollectToRouterChannel := make(chan lp.CCMetric)
+		CollectToRouterChannel := make(chan lp.CCMetric, 200)
 		rcfg.CollectManager.AddOutput(CollectToRouterChannel)
 		rcfg.Router.AddCollectorInput(CollectToRouterChannel)
 	}
@@ -269,12 +267,17 @@ func mainFunc() int {
 			cclog.Error(err.Error())
 			return 1
 		}
-		ReceiveToRouterChannel := make(chan lp.CCMetric)
+		ReceiveToRouterChannel := make(chan lp.CCMetric, 200)
 		rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
 		rcfg.Router.AddReceiverInput(ReceiveToRouterChannel)
 		use_recv = true
 	}
-	prepare_shutdown(&rcfg)
+
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, os.Interrupt)
+	signal.Notify(shutdownSignal, syscall.SIGTERM)
+	go shutdownHandler(&rcfg, shutdownSignal)
+
 	rcfg.Sync.Add(1)
 	rcfg.Router.Start()
 	rcfg.SinkManager.Start()
@@ -288,10 +291,10 @@ func mainFunc() int {
 	if rcfg.CliArgs["once"] == "true" {
 		x := 1.2 * float64(rcfg.ConfigFile.Interval)
 		time.Sleep(time.Duration(int(x)) * time.Second)
-		shutdown(&rcfg)
+		shutdownSignal <- os.Interrupt
 	}
 
-	// Wait until receiving an interrupt
+	// Wait until shutdownHandler is executed
 	rcfg.Sync.Wait()
 	return 0
 }

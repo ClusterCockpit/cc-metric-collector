@@ -2,10 +2,11 @@ package receivers
 
 import (
 	"encoding/json"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"os"
 	"sync"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 var AvailableReceivers = map[string]Receiver{
