@@ -1,0 +1,16 @@
+{
+    "tempstat": {
+      "tag_override": {
+        "hwmon0" : {
+            "type" : "socket",
+            "type-id" : "0"
+        },
+        "hwmon1" : {
+            "type" : "socket",
+            "type-id" : "1"
+        }
+      }
+    },
+    "diskstat": {},
+    "memstat" : {}
+}

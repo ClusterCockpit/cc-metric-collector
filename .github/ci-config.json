@@ -1,52 +1,8 @@
 {
-  "sink": {
-    "user": "testuser",
-    "password": "testpass",
-    "host": "127.0.0.1",
-    "port": "9090",
-    "database": "testdb",
-    "organization": "testorg",
-    "type": "stdout"
-  },
-  "interval": 3,
-  "duration": 1,
-  "collectors": [
-    "tempstat",
-    "loadavg",
-    "memstat",
-    "netstat",
-    "ibstat",
-    "lustrestat",
-    "cpustat",
-    "topprocs",
-    "nvidia",
-    "diskstat",
-    "ipmistat",
-    "gpfs",
-    "cpufreq",
-    "cpufreq_cpuinfo"
-  ],
-  "default_tags": {
-    "cluster": "testcluster"
-  },
-  "receiver": {
-    "type": "none"
-  },
-  "collect_config": {
-    "topprocs": {
-      "num_procs": 2
-    },
-    "tempstat": {
-      "tag_override": {
-        "hwmon0": {
-          "type": "socket",
-          "type-id": "0"
-        },
-        "hwmon1": {
-          "type": "socket",
-          "type-id": "1"
-        }
-      }
-    }
-  }
+  "sinks": "ci-sinks.json",
+  "collectors" : "ci-collectors.json",
+  "receivers" : "ci-receivers.json",
+  "router" : "ci-router.json",
+  "interval": 5,
+  "duration": 1
 }
