@@ -5,7 +5,6 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
@@ -45,7 +44,6 @@ func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
 }
 
 type RuntimeConfig struct {
-	Hostname   string
 	Interval   time.Duration
 	Duration   time.Duration
 	CliArgs    map[string]string
@@ -213,13 +211,6 @@ func mainFunc() int {
 	}
 	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration) * time.Second
 
-	rcfg.Hostname, err = os.Hostname()
-	if err != nil {
-		cclog.Error(err.Error())
-		return 1
-	}
-	// Drop domain part of host name
-	rcfg.Hostname = strings.SplitN(rcfg.Hostname, `.`, 2)[0]
 	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
 
 	// Set log file

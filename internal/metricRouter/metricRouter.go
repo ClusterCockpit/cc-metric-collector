@@ -3,6 +3,7 @@ package metricRouter
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ type metricRouterConfig struct {
 
 // Metric router data structure
 type metricRouter struct {
+	hostname   string              // Hostname used in tags
 	coll_input chan lp.CCMetric    // Input channel from CollectorManager
 	recv_input chan lp.CCMetric    // Input channel from ReceiveManager
 	outputs    []chan lp.CCMetric  // List of all output channels
@@ -61,6 +63,15 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	r.done = make(chan bool)
 	r.wg = wg
 	r.ticker = ticker
+
+	// Set hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		cclog.Error(err.Error())
+		return err
+	}
+	// Drop domain part of host name
+	r.hostname = strings.SplitN(hostname, `.`, 2)[0]
 
 	// Read metric router config file
 	configFile, err := os.Open(routerConfigFile)
@@ -209,6 +220,7 @@ func (r *metricRouter) Start() {
 
 			case p := <-r.coll_input:
 				// receive from metric collector
+				p.AddTag("hostname", r.hostname)
 				if r.config.IntervalStamp {
 					p.SetTime(r.timestamp)
 				}
