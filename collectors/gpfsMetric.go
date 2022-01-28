@@ -13,18 +13,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 type GpfsCollector struct {
 	metricCollector
 	tags   map[string]string
-
 	config struct {
 		Mmpmon string `json:"mmpmon"`
 	}
 }
-
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
 	var err error
@@ -120,7 +119,6 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 			m.tags["filesystem"] = filesystem
 
-
 			// return code
 			rc, err := strconv.Atoi(key_value["_rc_"])
 			if err != nil {
@@ -132,8 +130,6 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				continue
 			}
 
-			/* requires go 1.17
-			// unix epoch in microseconds
 			timestampInt, err := strconv.ParseInt(key_value["_t_"]+key_value["_tu_"], 10, 64)
 			timestamp := time.UnixMicro(timestampInt)
 			if err != nil {
@@ -142,8 +138,6 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 					key_value["_t_"]+key_value["_tu_"], err.Error())
 				continue
 			}
-			*/
-			timestamp := time.Now()
 
 			// bytes read
 			bytesRead, err := strconv.ParseInt(key_value["_br_"], 10, 64)
