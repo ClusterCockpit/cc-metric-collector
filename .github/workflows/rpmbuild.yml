@@ -40,7 +40,7 @@ jobs:
       with:
         name: cc-metric-collector SRPM CentOS 'Latest'
         path: ${{ steps.rpm.outputs.source_rpm_path }}
-  build-alma8.5:
+  build-alma-8_5:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
