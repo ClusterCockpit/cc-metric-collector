@@ -34,17 +34,18 @@ var AvailableCollectors = map[string]MetricCollector{
 	"nfsstat":          new(NfsCollector),
 }
 
+// Metric collector manager data structure
 type collectorManager struct {
-	collectors []MetricCollector
-	output     chan lp.CCMetric // List of all output channels
-	done       chan bool        // channel to finish / stop metric collector manager
-	ticker     mct.MultiChanTicker
-	duration   time.Duration
-	wg         *sync.WaitGroup
-	config     map[string]json.RawMessage
+	collectors []MetricCollector          // List of metric collectors to use
+	output     chan lp.CCMetric           // Output channels
+	done       chan bool                  // channel to finish / stop metric collector manager
+	ticker     mct.MultiChanTicker        // periodically ticking once each interval
+	duration   time.Duration              // duration (for metrics that measure over a given duration)
+	wg         *sync.WaitGroup            // wait group for all goroutines in cc-metric-collector
+	config     map[string]json.RawMessage // json encoded config for collector manager
 }
 
-// Metric collector access functions
+// Metric collector manager access functions
 type CollectorManager interface {
 	Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) error
 	AddOutput(output chan lp.CCMetric)
@@ -53,9 +54,9 @@ type CollectorManager interface {
 }
 
 // Init initializes a new metric collector manager by setting up:
-// * output channels
+// * output channel
 // * done channel
-// * wait group synchronization (from variable wg)
+// * wait group synchronization for goroutines (from variable wg)
 // * ticker (from variable ticker)
 // * configuration (read from config file in variable collectConfigFile)
 // Initialization is done for all configured collectors
@@ -82,20 +83,20 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	}
 
 	// Initialize configured collectors
-	for k, cfg := range cm.config {
-		if _, found := AvailableCollectors[k]; !found {
-			cclog.ComponentError("CollectorManager", "SKIP unknown collector", k)
+	for collectorName, collectorCfg := range cm.config {
+		if _, found := AvailableCollectors[collectorName]; !found {
+			cclog.ComponentError("CollectorManager", "SKIP unknown collector", collectorName)
 			continue
 		}
-		c := AvailableCollectors[k]
+		collector := AvailableCollectors[collectorName]
 
-		err = c.Init(cfg)
+		err = collector.Init(collectorCfg)
 		if err != nil {
-			cclog.ComponentError("CollectorManager", "Collector", k, "initialization failed:", err.Error())
+			cclog.ComponentError("CollectorManager", "Collector", collectorName, "initialization failed:", err.Error())
 			continue
 		}
-		cclog.ComponentDebug("CollectorManager", "ADD COLLECTOR", c.Name())
-		cm.collectors = append(cm.collectors, c)
+		cclog.ComponentDebug("CollectorManager", "ADD COLLECTOR", collector.Name())
+		cm.collectors = append(cm.collectors, collector)
 	}
 	return nil
 }
@@ -157,7 +158,7 @@ func (cm *collectorManager) Close() {
 
 // New creates a new initialized metric collector manager
 func New(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) (CollectorManager, error) {
-	cm := &collectorManager{}
+	cm := new(collectorManager)
 	err := cm.Init(ticker, duration, wg, collectConfigFile)
 	if err != nil {
 		return nil, err
