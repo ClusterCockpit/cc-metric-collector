@@ -130,14 +130,21 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				continue
 			}
 
-			timestampInt, err := strconv.ParseInt(key_value["_t_"]+key_value["_tu_"], 10, 64)
-			timestamp := time.UnixMicro(timestampInt)
+			timestampSec, err := strconv.ParseInt(key_value["_t_"], 10, 64)
 			if err != nil {
 				fmt.Fprintf(os.Stderr,
-					"GpfsCollector.Read(): Failed to convert time stamp '%s': %s\n",
-					key_value["_t_"]+key_value["_tu_"], err.Error())
+					"GpfsCollector.Read(): Failed to convert time stamp seconds '%s': %s\n",
+					key_value["_t_"], err.Error())
 				continue
 			}
+			timestampNano, err := strconv.ParseInt(key_value["_tu_"], 10, 64)
+			if err != nil {
+				fmt.Fprintf(os.Stderr,
+					"GpfsCollector.Read(): Failed to convert time stamp nanoseconds '%s': %s\n",
+					key_value["_tu_"], err.Error())
+				continue
+			}
+			timestamp := time.Unix(timestampSec, timestampNano)
 
 			// bytes read
 			bytesRead, err := strconv.ParseInt(key_value["_br_"], 10, 64)

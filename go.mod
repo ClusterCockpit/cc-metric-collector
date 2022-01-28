@@ -1,6 +1,6 @@
 module github.com/ClusterCockpit/cc-metric-collector
 
-go 1.17
+go 1.16
 
 require (
 	github.com/NVIDIA/go-nvml v0.11.1-0
