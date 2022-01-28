@@ -3,13 +3,13 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	lp "github.com/influxdata/line-protocol"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const IPMITOOL_PATH = `/usr/bin/ipmitool`
@@ -22,15 +22,16 @@ type IpmiCollectorConfig struct {
 }
 
 type IpmiCollector struct {
-	MetricCollector
+	metricCollector
 	tags    map[string]string
 	matches map[string]string
 	config  IpmiCollectorConfig
 }
 
-func (m *IpmiCollector) Init(config []byte) error {
+func (m *IpmiCollector) Init(config json.RawMessage) error {
 	m.name = "IpmiCollector"
 	m.setup()
+	m.meta = map[string]string{"source": m.name, "group": "IPMI"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -52,7 +53,7 @@ func (m *IpmiCollector) Init(config []byte) error {
 	return nil
 }
 
-func ReadIpmiTool(cmd string, out *[]lp.MutableMetric) {
+func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 	command := exec.Command(cmd, "sensor")
 	command.Wait()
 	stdout, err := command.Output()
@@ -73,24 +74,25 @@ func ReadIpmiTool(cmd string, out *[]lp.MutableMetric) {
 			name := strings.ToLower(strings.Replace(strings.Trim(lv[0], " "), " ", "_", -1))
 			unit := strings.Trim(lv[2], " ")
 			if unit == "Volts" {
-				unit = "V"
+				unit = "Volts"
 			} else if unit == "degrees C" {
-				unit = "C"
+				unit = "degC"
 			} else if unit == "degrees F" {
-				unit = "F"
+				unit = "degF"
 			} else if unit == "Watts" {
-				unit = "W"
+				unit = "Watts"
 			}
 
-			y, err := lp.New(name, map[string]string{"unit": unit, "type": "node"}, map[string]interface{}{"value": v}, time.Now())
+			y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 			if err == nil {
-				*out = append(*out, y)
+				y.AddMeta("unit", unit)
+				output <- y
 			}
 		}
 	}
 }
 
-func ReadIpmiSensors(cmd string, out *[]lp.MutableMetric) {
+func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
 
 	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
 	command.Wait()
@@ -108,30 +110,32 @@ func ReadIpmiSensors(cmd string, out *[]lp.MutableMetric) {
 			v, err := strconv.ParseFloat(lv[3], 64)
 			if err == nil {
 				name := strings.ToLower(strings.Replace(lv[1], " ", "_", -1))
-				y, err := lp.New(name, map[string]string{"unit": lv[4], "type": "node"}, map[string]interface{}{"value": v}, time.Now())
+				y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					if len(lv) > 4 {
+						y.AddMeta("unit", lv[4])
+					}
+					output <- y
 				}
 			}
 		}
 	}
 }
 
-func (m *IpmiCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if len(m.config.IpmitoolPath) > 0 {
 		_, err := os.Stat(m.config.IpmitoolPath)
 		if err == nil {
-			ReadIpmiTool(m.config.IpmitoolPath, out)
+			m.readIpmiTool(m.config.IpmitoolPath, output)
 		}
 	} else if len(m.config.IpmisensorsPath) > 0 {
 		_, err := os.Stat(m.config.IpmisensorsPath)
 		if err == nil {
-			ReadIpmiSensors(m.config.IpmisensorsPath, out)
+			m.readIpmiSensors(m.config.IpmisensorsPath, output)
 		}
 	}
 }
 
 func (m *IpmiCollector) Close() {
 	m.init = false
-	return
 }

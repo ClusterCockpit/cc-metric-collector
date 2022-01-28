@@ -2,12 +2,12 @@ package collectors
 
 import (
 	"encoding/json"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const NETSTATFILE = `/proc/net/dev`
@@ -17,14 +17,15 @@ type NetstatCollectorConfig struct {
 }
 
 type NetstatCollector struct {
-	MetricCollector
+	metricCollector
 	config  NetstatCollectorConfig
 	matches map[int]string
 }
 
-func (m *NetstatCollector) Init(config []byte) error {
+func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
+	m.meta = map[string]string{"source": m.name, "group": "Memory"}
 	m.matches = map[int]string{
 		1:  "bytes_in",
 		9:  "bytes_out",
@@ -45,7 +46,7 @@ func (m *NetstatCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	data, err := ioutil.ReadFile(string(NETSTATFILE))
 	if err != nil {
 		log.Print(err.Error())
@@ -72,9 +73,15 @@ func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 		for i, name := range m.matches {
 			v, err := strconv.ParseInt(f[i], 10, 0)
 			if err == nil {
-				y, err := lp.New(name, tags, map[string]interface{}{"value": int(float64(v) * 1.0e-3)}, time.Now())
+				y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": int(float64(v) * 1.0e-3)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					switch {
+					case strings.Contains(name, "byte"):
+						y.AddMeta("unit", "Byte")
+					case strings.Contains(name, "pkt"):
+						y.AddMeta("unit", "Packets")
+					}
+					output <- y
 				}
 			}
 		}
@@ -84,5 +91,4 @@ func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 
 func (m *NetstatCollector) Close() {
 	m.init = false
-	return
 }
