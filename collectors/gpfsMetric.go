@@ -108,6 +108,11 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 				continue
 			}
 
+			tagList := map[string]string{
+				"type":       "node",
+				"filesystem": filesystem,
+			}
+
 			// return code
 			rc, err := strconv.Atoi(key_value["_rc_"])
 			if err != nil {
@@ -142,9 +147,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err := lp.New(
 				"gpfs_bytes_read",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": bytesRead,
 				},
@@ -163,9 +166,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_bytes_written",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": bytesWritten,
 				},
@@ -184,9 +185,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_num_opens",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": numOpens,
 				},
@@ -203,9 +202,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_num_closes",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": numCloses,
 				},
@@ -222,9 +219,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_num_reads",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": numReads,
 				},
@@ -241,9 +236,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_num_writes",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": numWrites,
 				},
@@ -260,9 +253,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_num_readdirs",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": numReaddirs,
 				},
@@ -279,9 +270,7 @@ func (m *GpfsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
 			}
 			y, err = lp.New(
 				"gpfs_num_inode_updates",
-				map[string]string{
-					"filesystem": filesystem,
-				},
+				tagList,
 				map[string]interface{}{
 					"value": numInodeUpdates,
 				},
