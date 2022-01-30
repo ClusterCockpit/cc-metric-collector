@@ -33,11 +33,11 @@ type CentralConfigFile struct {
 
 func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
 	configFile, err := os.Open(file)
-	defer configFile.Close()
 	if err != nil {
 		cclog.Error(err.Error())
 		return err
 	}
+	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
 	err = jsonParser.Decode(config)
 	return err
