@@ -3,27 +3,28 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const CPUSTATFILE = `/proc/stat`
 
 type CpustatCollectorConfig struct {
-	ExcludeMetrics []string `json:"exclude_metrics, omitempty"`
+	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 }
 
 type CpustatCollector struct {
-	MetricCollector
+	metricCollector
 	config CpustatCollectorConfig
 }
 
-func (m *CpustatCollector) Init(config []byte) error {
+func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
+	m.meta = map[string]string{"source": m.name, "group": "CPU"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -34,7 +35,7 @@ func (m *CpustatCollector) Init(config []byte) error {
 	return nil
 }
 
-func ParseStatLine(line string, cpu int, exclude []string, out *[]lp.MutableMetric) {
+func (c *CpustatCollector) parseStatLine(line string, cpu int, exclude []string, output chan lp.CCMetric) {
 	ls := strings.Fields(line)
 	matches := []string{"", "cpu_user", "cpu_nice", "cpu_system", "cpu_idle", "cpu_iowait", "cpu_irq", "cpu_softirq", "cpu_steal", "cpu_guest", "cpu_guest_nice"}
 	for _, ex := range exclude {
@@ -51,16 +52,16 @@ func ParseStatLine(line string, cpu int, exclude []string, out *[]lp.MutableMetr
 		if len(m) > 0 {
 			x, err := strconv.ParseInt(ls[i], 0, 64)
 			if err == nil {
-				y, err := lp.New(m, tags, map[string]interface{}{"value": int(x)}, time.Now())
+				y, err := lp.New(m, tags, c.meta, map[string]interface{}{"value": int(x)}, time.Now())
 				if err == nil {
-					*out = append(*out, y)
+					output <- y
 				}
 			}
 		}
 	}
 }
 
-func (m *CpustatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -77,16 +78,15 @@ func (m *CpustatCollector) Read(interval time.Duration, out *[]lp.MutableMetric)
 		}
 		ls := strings.Fields(line)
 		if strings.Compare(ls[0], "cpu") == 0 {
-			ParseStatLine(line, -1, m.config.ExcludeMetrics, out)
+			m.parseStatLine(line, -1, m.config.ExcludeMetrics, output)
 		} else if strings.HasPrefix(ls[0], "cpu") {
 			cpustr := strings.TrimLeft(ls[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
-			ParseStatLine(line, cpu, m.config.ExcludeMetrics, out)
+			m.parseStatLine(line, cpu, m.config.ExcludeMetrics, output)
 		}
 	}
 }
 
 func (m *CpustatCollector) Close() {
 	m.init = false
-	return
 }

@@ -2,237 +2,168 @@ package collectors
 
 import (
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
-	"io/ioutil"
-	"log"
-	"os/exec"
-	//	"os"
+	"os"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	"golang.org/x/sys/unix"
+
 	"encoding/json"
-	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const IBBASEPATH = `/sys/class/infiniband/`
-const LIDFILE = `/sys/class/infiniband/mlx4_0/ports/1/lid`
-const PERFQUERY = `/usr/sbin/perfquery`
+const IB_BASEPATH = `/sys/class/infiniband/`
 
-type InfinibandCollectorConfig struct {
-	ExcludeDevices []string `json:"exclude_devices, omitempty"`
-	PerfQueryPath  string   `json:"perfquery_path"`
+type InfinibandCollectorInfo struct {
+	LID              string            // IB local Identifier (LID)
+	device           string            // IB device
+	port             string            // IB device port
+	portCounterFiles map[string]string // mapping counter name -> file
+	tagSet           map[string]string // corresponding tag list
 }
 
 type InfinibandCollector struct {
-	MetricCollector
-	tags          map[string]string
-	lids          map[string]map[string]string
-	config        InfinibandCollectorConfig
-	use_perfquery bool
+	metricCollector
+	config struct {
+		ExcludeDevices []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
+	}
+	info []InfinibandCollectorInfo
 }
 
 func (m *InfinibandCollector) Help() {
-	fmt.Println("This collector includes all devices that can be found below ", IBBASEPATH)
-	fmt.Println("and where any of the ports provides a 'lid' file (glob ", IBBASEPATH, "/<dev>/ports/<port>/lid).")
+	fmt.Println("This collector includes all devices that can be found below ", IB_BASEPATH)
+	fmt.Println("and where any of the ports provides a 'lid' file (glob ", IB_BASEPATH, "/<dev>/ports/<port>/lid).")
 	fmt.Println("The devices can be filtered with the 'exclude_devices' option in the configuration.")
 	fmt.Println("For each found LIDs the collector calls the 'perfquery' command")
-	fmt.Println("The path to the 'perfquery' command can be configured with the 'perfquery_path' option")
-	fmt.Println("in the configuration\n")
+	fmt.Println("")
 	fmt.Println("Full configuration object:")
 	fmt.Println("\"ibstat\" : {")
-	fmt.Println("  \"perfquery_path\" : \"path/to/perfquery\"  # if omitted, it searches in $PATH")
 	fmt.Println("  \"exclude_devices\" : [\"dev1\"]")
-	fmt.Println("}\n")
+	fmt.Println("}")
+	fmt.Println("")
 	fmt.Println("Metrics:")
 	fmt.Println("- ib_recv")
 	fmt.Println("- ib_xmit")
+	fmt.Println("- ib_recv_pkts")
+	fmt.Println("- ib_xmit_pkts")
 }
 
-func (m *InfinibandCollector) Init(config []byte) error {
+// Init initializes the Infiniband collector by walking through files below IB_BASEPATH
+func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "InfinibandCollector"
-	m.use_perfquery = false
 	m.setup()
-	m.tags = map[string]string{"type": "node"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Network",
+	}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
-	if len(m.config.PerfQueryPath) == 0 {
-		path, err := exec.LookPath("perfquery")
-		if err == nil {
-			m.config.PerfQueryPath = path
-		}
-	}
-	m.lids = make(map[string]map[string]string)
-	p := fmt.Sprintf("%s/*/ports/*/lid", string(IBBASEPATH))
-	files, err := filepath.Glob(p)
-	for _, f := range files {
-		lid, err := ioutil.ReadFile(f)
-		if err == nil {
-			plist := strings.Split(strings.Replace(f, string(IBBASEPATH), "", -1), "/")
-			skip := false
-			for _, d := range m.config.ExcludeDevices {
-				if d == plist[0] {
-					skip = true
-				}
-			}
-			if !skip {
-				m.lids[plist[0]] = make(map[string]string)
-				m.lids[plist[0]][plist[2]] = string(lid)
-			}
-		}
-	}
 
-	for _, ports := range m.lids {
-		for port, lid := range ports {
-			args := fmt.Sprintf("-r %s %s 0xf000", lid, port)
-			command := exec.Command(m.config.PerfQueryPath, args)
-			command.Wait()
-			_, err := command.Output()
-			if err == nil {
-				m.use_perfquery = true
-			}
-			break
-		}
-		break
-	}
-
-	if len(m.lids) > 0 {
-		m.init = true
-	} else {
-		err = errors.New("No usable devices")
-	}
-
-	return err
-}
-
-func DoPerfQuery(cmd string, dev string, lid string, port string, tags map[string]string, out *[]lp.MutableMetric) error {
-
-	args := fmt.Sprintf("-r %s %s 0xf000", lid, port)
-	command := exec.Command(cmd, args)
-	command.Wait()
-	stdout, err := command.Output()
+	// Loop for all InfiniBand directories
+	globPattern := filepath.Join(IB_BASEPATH, "*", "ports", "*")
+	ibDirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		log.Print(err)
-		return err
+		return fmt.Errorf("Unable to glob files with pattern %s: %v", globPattern, err)
 	}
-	ll := strings.Split(string(stdout), "\n")
+	if ibDirs == nil {
+		return fmt.Errorf("Unable to find any directories with pattern %s", globPattern)
+	}
 
-	for _, line := range ll {
-		if strings.HasPrefix(line, "PortRcvData") || strings.HasPrefix(line, "RcvData") {
-			lv := strings.Fields(line)
-			v, err := strconv.ParseFloat(lv[1], 64)
-			if err == nil {
-				y, err := lp.New("ib_recv", tags, map[string]interface{}{"value": float64(v)}, time.Now())
-				if err == nil {
-					*out = append(*out, y)
-				}
+	for _, path := range ibDirs {
+
+		// Skip, when no LID is assigned
+		LID, ok := readOneLine(path + "/lid")
+		if !ok || LID == "0x0" {
+			continue
+		}
+
+		// Get device and port component
+		pathSplit := strings.Split(path, string(os.PathSeparator))
+		device := pathSplit[4]
+		port := pathSplit[6]
+
+		// Skip excluded devices
+		skip := false
+		for _, excludedDevice := range m.config.ExcludeDevices {
+			if excludedDevice == device {
+				skip = true
+				break
 			}
 		}
-		if strings.HasPrefix(line, "PortXmitData") || strings.HasPrefix(line, "XmtData") {
-			lv := strings.Fields(line)
-			v, err := strconv.ParseFloat(lv[1], 64)
-			if err == nil {
-				y, err := lp.New("ib_xmit", tags, map[string]interface{}{"value": float64(v)}, time.Now())
-				if err == nil {
-					*out = append(*out, y)
-				}
+		if skip {
+			continue
+		}
+
+		// Check access to counter files
+		countersDir := filepath.Join(path, "counters")
+		portCounterFiles := map[string]string{
+			"ib_recv":      filepath.Join(countersDir, "port_rcv_data"),
+			"ib_xmit":      filepath.Join(countersDir, "port_xmit_data"),
+			"ib_recv_pkts": filepath.Join(countersDir, "port_rcv_packets"),
+			"ib_xmit_pkts": filepath.Join(countersDir, "port_xmit_packets"),
+		}
+		for _, counterFile := range portCounterFiles {
+			err := unix.Access(counterFile, unix.R_OK)
+			if err != nil {
+				return fmt.Errorf("Unable to access %s: %v", counterFile, err)
 			}
 		}
+
+		m.info = append(m.info,
+			InfinibandCollectorInfo{
+				LID:              LID,
+				device:           device,
+				port:             port,
+				portCounterFiles: portCounterFiles,
+				tagSet: map[string]string{
+					"type":   "node",
+					"device": device,
+					"port":   port,
+					"lid":    LID,
+				},
+			})
 	}
+
+	if len(m.info) == 0 {
+		return fmt.Errorf("Found no IB devices")
+	}
+
+	m.init = true
 	return nil
 }
 
-func DoSysfsRead(dev string, lid string, port string, tags map[string]string, out *[]lp.MutableMetric) error {
-	path := fmt.Sprintf("%s/%s/ports/%s/counters/", string(IBBASEPATH), dev, port)
-	buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/port_rcv_data", path))
-	if err == nil {
-		data := strings.Replace(string(buffer), "\n", "", -1)
-		v, err := strconv.ParseFloat(data, 64)
-		if err == nil {
-			y, err := lp.New("ib_recv", tags, map[string]interface{}{"value": float64(v)}, time.Now())
-			if err == nil {
-				*out = append(*out, y)
-			}
-		}
-	}
-	buffer, err = ioutil.ReadFile(fmt.Sprintf("%s/port_xmit_data", path))
-	if err == nil {
-		data := strings.Replace(string(buffer), "\n", "", -1)
-		v, err := strconv.ParseFloat(data, 64)
-		if err == nil {
-			y, err := lp.New("ib_xmit", tags, map[string]interface{}{"value": float64(v)}, time.Now())
-			if err == nil {
-				*out = append(*out, y)
-			}
-		}
-	}
-	return nil
-}
+// Read reads Infiniband counter files below IB_BASEPATH
+func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
-func (m *InfinibandCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+	// Check if already initialized
+	if !m.init {
+		return
+	}
 
-	if m.init {
-		for dev, ports := range m.lids {
-			for port, lid := range ports {
-				tags := map[string]string{"type": "node", "device": dev, "port": port}
-				if m.use_perfquery {
-					DoPerfQuery(m.config.PerfQueryPath, dev, lid, port, tags, out)
-				} else {
-					DoSysfsRead(dev, lid, port, tags, out)
+	now := time.Now()
+	for i := range m.info {
+
+		// device info
+		info := &m.info[i]
+		for counterName, counterFile := range info.portCounterFiles {
+			if data, ok := readOneLine(counterFile); ok {
+				if v, err := strconv.ParseInt(data, 10, 64); err == nil {
+					if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+						output <- y
+					}
 				}
 			}
 		}
 	}
-
-	//	buffer, err := ioutil.ReadFile(string(LIDFILE))
-
-	//	if err != nil {
-	//		log.Print(err)
-	//		return
-	//	}
-
-	//	args := fmt.Sprintf("-r %s 1 0xf000", string(buffer))
-
-	//	command := exec.Command(PERFQUERY, args)
-	//	command.Wait()
-	//	stdout, err := command.Output()
-	//	if err != nil {
-	//		log.Print(err)
-	//		return
-	//	}
-
-	//	ll := strings.Split(string(stdout), "\n")
-
-	//	for _, line := range ll {
-	//		if strings.HasPrefix(line, "PortRcvData") || strings.HasPrefix(line, "RcvData") {
-	//			lv := strings.Fields(line)
-	//			v, err := strconv.ParseFloat(lv[1], 64)
-	//			if err == nil {
-	//				y, err := lp.New("ib_recv", m.tags, map[string]interface{}{"value": float64(v)}, time.Now())
-	//				if err == nil {
-	//					*out = append(*out, y)
-	//				}
-	//			}
-	//		}
-	//		if strings.HasPrefix(line, "PortXmitData") || strings.HasPrefix(line, "XmtData") {
-	//			lv := strings.Fields(line)
-	//			v, err := strconv.ParseFloat(lv[1], 64)
-	//			if err == nil {
-	//				y, err := lp.New("ib_xmit", m.tags, map[string]interface{}{"value": float64(v)}, time.Now())
-	//				if err == nil {
-	//					*out = append(*out, y)
-	//				}
-	//			}
-	//		}
-	//	}
 }
 
 func (m *InfinibandCollector) Close() {
 	m.init = false
-	return
 }

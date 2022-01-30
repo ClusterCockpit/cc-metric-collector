@@ -5,14 +5,15 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
-	"log"
-	lp "github.com/influxdata/line-protocol"
 )
 
 type InfluxAsyncSink struct {
-	Sink
+	sink
 	client    influxdb2.Client
 	writeApi  influxdb2Api.WriteAPI
 	retPolicy string
@@ -41,7 +42,7 @@ func (s *InfluxAsyncSink) connect() error {
 	return nil
 }
 
-func (s *InfluxAsyncSink) Init(config SinkConfig) error {
+func (s *InfluxAsyncSink) Init(config sinkConfig) error {
 	if len(config.Host) == 0 ||
 		len(config.Port) == 0 ||
 		len(config.Database) == 0 ||
@@ -66,7 +67,7 @@ func (s *InfluxAsyncSink) Init(config SinkConfig) error {
 	return err
 }
 
-func (s *InfluxAsyncSink) Write(point lp.MutableMetric) error {
+func (s *InfluxAsyncSink) Write(point lp.CCMetric) error {
 	p := influxdb2.NewPoint(point.Name(), Tags2Map(point), Fields2Map(point), point.Time())
 	s.writeApi.WritePoint(p)
 	return nil

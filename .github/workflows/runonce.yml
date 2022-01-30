@@ -7,11 +7,14 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v2.1.4
+      uses: actions/setup-go@v2.1.5
+      with:
+        go-version: '^1.17.6'
 
     - name: Build MetricCollector
       run: make
 
     - name: Run MetricCollector
-      run: make runonce
+      run: ./cc-metric-collector --once --config .github/ci-config.json
