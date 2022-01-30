@@ -5,7 +5,6 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
@@ -45,7 +44,6 @@ func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
 }
 
 type RuntimeConfig struct {
-	Hostname   string
 	Interval   time.Duration
 	Duration   time.Duration
 	CliArgs    map[string]string
@@ -213,13 +211,21 @@ func mainFunc() int {
 	}
 	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration) * time.Second
 
-	rcfg.Hostname, err = os.Hostname()
-	if err != nil {
-		cclog.Error(err.Error())
+	if len(rcfg.ConfigFile.RouterConfigFile) == 0 {
+		cclog.Error("Metric router configuration file must be set")
 		return 1
 	}
-	// Drop domain part of host name
-	rcfg.Hostname = strings.SplitN(rcfg.Hostname, `.`, 2)[0]
+
+	if len(rcfg.ConfigFile.SinkConfigFile) == 0 {
+		cclog.Error("Sink configuration file must be set")
+		return 1
+	}
+
+	if len(rcfg.ConfigFile.CollectorConfigFile) == 0 {
+		cclog.Error("Metric collector configuration file must be set")
+		return 1
+	}
+
 	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
 
 	// Set log file
@@ -231,41 +237,35 @@ func mainFunc() int {
 	rcfg.MultiChanTicker = mct.NewTicker(rcfg.Interval)
 
 	// Create new metric router
-	if len(rcfg.ConfigFile.RouterConfigFile) > 0 {
-		rcfg.MetricRouter, err = mr.New(rcfg.MultiChanTicker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
-		if err != nil {
-			cclog.Error(err.Error())
-			return 1
-		}
+	rcfg.MetricRouter, err = mr.New(rcfg.MultiChanTicker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
+	if err != nil {
+		cclog.Error(err.Error())
+		return 1
 	}
 
 	// Create new sink
-	if len(rcfg.ConfigFile.SinkConfigFile) > 0 {
-		rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
-		if err != nil {
-			cclog.Error(err.Error())
-			return 1
-		}
-
-		// Connect metric router to sink manager
-		RouterToSinksChannel := make(chan lp.CCMetric, 200)
-		rcfg.SinkManager.AddInput(RouterToSinksChannel)
-		rcfg.MetricRouter.AddOutput(RouterToSinksChannel)
+	rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
+	if err != nil {
+		cclog.Error(err.Error())
+		return 1
 	}
+
+	// Connect metric router to sink manager
+	RouterToSinksChannel := make(chan lp.CCMetric, 200)
+	rcfg.SinkManager.AddInput(RouterToSinksChannel)
+	rcfg.MetricRouter.AddOutput(RouterToSinksChannel)
 
 	// Create new collector manager
-	if len(rcfg.ConfigFile.CollectorConfigFile) > 0 {
-		rcfg.CollectManager, err = collectors.New(rcfg.MultiChanTicker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
-		if err != nil {
-			cclog.Error(err.Error())
-			return 1
-		}
-
-		// Connect collector manager to metric router
-		CollectToRouterChannel := make(chan lp.CCMetric, 200)
-		rcfg.CollectManager.AddOutput(CollectToRouterChannel)
-		rcfg.MetricRouter.AddCollectorInput(CollectToRouterChannel)
+	rcfg.CollectManager, err = collectors.New(rcfg.MultiChanTicker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
+	if err != nil {
+		cclog.Error(err.Error())
+		return 1
 	}
+
+	// Connect collector manager to metric router
+	CollectToRouterChannel := make(chan lp.CCMetric, 200)
+	rcfg.CollectManager.AddOutput(CollectToRouterChannel)
+	rcfg.MetricRouter.AddCollectorInput(CollectToRouterChannel)
 
 	// Create new receive manager
 	if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
