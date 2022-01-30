@@ -15,6 +15,7 @@ var AvailableSinks = map[string]Sink{
 	"stdout":   new(StdoutSink),
 	"nats":     new(NatsSink),
 	"http":     new(HttpSink),
+	"ganglia":  new(GangliaSink),
 }
 
 // Metric collector manager data structure
