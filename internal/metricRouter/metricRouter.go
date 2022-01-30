@@ -101,6 +101,7 @@ func (r *metricRouter) StartTimer() {
 		for {
 			select {
 			case <-r.timerdone:
+				close(r.timerdone)
 				cclog.ComponentDebug("MetricRouter", "TIMER DONE")
 				return
 			case t := <-m:
@@ -195,6 +196,7 @@ func (r *metricRouter) Start() {
 
 	// Router manager is done
 	done := func() {
+		close(r.done)
 		cclog.ComponentDebug("MetricRouter", "DONE")
 	}
 
@@ -257,9 +259,13 @@ func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
 func (r *metricRouter) Close() {
 	cclog.ComponentDebug("MetricRouter", "CLOSE")
 	r.done <- true
+	// wait for close of channel r.done
+	<-r.done
 	if r.config.IntervalStamp {
 		cclog.ComponentDebug("MetricRouter", "TIMER CLOSE")
 		r.timerdone <- true
+		// wait for close of channel r.timerdone
+		<-r.timerdone
 	}
 }
 

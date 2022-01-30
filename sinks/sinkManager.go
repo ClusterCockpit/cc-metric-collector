@@ -81,6 +81,7 @@ func (sm *sinkManager) Start() {
 				s.Close()
 			}
 
+			close(sm.done)
 			cclog.ComponentDebug("SinkManager", "DONE")
 		}
 
@@ -149,6 +150,8 @@ func (sm *sinkManager) AddOutput(rawConfig json.RawMessage) error {
 func (sm *sinkManager) Close() {
 	cclog.ComponentDebug("SinkManager", "CLOSE")
 	sm.done <- true
+	// wait for close of channel sm.done
+	<-sm.done
 }
 
 // New creates a new initialized sink manager

@@ -115,6 +115,7 @@ func (cm *collectorManager) Start() {
 			for _, c := range cm.collectors {
 				c.Close()
 			}
+			close(cm.done)
 			cclog.ComponentDebug("CollectorManager", "DONE")
 		}
 
@@ -154,6 +155,8 @@ func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
 func (cm *collectorManager) Close() {
 	cclog.ComponentDebug("CollectorManager", "CLOSE")
 	cm.done <- true
+	// wait for close of channel cm.done
+	<-cm.done
 }
 
 // New creates a new initialized metric collector manager
