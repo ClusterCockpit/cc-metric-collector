@@ -53,7 +53,7 @@ func minfunc(args ...interface{}) (interface{}, error) {
 		}
 		return s, nil
 	case []int:
-		var s int = math.MaxInt
+		var s int = int(math.MaxInt32)
 		for _, x := range values {
 			if x < s {
 				s = x
