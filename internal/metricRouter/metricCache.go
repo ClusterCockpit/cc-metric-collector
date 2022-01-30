@@ -76,6 +76,7 @@ func (c *metricCache) Start() {
 	// Router cache is done
 	done := func() {
 		cclog.ComponentDebug("MetricCache", "DONE")
+		close(c.done)
 	}
 
 	// Rotate cache interval
