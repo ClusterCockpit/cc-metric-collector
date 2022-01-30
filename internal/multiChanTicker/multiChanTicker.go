@@ -23,6 +23,7 @@ func (t *multiChanTicker) Init(duration time.Duration) {
 	t.done = make(chan bool)
 	go func() {
 		done := func() {
+			close(t.done)
 			cclog.ComponentDebug("MultiChanTicker", "DONE")
 		}
 		for {
@@ -52,6 +53,8 @@ func (t *multiChanTicker) AddChannel(channel chan time.Time) {
 func (t *multiChanTicker) Close() {
 	cclog.ComponentDebug("MultiChanTicker", "CLOSE")
 	t.done <- true
+	// wait for close of channel t.done
+	<-t.done
 }
 
 func NewTicker(duration time.Duration) MultiChanTicker {

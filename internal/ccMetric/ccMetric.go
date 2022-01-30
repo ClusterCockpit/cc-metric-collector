@@ -2,9 +2,10 @@ package ccmetric
 
 import (
 	"fmt"
-	lp "github.com/influxdata/line-protocol" // MIT license
 	"sort"
 	"time"
+
+	lp "github.com/influxdata/line-protocol" // MIT license
 )
 
 // Most functions are derived from github.com/influxdata/line-protocol/metric.go
@@ -24,6 +25,11 @@ type CCMetric interface {
 	AddMeta(key, value string)
 	MetaList() []*lp.Tag
 	RemoveTag(key string)
+	GetTag(key string) (string, bool)
+	GetMeta(key string) (string, bool)
+	GetField(key string) (interface{}, bool)
+	HasField(key string) bool
+	RemoveField(key string)
 }
 
 func (m *ccMetric) Meta() map[string]string {
@@ -185,6 +191,35 @@ func (m *ccMetric) AddField(key string, value interface{}) {
 		}
 	}
 	m.fields = append(m.fields, &lp.Field{Key: key, Value: convertField(value)})
+}
+
+func (m *ccMetric) GetField(key string) (interface{}, bool) {
+	for _, field := range m.fields {
+		if field.Key == key {
+			return field.Value, true
+		}
+	}
+	return "", false
+}
+
+func (m *ccMetric) HasField(key string) bool {
+	for _, field := range m.fields {
+		if field.Key == key {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *ccMetric) RemoveField(key string) {
+	for i, field := range m.fields {
+		if field.Key == key {
+			copy(m.fields[i:], m.fields[i+1:])
+			m.fields[len(m.fields)-1] = nil
+			m.fields = m.fields[:len(m.fields)-1]
+			return
+		}
+	}
 }
 
 func New(

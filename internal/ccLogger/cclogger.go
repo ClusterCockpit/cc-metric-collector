@@ -38,7 +38,7 @@ func initLogger() {
 
 func Print(e ...interface{}) {
 	initLogger()
-	defaultLog.Print(e)
+	defaultLog.Print(e...)
 }
 
 func ComponentPrint(component string, e ...interface{}) {
@@ -48,7 +48,7 @@ func ComponentPrint(component string, e ...interface{}) {
 
 func Info(e ...interface{}) {
 	initLogger()
-	infoLog.Print(e)
+	infoLog.Print(e...)
 }
 
 func ComponentInfo(component string, e ...interface{}) {
@@ -58,14 +58,14 @@ func ComponentInfo(component string, e ...interface{}) {
 
 func Debug(e ...interface{}) {
 	initLogger()
-	if globalDebug == true {
-		debugLog.Print(e)
+	if globalDebug {
+		debugLog.Print(e...)
 	}
 }
 
 func ComponentDebug(component string, e ...interface{}) {
 	initLogger()
-	if globalDebug == true && debugLog != nil {
+	if globalDebug && debugLog != nil {
 		//CCComponentPrint(debugLog, component,  e)
 		debugLog.Print(fmt.Sprintf("[%s] ", component), e)
 	}

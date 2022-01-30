@@ -3,6 +3,7 @@ package metricRouter
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,19 +25,21 @@ type metricRouterTagConfig struct {
 type metricRouterConfig struct {
 	AddTags       []metricRouterTagConfig `json:"add_tags"`           // List of tags that are added when the condition is met
 	DelTags       []metricRouterTagConfig `json:"delete_tags"`        // List of tags that are removed when the condition is met
-	IntervalStamp bool                    `json:"interval_timestamp"` // Update timestamp periodically?
+	IntervalStamp bool                    `json:"interval_timestamp"` // Update timestamp periodically by ticker each interval?
 }
 
+// Metric router data structure
 type metricRouter struct {
-	coll_input chan lp.CCMetric   // Input channel from CollectorManager
-	recv_input chan lp.CCMetric   // Input channel from ReceiveManager
-	outputs    []chan lp.CCMetric // List of all output channels
-	done       chan bool          // channel to finish / stop metric router
-	wg         *sync.WaitGroup
-	timestamp  time.Time // timestamp
-	timerdone  chan bool // channel to finish / stop timestamp updater
-	ticker     mct.MultiChanTicker
-	config     metricRouterConfig
+	hostname   string              // Hostname used in tags
+	coll_input chan lp.CCMetric    // Input channel from CollectorManager
+	recv_input chan lp.CCMetric    // Input channel from ReceiveManager
+	outputs    []chan lp.CCMetric  // List of all output channels
+	done       chan bool           // channel to finish / stop metric router
+	wg         *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
+	timestamp  time.Time           // timestamp periodically updated by ticker each interval
+	timerdone  chan bool           // channel to finish / stop timestamp updater
+	ticker     mct.MultiChanTicker // periodically ticking once each interval
+	config     metricRouterConfig  // json encoded config for metric router
 }
 
 // MetricRouter access functions
@@ -60,6 +63,17 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	r.done = make(chan bool)
 	r.wg = wg
 	r.ticker = ticker
+
+	// Set hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		cclog.Error(err.Error())
+		return err
+	}
+	// Drop domain part of host name
+	r.hostname = strings.SplitN(hostname, `.`, 2)[0]
+
+	// Read metric router config file
 	configFile, err := os.Open(routerConfigFile)
 	if err != nil {
 		cclog.ComponentError("MetricRouter", err.Error())
@@ -87,6 +101,7 @@ func (r *metricRouter) StartTimer() {
 		for {
 			select {
 			case <-r.timerdone:
+				close(r.timerdone)
 				cclog.ComponentDebug("MetricRouter", "TIMER DONE")
 				return
 			case t := <-m:
@@ -97,11 +112,11 @@ func (r *metricRouter) StartTimer() {
 	cclog.ComponentDebug("MetricRouter", "TIMER START")
 }
 
-// EvalCondition evaluates condition Cond for metric data from point
-func (r *metricRouter) EvalCondition(Cond string, point lp.CCMetric) (bool, error) {
-	expression, err := govaluate.NewEvaluableExpression(Cond)
+// EvalCondition evaluates condition cond for metric data from point
+func (r *metricRouter) EvalCondition(cond string, point lp.CCMetric) (bool, error) {
+	expression, err := govaluate.NewEvaluableExpression(cond)
 	if err != nil {
-		cclog.ComponentDebug("MetricRouter", Cond, " = ", err.Error())
+		cclog.ComponentDebug("MetricRouter", cond, " = ", err.Error())
 		return false, err
 	}
 
@@ -122,7 +137,7 @@ func (r *metricRouter) EvalCondition(Cond string, point lp.CCMetric) (bool, erro
 	// evaluate condition
 	result, err := expression.Evaluate(params)
 	if err != nil {
-		cclog.ComponentDebug("MetricRouter", Cond, " = ", err.Error())
+		cclog.ComponentDebug("MetricRouter", cond, " = ", err.Error())
 		return false, err
 	}
 	return bool(result.(bool)), err
@@ -172,13 +187,21 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 
 // Start starts the metric router
 func (r *metricRouter) Start() {
+
+	// start timer if configured
 	r.timestamp = time.Now()
 	if r.config.IntervalStamp {
 		r.StartTimer()
 	}
+
+	// Router manager is done
 	done := func() {
+		close(r.done)
 		cclog.ComponentDebug("MetricRouter", "DONE")
 	}
+
+	// Forward takes a received metric, adds or deletes tags
+	// and forwards it to the output channels
 	forward := func(point lp.CCMetric) {
 		cclog.ComponentDebug("MetricRouter", "FORWARD", point)
 		r.DoAddTags(point)
@@ -192,17 +215,21 @@ func (r *metricRouter) Start() {
 	go func() {
 		defer r.wg.Done()
 		for {
-			//		RouterLoop:
 			select {
 			case <-r.done:
 				done()
 				return
+
 			case p := <-r.coll_input:
+				// receive from metric collector
+				p.AddTag("hostname", r.hostname)
 				if r.config.IntervalStamp {
 					p.SetTime(r.timestamp)
 				}
 				forward(p)
+
 			case p := <-r.recv_input:
+				// receive from receive manager
 				if r.config.IntervalStamp {
 					p.SetTime(r.timestamp)
 				}
@@ -213,11 +240,12 @@ func (r *metricRouter) Start() {
 	cclog.ComponentDebug("MetricRouter", "STARTED")
 }
 
-// AddInput adds a input channel to the metric router
+// AddCollectorInput adds a channel between metric collector and metric router
 func (r *metricRouter) AddCollectorInput(input chan lp.CCMetric) {
 	r.coll_input = input
 }
 
+// AddReceiverInput adds a channel between metric receiver and metric router
 func (r *metricRouter) AddReceiverInput(input chan lp.CCMetric) {
 	r.recv_input = input
 }
@@ -231,9 +259,13 @@ func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
 func (r *metricRouter) Close() {
 	cclog.ComponentDebug("MetricRouter", "CLOSE")
 	r.done <- true
+	// wait for close of channel r.done
+	<-r.done
 	if r.config.IntervalStamp {
 		cclog.ComponentDebug("MetricRouter", "TIMER CLOSE")
 		r.timerdone <- true
+		// wait for close of channel r.timerdone
+		<-r.timerdone
 	}
 }
 
