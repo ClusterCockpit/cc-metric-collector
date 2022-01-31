@@ -22,14 +22,27 @@ type ccMetric struct {
 
 type CCMetric interface {
 	lp.MutableMetric
-	AddMeta(key, value string)
-	MetaList() []*lp.Tag
-	RemoveTag(key string)
+	Name() string
+	AddTag(key, value string)
 	GetTag(key string) (string, bool)
+	HasTag(key string) bool
+	RemoveTag(key string)
+	Tags() map[string]string
+	TagList() []*lp.Tag
+	AddMeta(key, value string)
 	GetMeta(key string) (string, bool)
+	HasMeta(key string) bool
+	RemoveMeta(key string)
+	Meta() map[string]string
+	MetaList() []*lp.Tag
+	AddField(key string, value interface{})
 	GetField(key string) (interface{}, bool)
 	HasField(key string) bool
 	RemoveField(key string)
+	Fields() map[string]interface{}
+	FieldList() []*lp.Field
+	String() string
+	SetTime(t time.Time)
 }
 
 func (m *ccMetric) Meta() map[string]string {
