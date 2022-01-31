@@ -14,62 +14,74 @@ import (
 //
 // See: https://docs.influxdata.com/influxdb/latest/reference/syntax/line-protocol/
 type ccMetric struct {
-	name   string      // Measurement name
-	tags   []*lp.Tag   // ordered list of of tags
-	fields []*lp.Field // unordered list of of fields
-	tm     time.Time   // timestamp
-	meta   []*lp.Tag   // odered list of meta data tags
+	name   string            // Measurement name
+	meta   map[string]string // map of meta data tags
+	tags   map[string]string // map of of tags
+	fields []*lp.Field       // unordered list of of fields
+	tm     time.Time         // timestamp
 }
 
 // ccmetric access functions
 type CCMetric interface {
-	lp.MutableMetric                         // SetTime, AddTag, AddField
-	AddMeta(key, value string)               // Add a meta data tag
-	MetaList() []*lp.Tag                     // Returns the meta data list
-	RemoveTag(key string)                    // Remove a tag addressed by its key
-	GetTag(key string) (string, bool)        // Get a tag addressed by its key
-	GetMeta(key string) (string, bool)       // Get a meta data tab addressed by its key
+	lp.Metric // Time(), Name(), TagList(), FieldList()
+
+	SetTime(t time.Time)
+
+	MetaMap() map[string]string        // Map of meta data tags
+	MetaList() []*lp.Tag               // Ordered list of meta data
+	AddMeta(key, value string)         // Add a meta data tag
+	GetMeta(key string) (string, bool) // Get a meta data tab addressed by its key
+
+	TagMap() map[string]string        // Map of tags
+	AddTag(key, value string)         // Add a tag
+	GetTag(key string) (string, bool) // Get a tag by its key
+	RemoveTag(key string)             // Remove a tag by its key
+
 	GetField(key string) (interface{}, bool) // Get a field addressed by its key
 	HasField(key string) bool                // Check if a field key is present
 	RemoveField(key string)                  // Remove a field addressed by its key
 }
 
-// Meta returns the list of meta data tags as key-value mapping
-func (m *ccMetric) Meta() map[string]string {
-	meta := make(map[string]string, len(m.meta))
-	for _, m := range m.meta {
-		meta[m.Key] = m.Value
-	}
-	return meta
+// MetaMap returns the meta data tags as key-value mapping
+func (m *ccMetric) MetaMap() map[string]string {
+	return m.meta
 }
 
-// MetaList returns the list of meta data tags
-func (m *ccMetric) MetaList() []*lp.Tag {
-	return m.meta
+// MetaList returns the the list of meta data tags as sorted list of key value tags
+func (m *ccMetric) MetaList() (ml []*lp.Tag) {
+
+	ml = make([]*lp.Tag, 0, len(m.meta))
+	for key, value := range m.meta {
+		ml = append(ml, &lp.Tag{Key: key, Value: value})
+	}
+	sort.Slice(ml, func(i, j int) bool { return ml[i].Key < ml[j].Key })
+	return
 }
 
 // String implements the stringer interface for data type ccMetric
 func (m *ccMetric) String() string {
-	return fmt.Sprintf("%s %v %v %v %d", m.name, m.Tags(), m.Meta(), m.Fields(), m.tm.UnixNano())
+	return fmt.Sprintf("%s %v %v %v %d", m.name, m.tags, m.meta, m.Fields(), m.tm.UnixNano())
 }
 
-// Name returns the metric name
+// Name returns the measurement name
 func (m *ccMetric) Name() string {
 	return m.name
 }
 
-// Tags returns the the list of tags as key-value-mapping
-func (m *ccMetric) Tags() map[string]string {
-	tags := make(map[string]string, len(m.tags))
-	for _, tag := range m.tags {
-		tags[tag.Key] = tag.Value
-	}
-	return tags
+// TagMap returns the the list of tags as key-value-mapping
+func (m *ccMetric) TagMap() map[string]string {
+	return m.tags
 }
 
-// TagList returns the list of tags
-func (m *ccMetric) TagList() []*lp.Tag {
-	return m.tags
+// TagList returns the the list of tags as sorted list of key value tags
+func (m *ccMetric) TagList() (tl []*lp.Tag) {
+
+	tl = make([]*lp.Tag, 0, len(m.tags))
+	for key, value := range m.tags {
+		tl = append(tl, &lp.Tag{Key: key, Value: value})
+	}
+	sort.Slice(tl, func(i, j int) bool { return tl[i].Key < tl[j].Key })
+	return
 }
 
 // Fields returns the list of fields as key-value-mapping
@@ -99,112 +111,50 @@ func (m *ccMetric) SetTime(t time.Time) {
 
 // HasTag checks if a tag with key equal to <key> is present in the list of tags
 func (m *ccMetric) HasTag(key string) bool {
-	for _, tag := range m.tags {
-		if tag.Key == key {
-			return true
-		}
-	}
-	return false
+	_, ok := m.tags[key]
+	return ok
 }
 
 // GetTag returns the tag with tag's key equal to <key>
 func (m *ccMetric) GetTag(key string) (string, bool) {
-	for _, tag := range m.tags {
-		if tag.Key == key {
-			return tag.Value, true
-		}
-	}
-	return "", false
+	value, ok := m.tags[key]
+	return value, ok
 }
 
 // RemoveTag removes the tag with tag's key equal to <key>
 // and keeps the tag list ordered by the keys
 func (m *ccMetric) RemoveTag(key string) {
-	for i, tag := range m.tags {
-		if tag.Key == key {
-			copy(m.tags[i:], m.tags[i+1:])
-			m.tags[len(m.tags)-1] = nil
-			m.tags = m.tags[:len(m.tags)-1]
-			return
-		}
-	}
+	delete(m.tags, key)
 }
 
 // AddTag adds a tag (consisting of key and value)
 // and keeps the tag list ordered by the keys
 func (m *ccMetric) AddTag(key, value string) {
-	for i, tag := range m.tags {
-		if key > tag.Key {
-			continue
-		}
-
-		if key == tag.Key {
-			tag.Value = value
-			return
-		}
-
-		m.tags = append(m.tags, nil)
-		copy(m.tags[i+1:], m.tags[i:])
-		m.tags[i] = &lp.Tag{Key: key, Value: value}
-		return
-	}
-
-	m.tags = append(m.tags, &lp.Tag{Key: key, Value: value})
+	m.tags[key] = value
 }
 
 // HasTag checks if a meta data tag with meta data's key equal to <key> is present in the list of meta data tags
 func (m *ccMetric) HasMeta(key string) bool {
-	for _, tag := range m.meta {
-		if tag.Key == key {
-			return true
-		}
-	}
-	return false
+	_, ok := m.meta[key]
+	return ok
 }
 
 // GetMeta returns the meta data tag with meta data's key equal to <key>
 func (m *ccMetric) GetMeta(key string) (string, bool) {
-	for _, tag := range m.meta {
-		if tag.Key == key {
-			return tag.Value, true
-		}
-	}
-	return "", false
+	value, ok := m.meta[key]
+	return value, ok
 }
 
 // RemoveMeta removes the meta data tag with tag's key equal to <key>
 // and keeps the meta data tag list ordered by the keys
 func (m *ccMetric) RemoveMeta(key string) {
-	for i, tag := range m.meta {
-		if tag.Key == key {
-			copy(m.meta[i:], m.meta[i+1:])
-			m.meta[len(m.meta)-1] = nil
-			m.meta = m.meta[:len(m.meta)-1]
-			return
-		}
-	}
+	delete(m.meta, key)
 }
 
 // AddMeta adds a meta data tag (consisting of key and value)
 // and keeps the meta data list ordered by the keys
 func (m *ccMetric) AddMeta(key, value string) {
-	for i, tag := range m.meta {
-		if key > tag.Key {
-			continue
-		}
-
-		if key == tag.Key {
-			tag.Value = value
-			return
-		}
-
-		m.meta = append(m.meta, nil)
-		copy(m.meta[i+1:], m.meta[i:])
-		m.meta[i] = &lp.Tag{Key: key, Value: value}
-		return
-	}
-
-	m.meta = append(m.meta, &lp.Tag{Key: key, Value: value})
+	m.meta[key] = value
 }
 
 // AddField adds a field (consisting of key and value) to the unordered list of fields
@@ -261,30 +211,10 @@ func New(
 ) (CCMetric, error) {
 	m := &ccMetric{
 		name:   name,
-		tags:   nil,
+		tags:   tags,
 		fields: nil,
 		tm:     tm,
-		meta:   nil,
-	}
-
-	// Sorted list of tags
-	if len(tags) > 0 {
-		m.tags = make([]*lp.Tag, 0, len(tags))
-		for k, v := range tags {
-			m.tags = append(m.tags,
-				&lp.Tag{Key: k, Value: v})
-		}
-		sort.Slice(m.tags, func(i, j int) bool { return m.tags[i].Key < m.tags[j].Key })
-	}
-
-	// Sorted list of meta data tags
-	if len(meta) > 0 {
-		m.meta = make([]*lp.Tag, 0, len(meta))
-		for k, v := range meta {
-			m.meta = append(m.meta,
-				&lp.Tag{Key: k, Value: v})
-		}
-		sort.Slice(m.meta, func(i, j int) bool { return m.meta[i].Key < m.meta[j].Key })
+		meta:   meta,
 	}
 
 	// Unsorted list of fields
@@ -303,20 +233,20 @@ func New(
 }
 
 // FromMetric copies the metric <other>
-func FromMetric(other CCMetric) CCMetric {
+func FromMetric(other ccMetric) CCMetric {
 	m := &ccMetric{
 		name:   other.Name(),
-		tags:   make([]*lp.Tag, len(other.TagList())),
+		tags:   make(map[string]string),
 		fields: make([]*lp.Field, len(other.FieldList())),
-		meta:   make([]*lp.Tag, len(other.MetaList())),
+		meta:   make(map[string]string),
 		tm:     other.Time(),
 	}
 
-	for i, tag := range other.TagList() {
-		m.tags[i] = &lp.Tag{Key: tag.Key, Value: tag.Value}
+	for key, value := range other.TagMap() {
+		m.tags[key] = value
 	}
-	for i, s := range other.MetaList() {
-		m.meta[i] = &lp.Tag{Key: s.Key, Value: s.Value}
+	for key, value := range other.MetaMap() {
+		m.meta[key] = value
 	}
 
 	for i, field := range other.FieldList() {
@@ -329,17 +259,14 @@ func FromMetric(other CCMetric) CCMetric {
 func FromInfluxMetric(other lp.Metric) CCMetric {
 	m := &ccMetric{
 		name:   other.Name(),
-		tags:   make([]*lp.Tag, len(other.TagList())),
+		tags:   make(map[string]string),
 		fields: make([]*lp.Field, len(other.FieldList())),
-		meta:   make([]*lp.Tag, 0),
+		meta:   make(map[string]string),
 		tm:     other.Time(),
 	}
 
-	for i, otherTag := range other.TagList() {
-		m.tags[i] = &lp.Tag{
-			Key:   otherTag.Key,
-			Value: otherTag.Value,
-		}
+	for _, otherTag := range other.TagList() {
+		m.tags[otherTag.Key] = otherTag.Value
 	}
 
 	for i, otherField := range other.FieldList() {

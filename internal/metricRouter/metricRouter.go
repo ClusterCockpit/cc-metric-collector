@@ -141,11 +141,11 @@ func (r *metricRouter) EvalCondition(cond string, point lp.CCMetric) (bool, erro
 	// Add metric name, tags, meta data, fields and timestamp to the parameter list
 	params := make(map[string]interface{})
 	params["name"] = point.Name()
-	for _, t := range point.TagList() {
-		params[t.Key] = t.Value
+	for key, value := range point.TagMap() {
+		params[key] = value
 	}
-	for _, m := range point.MetaList() {
-		params[m.Key] = m.Value
+	for key, value := range point.MetaMap() {
+		params[key] = value
 	}
 	for _, f := range point.FieldList() {
 		params[f.Key] = f.Value
