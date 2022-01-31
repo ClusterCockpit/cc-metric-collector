@@ -1,20 +1,44 @@
-This folder contains the receivers for the cc-metric-collector.
+# CCMetric receivers
 
-# `metricReceiver.go`
-The base class/configuration is located in `metricReceiver.go`.
+This folder contains the ReceiveManager and receiver implementations for the cc-metric-collector.
 
-# Receivers
-* `natsReceiver.go`: Receives metrics from the Nats transport system in Influx line protocol encoding. The database name is used as subscription subject for the NATS messages. It uses https://github.com/nats-io/nats.go
+# Configuration
 
-# Installation
-Nothing to do, all receivers are pure Go code
+The configuration file for the receivers is a list of configurations. The `type` field in each specifies which receiver to initialize.
+
+```json
+[
+  {
+    "type": "nats",
+    "address": "nats://my-url",
+    "port" : "4222",
+    "database": "testcluster"
+  }
+]
+```
+
+
+## Type `nats`
+
+```json
+{
+  "type": "nats",
+  "address": "<nats-URI or hostname>",
+  "port" : "<portnumber>",
+  "database": "<subscribe topic>"
+}
+```
+
+The `nats` receiver subscribes to the topic `database` and listens on `address` and `port` for metrics in the InfluxDB line protocol.
 
 # Contributing own receivers
 A receiver contains three functions and is derived from the type `Receiver` (in `metricReceiver.go`):
 * `Init(config ReceiverConfig) error`
 * `Start() error`
 * `Close()`
+* `Name() string`
+* `SetSink(sink chan ccMetric.CCMetric)`
 
 The data structures should be set up in `Init()` like opening a file or server connection. The `Start()` function should either start a go routine or issue some other asynchronous mechanism for receiving metrics. The `Close()` function should tear down anything created in `Init()`.
 
-Finally, the receiver needs to be registered in the `metric-collector.go`. There is a list of receivers called `Receivers` which is a map (string -> pointer to receiver). Add a new entry with a descriptive name and the new receiver.
+Finally, the receiver needs to be registered in the `receiveManager.go`. There is a list of receivers called `AvailableReceivers` which is a map (`receiver_type_string` -> `pointer to Receiver interface`). Add a new entry with a descriptive name and the new receiver.

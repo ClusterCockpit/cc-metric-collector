@@ -8,9 +8,9 @@ ACCESSMODE = direct
 # if CENTRAL_INSTALL == true
 #######################################################################
 # Path to central installation (if CENTRAL_INSTALL=true)
-LIKWID_BASE=/apps/likwid/5.2.0
-# LIKWID version (should be same major version as central installation, 5.1.x)
-LIKWID_VERSION = 5.2.0
+LIKWID_BASE=/apps/likwid/5.2.1
+# LIKWID version (should be same major version as central installation, 5.2.x)
+LIKWID_VERSION = 5.2.1
 
 #######################################################################
 # if CENTRAL_INSTALL == false and ACCESSMODE == accessdaemon
