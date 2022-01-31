@@ -15,7 +15,7 @@ var AvailableReceivers = map[string]Receiver{
 
 type receiveManager struct {
 	inputs []Receiver
-	output chan lp.CCMetric
+	output chan *lp.CCMetric
 	done   chan bool
 	wg     *sync.WaitGroup
 	config []ReceiverConfig
@@ -24,7 +24,7 @@ type receiveManager struct {
 type ReceiveManager interface {
 	Init(wg *sync.WaitGroup, receiverConfigFile string) error
 	AddInput(rawConfig json.RawMessage) error
-	AddOutput(output chan lp.CCMetric)
+	AddOutput(output chan *lp.CCMetric)
 	Start()
 	Close()
 }
@@ -87,7 +87,7 @@ func (rm *receiveManager) AddInput(rawConfig json.RawMessage) error {
 	return nil
 }
 
-func (rm *receiveManager) AddOutput(output chan lp.CCMetric) {
+func (rm *receiveManager) AddOutput(output chan *lp.CCMetric) {
 	rm.output = output
 	for _, r := range rm.inputs {
 		r.SetSink(rm.output)

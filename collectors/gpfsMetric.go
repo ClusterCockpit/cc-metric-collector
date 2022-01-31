@@ -69,7 +69,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *GpfsCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -157,7 +157,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 			y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// bytes written
@@ -171,7 +171,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 			y, err = lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// number of opens
@@ -184,7 +184,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			}
 			y, err = lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// number of closes
@@ -195,7 +195,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			}
 			y, err = lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// number of reads
@@ -206,7 +206,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			}
 			y, err = lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// number of writes
@@ -217,7 +217,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			}
 			y, err = lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// number of read directories
@@ -228,7 +228,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			}
 			y, err = lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 
 			// Number of inode updates
@@ -239,7 +239,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			}
 			y, err = lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp)
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 		}
 	}

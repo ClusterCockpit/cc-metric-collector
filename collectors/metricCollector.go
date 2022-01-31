@@ -17,7 +17,7 @@ type MetricCollector interface {
 	Name() string
 	Init(config json.RawMessage) error
 	Initialized() bool
-	Read(duration time.Duration, output chan lp.CCMetric)
+	Read(duration time.Duration, output chan *lp.CCMetric)
 	Close()
 }
 

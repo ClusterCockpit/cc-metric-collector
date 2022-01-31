@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -35,7 +36,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (c *CpustatCollector) parseStatLine(line string, cpu int, exclude []string, output chan lp.CCMetric) {
+func (c *CpustatCollector) parseStatLine(line string, cpu int, exclude []string, output chan *lp.CCMetric) {
 	ls := strings.Fields(line)
 	matches := []string{"", "cpu_user", "cpu_nice", "cpu_system", "cpu_idle", "cpu_iowait", "cpu_irq", "cpu_softirq", "cpu_steal", "cpu_guest", "cpu_guest_nice"}
 	for _, ex := range exclude {
@@ -54,14 +55,14 @@ func (c *CpustatCollector) parseStatLine(line string, cpu int, exclude []string,
 			if err == nil {
 				y, err := lp.New(m, tags, c.meta, map[string]interface{}{"value": int(x)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
 	}
 }
 
-func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CpustatCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}

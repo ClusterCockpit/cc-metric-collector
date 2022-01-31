@@ -66,7 +66,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 	return err
 }
 
-func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *MemstatCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -100,7 +100,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		}
 		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": int(float64(m.stats[match]) * 1.0e-3)}, time.Now())
 		if err == nil {
-			output <- y
+			output <- &y
 		}
 	}
 
@@ -111,7 +111,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				_, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_used")
 				y, err := lp.New("mem_used", m.tags, m.meta, map[string]interface{}{"value": int(float64(memUsed) * 1.0e-3)}, time.Now())
 				if err == nil && !skip {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -120,7 +120,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		_, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_shared")
 		y, err := lp.New("mem_shared", m.tags, m.meta, map[string]interface{}{"value": int(float64(m.stats[`MemShared`]) * 1.0e-3)}, time.Now())
 		if err == nil && !skip {
-			output <- y
+			output <- &y
 		}
 	}
 }

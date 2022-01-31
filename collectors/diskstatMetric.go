@@ -2,7 +2,9 @@ package collectors
 
 import (
 	"io/ioutil"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+
 	//	"log"
 	"encoding/json"
 	"errors"
@@ -72,7 +74,7 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	return err
 }
 
-func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *DiskstatCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	var lines []string
 	if !m.init {
 		return
@@ -102,7 +104,7 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 				if err == nil {
 					y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": int(x)}, time.Now())
 					if err == nil {
-						output <- y
+						output <- &y
 					}
 				}
 			}

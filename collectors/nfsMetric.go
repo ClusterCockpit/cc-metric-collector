@@ -119,7 +119,7 @@ func (m *NfsCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *NfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NfsCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -136,7 +136,7 @@ func (m *NfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			y, err := lp.New(fmt.Sprintf("nfs_%s", name), m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				y.AddMeta("version", version)
-				output <- y
+				output <- &y
 			}
 		}
 	}

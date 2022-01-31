@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -64,7 +65,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LustreCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -93,7 +94,7 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 									if strings.Contains(name, "byte") {
 										y.AddMeta("unit", "Byte")
 									}
-									output <- y
+									output <- &y
 								}
 							}
 						}

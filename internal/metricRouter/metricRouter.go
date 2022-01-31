@@ -33,10 +33,10 @@ type metricRouterConfig struct {
 // Metric router data structure
 type metricRouter struct {
 	hostname    string              // Hostname used in tags
-	coll_input  chan lp.CCMetric    // Input channel from CollectorManager
-	recv_input  chan lp.CCMetric    // Input channel from ReceiveManager
-	cache_input chan lp.CCMetric    // Input channel from MetricCache
-	outputs     []chan lp.CCMetric  // List of all output channels
+	coll_input  chan *lp.CCMetric   // Input channel from CollectorManager
+	recv_input  chan *lp.CCMetric   // Input channel from ReceiveManager
+	cache_input chan *lp.CCMetric   // Input channel from MetricCache
+	outputs     []chan *lp.CCMetric // List of all output channels
 	done        chan bool           // channel to finish / stop metric router
 	wg          *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
 	timestamp   time.Time           // timestamp periodically updated by ticker each interval
@@ -50,9 +50,9 @@ type metricRouter struct {
 // MetricRouter access functions
 type MetricRouter interface {
 	Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error
-	AddCollectorInput(input chan lp.CCMetric)
-	AddReceiverInput(input chan lp.CCMetric)
-	AddOutput(output chan lp.CCMetric)
+	AddCollectorInput(input chan *lp.CCMetric)
+	AddReceiverInput(input chan *lp.CCMetric)
+	AddOutput(output chan *lp.CCMetric)
 	Start()
 	Close()
 }
@@ -64,9 +64,9 @@ type MetricRouter interface {
 // * ticker (from variable ticker)
 // * configuration (read from config file in variable routerConfigFile)
 func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error {
-	r.outputs = make([]chan lp.CCMetric, 0)
+	r.outputs = make([]chan *lp.CCMetric, 0)
 	r.done = make(chan bool)
-	r.cache_input = make(chan lp.CCMetric)
+	r.cache_input = make(chan *lp.CCMetric)
 	r.wg = wg
 	r.ticker = ticker
 
@@ -131,7 +131,8 @@ func (r *metricRouter) StartTimer() {
 }
 
 // EvalCondition evaluates condition cond for metric data from point
-func (r *metricRouter) EvalCondition(cond string, point lp.CCMetric) (bool, error) {
+func (r *metricRouter) EvalCondition(cond string, pptr *lp.CCMetric) (bool, error) {
+	point := *pptr
 	expression, err := govaluate.NewEvaluableExpression(cond)
 	if err != nil {
 		cclog.ComponentDebug("MetricRouter", cond, " = ", err.Error())
@@ -162,7 +163,7 @@ func (r *metricRouter) EvalCondition(cond string, point lp.CCMetric) (bool, erro
 }
 
 // DoAddTags adds a tag when condition is fullfiled
-func (r *metricRouter) DoAddTags(point lp.CCMetric) {
+func (r *metricRouter) DoAddTags(point *lp.CCMetric) {
 	for _, m := range r.config.AddTags {
 		var conditionMatches bool
 
@@ -177,13 +178,13 @@ func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 			}
 		}
 		if conditionMatches {
-			point.AddTag(m.Key, m.Value)
+			(*point).AddTag(m.Key, m.Value)
 		}
 	}
 }
 
 // DoDelTags removes a tag when condition is fullfiled
-func (r *metricRouter) DoDelTags(point lp.CCMetric) {
+func (r *metricRouter) DoDelTags(point *lp.CCMetric) {
 	for _, m := range r.config.DelTags {
 		var conditionMatches bool
 
@@ -198,7 +199,7 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 			}
 		}
 		if conditionMatches {
-			point.RemoveTag(m.Key)
+			(*point).RemoveTag(m.Key)
 		}
 	}
 }
@@ -220,8 +221,8 @@ func (r *metricRouter) Start() {
 
 	// Forward takes a received metric, adds or deletes tags
 	// and forwards it to the output channels
-	forward := func(point lp.CCMetric) {
-		cclog.ComponentDebug("MetricRouter", "FORWARD", point)
+	forward := func(point *lp.CCMetric) {
+		cclog.ComponentDebug("MetricRouter", "FORWARD", *point)
 		r.DoAddTags(point)
 		r.DoDelTags(point)
 		for _, o := range r.outputs {
@@ -243,9 +244,9 @@ func (r *metricRouter) Start() {
 
 			case p := <-r.coll_input:
 				// receive from metric collector
-				p.AddTag("hostname", r.hostname)
+				(*p).AddTag("hostname", r.hostname)
 				if r.config.IntervalStamp {
-					p.SetTime(r.timestamp)
+					(*p).SetTime(r.timestamp)
 				}
 				forward(p)
 				r.cache.Add(p)
@@ -253,13 +254,13 @@ func (r *metricRouter) Start() {
 			case p := <-r.recv_input:
 				// receive from receive manager
 				if r.config.IntervalStamp {
-					p.SetTime(r.timestamp)
+					(*p).SetTime(r.timestamp)
 				}
 				forward(p)
 
 			case p := <-r.cache_input:
-				// receive from metric collector
-				p.AddTag("hostname", r.hostname)
+				// receive from metric cache and aggregator
+				(*p).AddTag("hostname", r.hostname)
 				forward(p)
 			}
 		}
@@ -268,17 +269,17 @@ func (r *metricRouter) Start() {
 }
 
 // AddCollectorInput adds a channel between metric collector and metric router
-func (r *metricRouter) AddCollectorInput(input chan lp.CCMetric) {
+func (r *metricRouter) AddCollectorInput(input chan *lp.CCMetric) {
 	r.coll_input = input
 }
 
 // AddReceiverInput adds a channel between metric receiver and metric router
-func (r *metricRouter) AddReceiverInput(input chan lp.CCMetric) {
+func (r *metricRouter) AddReceiverInput(input chan *lp.CCMetric) {
 	r.recv_input = input
 }
 
 // AddOutput adds a output channel to the metric router
-func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
+func (r *metricRouter) AddOutput(output chan *lp.CCMetric) {
 	r.outputs = append(r.outputs, output)
 }
 

@@ -31,7 +31,7 @@ type sink struct {
 
 type Sink interface {
 	Init(config sinkConfig) error
-	Write(point lp.CCMetric) error
+	Write(point *lp.CCMetric) error
 	Flush() error
 	Close()
 	Name() string

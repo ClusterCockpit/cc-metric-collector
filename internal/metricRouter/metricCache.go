@@ -15,7 +15,7 @@ type metricCachePeriod struct {
 	stopstamp   time.Time
 	numMetrics  int
 	sizeMetrics int
-	metrics     []lp.CCMetric
+	metrics     []*lp.CCMetric
 }
 
 // Metric cache data structure
@@ -27,21 +27,21 @@ type metricCache struct {
 	ticker     mct.MultiChanTicker
 	tickchan   chan time.Time
 	done       chan bool
-	output     chan lp.CCMetric
+	output     chan *lp.CCMetric
 	aggEngine  MetricAggregator
 }
 
 type MetricCache interface {
-	Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error
+	Init(output chan *lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error
 	Start()
-	Add(metric lp.CCMetric)
-	GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric)
+	Add(metric *lp.CCMetric)
+	GetPeriod(index int) (time.Time, time.Time, []*lp.CCMetric)
 	AddAggregation(name, function, condition string, tags, meta map[string]string) error
 	DeleteAggregation(name string) error
 	Close()
 }
 
-func (c *metricCache) Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
+func (c *metricCache) Init(output chan *lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
 	var err error = nil
 	c.done = make(chan bool)
 	c.wg = wg
@@ -53,7 +53,7 @@ func (c *metricCache) Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, 
 		p := new(metricCachePeriod)
 		p.numMetrics = 0
 		p.sizeMetrics = 0
-		p.metrics = make([]lp.CCMetric, 0)
+		p.metrics = make([]*lp.CCMetric, 0)
 		c.intervals = append(c.intervals, p)
 	}
 
@@ -120,18 +120,18 @@ func (c *metricCache) Start() {
 // Add a metric to the cache. The interval is defined by the global timer (rotate() in Start())
 // The intervals list is used as round-robin buffer and the metric list grows dynamically and
 // to avoid reallocations
-func (c *metricCache) Add(metric lp.CCMetric) {
+func (c *metricCache) Add(metric *lp.CCMetric) {
 	if c.curPeriod >= 0 && c.curPeriod < c.numPeriods {
 		p := c.intervals[c.curPeriod]
 		if p.numMetrics < p.sizeMetrics {
 			p.metrics[p.numMetrics] = metric
 			p.numMetrics = p.numMetrics + 1
-			p.stopstamp = metric.Time()
+			p.stopstamp = (*metric).Time()
 		} else {
 			p.metrics = append(p.metrics, metric)
 			p.numMetrics = p.numMetrics + 1
 			p.sizeMetrics = p.sizeMetrics + 1
-			p.stopstamp = metric.Time()
+			p.stopstamp = (*metric).Time()
 		}
 	}
 }
@@ -147,7 +147,7 @@ func (c *metricCache) DeleteAggregation(name string) error {
 // Get all metrics of a interval. The index is the difference to the current interval, so index=0
 // is the current one, index=1 the last interval and so on. Returns and empty array if a wrong index
 // is given (negative index, index larger than configured number of total intervals, ...)
-func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric) {
+func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []*lp.CCMetric) {
 	if index >= 0 && index < c.numPeriods {
 		pindex := c.curPeriod - index
 		if pindex < 0 {
@@ -157,7 +157,7 @@ func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric)
 			return c.intervals[pindex].startstamp, c.intervals[pindex].stopstamp, c.intervals[pindex].metrics
 		}
 	}
-	return time.Now(), time.Now(), make([]lp.CCMetric, 0)
+	return time.Now(), time.Now(), make([]*lp.CCMetric, 0)
 }
 
 // Close finishes / stops the metric cache
@@ -166,7 +166,7 @@ func (c *metricCache) Close() {
 	c.done <- true
 }
 
-func NewCache(output chan lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) (MetricCache, error) {
+func NewCache(output chan *lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) (MetricCache, error) {
 	c := new(metricCache)
 	err := c.Init(output, ticker, wg, numPeriods)
 	if err != nil {

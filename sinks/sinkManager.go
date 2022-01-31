@@ -20,17 +20,17 @@ var AvailableSinks = map[string]Sink{
 
 // Metric collector manager data structure
 type sinkManager struct {
-	input   chan lp.CCMetric // input channel
-	outputs []Sink           // List of sinks to use
-	done    chan bool        // channel to finish / stop metric sink manager
-	wg      *sync.WaitGroup  // wait group for all goroutines in cc-metric-collector
-	config  []sinkConfig     // json encoded config for sink manager
+	input   chan *lp.CCMetric // input channel
+	outputs []Sink            // List of sinks to use
+	done    chan bool         // channel to finish / stop metric sink manager
+	wg      *sync.WaitGroup   // wait group for all goroutines in cc-metric-collector
+	config  []sinkConfig      // json encoded config for sink manager
 }
 
 // Sink manager access functions
 type SinkManager interface {
 	Init(wg *sync.WaitGroup, sinkConfigFile string) error
-	AddInput(input chan lp.CCMetric)
+	AddInput(input chan *lp.CCMetric)
 	AddOutput(config json.RawMessage) error
 	Start()
 	Close()
@@ -94,7 +94,7 @@ func (sm *sinkManager) Start() {
 
 			case p := <-sm.input:
 				// Send received metric to all outputs
-				cclog.ComponentDebug("SinkManager", "WRITE", p)
+				cclog.ComponentDebug("SinkManager", "WRITE", *p)
 				for _, s := range sm.outputs {
 					s.Write(p)
 				}
@@ -117,7 +117,7 @@ func (sm *sinkManager) Start() {
 }
 
 // AddInput adds the input channel to the sink manager
-func (sm *sinkManager) AddInput(input chan lp.CCMetric) {
+func (sm *sinkManager) AddInput(input chan *lp.CCMetric) {
 	sm.input = input
 }
 

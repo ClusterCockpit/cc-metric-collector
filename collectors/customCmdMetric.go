@@ -74,7 +74,7 @@ var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
-func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CustomCmdCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -99,7 +99,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			}
 			y, err := lp.New(c.Name(), Tags2Map(c), m.meta, Fields2Map(c), c.Time())
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 		}
 	}
@@ -121,7 +121,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			}
 			y, err := lp.New(f.Name(), Tags2Map(f), m.meta, Fields2Map(f), f.Time())
 			if err == nil {
-				output <- y
+				output <- &y
 			}
 		}
 	}

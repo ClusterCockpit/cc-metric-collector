@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -46,7 +47,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NetstatCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	data, err := ioutil.ReadFile(string(NETSTATFILE))
 	if err != nil {
 		log.Print(err.Error())
@@ -81,7 +82,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 					case strings.Contains(name, "pkt"):
 						y.AddMeta("unit", "Packets")
 					}
-					output <- y
+					output <- &y
 				}
 			}
 		}

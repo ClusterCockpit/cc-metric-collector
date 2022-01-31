@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -51,7 +52,7 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *TopProcsCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -68,7 +69,7 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric
 		name := fmt.Sprintf("topproc%d", i)
 		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": string(lines[i])}, time.Now())
 		if err == nil {
-			output <- y
+			output <- &y
 		}
 	}
 }

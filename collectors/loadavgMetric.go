@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -40,7 +41,7 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LoadavgCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	var skip bool
 	if !m.init {
 		return
@@ -58,7 +59,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, name)
 			y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": float64(x)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 	}
@@ -69,7 +70,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, name)
 			y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": float64(x)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 	}

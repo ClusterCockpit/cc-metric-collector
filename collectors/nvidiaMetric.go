@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
@@ -55,7 +56,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NvidiaCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -76,12 +77,12 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_util")
 			y, err := lp.New("nv_util", tags, m.meta, map[string]interface{}{"value": float64(util.Gpu)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_mem_util")
 			y, err = lp.New("nv_mem_util", tags, m.meta, map[string]interface{}{"value": float64(util.Memory)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -92,14 +93,14 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			y, err := lp.New("nv_mem_total", tags, m.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil && !skip {
 				y.AddMeta("unit", "MByte")
-				output <- y
+				output <- &y
 			}
 			f := float64(meminfo.Used) / (1024 * 1024)
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_fb_memory")
 			y, err = lp.New("nv_fb_memory", tags, m.meta, map[string]interface{}{"value": f}, time.Now())
 			if err == nil && !skip {
 				y.AddMeta("unit", "MByte")
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -109,7 +110,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			y, err := lp.New("nv_temp", tags, m.meta, map[string]interface{}{"value": float64(temp)}, time.Now())
 			if err == nil && !skip {
 				y.AddMeta("unit", "degC")
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -118,7 +119,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_fan")
 			y, err := lp.New("nv_fan", tags, m.meta, map[string]interface{}{"value": float64(fan)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -136,13 +137,13 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			}
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_ecc_mode")
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		} else if ret == nvml.ERROR_NOT_SUPPORTED {
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_ecc_mode")
 			y, err := lp.New("nv_ecc_mode", tags, m.meta, map[string]interface{}{"value": string("N/A")}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -151,7 +152,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_perf_state")
 			y, err := lp.New("nv_perf_state", tags, m.meta, map[string]interface{}{"value": fmt.Sprintf("P%d", int(pstate))}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -160,7 +161,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_power_usage_report")
 			y, err := lp.New("nv_power_usage_report", tags, m.meta, map[string]interface{}{"value": float64(power) / 1000}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -169,7 +170,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_graphics_clock_report")
 			y, err := lp.New("nv_graphics_clock_report", tags, m.meta, map[string]interface{}{"value": float64(gclk)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -178,7 +179,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_sm_clock_report")
 			y, err := lp.New("nv_sm_clock_report", tags, m.meta, map[string]interface{}{"value": float64(smclk)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -187,7 +188,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_mem_clock_report")
 			y, err := lp.New("nv_mem_clock_report", tags, m.meta, map[string]interface{}{"value": float64(memclk)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -196,7 +197,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_max_graphics_clock")
 			y, err := lp.New("nv_max_graphics_clock", tags, m.meta, map[string]interface{}{"value": float64(max_gclk)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -205,7 +206,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_max_sm_clock")
 			y, err := lp.New("nv_max_sm_clock", tags, m.meta, map[string]interface{}{"value": float64(max_smclk)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -214,7 +215,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_max_mem_clock")
 			y, err := lp.New("nv_max_mem_clock", tags, m.meta, map[string]interface{}{"value": float64(max_memclk)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -223,7 +224,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_ecc_db_error")
 			y, err := lp.New("nv_ecc_db_error", tags, m.meta, map[string]interface{}{"value": float64(ecc_db)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -232,7 +233,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_ecc_sb_error")
 			y, err := lp.New("nv_ecc_sb_error", tags, m.meta, map[string]interface{}{"value": float64(ecc_sb)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -241,7 +242,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_power_man_limit")
 			y, err := lp.New("nv_power_man_limit", tags, m.meta, map[string]interface{}{"value": float64(pwr_limit)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -250,7 +251,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_encoder_util")
 			y, err := lp.New("nv_encoder_util", tags, m.meta, map[string]interface{}{"value": float64(enc_util)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 
@@ -259,7 +260,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			_, skip = stringArrayContains(m.config.ExcludeMetrics, "nv_decoder_util")
 			y, err := lp.New("nv_decoder_util", tags, m.meta, map[string]interface{}{"value": float64(dec_util)}, time.Now())
 			if err == nil && !skip {
-				output <- y
+				output <- &y
 			}
 		}
 	}

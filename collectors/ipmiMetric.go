@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -53,7 +54,7 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
+func (m *IpmiCollector) readIpmiTool(cmd string, output chan *lp.CCMetric) {
 	command := exec.Command(cmd, "sensor")
 	command.Wait()
 	stdout, err := command.Output()
@@ -86,13 +87,13 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 			y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", unit)
-				output <- y
+				output <- &y
 			}
 		}
 	}
 }
 
-func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
+func (m *IpmiCollector) readIpmiSensors(cmd string, output chan *lp.CCMetric) {
 
 	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
 	command.Wait()
@@ -115,14 +116,14 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
 					if len(lv) > 4 {
 						y.AddMeta("unit", lv[4])
 					}
-					output <- y
+					output <- &y
 				}
 			}
 		}
 	}
 }
 
-func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *IpmiCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if len(m.config.IpmitoolPath) > 0 {
 		_, err := os.Stat(m.config.IpmitoolPath)
 		if err == nil {

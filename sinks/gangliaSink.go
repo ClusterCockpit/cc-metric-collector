@@ -26,10 +26,11 @@ func (s *GangliaSink) Init(config sinkConfig) error {
 	return err
 }
 
-func (s *GangliaSink) Write(point lp.CCMetric) error {
+func (s *GangliaSink) Write(pptr *lp.CCMetric) error {
 	var err error = nil
 	var tagsstr []string
 	var argstr []string
+	point := *pptr
 	for _, t := range point.TagList() {
 		switch t.Key {
 		case "cluster":

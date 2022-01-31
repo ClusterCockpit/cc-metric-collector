@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"gopkg.in/Knetic/govaluate.v2"
 )
@@ -183,7 +184,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LikwidCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -269,7 +270,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 							map[string]interface{}{"value": m.mresults[i][tid][metric.Name]},
 							time.Now())
 						if err == nil {
-							output <- y
+							output <- &y
 						}
 					}
 				} else if metric.Scope.String() == "hwthread" {
@@ -281,7 +282,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 							map[string]interface{}{"value": m.mresults[i][tid][metric.Name]},
 							time.Now())
 						if err == nil {
-							output <- y
+							output <- &y
 						}
 					}
 				}
@@ -300,7 +301,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 						map[string]interface{}{"value": m.gmresults[tid][metric.Name]},
 						time.Now())
 					if err == nil {
-						output <- y
+						output <- &y
 					}
 				}
 			} else {
@@ -312,7 +313,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 						map[string]interface{}{"value": m.gmresults[tid][metric.Name]},
 						time.Now())
 					if err == nil {
-						output <- y
+						output <- &y
 					}
 				}
 			}

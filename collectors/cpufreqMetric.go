@@ -183,7 +183,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CPUFreqCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -211,7 +211,7 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 		y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now)
 		if err == nil {
-			output <- y
+			output <- &y
 		}
 	}
 }

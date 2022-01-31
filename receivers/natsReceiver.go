@@ -3,11 +3,12 @@ package receivers
 import (
 	"errors"
 	"fmt"
+	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	"time"
 )
 
 type NatsReceiverConfig struct {
@@ -35,7 +36,7 @@ func (r *NatsReceiver) Init(config ReceiverConfig) error {
 	if len(r.config.Addr) == 0 ||
 		len(r.config.Port) == 0 ||
 		len(r.config.Database) == 0 {
-		return errors.New("Not all configuration variables set required by NatsReceiver")
+		return errors.New("not all configuration variables set required by NatsReceiver")
 	}
 	r.meta = map[string]string{"source": r.name}
 	r.addr = r.config.Addr
@@ -76,7 +77,7 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 				y.AddMeta(k, v)
 			}
 			if r.sink != nil {
-				r.sink <- y
+				r.sink <- &y
 			}
 		}
 	}

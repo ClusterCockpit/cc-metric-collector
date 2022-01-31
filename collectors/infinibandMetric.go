@@ -140,7 +140,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 }
 
 // Read reads Infiniband counter files below IB_BASEPATH
-func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *InfinibandCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 
 	// Check if already initialized
 	if !m.init {
@@ -156,7 +156,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 			if data, ok := readOneLine(counterFile); ok {
 				if v, err := strconv.ParseInt(data, 10, 64); err == nil {
 					if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
-						output <- y
+						output <- &y
 					}
 				}
 			}

@@ -29,14 +29,14 @@ type metricAggregator struct {
 	functions []*metricAggregatorIntervalConfig
 	constants map[string]interface{}
 	language  gval.Language
-	output    chan lp.CCMetric
+	output    chan *lp.CCMetric
 }
 
 type MetricAggregator interface {
 	AddAggregation(name, function, condition string, tags, meta map[string]string) error
 	DeleteAggregation(name string) error
-	Init(output chan lp.CCMetric) error
-	Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMetric)
+	Init(output chan *lp.CCMetric) error
+	Eval(starttime time.Time, endtime time.Time, metrics []*lp.CCMetric)
 }
 
 var metricCacheLanguage = gval.NewLanguage(
@@ -62,7 +62,7 @@ var metricCacheLanguage = gval.NewLanguage(
 	gval.Function("getCpuListOfType", getCpuListOfType),
 )
 
-func (c *metricAggregator) Init(output chan lp.CCMetric) error {
+func (c *metricAggregator) Init(output chan *lp.CCMetric) error {
 	c.output = output
 	c.functions = make([]*metricAggregatorIntervalConfig, 0)
 	c.constants = make(map[string]interface{})
@@ -100,7 +100,7 @@ func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	return nil
 }
 
-func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMetric) {
+func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics []*lp.CCMetric) {
 	vars := make(map[string]interface{})
 	for k, v := range c.constants {
 		vars[k] = v
@@ -110,9 +110,9 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 	for _, f := range c.functions {
 		cclog.ComponentDebug("MetricCache", "COLLECT", f.Name, "COND", f.Condition)
 		values := make([]float64, 0)
-		matches := make([]lp.CCMetric, 0)
+		matches := make([]*lp.CCMetric, 0)
 		for _, m := range metrics {
-			vars["metric"] = m
+			vars["metric"] = *m
 			//value, err := gval.Evaluate(f.Condition, vars, c.language)
 			value, err := f.gvalCond.EvalBool(context.Background(), vars)
 			if err != nil {
@@ -120,7 +120,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 				continue
 			}
 			if value {
-				v, valid := m.GetField("value")
+				v, valid := (*m).GetField("value")
 				if valid {
 					switch x := v.(type) {
 					case float64:
@@ -153,13 +153,14 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 				break
 			}
 
-			copy_tags := func(tags map[string]string, metrics []lp.CCMetric) map[string]string {
+			copy_tags := func(tags map[string]string, metrics []*lp.CCMetric) map[string]string {
 				out := make(map[string]string)
 				for key, value := range tags {
 					switch value {
 					case "<copy>":
 						for _, m := range metrics {
-							v, err := m.GetTag(key)
+							point := *m
+							v, err := point.GetTag(key)
 							if err {
 								out[key] = v
 							}
@@ -170,13 +171,14 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 				}
 				return out
 			}
-			copy_meta := func(meta map[string]string, metrics []lp.CCMetric) map[string]string {
+			copy_meta := func(meta map[string]string, metrics []*lp.CCMetric) map[string]string {
 				out := make(map[string]string)
 				for key, value := range meta {
 					switch value {
 					case "<copy>":
 						for _, m := range metrics {
-							v, err := m.GetMeta(key)
+							point := *m
+							v, err := point.GetMeta(key)
 							if err {
 								out[key] = v
 							}
@@ -210,7 +212,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			}
 			cclog.ComponentDebug("MetricCache", "SEND", m)
 			select {
-			case c.output <- m:
+			case c.output <- &m:
 			default:
 			}
 
@@ -281,7 +283,7 @@ func (c *metricAggregator) AddFunction(name string, function func(args ...interf
 	c.language = gval.NewLanguage(c.language, gval.Function(name, function))
 }
 
-func NewAggregator(output chan lp.CCMetric) (MetricAggregator, error) {
+func NewAggregator(output chan *lp.CCMetric) (MetricAggregator, error) {
 	a := new(metricAggregator)
 	err := a.Init(output)
 	if err != nil {

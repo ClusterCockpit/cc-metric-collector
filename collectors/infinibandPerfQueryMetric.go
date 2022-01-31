@@ -108,7 +108,7 @@ func (m *InfinibandPerfQueryCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid string, port string, tags map[string]string, output chan lp.CCMetric) error {
+func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid string, port string, tags map[string]string, output chan *lp.CCMetric) error {
 
 	args := fmt.Sprintf("-r %s %s 0xf000", lid, port)
 	command := exec.Command(cmd, args)
@@ -127,7 +127,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 			if err == nil {
 				y, err := lp.New("ib_recv", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -137,7 +137,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 			if err == nil {
 				y, err := lp.New("ib_xmit", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -147,7 +147,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 			if err == nil {
 				y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -157,7 +157,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 			if err == nil {
 				y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -167,7 +167,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 			if err == nil {
 				y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -177,7 +177,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 			if err == nil {
 				y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -185,7 +185,7 @@ func (m *InfinibandPerfQueryCollector) doPerfQuery(cmd string, dev string, lid s
 	return nil
 }
 
-func (m *InfinibandPerfQueryCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *InfinibandPerfQueryCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 
 	if m.init {
 		for dev, ports := range m.lids {
@@ -203,7 +203,7 @@ func (m *InfinibandPerfQueryCollector) Read(interval time.Duration, output chan 
 					if err == nil {
 						y, err := lp.New("ib_recv", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 						if err == nil {
-							output <- y
+							output <- &y
 						}
 					}
 				}
@@ -214,7 +214,7 @@ func (m *InfinibandPerfQueryCollector) Read(interval time.Duration, output chan 
 					if err == nil {
 						y, err := lp.New("ib_xmit", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 						if err == nil {
-							output <- y
+							output <- &y
 						}
 					}
 				}
@@ -225,7 +225,7 @@ func (m *InfinibandPerfQueryCollector) Read(interval time.Duration, output chan 
 					if err == nil {
 						y, err := lp.New("ib_recv_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 						if err == nil {
-							output <- y
+							output <- &y
 						}
 					}
 				}
@@ -236,7 +236,7 @@ func (m *InfinibandPerfQueryCollector) Read(interval time.Duration, output chan 
 					if err == nil {
 						y, err := lp.New("ib_xmit_pkts", tags, m.meta, map[string]interface{}{"value": float64(v)}, time.Now())
 						if err == nil {
-							output <- y
+							output <- &y
 						}
 					}
 				}

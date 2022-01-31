@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 //
@@ -151,8 +151,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-
-func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -183,7 +182,7 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 					}
 					y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now)
 					if err == nil {
-						output <- y
+						output <- &y
 					}
 				}
 				processorCounter++

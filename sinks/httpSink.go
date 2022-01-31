@@ -36,8 +36,8 @@ func (s *HttpSink) Init(config sinkConfig) error {
 	return nil
 }
 
-func (s *HttpSink) Write(point lp.CCMetric) error {
-	_, err := s.encoder.Encode(point)
+func (s *HttpSink) Write(point *lp.CCMetric) error {
+	_, err := s.encoder.Encode(*point)
 	return err
 }
 

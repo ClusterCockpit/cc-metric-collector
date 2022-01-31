@@ -20,7 +20,7 @@ type receiver struct {
 	port         string
 	database     string
 	organization string
-	sink         chan lp.CCMetric
+	sink         chan *lp.CCMetric
 }
 
 type Receiver interface {
@@ -28,14 +28,14 @@ type Receiver interface {
 	Start()
 	Close()
 	Name() string
-	SetSink(sink chan lp.CCMetric)
+	SetSink(sink chan *lp.CCMetric)
 }
 
 func (r *receiver) Name() string {
 	return r.name
 }
 
-func (r *receiver) SetSink(sink chan lp.CCMetric) {
+func (r *receiver) SetSink(sink chan *lp.CCMetric) {
 	r.sink = sink
 }
 

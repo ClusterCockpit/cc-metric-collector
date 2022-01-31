@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
+	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
-	"log"
-	"time"
 )
 
 type NatsSink struct {
@@ -55,9 +56,9 @@ func (s *NatsSink) Init(config sinkConfig) error {
 	return s.connect()
 }
 
-func (s *NatsSink) Write(point lp.CCMetric) error {
+func (s *NatsSink) Write(point *lp.CCMetric) error {
 	if s.client != nil {
-		_, err := s.encoder.Encode(point)
+		_, err := s.encoder.Encode(*point)
 		if err != nil {
 			log.Print(err)
 			return err

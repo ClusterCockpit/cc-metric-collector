@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -75,7 +76,7 @@ func get_hwmon_sensors() (map[string]map[string]string, error) {
 	return sensors, nil
 }
 
-func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *TempCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 
 	sensors, err := get_hwmon_sensors()
 	if err != nil {
@@ -103,7 +104,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				y, err := lp.New(strings.ToLower(mname), tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
 				if err == nil {
 					cclog.ComponentDebug(m.name, y)
-					output <- y
+					output <- &y
 				}
 			}
 		}

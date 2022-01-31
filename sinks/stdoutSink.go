@@ -19,9 +19,10 @@ func (s *StdoutSink) Init(config sinkConfig) error {
 	return nil
 }
 
-func (s *StdoutSink) Write(point lp.CCMetric) error {
+func (s *StdoutSink) Write(pptr *lp.CCMetric) error {
 	var tagsstr []string
 	var fieldstr []string
+	point := *pptr
 	for _, t := range point.TagList() {
 		tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", t.Key, t.Value))
 	}
