@@ -1,5 +1,8 @@
 name: Run RPM Build
-on: push
+on:
+ push:
+  tags:
+  - '**'
 
 jobs:
   build-centos8:
