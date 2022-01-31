@@ -14,6 +14,7 @@ require (
 require (
 	github.com/PaesslerAG/gval v1.1.2
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/mattn/go-sqlite3 v1.14.11
 	github.com/nats-io/nats-server/v2 v2.7.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
