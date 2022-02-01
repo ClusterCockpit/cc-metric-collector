@@ -48,14 +48,14 @@ func (m *ccMetric) MetaMap() map[string]string {
 }
 
 // MetaList returns the the list of meta data tags as sorted list of key value tags
-func (m *ccMetric) MetaList() (ml []*lp.Tag) {
+func (m *ccMetric) MetaList() []*lp.Tag {
 
-	ml = make([]*lp.Tag, 0, len(m.meta))
+	ml := make([]*lp.Tag, 0, len(m.meta))
 	for key, value := range m.meta {
 		ml = append(ml, &lp.Tag{Key: key, Value: value})
 	}
 	sort.Slice(ml, func(i, j int) bool { return ml[i].Key < ml[j].Key })
-	return
+	return ml
 }
 
 // String implements the stringer interface for data type ccMetric
@@ -74,14 +74,13 @@ func (m *ccMetric) TagMap() map[string]string {
 }
 
 // TagList returns the the list of tags as sorted list of key value tags
-func (m *ccMetric) TagList() (tl []*lp.Tag) {
-
-	tl = make([]*lp.Tag, 0, len(m.tags))
+func (m *ccMetric) TagList() []*lp.Tag {
+	tl := make([]*lp.Tag, 0, len(m.tags))
 	for key, value := range m.tags {
 		tl = append(tl, &lp.Tag{Key: key, Value: value})
 	}
 	sort.Slice(tl, func(i, j int) bool { return tl[i].Key < tl[j].Key })
-	return
+	return tl
 }
 
 // Fields returns the list of fields as key-value-mapping
@@ -211,22 +210,29 @@ func New(
 ) (CCMetric, error) {
 	m := &ccMetric{
 		name:   name,
-		tags:   tags,
-		fields: nil,
+		tags:   make(map[string]string, len(tags)),
+		meta:   make(map[string]string, len(meta)),
+		fields: make([]*lp.Field, 0, len(fields)),
 		tm:     tm,
-		meta:   meta,
+	}
+
+	// deep copy tags
+	for k, v := range tags {
+		m.tags[k] = v
+	}
+
+	// deep copy meta data tags
+	for k, v := range meta {
+		m.meta[k] = v
 	}
 
 	// Unsorted list of fields
-	if len(fields) > 0 {
-		m.fields = make([]*lp.Field, 0, len(fields))
-		for k, v := range fields {
-			v := convertField(v)
-			if v == nil {
-				continue
-			}
-			m.AddField(k, v)
+	for k, v := range fields {
+		v := convertField(v)
+		if v == nil {
+			continue
 		}
+		m.AddField(k, v)
 	}
 
 	return m, nil
