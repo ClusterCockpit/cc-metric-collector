@@ -24,17 +24,23 @@ func intArrayContains(array []int, str int) (int, bool) {
 	return -1, false
 }
 
-// stringArrayContains scans an array of strings if the value str is present in the array
-// If the specified value is found, the corresponding array index is returned.
-// The bool value is used to signal success or failure
-// func stringArrayContains(array []string, str string) (int, bool) {
-// 	for i, a := range array {
-// 		if a == str {
-// 			return i, true
-// 		}
-// 	}
-// 	return -1, false
-// }
+func fileToInt(path string) int {
+	buffer, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Print(err)
+		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
+		return -1
+	}
+	sbuffer := strings.Replace(string(buffer), "\n", "", -1)
+	var id int64
+	//_, err = fmt.Scanf("%d", sbuffer, &id)
+	id, err = strconv.ParseInt(sbuffer, 10, 32)
+	if err != nil {
+		cclogger.ComponentError("ccTopology", "Parsing", path, ":", sbuffer, err.Error())
+		return -1
+	}
+	return int(id)
+}
 
 func SocketList() []int {
 	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
@@ -68,7 +74,7 @@ func CpuList() []int {
 		return nil
 	}
 	ll := strings.Split(string(buffer), "\n")
-	var cpulist []int
+	cpulist := make([]int, 0)
 	for _, line := range ll {
 		if strings.HasPrefix(line, "processor") {
 			lv := strings.Fields(line)
@@ -84,6 +90,67 @@ func CpuList() []int {
 		}
 	}
 	return cpulist
+}
+
+func CoreList() []int {
+	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+	ll := strings.Split(string(buffer), "\n")
+	corelist := make([]int, 0)
+	for _, line := range ll {
+		if strings.HasPrefix(line, "core id") {
+			lv := strings.Fields(line)
+			id, err := strconv.ParseInt(lv[3], 10, 32)
+			if err != nil {
+				log.Print(err)
+				return corelist
+			}
+			_, found := intArrayContains(corelist, int(id))
+			if !found {
+				corelist = append(corelist, int(id))
+			}
+		}
+	}
+	return corelist
+}
+
+func NumaNodeList() []int {
+	numalist := make([]int, 0)
+	files, err := filepath.Glob("/sys/devices/system/node/node*")
+	if err != nil {
+		log.Print(err)
+	}
+	for _, f := range files {
+		finfo, err := os.Lstat(f)
+		if err == nil && (finfo.IsDir() || finfo.Mode()&os.ModeSymlink != 0) {
+			var id int
+			parts := strings.Split(f, "/")
+			_, err = fmt.Scanf("node%d", parts[len(parts)-1], &id)
+			if err == nil {
+				_, found := intArrayContains(numalist, int(id))
+				if !found {
+					numalist = append(numalist, int(id))
+				}
+			}
+		}
+	}
+	return numalist
+}
+
+func DieList() []int {
+	cpulist := CpuList()
+	dielist := make([]int, 0)
+	for _, c := range cpulist {
+		dieid := fileToInt(fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/die_id", c))
+		_, found := intArrayContains(dielist, int(dieid))
+		if !found {
+			dielist = append(dielist, int(dieid))
+		}
+	}
+	return dielist
 }
 
 type CpuEntry struct {
@@ -203,6 +270,7 @@ type CpuInformation struct {
 	SMTWidth       int
 	NumSockets     int
 	NumDies        int
+	NumCores       int
 	NumNumaDomains int
 }
 
@@ -213,6 +281,7 @@ func CpuInfo() CpuInformation {
 	numa := 0
 	die := 0
 	socket := 0
+	core := 0
 	cdata := CpuData()
 	for _, d := range cdata {
 		if d.SMT > smt {
@@ -227,10 +296,14 @@ func CpuInfo() CpuInformation {
 		if d.Socket > socket {
 			socket = d.Socket
 		}
+		if d.Core > core {
+			core = d.Core
+		}
 	}
 	c.NumNumaDomains = numa + 1
 	c.SMTWidth = smt + 1
 	c.NumDies = die + 1
+	c.NumCores = core + 1
 	c.NumSockets = socket + 1
 	c.NumHWthreads = len(cdata)
 	return c
@@ -274,4 +347,48 @@ func GetCpuCore(cpuid int) int {
 		}
 	}
 	return -1
+}
+
+func GetSocketCpus(socket int) []int {
+	all := CpuData()
+	cpulist := make([]int, 0)
+	for _, d := range all {
+		if d.Socket == socket {
+			cpulist = append(cpulist, d.Cpuid)
+		}
+	}
+	return cpulist
+}
+
+func GetNumaDomainCpus(domain int) []int {
+	all := CpuData()
+	cpulist := make([]int, 0)
+	for _, d := range all {
+		if d.Numadomain == domain {
+			cpulist = append(cpulist, d.Cpuid)
+		}
+	}
+	return cpulist
+}
+
+func GetDieCpus(die int) []int {
+	all := CpuData()
+	cpulist := make([]int, 0)
+	for _, d := range all {
+		if d.Die == die {
+			cpulist = append(cpulist, d.Cpuid)
+		}
+	}
+	return cpulist
+}
+
+func GetCoreCpus(core int) []int {
+	all := CpuData()
+	cpulist := make([]int, 0)
+	for _, d := range all {
+		if d.Core == core {
+			cpulist = append(cpulist, d.Cpuid)
+		}
+	}
+	return cpulist
 }
