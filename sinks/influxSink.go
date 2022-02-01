@@ -62,11 +62,11 @@ func (s *InfluxSink) Init(config sinkConfig) error {
 func (s *InfluxSink) Write(point lp.CCMetric) error {
 	tags := map[string]string{}
 	fields := map[string]interface{}{}
-	for key, value := range point.TagMap() {
+	for key, value := range point.Tags() {
 		tags[key] = value
 	}
 	if s.meta_as_tags {
-		for key, value := range point.MetaMap() {
+		for key, value := range point.Meta() {
 			tags[key] = value
 		}
 	}

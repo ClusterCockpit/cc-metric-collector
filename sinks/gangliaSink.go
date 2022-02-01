@@ -30,7 +30,7 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	var err error = nil
 	var tagsstr []string
 	var argstr []string
-	for key, value := range point.TagMap() {
+	for key, value := range point.Tags() {
 		switch key {
 		case "cluster":
 			argstr = append(argstr, fmt.Sprintf("--cluster=%s", value))

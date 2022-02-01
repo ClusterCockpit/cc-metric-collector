@@ -27,12 +27,12 @@ type CCMetric interface {
 
 	SetTime(t time.Time)
 
-	MetaMap() map[string]string        // Map of meta data tags
+	Meta() map[string]string           // Map of meta data tags
 	MetaList() []*lp.Tag               // Ordered list of meta data
 	AddMeta(key, value string)         // Add a meta data tag
 	GetMeta(key string) (string, bool) // Get a meta data tab addressed by its key
 
-	TagMap() map[string]string        // Map of tags
+	Tags() map[string]string          // Map of tags
 	AddTag(key, value string)         // Add a tag
 	GetTag(key string) (string, bool) // Get a tag by its key
 	RemoveTag(key string)             // Remove a tag by its key
@@ -42,8 +42,8 @@ type CCMetric interface {
 	RemoveField(key string)                  // Remove a field addressed by its key
 }
 
-// MetaMap returns the meta data tags as key-value mapping
-func (m *ccMetric) MetaMap() map[string]string {
+// Meta returns the meta data tags as key-value mapping
+func (m *ccMetric) Meta() map[string]string {
 	return m.meta
 }
 
@@ -68,8 +68,8 @@ func (m *ccMetric) Name() string {
 	return m.name
 }
 
-// TagMap returns the the list of tags as key-value-mapping
-func (m *ccMetric) TagMap() map[string]string {
+// Tags returns the the list of tags as key-value-mapping
+func (m *ccMetric) Tags() map[string]string {
 	return m.tags
 }
 
@@ -248,10 +248,10 @@ func FromMetric(other ccMetric) CCMetric {
 		tm:     other.Time(),
 	}
 
-	for key, value := range other.TagMap() {
+	for key, value := range other.Tags() {
 		m.tags[key] = value
 	}
-	for key, value := range other.MetaMap() {
+	for key, value := range other.Meta() {
 		m.meta[key] = value
 	}
 
