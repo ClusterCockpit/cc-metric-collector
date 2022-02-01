@@ -25,6 +25,7 @@ type ccMetric struct {
 type CCMetric interface {
 	lp.Metric // Time(), Name(), TagList(), FieldList()
 
+	SetName(name string)
 	SetTime(t time.Time)
 
 	Meta() map[string]string           // Map of meta data tags
@@ -66,6 +67,10 @@ func (m *ccMetric) String() string {
 // Name returns the measurement name
 func (m *ccMetric) Name() string {
 	return m.name
+}
+
+func (m *ccMetric) SetName(name string) {
+	m.name = name
 }
 
 // Tags returns the the list of tags as key-value-mapping
