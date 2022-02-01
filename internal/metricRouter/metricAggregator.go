@@ -3,6 +3,7 @@ package metricRouter
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -84,7 +85,7 @@ func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	c.constants["smtWidth"] = cinfo.SMTWidth
 
 	c.language = gval.NewLanguage(
-		gval.Base(),
+		gval.Full(),
 		metricCacheLanguage,
 	)
 
@@ -279,6 +280,85 @@ func (c *metricAggregator) DelConstant(name string) {
 
 func (c *metricAggregator) AddFunction(name string, function func(args ...interface{}) (interface{}, error)) {
 	c.language = gval.NewLanguage(c.language, gval.Function(name, function))
+}
+
+func EvalBoolCondition(condition string, params map[string]interface{}) (bool, error) {
+	newcond := strings.ReplaceAll(condition, "'", "\"")
+	newcond = strings.ReplaceAll(newcond, "%", "\\")
+	language := gval.NewLanguage(
+		gval.Full(),
+		metricCacheLanguage,
+	)
+	value, err := gval.Evaluate(newcond, params, language)
+	if err != nil {
+		return false, err
+	}
+	var endResult bool = false
+	err = nil
+	switch r := value.(type) {
+	case bool:
+		endResult = r
+	case float64:
+		if r != 0.0 {
+			endResult = true
+		}
+	case float32:
+		if r != 0.0 {
+			endResult = true
+		}
+	case int:
+		if r != 0 {
+			endResult = true
+		}
+	case int64:
+		if r != 0 {
+			endResult = true
+		}
+	case int32:
+		if r != 0 {
+			endResult = true
+		}
+	default:
+		err = fmt.Errorf("cannot evaluate '%s' to bool", newcond)
+	}
+	return endResult, err
+}
+
+func EvalFloat64Condition(condition string, params map[string]interface{}) (float64, error) {
+	var endResult float64 = math.NaN()
+	newcond := strings.ReplaceAll(condition, "'", "\"")
+	newcond = strings.ReplaceAll(newcond, "%", "\\")
+	language := gval.NewLanguage(
+		gval.Full(),
+		metricCacheLanguage,
+	)
+	value, err := gval.Evaluate(newcond, params, language)
+	if err != nil {
+		cclog.ComponentDebug("MetricRouter", condition, " = ", err.Error())
+		return endResult, err
+	}
+	err = nil
+	switch r := value.(type) {
+	case bool:
+		if r {
+			endResult = 1.0
+		} else {
+			endResult = 0.0
+		}
+	case float64:
+		endResult = r
+	case float32:
+		endResult = float64(r)
+	case int:
+		endResult = float64(r)
+	case int64:
+		endResult = float64(r)
+	case int32:
+		endResult = float64(r)
+	default:
+		err = fmt.Errorf("cannot evaluate '%s' to float64", newcond)
+	}
+	return endResult, err
 }
 
 func NewAggregator(output chan lp.CCMetric) (MetricAggregator, error) {
