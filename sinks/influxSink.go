@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
-	"log"
 )
 
 type InfluxSink struct {
@@ -61,12 +62,12 @@ func (s *InfluxSink) Init(config sinkConfig) error {
 func (s *InfluxSink) Write(point lp.CCMetric) error {
 	tags := map[string]string{}
 	fields := map[string]interface{}{}
-	for _, t := range point.TagList() {
-		tags[t.Key] = t.Value
+	for key, value := range point.Tags() {
+		tags[key] = value
 	}
 	if s.meta_as_tags {
-		for _, m := range point.MetaList() {
-			tags[m.Key] = m.Value
+		for key, value := range point.Meta() {
+			tags[key] = value
 		}
 	}
 	for _, f := range point.FieldList() {
