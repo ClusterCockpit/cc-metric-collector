@@ -5,7 +5,7 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
 
 The `likwid` configuration consists of two parts, the "eventsets" and "globalmetrics":
 - An event set list itself has two parts, the "events" and a set of derivable "metrics". Each of the "events" is a counter:event pair in LIKWID's syntax. The "metrics" are a list of formulas to derive the metric value from the measurements of the "events". Each metric has a name, the formula, a scope and a publish flag. A counter names can be used like variables in the formulas, so `PMC0+PMC1` sums the measurements for the both events configured in the counters `PMC0` and `PMC1`. The scope tells the Collector whether it is a metric for each hardware thread (`hwthread`) or each CPU socket (`socket`). The last one is the publishing flag. It tells the collector whether a metric should be sent to the router.
-- The global metrics are metrics which require data from all event set measurements to be derived. The inputs are the metrics in the event sets. Similar to the metrics in the event sets, the global metrics are defined by a name, a formula, a scope and a publish flag. See event set metrics for details. The only difference is that there is no access to the raw event measurements anymore but only to the metrics. So, the idea is to derive a metric in the "eventsets" section and reuse it in the "globalmetrics" part. If you need a metric only for deriving the global metrics, disable forwarding of the event set metrics.
+- The global metrics are metrics which require data from all event set measurements to be derived. The inputs are the metrics in the event sets. Similar to the metrics in the event sets, the global metrics are defined by a name, a formula, a scope and a publish flag. See event set metrics for details. The only difference is that there is no access to the raw event measurements anymore but only to the metrics. So, the idea is to derive a metric in the "eventsets" section and reuse it in the "globalmetrics" part. If you need a metric only for deriving the global metrics, disable forwarding of the event set metrics. **Be aware** that the combination might be misleading because the "behavior" of a metric changes over time and the multiple measurements might count different computing phases.
 
 ### Available metric scopes
 
@@ -15,6 +15,12 @@ Hardware performance counters are scattered all over the system nowadays. A coun
 - `socket` : One metric per CPU socket/package with the tags `"type" : "socket"` and `"type-id" : "$socket_id"`
 
 **Note:** You cannot specify `socket` scope for a metric that is measured at `hwthread` scope, so some kind of expert knowledge or lookup work in the [Likwid Wiki](https://github.com/RRZE-HPC/likwid/wiki) is required. Get the scope of each counter from the *Architecture* pages and as soon as one counter in a metric is socket-specific, the whole metric is socket-specific.
+
+As a guideline:
+- All counters `FIXCx`, `PMCy` and `TMAz` have the scope `hwthread`
+- All counters names containing `BOX` have the scope `socket`
+- All `PWRx` counters have scope `socket`, except `"PWR1" : "RAPL_CORE_ENERGY"` has `hwthread` scope
+- All `DFCx` counters have scope `socket`
 
 
 ### Example configuration
@@ -128,12 +134,9 @@ METRICS                          ->   "metrics": [
 IPC   PMC0/PMC1                  ->     {
                                  ->       "name" : "IPC",
                                  ->       "calc" : "PMC0/PMC1",
-                                 ->       "socket_scope": false,
+                                 ->       "scope": "hwthread",
                                  ->       "publish": true
                                  ->     }
                                  ->   ]
 ```
 
-The `socket_scope` option tells whether it is submitted per socket or per hwthread. If a metric is only used for internal calculations, you can set `publish = false`.
-
-Since some metrics can only be gathered in multiple measurements (like the memory bandwidth on AMD Zen3 chips), configure multiple eventsets like in the example config and use the `globalmetrics` section to combine them. **Be aware** that the combination might be misleading because the "behavior" of a metric changes over time and the multiple measurements might count different computing phases.
