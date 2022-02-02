@@ -243,9 +243,7 @@ func (m *LikwidCollector) getResponsiblities() map[MetricScope]map[int]int {
 	scopes := GetAllMetricScopes()
 	complete := make(map[MetricScope]map[int]int)
 	for _, s := range scopes {
-		cclog.Debug("Start ", s)
 		complete[s] = get_cpus(s)
-		cclog.Debug("End ", s)
 	}
 	return complete
 }
