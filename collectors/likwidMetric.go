@@ -365,7 +365,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-
 // take a measurement for 'interval' seconds of event set index 'group'
 func (m *LikwidCollector) takeMeasurement(group int, interval time.Duration) error {
 
@@ -399,7 +398,7 @@ func (m *LikwidCollector) takeMeasurement(group int, interval time.Duration) err
 }
 
 // Get all measurement results for an event set, derive the metric values out of the measurement results and send it
-func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration, output chan lp.CCMetric) error {
+func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration, output chan *lp.CCMetric) error {
 	var eidx C.int
 	evset := m.config.Eventsets[group]
 	gid := m.groups[group]
@@ -446,7 +445,7 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 				fields := map[string]interface{}{"value": value}
 				y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -456,7 +455,7 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 }
 
 // Go over the global metrics, derive the value out of the event sets' metric values and send it
-func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan lp.CCMetric) error {
+func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan *lp.CCMetric) error {
 	for _, metric := range m.config.Metrics {
 		scopemap := m.scopeRespTids[metric.Scope]
 		for domain, tid := range scopemap {
@@ -483,7 +482,7 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 				fields := map[string]interface{}{"value": value}
 				y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
 				if err == nil {
-					output <- y
+					output <- &y
 				}
 			}
 		}
@@ -492,12 +491,12 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 }
 
 // main read function taking multiple measurement rounds, each 'interval' seconds long
-func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LikwidCollector) Read(interval time.Duration, output chan *lp.CCMetric) {
 	if !m.init {
 		return
 	}
 
-	for i, _ := range m.groups {
+	for i := range m.groups {
 		// measure event set 'i' for 'interval' seconds
 		err := m.takeMeasurement(i, interval)
 		if err != nil {

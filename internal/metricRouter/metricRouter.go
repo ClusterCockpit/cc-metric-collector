@@ -135,7 +135,6 @@ func (r *metricRouter) StartTimer() {
 	cclog.ComponentDebug("MetricRouter", "TIMER START")
 }
 
-
 func getParamMap(point lp.CCMetric) map[string]interface{} {
 	params := make(map[string]interface{})
 	params["metric"] = point
@@ -162,7 +161,7 @@ func (r *metricRouter) DoAddTags(point *lp.CCMetric) {
 			conditionMatches = true
 		} else {
 			var err error
-			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(point))
+			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(*point))
 			if err != nil {
 				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
@@ -183,7 +182,7 @@ func (r *metricRouter) DoDelTags(point *lp.CCMetric) {
 			conditionMatches = true
 		} else {
 			var err error
-			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(point))
+			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(*point))
 			if err != nil {
 				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
@@ -198,7 +197,7 @@ func (r *metricRouter) DoDelTags(point *lp.CCMetric) {
 // Conditional test whether a metric should be dropped
 func (r *metricRouter) dropMetric(point *lp.CCMetric) bool {
 	// Simple drop check
-  if _, ok := r.config.dropMetrics[(*point).Name()]; ok {
+	if _, ok := r.config.dropMetrics[(*point).Name()]; ok {
 		return true
 	}
 	// Checking the dropping conditions
@@ -231,8 +230,8 @@ func (r *metricRouter) Start() {
 		cclog.ComponentDebug("MetricRouter", "FORWARD", *point)
 		r.DoAddTags(point)
 		r.DoDelTags(point)
-		if new, ok := r.config.RenameMetrics[point.Name()]; ok {
-			point.SetName(new)
+		if new, ok := r.config.RenameMetrics[(*point).Name()]; ok {
+			(*point).SetName(new)
 		}
 		r.DoAddTags(point)
 		r.DoDelTags(point)
