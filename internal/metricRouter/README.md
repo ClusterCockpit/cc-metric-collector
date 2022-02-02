@@ -190,7 +190,7 @@ The above configuration, collects all metric values for metrics evaluating `if` 
 If you are not interested in the input metrics `sub_metric_%d+` at all, you can add the same condition used here to the `drop_metrics_if` section to drop them.
 
 Use cases for `interval_aggregates`:
-- Combine multiple metrics of the a collector to a new one like the [MemstatCollector](../../collectors/memstatMetric.go) does it for `mem_used`)):
+- Combine multiple metrics of the a collector to a new one like the [MemstatCollector](../../collectors/memstatMetric.md) does it for `mem_used`)):
 ```json
   {
     "name" : "mem_used",
