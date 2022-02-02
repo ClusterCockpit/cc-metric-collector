@@ -11,7 +11,6 @@ import (
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
-	"gopkg.in/Knetic/govaluate.v2"
 )
 
 // Metric router tag configuration
@@ -26,8 +25,12 @@ type metricRouterConfig struct {
 	AddTags           []metricRouterTagConfig          `json:"add_tags"`            // List of tags that are added when the condition is met
 	DelTags           []metricRouterTagConfig          `json:"delete_tags"`         // List of tags that are removed when the condition is met
 	IntervalAgg       []metricAggregatorIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
+	DropMetrics       []string                         `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
+	DropMetricsIf     []string                         `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
+	RenameMetrics     map[string]string                `json:"rename_metrics"`      // Map to rename metric name from key to value
 	IntervalStamp     bool                             `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
 	NumCacheIntervals int                              `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
+	dropMetrics       map[string]bool                  // Internal map for O(1) lookup
 }
 
 // Metric router data structure
@@ -92,17 +95,19 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 		cclog.ComponentError("MetricRouter", err.Error())
 		return err
 	}
-	numIntervals := r.config.NumCacheIntervals
-	if numIntervals <= 0 {
-		numIntervals = 1
+	if r.config.NumCacheIntervals >= 0 {
+		r.cache, err = NewCache(r.cache_input, r.ticker, &r.cachewg, r.config.NumCacheIntervals)
+		if err != nil {
+			cclog.ComponentError("MetricRouter", "MetricCache initialization failed:", err.Error())
+			return err
+		}
+		for _, agg := range r.config.IntervalAgg {
+			r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+		}
 	}
-	r.cache, err = NewCache(r.cache_input, r.ticker, &r.cachewg, numIntervals)
-	if err != nil {
-		cclog.ComponentError("MetricRouter", "MetricCache initialization failed:", err.Error())
-		return err
-	}
-	for _, agg := range r.config.IntervalAgg {
-		r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+	r.config.dropMetrics = make(map[string]bool)
+	for _, mname := range r.config.DropMetrics {
+		r.config.dropMetrics[mname] = true
 	}
 	return nil
 }
@@ -130,48 +135,34 @@ func (r *metricRouter) StartTimer() {
 	cclog.ComponentDebug("MetricRouter", "TIMER START")
 }
 
-// EvalCondition evaluates condition cond for metric data from point
-func (r *metricRouter) EvalCondition(cond string, pptr *lp.CCMetric) (bool, error) {
-	point := *pptr
-	expression, err := govaluate.NewEvaluableExpression(cond)
-	if err != nil {
-		cclog.ComponentDebug("MetricRouter", cond, " = ", err.Error())
-		return false, err
-	}
 
-	// Add metric name, tags, meta data, fields and timestamp to the parameter list
+func getParamMap(point lp.CCMetric) map[string]interface{} {
 	params := make(map[string]interface{})
+	params["metric"] = point
 	params["name"] = point.Name()
-	for _, t := range point.TagList() {
-		params[t.Key] = t.Value
+	for key, value := range point.Tags() {
+		params[key] = value
 	}
-	for _, m := range point.MetaList() {
-		params[m.Key] = m.Value
+	for key, value := range point.Meta() {
+		params[key] = value
 	}
 	for _, f := range point.FieldList() {
 		params[f.Key] = f.Value
 	}
 	params["timestamp"] = point.Time()
-
-	// evaluate condition
-	result, err := expression.Evaluate(params)
-	if err != nil {
-		cclog.ComponentDebug("MetricRouter", cond, " = ", err.Error())
-		return false, err
-	}
-	return bool(result.(bool)), err
+	return params
 }
 
 // DoAddTags adds a tag when condition is fullfiled
 func (r *metricRouter) DoAddTags(point *lp.CCMetric) {
 	for _, m := range r.config.AddTags {
-		var conditionMatches bool
+		var conditionMatches bool = false
 
 		if m.Condition == "*" {
 			conditionMatches = true
 		} else {
 			var err error
-			conditionMatches, err = r.EvalCondition(m.Condition, point)
+			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(point))
 			if err != nil {
 				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
@@ -186,13 +177,13 @@ func (r *metricRouter) DoAddTags(point *lp.CCMetric) {
 // DoDelTags removes a tag when condition is fullfiled
 func (r *metricRouter) DoDelTags(point *lp.CCMetric) {
 	for _, m := range r.config.DelTags {
-		var conditionMatches bool
+		var conditionMatches bool = false
 
 		if m.Condition == "*" {
 			conditionMatches = true
 		} else {
 			var err error
-			conditionMatches, err = r.EvalCondition(m.Condition, point)
+			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(point))
 			if err != nil {
 				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
@@ -204,9 +195,24 @@ func (r *metricRouter) DoDelTags(point *lp.CCMetric) {
 	}
 }
 
+// Conditional test whether a metric should be dropped
+func (r *metricRouter) dropMetric(point *lp.CCMetric) bool {
+	// Simple drop check
+  if _, ok := r.config.dropMetrics[(*point).Name()]; ok {
+		return true
+	}
+	// Checking the dropping conditions
+	for _, m := range r.config.DropMetricsIf {
+		conditionMatches, err := EvalBoolCondition(m, getParamMap((*point)))
+		if conditionMatches || err != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Start starts the metric router
 func (r *metricRouter) Start() {
-
 	// start timer if configured
 	r.timestamp = time.Now()
 	if r.config.IntervalStamp {
@@ -225,13 +231,21 @@ func (r *metricRouter) Start() {
 		cclog.ComponentDebug("MetricRouter", "FORWARD", *point)
 		r.DoAddTags(point)
 		r.DoDelTags(point)
+		if new, ok := r.config.RenameMetrics[point.Name()]; ok {
+			point.SetName(new)
+		}
+		r.DoAddTags(point)
+		r.DoDelTags(point)
+
 		for _, o := range r.outputs {
 			o <- point
 		}
 	}
 
 	// Start Metric Cache
-	r.cache.Start()
+	if r.config.NumCacheIntervals > 0 {
+		r.cache.Start()
+	}
 
 	r.wg.Add(1)
 	go func() {
@@ -248,20 +262,30 @@ func (r *metricRouter) Start() {
 				if r.config.IntervalStamp {
 					(*p).SetTime(r.timestamp)
 				}
-				forward(p)
-				r.cache.Add(p)
+				if !r.dropMetric(p) {
+					forward(p)
+				}
+				// even if the metric is dropped, it is stored in the cache for
+				// aggregations
+				if r.config.NumCacheIntervals > 0 {
+					r.cache.Add(p)
+				}
 
 			case p := <-r.recv_input:
 				// receive from receive manager
 				if r.config.IntervalStamp {
 					(*p).SetTime(r.timestamp)
 				}
-				forward(p)
+				if !r.dropMetric(p) {
+					forward(p)
+				}
 
 			case p := <-r.cache_input:
-				// receive from metric cache and aggregator
-				(*p).AddTag("hostname", r.hostname)
-				forward(p)
+				// receive from metric collector
+				if !r.dropMetric(p) {
+					(*p).AddTag("hostname", r.hostname)
+					forward(p)
+				}
 			}
 		}
 	}()
@@ -295,8 +319,10 @@ func (r *metricRouter) Close() {
 		// wait for close of channel r.timerdone
 		<-r.timerdone
 	}
-	r.cache.Close()
-	r.cachewg.Wait()
+	if r.config.NumCacheIntervals > 0 {
+		r.cache.Close()
+		r.cachewg.Wait()
+	}
 }
 
 // New creates a new initialized metric router
