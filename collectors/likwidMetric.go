@@ -24,7 +24,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
-	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
+	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 )
 
 type MetricScope string
@@ -70,10 +70,10 @@ func GetAllMetricScopes() []MetricScope {
 }
 
 type LikwidCollectorMetricConfig struct {
-	Name        string      `json:"name"`        // Name of the metric
-	Calc        string      `json:"calc"`        // Calculation for the metric using
-	Aggr        string      `json:"aggregation"` // if scope unequal to LIKWID metric scope, the values are combined (sum, min, max, mean or avg, median)
-	Scope       MetricScope `json:"scope"`       // scope for calculation. subscopes are aggregated using the 'aggregation' function
+	Name string `json:"name"` // Name of the metric
+	Calc string `json:"calc"` // Calculation for the metric using
+	//Aggr        string      `json:"aggregation"` // if scope unequal to LIKWID metric scope, the values are combined (sum, min, max, mean or avg, median)
+	Scope       MetricScope `json:"scope"` // scope for calculation. subscopes are aggregated using the 'aggregation' function
 	Publish     bool        `json:"publish"`
 	granulatity MetricScope
 }
@@ -316,7 +316,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		}
 		for _, metric := range evset.Metrics {
 			// Try to evaluate the metric
-			_, err := mr.EvalFloat64Condition(metric.Calc, params)
+			_, err := agg.EvalFloat64Condition(metric.Calc, params)
 			if err != nil {
 				cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
 				continue
@@ -345,7 +345,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 	for _, metric := range m.config.Metrics {
 		// Try to evaluate the global metric
-		_, err := mr.EvalFloat64Condition(metric.Calc, globalParams)
+		_, err := agg.EvalFloat64Condition(metric.Calc, globalParams)
 		if err != nil {
 			cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
 			continue
@@ -430,7 +430,7 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 		scopemap := m.scopeRespTids[metric.Scope]
 		for domain, tid := range scopemap {
 			if tid >= 0 {
-				value, err := mr.EvalFloat64Condition(metric.Calc, m.results[group][tid])
+				value, err := agg.EvalFloat64Condition(metric.Calc, m.results[group][tid])
 				if err != nil {
 					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
 					continue
@@ -467,7 +467,7 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 					}
 				}
 				// Evaluate the metric
-				value, err := mr.EvalFloat64Condition(metric.Calc, params)
+				value, err := agg.EvalFloat64Condition(metric.Calc, params)
 				if err != nil {
 					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
 					continue
