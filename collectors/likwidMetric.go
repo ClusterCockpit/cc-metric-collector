@@ -495,7 +495,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 		return
 	}
 
-	for i, _ := range m.groups {
+	for i := range m.groups {
 		// measure event set 'i' for 'interval' seconds
 		err := m.takeMeasurement(i, interval)
 		if err != nil {
