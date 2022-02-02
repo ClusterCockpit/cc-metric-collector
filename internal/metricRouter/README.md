@@ -6,6 +6,7 @@ The CCMetric router sits in between the collectors and the sinks and can be used
 
 ```json
 {
+    "num_cache_intervals" : 1,
     "interval_timestamp" : true,
     "add_tags" : [
         {
@@ -57,6 +58,12 @@ There are three main options `add_tags`, `delete_tags` and `interval_timestamp`.
 # The `interval_timestamp` option
 
 The collectors' `Read()` functions are not called simultaneously and therefore the metrics gathered in an interval can have different timestamps. If you want to avoid that and have a common timestamp (the beginning of the interval), set this option to `true` and the MetricRouter sets the time.
+
+# The `num_cache_intervals` option
+
+If the MetricRouter should buffer metrics of intervals in a MetricCache, this option specifies the number of past intervals that should be kept. If `num_cache_intervals = 0`, the cache is disabled. With `num_cache_intervals = 1`, only the metrics of the last interval are buffered.
+
+A `num_cache_intervals > 0` is required to use the `interval_aggregates` option.
 
 # The `rename_metrics` option
 
@@ -163,6 +170,8 @@ The first line is comparable with the example in `drop_metrics`, it drops all me
 
 
 # Aggregate metric values of the current interval with the `interval_aggregates` option
+
+**Note:** `interval_aggregates` works only if `num_cache_intervals` > 0
 
 In some cases, you need to derive new metrics based on the metrics arriving during an interval. This can be done in the `interval_aggregates` section. The logic is similar to the other metric manipulation and filtering options. A cache stores all metrics that arrive during an interval. At the beginning of the *next* interval, the list of metrics is submitted to the MetricAggregator. It derives new metrics and submits them back to the MetricRouter, so they are sent in the next interval but have the timestamp of the previous interval beginning.
 

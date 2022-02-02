@@ -95,17 +95,15 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 		cclog.ComponentError("MetricRouter", err.Error())
 		return err
 	}
-	numIntervals := r.config.NumCacheIntervals
-	if numIntervals <= 0 {
-		numIntervals = 1
-	}
-	r.cache, err = NewCache(r.cache_input, r.ticker, &r.cachewg, numIntervals)
-	if err != nil {
-		cclog.ComponentError("MetricRouter", "MetricCache initialization failed:", err.Error())
-		return err
-	}
-	for _, agg := range r.config.IntervalAgg {
-		r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+	if r.config.NumCacheIntervals >= 0 {
+		r.cache, err = NewCache(r.cache_input, r.ticker, &r.cachewg, r.config.NumCacheIntervals)
+		if err != nil {
+			cclog.ComponentError("MetricRouter", "MetricCache initialization failed:", err.Error())
+			return err
+		}
+		for _, agg := range r.config.IntervalAgg {
+			r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+		}
 	}
 	r.config.dropMetrics = make(map[string]bool)
 	for _, mname := range r.config.DropMetrics {
@@ -244,7 +242,9 @@ func (r *metricRouter) Start() {
 	}
 
 	// Start Metric Cache
-	r.cache.Start()
+	if r.config.NumCacheIntervals > 0 {
+		r.cache.Start()
+	}
 
 	r.wg.Add(1)
 	go func() {
@@ -266,7 +266,9 @@ func (r *metricRouter) Start() {
 				}
 				// even if the metric is dropped, it is stored in the cache for
 				// aggregations
-				r.cache.Add(p)
+				if r.config.NumCacheIntervals > 0 {
+					r.cache.Add(p)
+				}
 
 			case p := <-r.recv_input:
 				// receive from receive manager
@@ -316,8 +318,10 @@ func (r *metricRouter) Close() {
 		// wait for close of channel r.timerdone
 		<-r.timerdone
 	}
-	r.cache.Close()
-	r.cachewg.Wait()
+	if r.config.NumCacheIntervals > 0 {
+		r.cache.Close()
+		r.cachewg.Wait()
+	}
 }
 
 // New creates a new initialized metric router
