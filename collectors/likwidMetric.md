@@ -1,5 +1,25 @@
 
 ## `likwid` collector
+
+The `likwid` collector is probably the most complicated collector. The LIKWID library is included as static library with *direct* access mode. The *direct* access mode is suitable if the daemon is executed by a root user. The static library does not contain the performance groups, so all information needs to be provided in the configuration.
+
+The `likwid` configuration consists of two parts, the "eventsets" and "globalmetrics":
+- An event set list itself has two parts, the "events" and a set of derivable "metrics". Each of the "events" is a counter:event pair in LIKWID's syntax. The "metrics" are a list of formulas to derive the metric value from the measurements of the "events". Each metric has a name, the formula, a scope and a publish flag. A counter names can be used like variables in the formulas, so `PMC0+PMC1` sums the measurements for the both events configured in the counters `PMC0` and `PMC1`. The scope tells the Collector whether it is a metric for each hardware thread (`hwthread`) or each CPU socket (`socket`). The last one is the publishing flag. It tells the collector whether a metric should be sent to the router.
+- The global metrics are metrics which require data from all event set measurements to be derived. The inputs are the metrics in the event sets. Similar to the metrics in the event sets, the global metrics are defined by a name, a formula, a scope and a publish flag. See event set metrics for details. The only difference is that there is no access to the raw event measurements anymore but only to the metrics. So, the idea is to derive a metric in the "eventsets" section and reuse it in the "globalmetrics" part. If you need a metric only for deriving the global metrics, disable forwarding of the event set metrics.
+
+### Available metric scopes
+
+Hardware performance counters are scattered all over the system nowadays. A counter coveres a specific part of the system. While there are hardware thread specific counter for CPU cycles, instructions and so on, some others are specific for a whole CPU socket/package. To address that, the collector provides the specification of a 'scope' for each metric.
+
+- `hwthread` : One metric per CPU hardware thread with the tags `"type" : "cpu"` and `"type-id" : "$hwthread_id"`
+- `socket` : One metric per CPU socket/package with the tags `"type" : "socket"` and `"type-id" : "$socket_id"`
+
+**Note:** You cannot specify `socket` scope for a metric that is measured at `hwthread` scope, so some kind of expert knowledge or lookup work in the [Likwid Wiki](https://github.com/RRZE-HPC/likwid/wiki) is required. Get the scope of each counter from the *Architecture* pages and as soon as one counter in a metric is socket-specific, the whole metric is socket-specific.
+
+
+### Example configuration
+
+
 ```json
   "likwid": {
     "eventsets": [
@@ -20,25 +40,25 @@
           {
             "name": "ipc",
             "calc": "PMC0/PMC1",
-            "socket_scope": false,
+            "scope": "hwthread",
             "publish": true
           },
           {
             "name": "flops_any",
             "calc": "0.000001*PMC2/time",
-            "socket_scope": false,
+            "scope": "hwthread",
             "publish": true
           },
           {
             "name": "clock_mhz",
             "calc": "0.000001*(FIXC1/FIXC2)/inverseClock",
-            "socket_scope": false,
+            "scope": "hwthread",
             "publish": true
           },
           {
             "name": "mem1",
             "calc": "0.000001*(DFC0+DFC1+DFC2+DFC3)*64.0/time",
-            "socket_scope": true,
+            "scope": "socket",
             "publish": false
           }
         ]
@@ -56,19 +76,19 @@
           {
             "name": "pwr_core",
             "calc": "PWR0/time",
-            "socket_scope": false,
+            "scope": "socket",
             "publish": true
           },
           {
             "name": "pwr_pkg",
             "calc": "PWR1/time",
-            "socket_scope": true,
+            "scope": "socket",
             "publish": true
           },
           {
             "name": "mem2",
             "calc": "0.000001*(DFC0+DFC1+DFC2+DFC3)*64.0/time",
-            "socket_scope": true,
+            "scope": "socket",
             "publish": false
           }
         ]
@@ -78,14 +98,14 @@
       {
         "name": "mem_bw",
         "calc": "mem1+mem2",
-        "socket_scope": true,
+        "scope": "socket",
         "publish": true
       }
     ]
   }
 ```
 
-_Example config suitable for AMD Zen3_
+### How to get the eventsets and metrics from LIKWID
 
 The `likwid` collector reads hardware performance counters at a **hwthread** and **socket** level. The configuration looks quite complicated but it is basically copy&paste from [LIKWID's performance groups](https://github.com/RRZE-HPC/likwid/tree/master/groups). The collector made multiple iterations and tried to use the performance groups but it lacked flexibility. The current way of configuration provides most flexibility.
 
