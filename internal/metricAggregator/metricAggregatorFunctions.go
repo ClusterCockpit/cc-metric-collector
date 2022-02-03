@@ -1,4 +1,4 @@
-package metricRouter
+package metricAggregator
 
 import (
 	"errors"

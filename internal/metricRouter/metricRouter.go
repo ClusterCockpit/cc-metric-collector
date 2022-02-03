@@ -10,6 +10,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
 
@@ -22,15 +23,15 @@ type metricRouterTagConfig struct {
 
 // Metric router configuration
 type metricRouterConfig struct {
-	AddTags           []metricRouterTagConfig          `json:"add_tags"`            // List of tags that are added when the condition is met
-	DelTags           []metricRouterTagConfig          `json:"delete_tags"`         // List of tags that are removed when the condition is met
-	IntervalAgg       []metricAggregatorIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
-	DropMetrics       []string                         `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
-	DropMetricsIf     []string                         `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
-	RenameMetrics     map[string]string                `json:"rename_metrics"`      // Map to rename metric name from key to value
-	IntervalStamp     bool                             `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
-	NumCacheIntervals int                              `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
-	dropMetrics       map[string]bool                  // Internal map for O(1) lookup
+	AddTags           []metricRouterTagConfig              `json:"add_tags"`            // List of tags that are added when the condition is met
+	DelTags           []metricRouterTagConfig              `json:"delete_tags"`         // List of tags that are removed when the condition is met
+	IntervalAgg       []agg.MetricAggregatorIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
+	DropMetrics       []string                             `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
+	DropMetricsIf     []string                             `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
+	RenameMetrics     map[string]string                    `json:"rename_metrics"`      // Map to rename metric name from key to value
+	IntervalStamp     bool                                 `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
+	NumCacheIntervals int                                  `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
+	dropMetrics       map[string]bool                      // Internal map for O(1) lookup
 }
 
 // Metric router data structure
@@ -161,7 +162,7 @@ func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 			conditionMatches = true
 		} else {
 			var err error
-			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(point))
+			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
 			if err != nil {
 				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
@@ -182,7 +183,7 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 			conditionMatches = true
 		} else {
 			var err error
-			conditionMatches, err = EvalBoolCondition(m.Condition, getParamMap(point))
+			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
 			if err != nil {
 				cclog.ComponentError("MetricRouter", err.Error())
 				conditionMatches = false
@@ -202,7 +203,7 @@ func (r *metricRouter) dropMetric(point lp.CCMetric) bool {
 	}
 	// Checking the dropping conditions
 	for _, m := range r.config.DropMetricsIf {
-		conditionMatches, err := EvalBoolCondition(m, getParamMap(point))
+		conditionMatches, err := agg.EvalBoolCondition(m, getParamMap(point))
 		if conditionMatches || err != nil {
 			return true
 		}

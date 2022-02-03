@@ -7,6 +7,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
 
@@ -28,7 +29,7 @@ type metricCache struct {
 	tickchan   chan time.Time
 	done       chan bool
 	output     chan lp.CCMetric
-	aggEngine  MetricAggregator
+	aggEngine  agg.MetricAggregator
 }
 
 type MetricCache interface {
@@ -59,7 +60,7 @@ func (c *metricCache) Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, 
 
 	// Create a new aggregation engine. No separate goroutine at the moment
 	// The code is executed by the MetricCache goroutine
-	c.aggEngine, err = NewAggregator(c.output)
+	c.aggEngine, err = agg.NewAggregator(c.output)
 	if err != nil {
 		cclog.ComponentError("MetricCache", "Cannot create aggregator")
 		return err

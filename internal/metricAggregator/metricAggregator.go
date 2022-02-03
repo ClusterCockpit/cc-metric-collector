@@ -1,4 +1,4 @@
-package metricRouter
+package metricAggregator
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/PaesslerAG/gval"
 )
 
-type metricAggregatorIntervalConfig struct {
+type MetricAggregatorIntervalConfig struct {
 	Name      string            `json:"name"`     // Metric name for the new metric
 	Function  string            `json:"function"` // Function to apply on the metric
 	Condition string            `json:"if"`       // Condition for applying function
@@ -27,7 +27,7 @@ type metricAggregatorIntervalConfig struct {
 }
 
 type metricAggregator struct {
-	functions []*metricAggregatorIntervalConfig
+	functions []*MetricAggregatorIntervalConfig
 	constants map[string]interface{}
 	language  gval.Language
 	output    chan lp.CCMetric
@@ -65,7 +65,7 @@ var metricCacheLanguage = gval.NewLanguage(
 
 func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	c.output = output
-	c.functions = make([]*metricAggregatorIntervalConfig, 0)
+	c.functions = make([]*MetricAggregatorIntervalConfig, 0)
 	c.constants = make(map[string]interface{})
 
 	// add constants like hostname, numSockets, ... to constants list
@@ -246,7 +246,7 @@ func (c *metricAggregator) AddAggregation(name, function, condition string, tags
 			return nil
 		}
 	}
-	var agg metricAggregatorIntervalConfig
+	var agg MetricAggregatorIntervalConfig
 	agg.Name = name
 	agg.Condition = newcond
 	agg.gvalCond = gvalCond
