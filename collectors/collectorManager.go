@@ -32,6 +32,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"cpufreq":          new(CPUFreqCollector),
 	"cpufreq_cpuinfo":  new(CPUFreqCpuInfoCollector),
 	"nfsstat":          new(NfsCollector),
+	"numastats":        new(NUMAStatsCollector),
 }
 
 // Metric collector manager data structure
