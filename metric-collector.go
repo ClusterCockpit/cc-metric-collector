@@ -36,6 +36,7 @@ var Collectors = map[string]collectors.MetricGetter{
 	"gpfs":            new(collectors.GpfsCollector),
 	"cpufreq":         new(collectors.CPUFreqCollector),
 	"cpufreq_cpuinfo": new(collectors.CPUFreqCpuInfoCollector),
+	"numastats":       new(collectors.NUMAStatsCollector),
 }
 
 var Sinks = map[string]sinks.SinkFuncs{

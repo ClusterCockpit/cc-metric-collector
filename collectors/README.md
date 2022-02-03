@@ -322,6 +322,11 @@ type SampleCollector struct {
 }
 
 func (m *SampleCollector) Init(config []byte) error {
+    // Check if already initialized
+    if m.init {
+        return nil
+    }
+
     m.name = "SampleCollector"
     m.setup()
     if len(config) > 0 {
