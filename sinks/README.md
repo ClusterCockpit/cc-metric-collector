@@ -3,11 +3,11 @@
 This folder contains the SinkManager and sink implementations for the cc-metric-collector.
 
 # Available sinks:
-- `stdout`: Print all metrics to `stdout`, `stderr` or a file
-- `http`: Send metrics to an HTTP server as POST requests
-- `influxdb`: Send metrics to an InfluxDB database
-- `nats`: Publish metrics to the NATS network overlay system
-- `ganglia`: Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/)
+- [`stdout`](./stdoutSink.md): Print all metrics to `stdout`, `stderr` or a file
+- [`http`](./httpSink.md): Send metrics to an HTTP server as POST requests
+- [`influxdb`](./influxdbSink.md): Send metrics to an [InfluxDB](https://www.influxdata.com/products/influxdb/) database
+- [`nats`](./natsSink.md): Publish metrics to the [NATS](https://nats.io/) network overlay system
+- [`ganglia`](./gangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/)
 
 # Configuration
 
