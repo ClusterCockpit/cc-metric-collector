@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -65,10 +65,10 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	globPattern := filepath.Join(baseDir, "node[0-9]*")
 	dirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("unable to glob files with pattern %s", globPattern)
+		return fmt.Errorf("unable to glob files with pattern '%s'", globPattern)
 	}
 	if dirs == nil {
-		return fmt.Errorf("unable to find any files with pattern %s", globPattern)
+		return fmt.Errorf("unable to find any files with pattern '%s'", globPattern)
 	}
 	m.topology = make([]NUMAStatsCollectorTopolgy, 0, len(dirs))
 	for _, dir := range dirs {
@@ -97,6 +97,9 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetri
 		now := time.Now()
 		file, err := os.Open(t.file)
 		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to open file '%s': %v", t.file, err))
 			return
 		}
 		scanner := bufio.NewScanner(file)
@@ -108,7 +111,9 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetri
 			key := split[0]
 			value, err := strconv.ParseInt(split[1], 10, 64)
 			if err != nil {
-				log.Printf("failed to convert %s='%s' to int64: %v", key, split[1], err)
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
 				continue
 			}
 			y, err := lp.New("numastats_"+key, t.tagSet, m.meta, map[string]interface{}{"value": value}, now)

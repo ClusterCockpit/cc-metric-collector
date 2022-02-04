@@ -96,6 +96,12 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) 
     }
     // tags for the metric, if type != node use proper type and type-id
     tags := map[string]string{"type" : "node"}
+
+    x, err := GetMetric()
+    if err != nil {
+        cclog.ComponentError(m.name, fmt.Sprintf("Read(): %v", err))
+    }
+
     // Each metric has exactly one field: value !
     value := map[string]interface{}{"value": int(x)}
     y, err := lp.New("sample_metric", tags, m.meta, value, time.Now())

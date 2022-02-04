@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 //
@@ -151,7 +151,6 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-
 func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
@@ -159,7 +158,9 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		log.Printf("Failed to open '%s': %v", cpuInfoFile, err)
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open '%s': %v", cpuInfoFile, err))
 		return
 	}
 	defer file.Close()
@@ -178,7 +179,9 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 				if !t.isHT {
 					value, err := strconv.ParseFloat(strings.TrimSpace(lineSplit[1]), 64)
 					if err != nil {
-						log.Printf("Failed to convert cpu MHz to float: %v", err)
+						cclog.ComponentError(
+							m.name,
+							fmt.Sprintf("Read(): Failed to convert cpu MHz to float: %v", err))
 						return
 					}
 					y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now)

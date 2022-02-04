@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"golang.org/x/sys/unix"
 )
@@ -200,12 +200,16 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		// Read current frequency
 		line, ok := readOneLine(t.scalingCurFreqFile)
 		if !ok {
-			log.Printf("CPUFreqCollector.Read(): Failed to read one line from file '%s'", t.scalingCurFreqFile)
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to read one line from file '%s'", t.scalingCurFreqFile))
 			continue
 		}
 		cpuFreq, err := strconv.Atoi(line)
 		if err != nil {
-			log.Printf("CPUFreqCollector.Read(): Failed to convert CPU frequency '%s': %v", line, err)
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert CPU frequency '%s': %v", line, err))
 			continue
 		}
 
