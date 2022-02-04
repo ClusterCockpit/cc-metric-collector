@@ -168,7 +168,7 @@ func CpuData() []CpuEntry {
 		buffer, err := ioutil.ReadFile(path)
 		if err != nil {
 			log.Print(err)
-			cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
+			//cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
 			return -1
 		}
 		sbuffer := strings.Replace(string(buffer), "\n", "", -1)
@@ -254,6 +254,9 @@ func CpuData() []CpuEntry {
 
 		// Lookup CPU die id
 		centry.Die = getDie(base)
+		if centry.Die < 0 {
+			centry.Die = centry.Socket
+		}
 
 		// Lookup SMT thread id
 		centry.SMT = getSMT(centry.Cpuid, base)
