@@ -1,21 +1,50 @@
 package sinks
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 
 	//	"time"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-type StdoutSink struct {
-	sink
+type StdoutSinkConfig struct {
+	defaultSinkConfig
+	Output string `json:"output_file,omitempty"`
 }
 
-func (s *StdoutSink) Init(config sinkConfig) error {
+type StdoutSink struct {
+	sink
+	output *os.File
+	config StdoutSinkConfig
+}
+
+func (s *StdoutSink) Init(config json.RawMessage) error {
 	s.name = "StdoutSink"
-	s.meta_as_tags = config.MetaAsTags
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			return err
+		}
+	}
+	s.output = os.Stdout
+	if len(s.config.Output) > 0 {
+		if strings.ToLower(s.config.Output) == "stdout" {
+			s.output = os.Stdout
+		} else if strings.ToLower(s.config.Output) == "stderr" {
+			s.output = os.Stderr
+		} else {
+			f, err := os.OpenFile(s.config.Output, os.O_CREATE|os.O_WRONLY, os.FileMode(0600))
+			if err != nil {
+				return err
+			}
+			s.output = f
+		}
+	}
+	s.meta_as_tags = s.config.MetaAsTags
 	return nil
 }
 
@@ -63,7 +92,12 @@ func (s *StdoutSink) Write(point lp.CCMetric) error {
 }
 
 func (s *StdoutSink) Flush() error {
+	s.output.Sync()
 	return nil
 }
 
-func (s *StdoutSink) Close() {}
+func (s *StdoutSink) Close() {
+	if s.output != os.Stdout && s.output != os.Stderr {
+		s.output.Close()
+	}
+}

@@ -2,6 +2,7 @@ package sinks
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
@@ -20,28 +21,26 @@ var AvailableSinks = map[string]Sink{
 
 // Metric collector manager data structure
 type sinkManager struct {
-	input   chan lp.CCMetric // input channel
-	outputs []Sink           // List of sinks to use
-	done    chan bool        // channel to finish / stop metric sink manager
-	wg      *sync.WaitGroup  // wait group for all goroutines in cc-metric-collector
-	config  []sinkConfig     // json encoded config for sink manager
+	input chan lp.CCMetric // input channel
+	done  chan bool        // channel to finish / stop metric sink manager
+	wg    *sync.WaitGroup  // wait group for all goroutines in cc-metric-collector
+	sinks map[string]Sink  // Mapping sink name to sink
 }
 
 // Sink manager access functions
 type SinkManager interface {
 	Init(wg *sync.WaitGroup, sinkConfigFile string) error
 	AddInput(input chan lp.CCMetric)
-	AddOutput(config json.RawMessage) error
+	AddOutput(name string, config json.RawMessage) error
 	Start()
 	Close()
 }
 
 func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 	sm.input = nil
-	sm.outputs = make([]Sink, 0)
 	sm.done = make(chan bool)
 	sm.wg = wg
-	sm.config = make([]sinkConfig, 0)
+	sm.sinks = make(map[string]Sink, 0)
 
 	// Read sink config file
 	if len(sinkConfigFile) > 0 {
@@ -52,15 +51,16 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 		}
 		defer configFile.Close()
 		jsonParser := json.NewDecoder(configFile)
-		var rawConfigs []json.RawMessage
+		var rawConfigs map[string]json.RawMessage
 		err = jsonParser.Decode(&rawConfigs)
 		if err != nil {
 			cclog.ComponentError("SinkManager", err.Error())
 			return err
 		}
-		for _, raw := range rawConfigs {
-			err = sm.AddOutput(raw)
+		for name, raw := range rawConfigs {
+			err = sm.AddOutput(name, raw)
 			if err != nil {
+				cclog.ComponentError("SinkManager", err.Error())
 				continue
 			}
 		}
@@ -77,7 +77,7 @@ func (sm *sinkManager) Start() {
 
 		// Sink manager is done
 		done := func() {
-			for _, s := range sm.outputs {
+			for _, s := range sm.sinks {
 				s.Flush()
 				s.Close()
 			}
@@ -95,14 +95,14 @@ func (sm *sinkManager) Start() {
 			case p := <-sm.input:
 				// Send received metric to all outputs
 				cclog.ComponentDebug("SinkManager", "WRITE", p)
-				for _, s := range sm.outputs {
+				for _, s := range sm.sinks {
 					s.Write(p)
 				}
 
 				// Flush all outputs
 				if batchcount == 0 {
 					cclog.ComponentDebug("SinkManager", "FLUSH")
-					for _, s := range sm.outputs {
+					for _, s := range sm.sinks {
 						s.Flush()
 					}
 					batchcount = 20
@@ -121,29 +121,27 @@ func (sm *sinkManager) AddInput(input chan lp.CCMetric) {
 	sm.input = input
 }
 
-func (sm *sinkManager) AddOutput(rawConfig json.RawMessage) error {
+func (sm *sinkManager) AddOutput(name string, rawConfig json.RawMessage) error {
 	var err error
-	var config sinkConfig
-	if len(rawConfig) > 3 {
-		err = json.Unmarshal(rawConfig, &config)
+	var sinkConfig defaultSinkConfig
+	if len(rawConfig) > 0 {
+		err := json.Unmarshal(rawConfig, &sinkConfig)
 		if err != nil {
-			cclog.ComponentError("SinkManager", "SKIP", config.Type, "JSON config error:", err.Error())
 			return err
 		}
 	}
-	if _, found := AvailableSinks[config.Type]; !found {
-		cclog.ComponentError("SinkManager", "SKIP", config.Type, "unknown sink:", err.Error())
+	if _, found := AvailableSinks[sinkConfig.Type]; !found {
+		cclog.ComponentError("SinkManager", "SKIP", name, "unknown sink:", err.Error())
 		return err
 	}
-	s := AvailableSinks[config.Type]
-	err = s.Init(config)
+	s := AvailableSinks[sinkConfig.Type]
+	err = s.Init(rawConfig)
 	if err != nil {
 		cclog.ComponentError("SinkManager", "SKIP", s.Name(), "initialization failed:", err.Error())
 		return err
 	}
-	sm.outputs = append(sm.outputs, s)
-	sm.config = append(sm.config, config)
-	cclog.ComponentDebug("SinkManager", "ADD SINK", s.Name())
+	sm.sinks[name] = s
+	cclog.ComponentDebug("SinkManager", "ADD SINK", s.Name(), "with name", fmt.Sprintf("'%s'", name))
 	return nil
 }
 
