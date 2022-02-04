@@ -18,6 +18,7 @@ type HttpSinkConfig struct {
 	Port     string `json:"port,omitempty"`
 	Database string `json:"database,omitempty"`
 	JWT      string `json:"jwt,omitempty"`
+	SSL      bool   `json:"ssl,omitempty"`
 }
 
 type HttpSink struct {
@@ -31,6 +32,7 @@ type HttpSink struct {
 
 func (s *HttpSink) Init(config json.RawMessage) error {
 	s.name = "HttpSink"
+	s.config.SSL = false
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -42,7 +44,11 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 	}
 
 	s.client = &http.Client{}
-	s.url = fmt.Sprintf("http://%s:%s/%s", s.config.Host, s.config.Port, s.config.Database)
+	proto := "http"
+	if s.config.SSL {
+		proto = "https"
+	}
+	s.url = fmt.Sprintf("%s://%s:%s/%s", proto, s.config.Host, s.config.Port, s.config.Database)
 	s.jwt = s.config.JWT
 	s.buffer = &bytes.Buffer{}
 	s.encoder = influx.NewEncoder(s.buffer)
