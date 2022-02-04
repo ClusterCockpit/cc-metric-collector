@@ -26,7 +26,11 @@ func (s *HttpSink) Init(config sinkConfig) error {
 	}
 
 	s.client = &http.Client{}
-	s.url = fmt.Sprintf("http://%s:%s/%s", config.Host, config.Port, config.Database)
+	proto := "http"
+	if config.SSL {
+		proto = "https"
+	}
+	s.url = fmt.Sprintf("%s://%s:%s/%s", proto, config.Host, config.Port, config.Database)
 	s.port = config.Port
 	s.jwt = config.Password
 	s.buffer = &bytes.Buffer{}
