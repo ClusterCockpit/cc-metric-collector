@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -27,10 +28,10 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.setup()
 	m.meta = map[string]string{"source": m.name, "group": "Memory"}
 	m.matches = map[int]string{
-		1:  "bytes_in",
-		9:  "bytes_out",
-		2:  "pkts_in",
-		10: "pkts_out",
+		1:  "net_bytes_in",
+		9:  "net_bytes_out",
+		2:  "net_pkts_in",
+		10: "net_pkts_out",
 	}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
