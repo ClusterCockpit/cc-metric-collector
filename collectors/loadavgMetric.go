@@ -2,14 +2,25 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const LOADAVGFILE = `/proc/loadavg`
+//
+// LoadavgCollector collects:
+// * load average of last 1, 5 & 15 minutes
+// * number of processes currently runnable
+// * total number of processes in system
+//
+// See: https://www.kernel.org/doc/html/latest/filesystems/proc.html
+//
+const LOADAVGFILE = "/proc/loadavg"
 
 type LoadavgCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
@@ -32,10 +43,17 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.meta = map[string]string{"source": m.name, "group": "LOAD"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "LOAD"}
 	m.tags = map[string]string{"type": "node"}
-	m.load_matches = []string{"load_one", "load_five", "load_fifteen"}
-	m.proc_matches = []string{"proc_run", "proc_total"}
+	m.load_matches = []string{
+		"load_one",
+		"load_five",
+		"load_fifteen"}
+	m.proc_matches = []string{
+		"proc_run",
+		"proc_total"}
 	m.init = true
 	return nil
 }
@@ -45,33 +63,50 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	if !m.init {
 		return
 	}
-	buffer, err := ioutil.ReadFile(string(LOADAVGFILE))
-
+	buffer, err := ioutil.ReadFile(LOADAVGFILE)
 	if err != nil {
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to read file '%s': %v", LOADAVGFILE, err))
+		}
 		return
 	}
+	now := time.Now()
 
+	// Load metrics
 	ls := strings.Split(string(buffer), ` `)
 	for i, name := range m.load_matches {
 		x, err := strconv.ParseFloat(ls[i], 64)
-		if err == nil {
-			_, skip = stringArrayContains(m.config.ExcludeMetrics, name)
-			y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": float64(x)}, time.Now())
-			if err == nil && !skip {
-				output <- y
-			}
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert '%s' to float64: %v", ls[i], err))
+			continue
+		}
+		_, skip = stringArrayContains(m.config.ExcludeMetrics, name)
+		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
+		if err == nil && !skip {
+			output <- y
 		}
 	}
+
+	// Process metrics
 	lv := strings.Split(ls[3], `/`)
 	for i, name := range m.proc_matches {
 		x, err := strconv.ParseFloat(lv[i], 64)
-		if err == nil {
-			_, skip = stringArrayContains(m.config.ExcludeMetrics, name)
-			y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": float64(x)}, time.Now())
-			if err == nil && !skip {
-				output <- y
-			}
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert '%s' to float64: %v", lv[i], err))
+			continue
 		}
+		_, skip = stringArrayContains(m.config.ExcludeMetrics, name)
+		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
+		if err == nil && !skip {
+			output <- y
+		}
+
 	}
 }
 
