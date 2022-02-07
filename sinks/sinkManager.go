@@ -12,11 +12,12 @@ import (
 
 // Map of all available sinks
 var AvailableSinks = map[string]Sink{
-	"influxdb": new(InfluxSink),
-	"stdout":   new(StdoutSink),
-	"nats":     new(NatsSink),
-	"http":     new(HttpSink),
-	"ganglia":  new(GangliaSink),
+	"influxdb":    new(InfluxSink),
+	"stdout":      new(StdoutSink),
+	"nats":        new(NatsSink),
+	"http":        new(HttpSink),
+	"ganglia":     new(GangliaSink),
+	"influxasync": new(InfluxAsyncSink),
 }
 
 // Metric collector manager data structure
