@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"golang.org/x/sys/unix"
 
@@ -20,7 +21,7 @@ type InfinibandCollectorInfo struct {
 	LID              string            // IB local Identifier (LID)
 	device           string            // IB device
 	port             string            // IB device port
-	portCounterFiles map[string]string // mapping counter name -> file
+	portCounterFiles map[string]string // mapping counter name -> sysfs file
 	tagSet           map[string]string // corresponding tag list
 }
 
@@ -32,26 +33,14 @@ type InfinibandCollector struct {
 	info []InfinibandCollectorInfo
 }
 
-func (m *InfinibandCollector) Help() {
-	fmt.Println("This collector includes all devices that can be found below ", IB_BASEPATH)
-	fmt.Println("and where any of the ports provides a 'lid' file (glob ", IB_BASEPATH, "/<dev>/ports/<port>/lid).")
-	fmt.Println("The devices can be filtered with the 'exclude_devices' option in the configuration.")
-	fmt.Println("For each found LIDs the collector calls the 'perfquery' command")
-	fmt.Println("")
-	fmt.Println("Full configuration object:")
-	fmt.Println("\"ibstat\" : {")
-	fmt.Println("  \"exclude_devices\" : [\"dev1\"]")
-	fmt.Println("}")
-	fmt.Println("")
-	fmt.Println("Metrics:")
-	fmt.Println("- ib_recv")
-	fmt.Println("- ib_xmit")
-	fmt.Println("- ib_recv_pkts")
-	fmt.Println("- ib_xmit_pkts")
-}
-
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
+
+	// Check if already initialized
+	if !m.init {
+		return nil
+	}
+
 	var err error
 	m.name = "InfinibandCollector"
 	m.setup()
@@ -153,14 +142,25 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		// device info
 		info := &m.info[i]
 		for counterName, counterFile := range info.portCounterFiles {
-			if data, ok := readOneLine(counterFile); ok {
-				if v, err := strconv.ParseInt(data, 10, 64); err == nil {
-					if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
-						output <- y
-					}
-				}
+			data, ok := readOneLine(counterFile)
+			if !ok {
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to read one line from file '%s'", counterFile))
+				continue
+			}
+			v, err := strconv.ParseInt(data, 10, 64)
+			if err != nil {
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterName, data, err))
+				continue
+			}
+			if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+				output <- y
 			}
 		}
+
 	}
 }
 

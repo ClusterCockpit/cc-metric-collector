@@ -23,14 +23,14 @@ import (
 type CPUFreqCpuInfoCollectorTopology struct {
 	processor               string // logical processor number (continuous, starting at 0)
 	coreID                  string // socket local core ID
-	coreID_int              int
+	coreID_int              int64
 	physicalPackageID       string // socket / package ID
-	physicalPackageID_int   int
+	physicalPackageID_int   int64
 	numPhysicalPackages     string // number of  sockets / packages
-	numPhysicalPackages_int int
+	numPhysicalPackages_int int64
 	isHT                    bool
 	numNonHT                string // number of non hyperthreading processors
-	numNonHT_int            int
+	numNonHT_int            int64
 	tagSet                  map[string]string
 }
 
@@ -40,26 +40,32 @@ type CPUFreqCpuInfoCollector struct {
 }
 
 func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
+	// Check if already initialized
+	if m.init {
+		return nil
+	}
+
 	m.name = "CPUFreqCpuInfoCollector"
 	m.meta = map[string]string{
 		"source": m.name,
-		"group":  "cpufreq",
+		"group":  "CPU",
+		"unit":   "MHz",
 	}
 
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		return fmt.Errorf("Failed to open '%s': %v", cpuInfoFile, err)
+		return fmt.Errorf("Failed to open file '%s': %v", cpuInfoFile, err)
 	}
 	defer file.Close()
 
 	// Collect topology information from file cpuinfo
 	foundFreq := false
 	processor := ""
-	numNonHT_int := 0
+	var numNonHT_int int64 = 0
 	coreID := ""
 	physicalPackageID := ""
-	maxPhysicalPackageID := 0
+	var maxPhysicalPackageID int64 = 0
 	m.topology = make([]CPUFreqCpuInfoCollectorTopology, 0)
 	coreSeenBefore := make(map[string]bool)
 	scanner := bufio.NewScanner(file)
@@ -87,13 +93,13 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			len(coreID) > 0 &&
 			len(physicalPackageID) > 0 {
 
-			coreID_int, err := strconv.Atoi(coreID)
+			coreID_int, err := strconv.ParseInt(coreID, 10, 64)
 			if err != nil {
-				return fmt.Errorf("Unable to convert coreID to int: %v", err)
+				return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
 			}
-			physicalPackageID_int, err := strconv.Atoi(physicalPackageID)
+			physicalPackageID_int, err := strconv.ParseInt(physicalPackageID, 10, 64)
 			if err != nil {
-				return fmt.Errorf("Unable to convert physicalPackageID to int: %v", err)
+				return fmt.Errorf("Unable to convert physicalPackageID '%s' to int64: %v", physicalPackageID, err)
 			}
 
 			// increase maximun socket / package ID, when required
@@ -152,15 +158,17 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 }
 
 func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+	// Check if already initialized
 	if !m.init {
 		return
 	}
+
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
 		cclog.ComponentError(
 			m.name,
-			fmt.Sprintf("Read(): Failed to open '%s': %v", cpuInfoFile, err))
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", cpuInfoFile, err))
 		return
 	}
 	defer file.Close()
@@ -181,11 +189,10 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 					if err != nil {
 						cclog.ComponentError(
 							m.name,
-							fmt.Sprintf("Read(): Failed to convert cpu MHz to float: %v", err))
+							fmt.Sprintf("Read(): Failed to convert cpu MHz '%s' to float64: %v", lineSplit[1], err))
 						return
 					}
-					y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now)
-					if err == nil {
+					if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now); err == nil {
 						output <- y
 					}
 				}

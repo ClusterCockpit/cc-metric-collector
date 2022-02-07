@@ -35,14 +35,14 @@ func readOneLine(filename string) (text string, ok bool) {
 type CPUFreqCollectorTopology struct {
 	processor               string // logical processor number (continuous, starting at 0)
 	coreID                  string // socket local core ID
-	coreID_int              int
+	coreID_int              int64
 	physicalPackageID       string // socket / package ID
-	physicalPackageID_int   int
+	physicalPackageID_int   int64
 	numPhysicalPackages     string // number of  sockets / packages
-	numPhysicalPackages_int int
+	numPhysicalPackages_int int64
 	isHT                    bool
 	numNonHT                string // number of non hyperthreading processors
-	numNonHT_int            int
+	numNonHT_int            int64
 	scalingCurFreqFile      string
 	tagSet                  map[string]string
 }
@@ -64,6 +64,11 @@ type CPUFreqCollector struct {
 }
 
 func (m *CPUFreqCollector) Init(config json.RawMessage) error {
+	// Check if already initialized
+	if m.init {
+		return nil
+	}
+
 	m.name = "CPUFreqCollector"
 	m.setup()
 	if len(config) > 0 {
@@ -74,7 +79,8 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	}
 	m.meta = map[string]string{
 		"source": m.name,
-		"group":  "CPU Frequency",
+		"group":  "CPU",
+		"unit":   "MHz",
 	}
 
 	// Loop for all CPU directories
@@ -82,48 +88,48 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	globPattern := filepath.Join(baseDir, "cpu[0-9]*")
 	cpuDirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("CPUFreqCollector.Init() unable to glob files with pattern %s: %v", globPattern, err)
+		return fmt.Errorf("Unable to glob files with pattern '%s': %v", globPattern, err)
 	}
 	if cpuDirs == nil {
-		return fmt.Errorf("CPUFreqCollector.Init() unable to find any files with pattern %s", globPattern)
+		return fmt.Errorf("Unable to find any files with pattern '%s'", globPattern)
 	}
 
 	// Initialize CPU topology
 	m.topology = make([]CPUFreqCollectorTopology, len(cpuDirs))
 	for _, cpuDir := range cpuDirs {
 		processor := strings.TrimPrefix(cpuDir, "/sys/devices/system/cpu/cpu")
-		processor_int, err := strconv.Atoi(processor)
+		processor_int, err := strconv.ParseInt(processor, 10, 64)
 		if err != nil {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to convert cpuID to int: %v", err)
+			return fmt.Errorf("Unable to convert cpuID '%s' to int64: %v", processor, err)
 		}
 
 		// Read package ID
 		physicalPackageIDFile := filepath.Join(cpuDir, "topology", "physical_package_id")
 		physicalPackageID, ok := readOneLine(physicalPackageIDFile)
 		if !ok {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to read physical package ID from %s", physicalPackageIDFile)
+			return fmt.Errorf("Unable to read physical package ID from file '%s'", physicalPackageIDFile)
 		}
-		physicalPackageID_int, err := strconv.Atoi(physicalPackageID)
+		physicalPackageID_int, err := strconv.ParseInt(physicalPackageID, 10, 64)
 		if err != nil {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to convert packageID to int: %v", err)
+			return fmt.Errorf("Unable to convert packageID '%s' to int64: %v", physicalPackageID, err)
 		}
 
 		// Read core ID
 		coreIDFile := filepath.Join(cpuDir, "topology", "core_id")
 		coreID, ok := readOneLine(coreIDFile)
 		if !ok {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to read core ID from %s", coreIDFile)
+			return fmt.Errorf("Unable to read core ID from file '%s'", coreIDFile)
 		}
-		coreID_int, err := strconv.Atoi(coreID)
+		coreID_int, err := strconv.ParseInt(coreID, 10, 64)
 		if err != nil {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to convert coreID to int: %v", err)
+			return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
 		}
 
 		// Check access to current frequency file
 		scalingCurFreqFile := filepath.Join(cpuDir, "cpufreq", "scaling_cur_freq")
 		err = unix.Access(scalingCurFreqFile, unix.R_OK)
 		if err != nil {
-			return fmt.Errorf("CPUFreqCollector.Init() unable to access %s: %v", scalingCurFreqFile, err)
+			return fmt.Errorf("Unable to access file '%s': %v", scalingCurFreqFile, err)
 		}
 
 		t := &m.topology[processor_int]
@@ -146,8 +152,8 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	}
 
 	// number of non hyper thread cores and packages / sockets
-	numNonHT_int := 0
-	maxPhysicalPackageID := 0
+	var numNonHT_int int64 = 0
+	var maxPhysicalPackageID int64 = 0
 	for i := range m.topology {
 		t := &m.topology[i]
 
@@ -184,6 +190,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 }
 
 func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+	// Check if already initialized
 	if !m.init {
 		return
 	}
@@ -205,16 +212,15 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				fmt.Sprintf("Read(): Failed to read one line from file '%s'", t.scalingCurFreqFile))
 			continue
 		}
-		cpuFreq, err := strconv.Atoi(line)
+		cpuFreq, err := strconv.ParseInt(line, 10, 64)
 		if err != nil {
 			cclog.ComponentError(
 				m.name,
-				fmt.Sprintf("Read(): Failed to convert CPU frequency '%s': %v", line, err))
+				fmt.Sprintf("Read(): Failed to convert CPU frequency '%s' to int64: %v", line, err))
 			continue
 		}
 
-		y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now)
-		if err == nil {
+		if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now); err == nil {
 			output <- y
 		}
 	}

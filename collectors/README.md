@@ -103,9 +103,8 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) 
     }
 
     // Each metric has exactly one field: value !
-    value := map[string]interface{}{"value": int(x)}
-    y, err := lp.New("sample_metric", tags, m.meta, value, time.Now())
-    if err == nil {
+    value := map[string]interface{}{"value": int64(x)}
+    if y, err := lp.New("sample_metric", tags, m.meta, value, time.Now()); err == nil {
         output <- y
     }
 }

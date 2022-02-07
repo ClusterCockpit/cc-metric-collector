@@ -26,6 +26,11 @@ type GpfsCollector struct {
 }
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
+	// Check if already initialized
+	if m.init {
+		return nil
+	}
+
 	var err error
 	m.name = "GpfsCollector"
 	m.setup()
@@ -53,16 +58,16 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
 	user, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("GpfsCollector.Init(): Failed to get current user: %v", err)
+		return fmt.Errorf("Failed to get current user: %v", err)
 	}
 	if user.Uid != "0" {
-		return fmt.Errorf("GpfsCollector.Init(): GPFS file system statistics can only be queried by user root")
+		return fmt.Errorf("GPFS file system statistics can only be queried by user root")
 	}
 
 	// Check if mmpmon is in executable search path
 	_, err = exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		return fmt.Errorf("GpfsCollector.Init(): Failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+		return fmt.Errorf("Failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
 	}
 
 	m.init = true
@@ -70,6 +75,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 }
 
 func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+	// Check if already initialized
 	if !m.init {
 		return
 	}
@@ -135,7 +141,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if rc != 0 {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Filesystem %s not ok.", filesystem))
+					fmt.Sprintf("Read(): Filesystem '%s' is not ok.", filesystem))
 				continue
 			}
 
@@ -143,14 +149,14 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert seconds '%s' to int: %v", key_value["_t_"], err))
+					fmt.Sprintf("Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err))
 				continue
 			}
 			msec, err := strconv.ParseInt(key_value["_tu_"], 10, 64)
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int: %v", key_value["_tu_"], err))
+					fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err))
 				continue
 			}
 			timestamp := time.Unix(sec, msec*1000)
@@ -160,12 +166,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert bytes read '%s' to int: %v", key_value["_br_"], err))
+					fmt.Sprintf("Read(): Failed to convert bytes read '%s' to int64: %v", key_value["_br_"], err))
 				continue
 			}
-
-			y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -174,12 +178,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert bytes written '%s' to int: %v", key_value["_bw_"], err))
+					fmt.Sprintf("Read(): Failed to convert bytes written '%s' to int64: %v", key_value["_bw_"], err))
 				continue
 			}
-
-			y, err = lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -188,11 +190,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of opens '%s' to int: %v", key_value["_oc_"], err))
+					fmt.Sprintf("Read(): Failed to convert number of opens '%s' to int64: %v", key_value["_oc_"], err))
 				continue
 			}
-			y, err = lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -201,11 +202,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of closes: '%s' to int: %v", key_value["_cc_"], err))
+					fmt.Sprintf("Read(): Failed to convert number of closes: '%s' to int64: %v", key_value["_cc_"], err))
 				continue
 			}
-			y, err = lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -214,11 +214,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of reads: '%s' to int: %v", key_value["_rdc_"], err))
+					fmt.Sprintf("Read(): Failed to convert number of reads: '%s' to int64: %v", key_value["_rdc_"], err))
 				continue
 			}
-			y, err = lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -227,11 +226,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of writes: '%s' to int: %v", key_value["_wc_"], err))
+					fmt.Sprintf("Read(): Failed to convert number of writes: '%s' to int64: %v", key_value["_wc_"], err))
 				continue
 			}
-			y, err = lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -240,11 +238,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of read directories: '%s' to int: %v", key_value["_dir_"], err))
+					fmt.Sprintf("Read(): Failed to convert number of read directories: '%s' to int64: %v", key_value["_dir_"], err))
 				continue
 			}
-			y, err = lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp); err == nil {
 				output <- y
 			}
 
@@ -256,8 +253,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 					fmt.Sprintf("Read(): Failed to convert number of inode updates: '%s' to int: %v", key_value["_iu_"], err))
 				continue
 			}
-			y, err = lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp)
-			if err == nil {
+			if y, err := lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
 				output <- y
 			}
 		}
