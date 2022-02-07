@@ -16,11 +16,11 @@ import (
 //
 // See: https://docs.influxdata.com/influxdb/latest/reference/syntax/line-protocol/
 type ccMetric struct {
-	name   string            // Measurement name
-	meta   map[string]string // map of meta data tags
-	tags   map[string]string // map of of tags
-	fields []*lp.Field       // unordered list of of fields
-	tm     time.Time         // timestamp
+	name   string                 // Measurement name
+	meta   map[string]string      // map of meta data tags
+	tags   map[string]string      // map of of tags
+	fields map[string]interface{} // map of of fields
+	tm     time.Time              // timestamp
 }
 
 // ccmetric access functions
@@ -48,7 +48,6 @@ type CCMetric interface {
 	HasField(key string) bool                // Check if a field key is present
 	RemoveField(key string)                  // Remove a field addressed by its key
 	Fields() map[string]interface{}          // Map of fields
-	FieldList() []*lp.Field                  // Ordered list of fields
 }
 
 // Meta returns the meta data tags as key-value mapping
@@ -69,7 +68,7 @@ func (m *ccMetric) MetaList() []*lp.Tag {
 
 // String implements the stringer interface for data type ccMetric
 func (m *ccMetric) String() string {
-	return fmt.Sprintf("%s %v %v %v %d", m.name, m.tags, m.meta, m.Fields(), m.tm.UnixNano())
+	return fmt.Sprintf("%s %v %v %v %d", m.name, m.tags, m.meta, m.fields, m.tm.UnixNano())
 }
 
 // ToLineProtocol generates influxDB line protocol for data type ccMetric
@@ -83,7 +82,7 @@ func (m *ccMetric) ToLineProtocol(metaAsTags bool) string {
 			tags[key] = value
 		}
 	}
-	p := influxdb2.NewPoint(m.name, tags, m.Fields(), m.tm)
+	p := influxdb2.NewPoint(m.name, tags, m.fields, m.tm)
 	return write.PointToLineProtocol(p, time.Nanosecond)
 }
 
@@ -113,17 +112,16 @@ func (m *ccMetric) TagList() []*lp.Tag {
 
 // Fields returns the list of fields as key-value-mapping
 func (m *ccMetric) Fields() map[string]interface{} {
-	fields := make(map[string]interface{}, len(m.fields))
-	for _, field := range m.fields {
-		fields[field.Key] = field.Value
-	}
-
-	return fields
+	return m.fields
 }
 
 // FieldList returns the list of fields
 func (m *ccMetric) FieldList() []*lp.Field {
-	return m.fields
+	fieldList := make([]*lp.Field, 0, len(m.fields))
+	for key, value := range m.fields {
+		fieldList = append(fieldList, &lp.Field{Key: key, Value: value})
+	}
+	return fieldList
 }
 
 // Time returns timestamp
@@ -186,46 +184,25 @@ func (m *ccMetric) AddMeta(key, value string) {
 
 // AddField adds a field (consisting of key and value) to the unordered list of fields
 func (m *ccMetric) AddField(key string, value interface{}) {
-	for i, field := range m.fields {
-		if key == field.Key {
-			m.fields[i] = &lp.Field{Key: key, Value: convertField(value)}
-			return
-		}
-	}
-	m.fields = append(m.fields, &lp.Field{Key: key, Value: convertField(value)})
+	m.fields[key] = value
 }
 
 // GetField returns the field with field's key equal to <key>
 func (m *ccMetric) GetField(key string) (interface{}, bool) {
-	for _, field := range m.fields {
-		if field.Key == key {
-			return field.Value, true
-		}
-	}
-	return "", false
+	v, ok := m.fields[key]
+	return v, ok
 }
 
 // HasField checks if a field with field's key equal to <key> is present in the list of fields
 func (m *ccMetric) HasField(key string) bool {
-	for _, field := range m.fields {
-		if field.Key == key {
-			return true
-		}
-	}
-	return false
+	_, ok := m.fields[key]
+	return ok
 }
 
 // RemoveField removes the field with field's key equal to <key>
 // from the unordered list of fields
 func (m *ccMetric) RemoveField(key string) {
-	for i, field := range m.fields {
-		if field.Key == key {
-			copy(m.fields[i:], m.fields[i+1:])
-			m.fields[len(m.fields)-1] = nil
-			m.fields = m.fields[:len(m.fields)-1]
-			return
-		}
-	}
+	delete(m.fields, key)
 }
 
 // New creates a new measurement point
@@ -240,7 +217,7 @@ func New(
 		name:   name,
 		tags:   make(map[string]string, len(tags)),
 		meta:   make(map[string]string, len(meta)),
-		fields: make([]*lp.Field, 0, len(fields)),
+		fields: make(map[string]interface{}, len(fields)),
 		tm:     tm,
 	}
 
@@ -260,7 +237,7 @@ func New(
 		if v == nil {
 			continue
 		}
-		m.AddField(k, v)
+		m.fields[k] = v
 	}
 
 	return m, nil
@@ -271,20 +248,19 @@ func FromMetric(other ccMetric) CCMetric {
 	m := &ccMetric{
 		name:   other.Name(),
 		tags:   make(map[string]string),
-		fields: make([]*lp.Field, len(other.FieldList())),
 		meta:   make(map[string]string),
+		fields: make(map[string]interface{}),
 		tm:     other.Time(),
 	}
 
-	for key, value := range other.Tags() {
+	for key, value := range other.tags {
 		m.tags[key] = value
 	}
-	for key, value := range other.Meta() {
+	for key, value := range other.meta {
 		m.meta[key] = value
 	}
-
-	for i, field := range other.FieldList() {
-		m.fields[i] = &lp.Field{Key: field.Key, Value: field.Value}
+	for key, value := range other.fields {
+		m.fields[key] = value
 	}
 	return m
 }
@@ -294,20 +270,16 @@ func FromInfluxMetric(other lp.Metric) CCMetric {
 	m := &ccMetric{
 		name:   other.Name(),
 		tags:   make(map[string]string),
-		fields: make([]*lp.Field, len(other.FieldList())),
 		meta:   make(map[string]string),
+		fields: make(map[string]interface{}),
 		tm:     other.Time(),
 	}
 
 	for _, otherTag := range other.TagList() {
 		m.tags[otherTag.Key] = otherTag.Value
 	}
-
-	for i, otherField := range other.FieldList() {
-		m.fields[i] = &lp.Field{
-			Key:   otherField.Key,
-			Value: otherField.Value,
-		}
+	for _, otherField := range other.FieldList() {
+		m.fields[otherField.Key] = otherField.Value
 	}
 	return m
 }
