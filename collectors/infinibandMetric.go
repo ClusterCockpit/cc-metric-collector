@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"golang.org/x/sys/unix"
 
@@ -141,14 +142,25 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		// device info
 		info := &m.info[i]
 		for counterName, counterFile := range info.portCounterFiles {
-			if data, ok := readOneLine(counterFile); ok {
-				if v, err := strconv.ParseInt(data, 10, 64); err == nil {
-					if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
-						output <- y
-					}
-				}
+			data, ok := readOneLine(counterFile)
+			if !ok {
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to read one line from file '%s'", counterFile))
+				continue
+			}
+			v, err := strconv.ParseInt(data, 10, 64)
+			if err != nil {
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterName, data, err))
+				continue
+			}
+			if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+				output <- y
 			}
 		}
+
 	}
 }
 
