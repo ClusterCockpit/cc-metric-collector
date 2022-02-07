@@ -31,16 +31,22 @@ type CCMetric interface {
 	Meta() map[string]string           // Map of meta data tags
 	MetaList() []*lp.Tag               // Ordered list of meta data
 	AddMeta(key, value string)         // Add a meta data tag
+	HasMeta(key string) bool           // Check a meta data tag
 	GetMeta(key string) (string, bool) // Get a meta data tab addressed by its key
+	RemoveMeta(key string)             // Remove a meta data tag by its key
 
 	Tags() map[string]string          // Map of tags
+	TagList() []*lp.Tag               // Ordered list of tags
 	AddTag(key, value string)         // Add a tag
 	GetTag(key string) (string, bool) // Get a tag by its key
+	HasTag(key string) bool           // Check a tag
 	RemoveTag(key string)             // Remove a tag by its key
 
 	GetField(key string) (interface{}, bool) // Get a field addressed by its key
 	HasField(key string) bool                // Check if a field key is present
 	RemoveField(key string)                  // Remove a field addressed by its key
+	Fields() map[string]interface{}          // Map of fields
+	FieldList() []*lp.Field                  // Ordered list of fields
 }
 
 // Meta returns the meta data tags as key-value mapping
