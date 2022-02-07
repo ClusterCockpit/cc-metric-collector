@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
@@ -45,9 +45,15 @@ func (s *InfluxSink) connect() error {
 	} else {
 		auth = fmt.Sprintf("%s:%s", s.config.User, s.config.Password)
 	}
-	log.Print("Using URI ", uri, " Org ", s.config.Organization, " Bucket ", s.config.Database)
-	s.client = influxdb2.NewClientWithOptions(uri, auth,
-		influxdb2.DefaultOptions().SetTLSConfig(&tls.Config{InsecureSkipVerify: true}))
+	cclog.ComponentDebug(s.name, "Using URI", uri, "Org", s.config.Organization, "Bucket", s.config.Database)
+	s.client =
+		influxdb2.NewClientWithOptions(
+			uri,
+			auth,
+			influxdb2.DefaultOptions().SetTLSConfig(
+				&tls.Config{InsecureSkipVerify: true},
+			),
+		)
 	s.writeApi = s.client.WriteAPIBlocking(s.config.Organization, s.config.Database)
 	return nil
 }
@@ -71,8 +77,7 @@ func (s *InfluxSink) Init(config json.RawMessage) error {
 }
 
 func (s *InfluxSink) Write(point lp.CCMetric) error {
-	tags := map[string]string{}
-	fields := map[string]interface{}{}
+	tags := make(map[string]string)
 	for key, value := range point.Tags() {
 		tags[key] = value
 	}
@@ -81,10 +86,7 @@ func (s *InfluxSink) Write(point lp.CCMetric) error {
 			tags[key] = value
 		}
 	}
-	for _, f := range point.FieldList() {
-		fields[f.Key] = f.Value
-	}
-	p := influxdb2.NewPoint(point.Name(), tags, fields, point.Time())
+	p := influxdb2.NewPoint(point.Name(), tags, point.Fields(), point.Time())
 	err := s.writeApi.WritePoint(context.Background(), p)
 	return err
 }
@@ -94,6 +96,6 @@ func (s *InfluxSink) Flush() error {
 }
 
 func (s *InfluxSink) Close() {
-	log.Print("Closing InfluxDB connection")
+	cclog.ComponentDebug(s.name, "Closing InfluxDB connection")
 	s.client.Close()
 }
