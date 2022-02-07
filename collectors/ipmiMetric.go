@@ -9,11 +9,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const IPMITOOL_PATH = `/usr/bin/ipmitool`
-const IPMISENSORS_PATH = `/usr/sbin/ipmi-sensors`
+const IPMITOOL_PATH = `ipmitool`
+const IPMISENSORS_PATH = `ipmi-sensors`
 
 type IpmiCollectorConfig struct {
 	ExcludeDevices  []string `json:"exclude_devices"`
@@ -23,30 +24,36 @@ type IpmiCollectorConfig struct {
 
 type IpmiCollector struct {
 	metricCollector
-	tags    map[string]string
-	matches map[string]string
-	config  IpmiCollectorConfig
+	//tags        map[string]string
+	//matches     map[string]string
+	config      IpmiCollectorConfig
+	ipmitool    string
+	ipmisensors string
 }
 
 func (m *IpmiCollector) Init(config json.RawMessage) error {
 	m.name = "IpmiCollector"
 	m.setup()
 	m.meta = map[string]string{"source": m.name, "group": "IPMI"}
+	m.config.IpmitoolPath = string(IPMITOOL_PATH)
+	m.config.IpmisensorsPath = string(IPMISENSORS_PATH)
+	m.ipmitool = ""
+	m.ipmisensors = ""
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
-	_, err1 := os.Stat(m.config.IpmitoolPath)
-	_, err2 := os.Stat(m.config.IpmisensorsPath)
-	if err1 != nil {
-		m.config.IpmitoolPath = ""
+	p, err := exec.LookPath(m.config.IpmitoolPath)
+	if err == nil {
+		m.ipmitool = p
 	}
-	if err2 != nil {
-		m.config.IpmisensorsPath = ""
+	p, err = exec.LookPath(m.config.IpmisensorsPath)
+	if err == nil {
+		m.ipmisensors = p
 	}
-	if err1 != nil && err2 != nil {
+	if len(m.ipmitool) == 0 && len(m.ipmisensors) == 0 {
 		return errors.New("No IPMI reader found")
 	}
 	m.init = true
