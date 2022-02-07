@@ -146,8 +146,8 @@ func getParamMap(point lp.CCMetric) map[string]interface{} {
 	for key, value := range point.Meta() {
 		params[key] = value
 	}
-	for _, f := range point.FieldList() {
-		params[f.Key] = f.Value
+	for key, value := range point.Fields() {
+		params[key] = value
 	}
 	params["timestamp"] = point.Time()
 	return params

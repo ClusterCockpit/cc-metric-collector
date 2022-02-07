@@ -59,28 +59,28 @@ func (s *StdoutSink) Write(point lp.CCMetric) error {
 			tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", m.Key, m.Value))
 		}
 	}
-	for _, f := range point.FieldList() {
-		switch f.Value.(type) {
+	for key, value := range point.Fields() {
+		switch value.(type) {
 		case float64:
-			if !math.IsNaN(f.Value.(float64)) {
-				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", f.Key, f.Value.(float64)))
+			if !math.IsNaN(value.(float64)) {
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, value.(float64)))
 			} else {
-				fieldstr = append(fieldstr, fmt.Sprintf("%s=0.0", f.Key))
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=0.0", key))
 			}
 		case float32:
-			if !math.IsNaN(float64(f.Value.(float32))) {
-				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", f.Key, f.Value.(float32)))
+			if !math.IsNaN(float64(value.(float32))) {
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, value.(float32)))
 			} else {
-				fieldstr = append(fieldstr, fmt.Sprintf("%s=0.0", f.Key))
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=0.0", key))
 			}
 		case int:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", f.Key, f.Value.(int)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", key, value.(int)))
 		case int64:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", f.Key, f.Value.(int64)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", key, value.(int64)))
 		case string:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%q", f.Key, f.Value.(string)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%q", key, value.(string)))
 		default:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", f.Key, f.Value))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, value))
 		}
 	}
 	if len(tagsstr) > 0 {
