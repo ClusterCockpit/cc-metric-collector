@@ -32,24 +32,6 @@ type InfinibandCollector struct {
 	info []InfinibandCollectorInfo
 }
 
-func (m *InfinibandCollector) Help() {
-	fmt.Println("This collector includes all devices that can be found below ", IB_BASEPATH)
-	fmt.Println("and where any of the ports provides a 'lid' file (glob ", IB_BASEPATH, "/<dev>/ports/<port>/lid).")
-	fmt.Println("The devices can be filtered with the 'exclude_devices' option in the configuration.")
-	fmt.Println("For each found LIDs the collector calls the 'perfquery' command")
-	fmt.Println("")
-	fmt.Println("Full configuration object:")
-	fmt.Println("\"ibstat\" : {")
-	fmt.Println("  \"exclude_devices\" : [\"dev1\"]")
-	fmt.Println("}")
-	fmt.Println("")
-	fmt.Println("Metrics:")
-	fmt.Println("- ib_recv")
-	fmt.Println("- ib_xmit")
-	fmt.Println("- ib_recv_pkts")
-	fmt.Println("- ib_xmit_pkts")
-}
-
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	var err error
