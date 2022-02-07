@@ -29,27 +29,6 @@ type InfinibandPerfQueryCollector struct {
 	}
 }
 
-func (m *InfinibandPerfQueryCollector) Help() {
-	fmt.Println("This collector includes all devices that can be found below ", IB_BASEPATH)
-	fmt.Println("and where any of the ports provides a 'lid' file (glob ", IB_BASEPATH, "/<dev>/ports/<port>/lid).")
-	fmt.Println("The devices can be filtered with the 'exclude_devices' option in the configuration.")
-	fmt.Println("For each found LIDs the collector calls the 'perfquery' command")
-	fmt.Println("The path to the 'perfquery' command can be configured with the 'perfquery_path' option")
-	fmt.Println("in the configuration")
-	fmt.Println("")
-	fmt.Println("Full configuration object:")
-	fmt.Println("\"ibstat\" : {")
-	fmt.Println("  \"perfquery_path\" : \"path/to/perfquery\"  # if omitted, it searches in $PATH")
-	fmt.Println("  \"exclude_devices\" : [\"dev1\"]")
-	fmt.Println("}")
-	fmt.Println("")
-	fmt.Println("Metrics:")
-	fmt.Println("- ib_recv")
-	fmt.Println("- ib_xmit")
-	fmt.Println("- ib_recv_pkts")
-	fmt.Println("- ib_xmit_pkts")
-}
-
 func (m *InfinibandPerfQueryCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "InfinibandCollectorPerfQuery"

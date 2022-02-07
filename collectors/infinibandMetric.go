@@ -20,7 +20,7 @@ type InfinibandCollectorInfo struct {
 	LID              string            // IB local Identifier (LID)
 	device           string            // IB device
 	port             string            // IB device port
-	portCounterFiles map[string]string // mapping counter name -> file
+	portCounterFiles map[string]string // mapping counter name -> sysfs file
 	tagSet           map[string]string // corresponding tag list
 }
 
@@ -34,6 +34,12 @@ type InfinibandCollector struct {
 
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
+
+	// Check if already initialized
+	if !m.init {
+		return nil
+	}
+
 	var err error
 	m.name = "InfinibandCollector"
 	m.setup()
