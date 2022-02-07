@@ -1,6 +1,6 @@
-## `influxdb` sink
+## `influxasync` sink
 
-The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.dev/github.com/influxdata/influxdb-client-go/v2) to write the metrics to an InfluxDB database in a **blocking** fashion. It provides only support for V2 write endpoints (InfluxDB 1.8.0 or later).
+The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go.dev/github.com/influxdata/influxdb-client-go/v2) to write the metrics to an InfluxDB database in a **non-blocking** fashion. It provides only support for V2 write endpoints (InfluxDB 1.8.0 or later).
 
 
 ### Configuration structure
@@ -8,7 +8,7 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 ```json
 {
   "<name>": {
-    "type": "influxdb",
+    "type": "influxasync",
     "meta_as_tags" : true,
     "database" : "mymetrics",
     "host": "dbhost.example.com",
