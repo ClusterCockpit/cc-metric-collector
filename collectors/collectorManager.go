@@ -31,7 +31,8 @@ var AvailableCollectors = map[string]MetricCollector{
 	"gpfs":             new(GpfsCollector),
 	"cpufreq":          new(CPUFreqCollector),
 	"cpufreq_cpuinfo":  new(CPUFreqCpuInfoCollector),
-	"nfsstat":          new(NfsCollector),
+	"nfs3stat":         new(Nfs3Collector),
+	"nfs4stat":         new(Nfs4Collector),
 	"numastats":        new(NUMAStatsCollector),
 }
 
