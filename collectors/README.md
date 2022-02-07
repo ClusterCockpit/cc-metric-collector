@@ -29,6 +29,8 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`customcmd`](./customCmdMetric.md)
 * [`ipmistat`](./ipmiMetric.md)
 * [`topprocs`](./topprocsMetric.md)
+* [`nfs3stat`](./nfs3Metric.md)
+* [`nfs4stat`](./nfs4Metric.md)
 
 ## Todos
 
