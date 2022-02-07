@@ -24,6 +24,7 @@ type InfluxAsyncSinkConfig struct {
 	Organization string `json:"organization,omitempty"`
 	SSL          bool   `json:"ssl,omitempty"`
 	RetentionPol string `json:"retention_policy,omitempty"`
+	BatchSize    uint   `json:"batch_size,omitempty"`
 }
 
 type InfluxAsyncSink struct {
@@ -49,8 +50,12 @@ func (s *InfluxAsyncSink) connect() error {
 		auth = fmt.Sprintf("%s:%s", s.config.User, s.config.Password)
 	}
 	cclog.ComponentDebug(s.name, "Using URI", uri, "Org", s.config.Organization, "Bucket", s.config.Database)
+	batch := s.config.BatchSize
+	if batch == 0 {
+		batch = 100
+	}
 	s.client = influxdb2.NewClientWithOptions(uri, auth,
-		influxdb2.DefaultOptions().SetBatchSize(20).SetTLSConfig(&tls.Config{
+		influxdb2.DefaultOptions().SetBatchSize(batch).SetTLSConfig(&tls.Config{
 			InsecureSkipVerify: true,
 		}))
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
@@ -59,6 +64,7 @@ func (s *InfluxAsyncSink) connect() error {
 
 func (s *InfluxAsyncSink) Init(config json.RawMessage) error {
 	s.name = "InfluxSink"
+	s.config.BatchSize = 100
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {

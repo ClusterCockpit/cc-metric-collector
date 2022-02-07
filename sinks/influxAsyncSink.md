@@ -17,6 +17,7 @@ The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go
     "password" : "examplepw",
     "organization": "myorg",
     "ssl": true,
+    "batch_size": 200,
   }
 }
 ```
@@ -30,3 +31,4 @@ The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go
 - `password`: Password for basic authentification
 - `organization`: Organization in the InfluxDB
 - `ssl`: Use SSL connection
+- `batch_size`: batch up metrics internally, default 100
