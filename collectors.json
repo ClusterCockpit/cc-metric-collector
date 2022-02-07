@@ -6,7 +6,7 @@
     },
     "loadavg": {
         "exclude_metrics": [ "proc_total" ]
-    }
+    },
     "tempstat": {
       "tag_override": {
         "hwmon0" : {
@@ -18,4 +18,5 @@
             "type-id" : "1"
         }
       }
+    }
 }
