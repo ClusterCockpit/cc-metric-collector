@@ -37,7 +37,7 @@ type InfinibandCollector struct {
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
 
 	// Check if already initialized
-	if !m.init {
+	if m.init {
 		return nil
 	}
 
