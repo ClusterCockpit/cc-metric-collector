@@ -6,11 +6,16 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	cclogger "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 )
+
+const SYSFS_NUMABASE = `/sys/devices/system/node`
+const SYSFS_CPUBASE = `/sys/devices/system/cpu`
+const PROCFS_CPUINFO = `/proc/cpuinfo`
 
 // intArrayContains scans an array of ints if the value str is present in the array
 // If the specified value is found, the corresponding array index is returned.
@@ -43,7 +48,7 @@ func fileToInt(path string) int {
 }
 
 func SocketList() []int {
-	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
+	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -68,7 +73,7 @@ func SocketList() []int {
 }
 
 func CpuList() []int {
-	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
+	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -93,7 +98,7 @@ func CpuList() []int {
 }
 
 func CoreList() []int {
-	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
+	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -118,36 +123,50 @@ func CoreList() []int {
 }
 
 func NumaNodeList() []int {
-	numalist := make([]int, 0)
-	files, err := filepath.Glob("/sys/devices/system/node/node*")
+	numaList := make([]int, 0)
+	globPath := filepath.Join(string(SYSFS_NUMABASE), "node*")
+	regexPath := filepath.Join(string(SYSFS_NUMABASE), "node(\\d+)")
+	regex := regexp.MustCompile(regexPath)
+	files, err := filepath.Glob(globPath)
 	if err != nil {
-		log.Print(err)
+		cclogger.ComponentError("CCTopology", "NumaNodeList", err.Error())
 	}
 	for _, f := range files {
+		if !regex.MatchString(f) {
+			continue
+		}
 		finfo, err := os.Lstat(f)
-		if err == nil && (finfo.IsDir() || finfo.Mode()&os.ModeSymlink != 0) {
-			var id int
-			parts := strings.Split(f, "/")
-			_, err = fmt.Scanf("node%d", parts[len(parts)-1], &id)
+		if err != nil {
+			continue
+		}
+		if !finfo.IsDir() {
+			continue
+		}
+		matches := regex.FindStringSubmatch(f)
+		if len(matches) == 2 {
+			id, err := strconv.Atoi(matches[1])
 			if err == nil {
-				_, found := intArrayContains(numalist, int(id))
-				if !found {
-					numalist = append(numalist, int(id))
+				if _, found := intArrayContains(numaList, id); !found {
+					numaList = append(numaList, id)
 				}
 			}
 		}
+
 	}
-	return numalist
+	return numaList
 }
 
 func DieList() []int {
 	cpulist := CpuList()
 	dielist := make([]int, 0)
 	for _, c := range cpulist {
-		dieid := fileToInt(fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/die_id", c))
-		_, found := intArrayContains(dielist, int(dieid))
-		if !found {
-			dielist = append(dielist, int(dieid))
+		diepath := filepath.Join(string(SYSFS_CPUBASE), fmt.Sprintf("cpu%d", c), "topology/die_id")
+		dieid := fileToInt(diepath)
+		if dieid > 0 {
+			_, found := intArrayContains(dielist, int(dieid))
+			if !found {
+				dielist = append(dielist, int(dieid))
+			}
 		}
 	}
 	return dielist
@@ -196,14 +215,14 @@ func CpuData() []CpuEntry {
 	getSMT := func(cpuid int, basepath string) int {
 		buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/thread_siblings_list", basepath))
 		if err != nil {
-			log.Print(err)
+			cclogger.ComponentError("CCTopology", "CpuData:getSMT", err.Error())
 		}
 		threadlist := make([]int, 0)
 		sbuffer := strings.Replace(string(buffer), "\n", "", -1)
 		for _, x := range strings.Split(sbuffer, ",") {
 			id, err := strconv.ParseInt(x, 10, 32)
 			if err != nil {
-				log.Print(err)
+				cclogger.ComponentError("CCTopology", "CpuData:getSMT", err.Error())
 			}
 			threadlist = append(threadlist, int(id))
 		}
@@ -216,18 +235,22 @@ func CpuData() []CpuEntry {
 	}
 
 	getNumaDomain := func(basepath string) int {
-		files, err := filepath.Glob(fmt.Sprintf("%s/node*", basepath))
+		globPath := filepath.Join(basepath, "node*")
+		regexPath := filepath.Join(basepath, "node(\\d+)")
+		regex := regexp.MustCompile(regexPath)
+		files, err := filepath.Glob(globPath)
 		if err != nil {
-			log.Print(err)
+			cclogger.ComponentError("CCTopology", "CpuData:getNumaDomain", err.Error())
 		}
 		for _, f := range files {
 			finfo, err := os.Lstat(f)
-			if err == nil && (finfo.IsDir() || finfo.Mode()&os.ModeSymlink != 0) {
-				var id int
-				parts := strings.Split(f, "/")
-				_, err = fmt.Scanf("node%d", parts[len(parts)-1], &id)
-				if err == nil {
-					return id
+			if err == nil && finfo.IsDir() {
+				matches := regex.FindStringSubmatch(f)
+				if len(matches) == 2 {
+					id, err := strconv.Atoi(matches[1])
+					if err == nil {
+						return id
+					}
 				}
 			}
 		}
@@ -244,22 +267,24 @@ func CpuData() []CpuEntry {
 		centry.Die = -1
 		centry.Core = -1
 		// Set base directory for topology lookup
-		base := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology", centry.Cpuid)
+		cpustr := fmt.Sprintf("cpu%d", centry.Cpuid)
+		base := filepath.Join("/sys/devices/system/cpu", cpustr)
+		topoBase := filepath.Join(base, "topology")
 
 		// Lookup CPU core id
-		centry.Core = getCore(base)
+		centry.Core = getCore(topoBase)
 
 		// Lookup CPU socket id
-		centry.Socket = getSocket(base)
+		centry.Socket = getSocket(topoBase)
 
 		// Lookup CPU die id
-		centry.Die = getDie(base)
+		centry.Die = getDie(topoBase)
 		if centry.Die < 0 {
 			centry.Die = centry.Socket
 		}
 
 		// Lookup SMT thread id
-		centry.SMT = getSMT(centry.Cpuid, base)
+		centry.SMT = getSMT(centry.Cpuid, topoBase)
 
 		// Lookup NUMA domain id
 		centry.Numadomain = getNumaDomain(base)
@@ -280,34 +305,34 @@ type CpuInformation struct {
 func CpuInfo() CpuInformation {
 	var c CpuInformation
 
-	smt := 0
-	numa := 0
-	die := 0
-	socket := 0
-	core := 0
+	smtList := make([]int, 0)
+	numaList := make([]int, 0)
+	dieList := make([]int, 0)
+	socketList := make([]int, 0)
+	coreList := make([]int, 0)
 	cdata := CpuData()
 	for _, d := range cdata {
-		if d.SMT > smt {
-			smt = d.SMT
+		if _, ok := intArrayContains(smtList, d.SMT); !ok {
+			smtList = append(smtList, d.SMT)
 		}
-		if d.Numadomain > numa {
-			numa = d.Numadomain
+		if _, ok := intArrayContains(numaList, d.Numadomain); !ok {
+			numaList = append(numaList, d.Numadomain)
 		}
-		if d.Die > die {
-			die = d.Die
+		if _, ok := intArrayContains(dieList, d.Die); !ok {
+			dieList = append(dieList, d.Die)
 		}
-		if d.Socket > socket {
-			socket = d.Socket
+		if _, ok := intArrayContains(socketList, d.Socket); !ok {
+			socketList = append(socketList, d.Socket)
 		}
-		if d.Core > core {
-			core = d.Core
+		if _, ok := intArrayContains(coreList, d.Core); !ok {
+			coreList = append(coreList, d.Core)
 		}
 	}
-	c.NumNumaDomains = numa + 1
-	c.SMTWidth = smt + 1
-	c.NumDies = die + 1
-	c.NumCores = core + 1
-	c.NumSockets = socket + 1
+	c.NumNumaDomains = len(numaList)
+	c.SMTWidth = len(smtList)
+	c.NumDies = len(dieList)
+	c.NumCores = len(coreList)
+	c.NumSockets = len(socketList)
 	c.NumHWthreads = len(cdata)
 	return c
 }
