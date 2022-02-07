@@ -24,7 +24,6 @@ import (
 type CentralConfigFile struct {
 	Interval            int    `json:"interval"`
 	Duration            int    `json:"duration"`
-	Pidfile             string `json:"pidfile,omitempty"`
 	CollectorConfigFile string `json:"collectors"`
 	RouterConfigFile    string `json:"router"`
 	SinkConfigFile      string `json:"sinks"`
@@ -87,14 +86,12 @@ func ReadCli() map[string]string {
 	var m map[string]string
 	cfg := flag.String("config", "./config.json", "Path to configuration file")
 	logfile := flag.String("log", "stderr", "Path for logfile")
-	pidfile := flag.String("pidfile", "/var/run/cc-metric-collector.pid", "Path for PID file")
 	once := flag.Bool("once", false, "Run all collectors only once")
 	debug := flag.Bool("debug", false, "Activate debug output")
 	flag.Parse()
 	m = make(map[string]string)
 	m["configfile"] = *cfg
 	m["logfile"] = *logfile
-	m["pidfile"] = *pidfile
 	if *once {
 		m["once"] = "true"
 	} else {
@@ -122,25 +119,6 @@ func ReadCli() map[string]string {
 //		file = os.Stderr
 //	}
 //	log.SetOutput(file)
-//	return nil
-//}
-
-//func CreatePidfile(pidfile string) error {
-//	file, err := os.OpenFile(pidfile, os.O_CREATE|os.O_RDWR, 0600)
-//	if err != nil {
-//		log.Print(err)
-//		return err
-//	}
-//	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
-//	file.Close()
-//	return nil
-//}
-
-//func RemovePidfile(pidfile string) error {
-//	info, err := os.Stat(pidfile)
-//	if !os.IsNotExist(err) && !info.IsDir() {
-//		os.Remove(pidfile)
-//	}
 //	return nil
 //}
 
@@ -174,11 +152,6 @@ func shutdownHandler(config *RuntimeConfig, shutdownSignal chan os.Signal) {
 		cclog.Debug("Shutdown SinkManager...")
 		config.SinkManager.Close()
 	}
-
-	//	pidfile := config.ConfigFile.Pidfile
-	//	RemovePidfile(pidfile)
-	//	pidfile = config.CliArgs["pidfile"]
-	//	RemovePidfile(pidfile)
 }
 
 func mainFunc() int {
@@ -225,8 +198,6 @@ func mainFunc() int {
 		cclog.Error("Metric collector configuration file must be set")
 		return 1
 	}
-
-	//	err = CreatePidfile(rcfg.CliArgs["pidfile"])
 
 	// Set log file
 	if logfile := rcfg.CliArgs["logfile"]; logfile != "stderr" {

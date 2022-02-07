@@ -54,8 +54,6 @@ Usage of metric-collector:
     	Path for logfile (default "stderr")
   -once
     	Run all collectors only once
-  -pidfile string
-    	Path for PID file (default "/var/run/cc-metric-collector.pid")
 ```
 
 

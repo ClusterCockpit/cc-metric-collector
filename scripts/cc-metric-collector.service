@@ -14,11 +14,7 @@ Restart=on-failure
 WorkingDirectory=/tmp
 RuntimeDirectory=cc-metric-collector
 RuntimeDirectoryMode=0750
-ExecStart=/usr/sbin/cc-metric-collector                                             \
-                            --config=${CONF_FILE}                                   \
-                            --pidfile=${PID_FILE_DIR}/cc-metric-collector.pid
-
-
+ExecStart=/usr/sbin/cc-metric-collector --config=${CONF_FILE}
 LimitNOFILE=10000
 TimeoutStopSec=20
 UMask=0027
