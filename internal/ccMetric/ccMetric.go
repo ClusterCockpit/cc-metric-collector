@@ -5,6 +5,8 @@ import (
 	"sort"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	write "github.com/influxdata/influxdb-client-go/v2/api/write"
 	lp "github.com/influxdata/line-protocol" // MIT license
 )
 
@@ -68,6 +70,21 @@ func (m *ccMetric) MetaList() []*lp.Tag {
 // String implements the stringer interface for data type ccMetric
 func (m *ccMetric) String() string {
 	return fmt.Sprintf("%s %v %v %v %d", m.name, m.tags, m.meta, m.Fields(), m.tm.UnixNano())
+}
+
+// ToLineProtocol generates influxDB line protocol for data type ccMetric
+func (m *ccMetric) ToLineProtocol(metaAsTags bool) string {
+	tags := make(map[string]string)
+	for key, value := range m.tags {
+		tags[key] = value
+	}
+	if metaAsTags {
+		for key, value := range m.meta {
+			tags[key] = value
+		}
+	}
+	p := influxdb2.NewPoint(m.name, tags, m.Fields(), m.tm)
+	return write.PointToLineProtocol(p, time.Nanosecond)
 }
 
 // Name returns the measurement name
