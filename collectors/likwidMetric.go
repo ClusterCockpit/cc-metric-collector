@@ -86,9 +86,9 @@ type LikwidCollectorEventsetConfig struct {
 
 type LikwidCollectorConfig struct {
 	Eventsets      []LikwidCollectorEventsetConfig `json:"eventsets"`
-	Metrics        []LikwidCollectorMetricConfig   `json:"globalmetrics"`
-	ExcludeMetrics []string                        `json:"exclude_metrics"`
-	ForceOverwrite bool                            `json:"force_overwrite"`
+	Metrics        []LikwidCollectorMetricConfig   `json:"globalmetrics,omitempty"`
+	ForceOverwrite bool                            `json:"force_overwrite,omitempty"`
+	NanToZero      bool                            `json:"nan_to_zero,omitempty"`
 }
 
 type LikwidCollector struct {
@@ -434,8 +434,11 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 					continue
 				}
 				m.mresults[group][tid][metric.Name] = value
+				if m.config.NanToZero && math.IsNaN(value) {
+					value = 0.0
+				}
 				// Now we have the result, send it with the proper tags
-				if metric.Publish {
+				if metric.Publish && !math.IsNaN(value) {
 					tags := map[string]string{"type": metric.Scope.String()}
 					if metric.Scope != "node" {
 						tags["type-id"] = fmt.Sprintf("%d", domain)
@@ -473,8 +476,11 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 					continue
 				}
 				m.gmresults[tid][metric.Name] = value
+				if m.config.NanToZero && math.IsNaN(value) {
+					value = 0.0
+				}
 				// Now we have the result, send it with the proper tags
-				if metric.Publish {
+				if metric.Publish && !math.IsNaN(value) {
 					tags := map[string]string{"type": metric.Scope.String()}
 					if metric.Scope != "node" {
 						tags["type-id"] = fmt.Sprintf("%d", domain)
