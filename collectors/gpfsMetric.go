@@ -21,8 +21,10 @@ type GpfsCollector struct {
 	metricCollector
 	tags   map[string]string
 	config struct {
-		Mmpmon string `json:"mmpmon"`
+		Mmpmon            string   `json:"mmpmon_path,omitempty"`
+		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
 	}
+	skipFS map[string]struct{}
 }
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
@@ -53,6 +55,10 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.tags = map[string]string{
 		"type":       "node",
 		"filesystem": "",
+	}
+	m.skipFS = make(map[string]struct{})
+	for _, fs := range m.config.ExcludeFilesystem {
+		m.skipFS[fs] = struct{}{}
 	}
 
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
@@ -108,154 +114,163 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	scanner := bufio.NewScanner(cmdStdout)
 	for scanner.Scan() {
 		lineSplit := strings.Fields(scanner.Text())
-		if lineSplit[0] == "_fs_io_s_" {
-			key_value := make(map[string]string)
-			for i := 1; i < len(lineSplit); i += 2 {
-				key_value[lineSplit[i]] = lineSplit[i+1]
-			}
 
-			// Ignore keys:
-			// _n_:  node IP address,
-			// _nn_: node name,
-			// _cl_: cluster name,
-			// _d_:  number of disks
+		// Only process lines starting with _fs_io_s_
+		if lineSplit[0] != "_fs_io_s_" {
+			continue
+		}
 
-			filesystem, ok := key_value["_fs_"]
-			if !ok {
-				cclog.ComponentError(
-					m.name,
-					"Read(): Failed to get filesystem name.")
-				continue
-			}
+		key_value := make(map[string]string)
+		for i := 1; i < len(lineSplit); i += 2 {
+			key_value[lineSplit[i]] = lineSplit[i+1]
+		}
 
-			m.tags["filesystem"] = filesystem
+		// Ignore keys:
+		// _n_:  node IP address,
+		// _nn_: node name,
+		// _cl_: cluster name,
+		// _d_:  number of disks
 
-			// return code
-			rc, err := strconv.Atoi(key_value["_rc_"])
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert return code '%s' to int: %v", key_value["_rc_"], err))
-				continue
-			}
-			if rc != 0 {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Filesystem '%s' is not ok.", filesystem))
-				continue
-			}
+		filesystem, ok := key_value["_fs_"]
+		if !ok {
+			cclog.ComponentError(
+				m.name,
+				"Read(): Failed to get filesystem name.")
+			continue
+		}
 
-			sec, err := strconv.ParseInt(key_value["_t_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err))
-				continue
-			}
-			msec, err := strconv.ParseInt(key_value["_tu_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err))
-				continue
-			}
-			timestamp := time.Unix(sec, msec*1000)
+		// Skip excluded filesystems
+		if _, skip := m.skipFS[filesystem]; skip {
+			continue
+		}
 
-			// bytes read
-			bytesRead, err := strconv.ParseInt(key_value["_br_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert bytes read '%s' to int64: %v", key_value["_br_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp); err == nil {
-				output <- y
-			}
+		m.tags["filesystem"] = filesystem
 
-			// bytes written
-			bytesWritten, err := strconv.ParseInt(key_value["_bw_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert bytes written '%s' to int64: %v", key_value["_bw_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp); err == nil {
-				output <- y
-			}
+		// return code
+		rc, err := strconv.Atoi(key_value["_rc_"])
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert return code '%s' to int: %v", key_value["_rc_"], err))
+			continue
+		}
+		if rc != 0 {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Filesystem '%s' is not ok.", filesystem))
+			continue
+		}
 
-			// number of opens
-			numOpens, err := strconv.ParseInt(key_value["_oc_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of opens '%s' to int64: %v", key_value["_oc_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp); err == nil {
-				output <- y
-			}
+		sec, err := strconv.ParseInt(key_value["_t_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err))
+			continue
+		}
+		msec, err := strconv.ParseInt(key_value["_tu_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err))
+			continue
+		}
+		timestamp := time.Unix(sec, msec*1000)
 
-			// number of closes
-			numCloses, err := strconv.ParseInt(key_value["_cc_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of closes: '%s' to int64: %v", key_value["_cc_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp); err == nil {
-				output <- y
-			}
+		// bytes read
+		bytesRead, err := strconv.ParseInt(key_value["_br_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert bytes read '%s' to int64: %v", key_value["_br_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp); err == nil {
+			output <- y
+		}
 
-			// number of reads
-			numReads, err := strconv.ParseInt(key_value["_rdc_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of reads: '%s' to int64: %v", key_value["_rdc_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp); err == nil {
-				output <- y
-			}
+		// bytes written
+		bytesWritten, err := strconv.ParseInt(key_value["_bw_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert bytes written '%s' to int64: %v", key_value["_bw_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp); err == nil {
+			output <- y
+		}
 
-			// number of writes
-			numWrites, err := strconv.ParseInt(key_value["_wc_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of writes: '%s' to int64: %v", key_value["_wc_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp); err == nil {
-				output <- y
-			}
+		// number of opens
+		numOpens, err := strconv.ParseInt(key_value["_oc_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert number of opens '%s' to int64: %v", key_value["_oc_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp); err == nil {
+			output <- y
+		}
 
-			// number of read directories
-			numReaddirs, err := strconv.ParseInt(key_value["_dir_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of read directories: '%s' to int64: %v", key_value["_dir_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp); err == nil {
-				output <- y
-			}
+		// number of closes
+		numCloses, err := strconv.ParseInt(key_value["_cc_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert number of closes: '%s' to int64: %v", key_value["_cc_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp); err == nil {
+			output <- y
+		}
 
-			// Number of inode updates
-			numInodeUpdates, err := strconv.ParseInt(key_value["_iu_"], 10, 64)
-			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert number of inode updates: '%s' to int: %v", key_value["_iu_"], err))
-				continue
-			}
-			if y, err := lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
-				output <- y
-			}
+		// number of reads
+		numReads, err := strconv.ParseInt(key_value["_rdc_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert number of reads: '%s' to int64: %v", key_value["_rdc_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp); err == nil {
+			output <- y
+		}
+
+		// number of writes
+		numWrites, err := strconv.ParseInt(key_value["_wc_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert number of writes: '%s' to int64: %v", key_value["_wc_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp); err == nil {
+			output <- y
+		}
+
+		// number of read directories
+		numReaddirs, err := strconv.ParseInt(key_value["_dir_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert number of read directories: '%s' to int64: %v", key_value["_dir_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp); err == nil {
+			output <- y
+		}
+
+		// Number of inode updates
+		numInodeUpdates, err := strconv.ParseInt(key_value["_iu_"], 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert number of inode updates: '%s' to int: %v", key_value["_iu_"], err))
+			continue
+		}
+		if y, err := lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
+			output <- y
 		}
 	}
 }
