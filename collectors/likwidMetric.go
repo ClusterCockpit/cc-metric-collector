@@ -435,14 +435,16 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 				}
 				m.mresults[group][tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
-				tags := map[string]string{"type": metric.Scope.String()}
-				if metric.Scope != "node" {
-					tags["type-id"] = fmt.Sprintf("%d", domain)
-				}
-				fields := map[string]interface{}{"value": value}
-				y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
-				if err == nil {
-					output <- y
+				if metric.Publish {
+					tags := map[string]string{"type": metric.Scope.String()}
+					if metric.Scope != "node" {
+						tags["type-id"] = fmt.Sprintf("%d", domain)
+					}
+					fields := map[string]interface{}{"value": value}
+					y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+					if err == nil {
+						output <- y
+					}
 				}
 			}
 		}
@@ -472,14 +474,16 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 				}
 				m.gmresults[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
-				tags := map[string]string{"type": metric.Scope.String()}
-				if metric.Scope != "node" {
-					tags["type-id"] = fmt.Sprintf("%d", domain)
-				}
-				fields := map[string]interface{}{"value": value}
-				y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
-				if err == nil {
-					output <- y
+				if metric.Publish {
+					tags := map[string]string{"type": metric.Scope.String()}
+					if metric.Scope != "node" {
+						tags["type-id"] = fmt.Sprintf("%d", domain)
+					}
+					fields := map[string]interface{}{"value": value}
+					y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+					if err == nil {
+						output <- y
+					}
 				}
 			}
 		}
