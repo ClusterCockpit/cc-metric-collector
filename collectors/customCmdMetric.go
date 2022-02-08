@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	ccmetric "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
 )
@@ -97,7 +98,8 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			if skip {
 				continue
 			}
-			y, err := lp.New(c.Name(), Tags2Map(c), m.meta, Fields2Map(c), c.Time())
+
+			y := ccmetric.FromInfluxMetric(c)
 			if err == nil {
 				output <- y
 			}
@@ -119,7 +121,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			if skip {
 				continue
 			}
-			y, err := lp.New(f.Name(), Tags2Map(f), m.meta, Fields2Map(f), f.Time())
+			y := ccmetric.FromInfluxMetric(f)
 			if err == nil {
 				output <- y
 			}

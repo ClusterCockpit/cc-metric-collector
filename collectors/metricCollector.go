@@ -10,7 +10,6 @@ import (
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	influx "github.com/influxdata/line-protocol"
 )
 
 type MetricCollector interface {
@@ -113,24 +112,6 @@ func CpuList() []int {
 		}
 	}
 	return cpulist
-}
-
-// Tags2Map stores a InfluxDB list of tags in a map of key value pairs
-func Tags2Map(metric influx.Metric) map[string]string {
-	tags := make(map[string]string)
-	for _, t := range metric.TagList() {
-		tags[t.Key] = t.Value
-	}
-	return tags
-}
-
-// Fields2Map stores a InfluxDB list of fields in a map of key value pairs
-func Fields2Map(metric influx.Metric) map[string]interface{} {
-	fields := make(map[string]interface{})
-	for _, f := range metric.FieldList() {
-		fields[f.Key] = f.Value
-	}
-	return fields
 }
 
 // RemoveFromStringList removes the string r from the array of strings s
