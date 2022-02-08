@@ -2,6 +2,7 @@ package sinks
 
 import (
 	//	"context"
+
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -11,7 +12,6 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
 
 type InfluxAsyncSinkConfig struct {
@@ -88,22 +88,9 @@ func (s *InfluxAsyncSink) Init(config json.RawMessage) error {
 	return err
 }
 
-func (s *InfluxAsyncSink) Write(point lp.CCMetric) error {
-	var p *write.Point
-	if s.config.MetaAsTags {
-		tags := map[string]string{}
-		for k, v := range point.Tags() {
-			tags[k] = v
-		}
-		for k, v := range point.Meta() {
-			tags[k] = v
-		}
-		p = influxdb2.NewPoint(point.Name(), tags, point.Fields(), point.Time())
-	} else {
-		p = influxdb2.NewPoint(point.Name(), point.Tags(), point.Fields(), point.Time())
-	}
-
-	s.writeApi.WritePoint(p)
+func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
+	s.writeApi.WritePoint(
+		m.ToPoint(s.config.MetaAsTags))
 	return nil
 }
 

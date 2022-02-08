@@ -76,18 +76,12 @@ func (s *InfluxSink) Init(config json.RawMessage) error {
 	return s.connect()
 }
 
-func (s *InfluxSink) Write(point lp.CCMetric) error {
-	tags := make(map[string]string)
-	for key, value := range point.Tags() {
-		tags[key] = value
-	}
-	if s.config.MetaAsTags {
-		for key, value := range point.Meta() {
-			tags[key] = value
-		}
-	}
-	p := influxdb2.NewPoint(point.Name(), tags, point.Fields(), point.Time())
-	err := s.writeApi.WritePoint(context.Background(), p)
+func (s *InfluxSink) Write(m lp.CCMetric) error {
+	err :=
+		s.writeApi.WritePoint(
+			context.Background(),
+			m.ToPoint(s.config.MetaAsTags),
+		)
 	return err
 }
 
