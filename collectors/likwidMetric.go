@@ -45,7 +45,7 @@ func (ms MetricScope) String() string {
 
 func (ms MetricScope) Likwid() string {
 	LikwidDomains := map[string]string{
-		"hwthread":   "",
+		"cpu":        "",
 		"core":       "",
 		"llc":        "C",
 		"numadomain": "M",
@@ -66,7 +66,7 @@ func (ms MetricScope) Granularity() int {
 }
 
 func GetAllMetricScopes() []MetricScope {
-	return []MetricScope{"hwthread" /*, "core", "llc", "numadomain", "die",*/, "socket", "node"}
+	return []MetricScope{"cpu" /*, "core", "llc", "numadomain", "die",*/, "socket", "node"}
 }
 
 type LikwidCollectorMetricConfig struct {
@@ -124,12 +124,12 @@ func eventsToEventStr(events map[string]string) string {
 
 func getGranularity(counter, event string) MetricScope {
 	if strings.HasPrefix(counter, "PMC") || strings.HasPrefix(counter, "FIXC") {
-		return "hwthread"
+		return "cpu"
 	} else if strings.Contains(counter, "BOX") || strings.Contains(counter, "DEV") {
 		return "socket"
 	} else if strings.HasPrefix(counter, "PWR") {
 		if event == "RAPL_CORE_ENERGY" {
-			return "hwthread"
+			return "cpu"
 		} else {
 			return "socket"
 		}
@@ -142,7 +142,7 @@ func getBaseFreq() float64 {
 	C.power_init(0)
 	info := C.get_powerInfo()
 	if float64(info.baseFrequency) != 0 {
-		freq = float64(info.baseFrequency)
+		freq = float64(info.baseFrequency) * 1e3
 	} else {
 		buffer, err := ioutil.ReadFile("/sys/devices/system/cpu/cpu0/cpufreq/bios_limit")
 		if err == nil {
@@ -168,7 +168,7 @@ func (m *LikwidCollector) initGranularity() {
 		}
 		for i, metric := range evset.Metrics {
 			s := splitRegex.Split(metric.Calc, -1)
-			gran := MetricScope("hwthread")
+			gran := MetricScope("cpu")
 			evset.Metrics[i].granulatity = gran
 			for _, x := range s {
 				if _, ok := evset.Events[x]; ok {
@@ -182,7 +182,7 @@ func (m *LikwidCollector) initGranularity() {
 	}
 	for i, metric := range m.config.Metrics {
 		s := splitRegex.Split(metric.Calc, -1)
-		gran := MetricScope("hwthread")
+		gran := MetricScope("cpu")
 		m.config.Metrics[i].granulatity = gran
 		for _, x := range s {
 			for _, evset := range m.config.Eventsets {
@@ -221,6 +221,9 @@ func (m *LikwidCollector) getResponsiblities() map[MetricScope]map[int]int {
 		// case "llc":
 		// 	input = fmt.Sprintf("%s%d:0", scope.Likwid(), s)
 		// 	slist = topo.LLCacheList()
+		case "cpu":
+			input = func(index int) string { return fmt.Sprintf("%d", index) }
+			slist = topo.CpuList()
 		case "hwthread":
 			input = func(index int) string { return fmt.Sprintf("%d", index) }
 			slist = topo.CpuList()
@@ -284,7 +287,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		return err
 	}
 
-	// Determine which counter works at which level. PMC*: hwthread, *BOX*: socket, ...
+	// Determine which counter works at which level. PMC*: cpu, *BOX*: socket, ...
 	m.initGranularity()
 	// Generate map for MetricScope -> scope_id (like socket id) -> responsible id (offset in cpulist)
 	m.scopeRespTids = m.getResponsiblities()
@@ -359,6 +362,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		return err
 	}
 	m.basefreq = getBaseFreq()
+	cclog.ComponentDebug(m.name, "BaseFreq", m.basefreq)
 	m.init = true
 	return nil
 }
@@ -399,6 +403,7 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 	var eidx C.int
 	evset := m.config.Eventsets[group]
 	gid := m.groups[group]
+	invClock := float64(1.0 / m.basefreq)
 
 	// Go over events and get the results
 	for eidx = 0; int(eidx) < len(evset.Events); eidx++ {
@@ -414,7 +419,7 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 		for _, tid := range scopemap {
 			if tid >= 0 {
 				m.results[group][tid]["time"] = interval.Seconds()
-				m.results[group][tid]["inverseClock"] = float64(1.0 / m.basefreq)
+				m.results[group][tid]["inverseClock"] = invClock
 				res := C.perfmon_getLastResult(gid, eidx, C.int(tid))
 				m.results[group][tid][gctr] = float64(res)
 			}
@@ -438,15 +443,17 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 					value = 0.0
 				}
 				// Now we have the result, send it with the proper tags
-				if metric.Publish && !math.IsNaN(value) {
-					tags := map[string]string{"type": metric.Scope.String()}
-					if metric.Scope != "node" {
-						tags["type-id"] = fmt.Sprintf("%d", domain)
-					}
-					fields := map[string]interface{}{"value": value}
-					y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
-					if err == nil {
-						output <- y
+				if !math.IsNaN(value) {
+					if metric.Publish {
+						tags := map[string]string{"type": metric.Scope.String()}
+						if metric.Scope != "node" {
+							tags["type-id"] = fmt.Sprintf("%d", domain)
+						}
+						fields := map[string]interface{}{"value": value}
+						y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+						if err == nil {
+							output <- y
+						}
 					}
 				}
 			}
@@ -480,15 +487,17 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 					value = 0.0
 				}
 				// Now we have the result, send it with the proper tags
-				if metric.Publish && !math.IsNaN(value) {
-					tags := map[string]string{"type": metric.Scope.String()}
-					if metric.Scope != "node" {
-						tags["type-id"] = fmt.Sprintf("%d", domain)
-					}
-					fields := map[string]interface{}{"value": value}
-					y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
-					if err == nil {
-						output <- y
+				if !math.IsNaN(value) {
+					if metric.Publish {
+						tags := map[string]string{"type": metric.Scope.String()}
+						if metric.Scope != "node" {
+							tags["type-id"] = fmt.Sprintf("%d", domain)
+						}
+						fields := map[string]interface{}{"value": value}
+						y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+						if err == nil {
+							output <- y
+						}
 					}
 				}
 			}
