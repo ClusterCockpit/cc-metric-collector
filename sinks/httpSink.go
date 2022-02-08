@@ -57,8 +57,8 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (s *HttpSink) Write(point lp.CCMetric) error {
-	_, err := s.encoder.Encode(point)
+func (s *HttpSink) Write(m lp.CCMetric) error {
+	_, err := s.encoder.Encode(m.ToPoint(s.config.MetaAsTags))
 	return err
 }
 

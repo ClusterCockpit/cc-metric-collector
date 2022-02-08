@@ -51,34 +51,34 @@ func (s *StdoutSink) Init(config json.RawMessage) error {
 func (s *StdoutSink) Write(point lp.CCMetric) error {
 	var tagsstr []string
 	var fieldstr []string
-	for _, t := range point.TagList() {
-		tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", t.Key, t.Value))
+	for key, value := range point.Tags() {
+		tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", key, value))
 	}
 	if s.meta_as_tags {
-		for _, m := range point.MetaList() {
-			tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", m.Key, m.Value))
+		for key, value := range point.Meta() {
+			tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", key, value))
 		}
 	}
-	for key, value := range point.Fields() {
-		switch value.(type) {
+	for key, v := range point.Fields() {
+		switch value := v.(type) {
 		case float64:
-			if !math.IsNaN(value.(float64)) {
-				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, value.(float64)))
+			if !math.IsNaN(value) {
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, v))
 			} else {
 				fieldstr = append(fieldstr, fmt.Sprintf("%s=0.0", key))
 			}
 		case float32:
-			if !math.IsNaN(float64(value.(float32))) {
-				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, value.(float32)))
+			if !math.IsNaN(float64(value)) {
+				fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, v))
 			} else {
 				fieldstr = append(fieldstr, fmt.Sprintf("%s=0.0", key))
 			}
 		case int:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", key, value.(int)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", key, v))
 		case int64:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", key, value.(int64)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%d", key, v))
 		case string:
-			fieldstr = append(fieldstr, fmt.Sprintf("%s=%q", key, value.(string)))
+			fieldstr = append(fieldstr, fmt.Sprintf("%s=%q", key, v))
 		default:
 			fieldstr = append(fieldstr, fmt.Sprintf("%s=%v", key, value))
 		}

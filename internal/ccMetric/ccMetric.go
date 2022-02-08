@@ -2,7 +2,6 @@ package ccmetric
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -25,29 +24,28 @@ type ccMetric struct {
 
 // ccmetric access functions
 type CCMetric interface {
-	lp.Metric                              // Time(), Name(), TagList(), FieldList()
 	ToLineProtocol(metaAsTags bool) string // Generate influxDB line protocol for data type ccMetric
 	ToPoint(metaAsTags bool) *write.Point  // Generate influxDB point for data type ccMetric
 
+	Name() string        // Get metric name
 	SetName(name string) // Set metric name
+
+	Time() time.Time     // Get timestamp
 	SetTime(t time.Time) // Set timestamp
 
 	Tags() map[string]string                   // Map of tags
-	TagList() []*lp.Tag                        // Ordered list of tags
 	AddTag(key, value string)                  // Add a tag
 	GetTag(key string) (value string, ok bool) // Get a tag by its key
 	HasTag(key string) (ok bool)               // Check a tag
 	RemoveTag(key string)                      // Remove a tag by its key
 
 	Meta() map[string]string                    // Map of meta data tags
-	MetaList() []*lp.Tag                        // Ordered list of meta data
 	AddMeta(key, value string)                  // Add a meta data tag
 	GetMeta(key string) (value string, ok bool) // Get a meta data tab addressed by its key
 	HasMeta(key string) (ok bool)               // Check a meta data tag
 	RemoveMeta(key string)                      // Remove a meta data tag by its key
 
 	Fields() map[string]interface{}                   // Map of fields
-	FieldList() []*lp.Field                           // Ordered list of fields
 	AddField(key string, value interface{})           // Add a field
 	GetField(key string) (value interface{}, ok bool) // Get a field addressed by its key
 	HasField(key string) (ok bool)                    // Check if a field key is present
@@ -57,17 +55,6 @@ type CCMetric interface {
 // Meta returns the meta data tags as key-value mapping
 func (m *ccMetric) Meta() map[string]string {
 	return m.meta
-}
-
-// MetaList returns the the list of meta data tags as sorted list of key value tags
-func (m *ccMetric) MetaList() []*lp.Tag {
-
-	ml := make([]*lp.Tag, 0, len(m.meta))
-	for key, value := range m.meta {
-		ml = append(ml, &lp.Tag{Key: key, Value: value})
-	}
-	sort.Slice(ml, func(i, j int) bool { return ml[i].Key < ml[j].Key })
-	return ml
 }
 
 // String implements the stringer interface for data type ccMetric
@@ -116,28 +103,9 @@ func (m *ccMetric) Tags() map[string]string {
 	return m.tags
 }
 
-// TagList returns the the list of tags as sorted list of key value tags
-func (m *ccMetric) TagList() []*lp.Tag {
-	tl := make([]*lp.Tag, 0, len(m.tags))
-	for key, value := range m.tags {
-		tl = append(tl, &lp.Tag{Key: key, Value: value})
-	}
-	sort.Slice(tl, func(i, j int) bool { return tl[i].Key < tl[j].Key })
-	return tl
-}
-
 // Fields returns the list of fields as key-value-mapping
 func (m *ccMetric) Fields() map[string]interface{} {
 	return m.fields
-}
-
-// FieldList returns the list of fields
-func (m *ccMetric) FieldList() []*lp.Field {
-	fieldList := make([]*lp.Field, 0, len(m.fields))
-	for key, value := range m.fields {
-		fieldList = append(fieldList, &lp.Field{Key: key, Value: value})
-	}
-	return fieldList
 }
 
 // Time returns timestamp

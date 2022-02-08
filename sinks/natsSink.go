@@ -77,9 +77,9 @@ func (s *NatsSink) Init(config json.RawMessage) error {
 	return s.connect()
 }
 
-func (s *NatsSink) Write(point lp.CCMetric) error {
+func (s *NatsSink) Write(m lp.CCMetric) error {
 	if s.client != nil {
-		_, err := s.encoder.Encode(point)
+		_, err := s.encoder.Encode(m.ToPoint(s.config.MetaAsTags))
 		if err != nil {
 			cclog.ComponentError(s.name, "Write:", err.Error())
 			return err
