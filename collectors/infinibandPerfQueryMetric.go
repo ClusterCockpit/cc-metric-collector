@@ -50,6 +50,9 @@ func (m *InfinibandPerfQueryCollector) Init(config json.RawMessage) error {
 	m.lids = make(map[string]map[string]string)
 	p := fmt.Sprintf("%s/*/ports/*/lid", string(IB_BASEPATH))
 	files, err := filepath.Glob(p)
+	if err != nil {
+		return err
+	}
 	for _, f := range files {
 		lid, err := ioutil.ReadFile(f)
 		if err == nil {
