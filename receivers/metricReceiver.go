@@ -3,7 +3,6 @@ package receivers
 import (
 	//	"time"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	influx "github.com/influxdata/line-protocol"
 )
 
 type ReceiverConfig struct {
@@ -37,20 +36,4 @@ func (r *receiver) Name() string {
 
 func (r *receiver) SetSink(sink chan lp.CCMetric) {
 	r.sink = sink
-}
-
-func Tags2Map(metric influx.Metric) map[string]string {
-	tags := make(map[string]string)
-	for _, t := range metric.TagList() {
-		tags[t.Key] = t.Value
-	}
-	return tags
-}
-
-func Fields2Map(metric influx.Metric) map[string]interface{} {
-	fields := make(map[string]interface{})
-	for _, f := range metric.FieldList() {
-		fields[f.Key] = f.Value
-	}
-	return fields
 }
