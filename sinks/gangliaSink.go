@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	//	"time"
@@ -116,10 +115,9 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 			}
 		}
 	}
-	log.Print(s.gmetric_path, " ", strings.Join(argstr, " "))
-	//	command := exec.Command(string(GMETRIC_EXEC), strings.Join(argstr, " "))
-	//	command.Wait()
-	//	_, err := command.Output()
+	command := exec.Command(string(GMETRIC_EXEC), strings.Join(argstr, " "))
+	command.Wait()
+	_, err = command.Output()
 	return err
 }
 
