@@ -77,7 +77,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 		m.topology = append(m.topology,
 			NUMAStatsCollectorTopolgy{
 				file:   file,
-				tagSet: map[string]string{"domain": node},
+				tagSet: map[string]string{"memoryDomain": node},
 			})
 	}
 
