@@ -95,23 +95,23 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 		argstr = append(argstr, fmt.Sprintf("--desc=%q", strings.Join(tagsstr, ",")))
 	}
 	argstr = append(argstr, fmt.Sprintf("--name=%s", point.Name()))
-	for _, f := range point.FieldList() {
-		if f.Key == "value" {
-			switch f.Value.(type) {
+	for k, v := range point.Fields() {
+		if k == "value" {
+			switch value := v.(type) {
 			case float64:
-				argstr = append(argstr, fmt.Sprintf("--value=%v", f.Value.(float64)))
+				argstr = append(argstr, fmt.Sprintf("--value=%v", value))
 				argstr = append(argstr, "--type=double")
 			case float32:
-				argstr = append(argstr, fmt.Sprintf("--value=%v", f.Value.(float32)))
+				argstr = append(argstr, fmt.Sprintf("--value=%v", value))
 				argstr = append(argstr, "--type=float")
 			case int:
-				argstr = append(argstr, fmt.Sprintf("--value=%d", f.Value.(int)))
+				argstr = append(argstr, fmt.Sprintf("--value=%d", value))
 				argstr = append(argstr, "--type=int32")
 			case int64:
-				argstr = append(argstr, fmt.Sprintf("--value=%d", f.Value.(int64)))
+				argstr = append(argstr, fmt.Sprintf("--value=%d", value))
 				argstr = append(argstr, "--type=int32")
 			case string:
-				argstr = append(argstr, fmt.Sprintf("--value=%q", f.Value.(string)))
+				argstr = append(argstr, fmt.Sprintf("--value=%q", value))
 				argstr = append(argstr, "--type=string")
 			}
 		}
