@@ -14,17 +14,20 @@ import (
 )
 
 const GMETRIC_EXEC = `gmetric`
+const GMETRIC_CONFIG = `/etc/ganglia/gmond.conf`
 
 type GangliaSinkConfig struct {
 	defaultSinkConfig
-	GmetricPath     string `json:"gmetric_path"`
-	AddGangliaGroup bool   `json:"add_ganglia_group"`
+	GmetricPath     string `json:"gmetric_path,omitempty"`
+	GmetricConfig   string `json:"gmetric_config,omitempty"`
+	AddGangliaGroup bool   `json:"add_ganglia_group,omitempty"`
 }
 
 type GangliaSink struct {
 	sink
-	gmetric_path string
-	config       GangliaSinkConfig
+	gmetric_path   string
+	gmetric_config string
+	config         GangliaSinkConfig
 }
 
 func (s *GangliaSink) Init(config json.RawMessage) error {
@@ -38,6 +41,7 @@ func (s *GangliaSink) Init(config json.RawMessage) error {
 		}
 	}
 	s.gmetric_path = ""
+	s.gmetric_config = ""
 	if len(s.config.GmetricPath) > 0 {
 		p, err := exec.LookPath(s.config.GmetricPath)
 		if err == nil {
@@ -52,6 +56,9 @@ func (s *GangliaSink) Init(config json.RawMessage) error {
 	}
 	if len(s.gmetric_path) == 0 {
 		err = errors.New("cannot find executable 'gmetric'")
+	}
+	if len(s.config.GmetricConfig) > 0 {
+		s.gmetric_config = s.config.GmetricConfig
 	}
 	return err
 }
@@ -93,6 +100,9 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	if len(tagsstr) > 0 {
 		argstr = append(argstr, fmt.Sprintf("--desc=%q", strings.Join(tagsstr, ",")))
 	}
+	if len(s.gmetric_config) > 0 {
+		argstr = append(argstr, fmt.Sprintf("--conf=%s", s.gmetric_config))
+	}
 	argstr = append(argstr, fmt.Sprintf("--name=%s", point.Name()))
 	for k, v := range point.Fields() {
 		if k == "value" {
@@ -115,7 +125,7 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 			}
 		}
 	}
-	command := exec.Command(string(GMETRIC_EXEC), strings.Join(argstr, " "))
+	command := exec.Command(s.gmetric_path, argstr...)
 	command.Wait()
 	_, err = command.Output()
 	return err
