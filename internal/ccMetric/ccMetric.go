@@ -22,10 +22,10 @@ type ccMetric struct {
 	tm     time.Time              // timestamp
 }
 
-// ccmetric access functions
+// ccMetric access functions
 type CCMetric interface {
-	ToLineProtocol(metaAsTags bool) string // Generate influxDB line protocol for data type ccMetric
 	ToPoint(metaAsTags bool) *write.Point  // Generate influxDB point for data type ccMetric
+	ToLineProtocol(metaAsTags bool) string // Generate influxDB line protocol for data type ccMetric
 
 	Name() string        // Get metric name
 	SetName(name string) // Set metric name
@@ -36,13 +36,13 @@ type CCMetric interface {
 	Tags() map[string]string                   // Map of tags
 	AddTag(key, value string)                  // Add a tag
 	GetTag(key string) (value string, ok bool) // Get a tag by its key
-	HasTag(key string) (ok bool)               // Check a tag
+	HasTag(key string) (ok bool)               // Check if a tag key is present
 	RemoveTag(key string)                      // Remove a tag by its key
 
 	Meta() map[string]string                    // Map of meta data tags
 	AddMeta(key, value string)                  // Add a meta data tag
 	GetMeta(key string) (value string, ok bool) // Get a meta data tab addressed by its key
-	HasMeta(key string) (ok bool)               // Check a meta data tag
+	HasMeta(key string) (ok bool)               // Check if a meta data key is present
 	RemoveMeta(key string)                      // Remove a meta data tag by its key
 
 	Fields() map[string]interface{}                   // Map of fields
@@ -52,14 +52,12 @@ type CCMetric interface {
 	RemoveField(key string)                           // Remove a field addressed by its key
 }
 
-// Meta returns the meta data tags as key-value mapping
-func (m *ccMetric) Meta() map[string]string {
-	return m.meta
-}
-
 // String implements the stringer interface for data type ccMetric
 func (m *ccMetric) String() string {
-	return fmt.Sprintf("Name: %s, Tags: %+v, Meta: %+v, fields: %+v, Timestamp: %d", m.name, m.tags, m.meta, m.fields, m.tm.UnixNano())
+	return fmt.Sprintf(
+		"Name: %s, Tags: %+v, Meta: %+v, fields: %+v, Timestamp: %d",
+		m.name, m.tags, m.meta, m.fields, m.tm.UnixNano(),
+	)
 }
 
 // ToLineProtocol generates influxDB line protocol for data type ccMetric
@@ -94,18 +92,9 @@ func (m *ccMetric) Name() string {
 	return m.name
 }
 
+// SetName sets the measurement name
 func (m *ccMetric) SetName(name string) {
 	m.name = name
-}
-
-// Tags returns the the list of tags as key-value-mapping
-func (m *ccMetric) Tags() map[string]string {
-	return m.tags
-}
-
-// Fields returns the list of fields as key-value-mapping
-func (m *ccMetric) Fields() map[string]interface{} {
-	return m.fields
 }
 
 // Time returns timestamp
@@ -118,10 +107,14 @@ func (m *ccMetric) SetTime(t time.Time) {
 	m.tm = t
 }
 
-// HasTag checks if a tag with key equal to <key> is present in the list of tags
-func (m *ccMetric) HasTag(key string) bool {
-	_, ok := m.tags[key]
-	return ok
+// Tags returns the the list of tags as key-value-mapping
+func (m *ccMetric) Tags() map[string]string {
+	return m.tags
+}
+
+// AddTag adds a tag (consisting of key and value) to the map of tags
+func (m *ccMetric) AddTag(key, value string) {
+	m.tags[key] = value
 }
 
 // GetTag returns the tag with tag's key equal to <key>
@@ -130,22 +123,25 @@ func (m *ccMetric) GetTag(key string) (string, bool) {
 	return value, ok
 }
 
+// HasTag checks if a tag with key equal to <key> is present in the list of tags
+func (m *ccMetric) HasTag(key string) bool {
+	_, ok := m.tags[key]
+	return ok
+}
+
 // RemoveTag removes the tag with tag's key equal to <key>
-// and keeps the tag list ordered by the keys
 func (m *ccMetric) RemoveTag(key string) {
 	delete(m.tags, key)
 }
 
-// AddTag adds a tag (consisting of key and value)
-// and keeps the tag list ordered by the keys
-func (m *ccMetric) AddTag(key, value string) {
-	m.tags[key] = value
+// Meta returns the meta data tags as key-value mapping
+func (m *ccMetric) Meta() map[string]string {
+	return m.meta
 }
 
-// HasTag checks if a meta data tag with meta data's key equal to <key> is present in the list of meta data tags
-func (m *ccMetric) HasMeta(key string) bool {
-	_, ok := m.meta[key]
-	return ok
+// AddMeta adds a meta data tag (consisting of key and value) to the map of meta data tags
+func (m *ccMetric) AddMeta(key, value string) {
+	m.meta[key] = value
 }
 
 // GetMeta returns the meta data tag with meta data's key equal to <key>
@@ -154,19 +150,23 @@ func (m *ccMetric) GetMeta(key string) (string, bool) {
 	return value, ok
 }
 
+// HasMeta checks if a meta data tag with meta data's key equal to <key> is present in the map of meta data tags
+func (m *ccMetric) HasMeta(key string) bool {
+	_, ok := m.meta[key]
+	return ok
+}
+
 // RemoveMeta removes the meta data tag with tag's key equal to <key>
-// and keeps the meta data tag list ordered by the keys
 func (m *ccMetric) RemoveMeta(key string) {
 	delete(m.meta, key)
 }
 
-// AddMeta adds a meta data tag (consisting of key and value)
-// and keeps the meta data list ordered by the keys
-func (m *ccMetric) AddMeta(key, value string) {
-	m.meta[key] = value
+// Fields returns the list of fields as key-value-mapping
+func (m *ccMetric) Fields() map[string]interface{} {
+	return m.fields
 }
 
-// AddField adds a field (consisting of key and value) to the unordered list of fields
+// AddField adds a field (consisting of key and value) to the map of fields
 func (m *ccMetric) AddField(key string, value interface{}) {
 	m.fields[key] = value
 }
@@ -177,14 +177,14 @@ func (m *ccMetric) GetField(key string) (interface{}, bool) {
 	return v, ok
 }
 
-// HasField checks if a field with field's key equal to <key> is present in the list of fields
+// HasField checks if a field with field's key equal to <key> is present in the map of fields
 func (m *ccMetric) HasField(key string) bool {
 	_, ok := m.fields[key]
 	return ok
 }
 
 // RemoveField removes the field with field's key equal to <key>
-// from the unordered list of fields
+// from the map of fields
 func (m *ccMetric) RemoveField(key string) {
 	delete(m.fields, key)
 }
@@ -205,17 +205,13 @@ func New(
 		tm:     tm,
 	}
 
-	// deep copy tags
+	// deep copy tags, meta data tags and fields
 	for k, v := range tags {
 		m.tags[k] = v
 	}
-
-	// deep copy meta data tags
 	for k, v := range meta {
 		m.meta[k] = v
 	}
-
-	// Unsorted list of fields
 	for k, v := range fields {
 		v := convertField(v)
 		if v == nil {
@@ -231,12 +227,13 @@ func New(
 func FromMetric(other ccMetric) CCMetric {
 	m := &ccMetric{
 		name:   other.Name(),
-		tags:   make(map[string]string),
-		meta:   make(map[string]string),
-		fields: make(map[string]interface{}),
+		tags:   make(map[string]string, len(other.tags)),
+		meta:   make(map[string]string, len(other.meta)),
+		fields: make(map[string]interface{}, len(other.fields)),
 		tm:     other.Time(),
 	}
 
+	// deep copy tags, meta data tags and fields
 	for key, value := range other.tags {
 		m.tags[key] = value
 	}
@@ -259,6 +256,7 @@ func FromInfluxMetric(other lp.Metric) CCMetric {
 		tm:     other.Time(),
 	}
 
+	// deep copy tags and fields
 	for _, otherTag := range other.TagList() {
 		m.tags[otherTag.Key] = otherTag.Value
 	}
