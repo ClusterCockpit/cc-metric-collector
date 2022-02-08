@@ -22,8 +22,9 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`loadavg`](./loadavgMetric.md)
 * [`netstat`](./netstatMetric.md)
 * [`ibstat`](./infinibandMetric.md)
+* [`ibstat_perfquery`](./infinibandPerfQueryMetric.md)
 * [`tempstat`](./tempMetric.md)
-* [`lustre`](./lustreMetric.md)
+* [`lustrestat`](./lustreMetric.md)
 * [`likwid`](./likwidMetric.md)
 * [`nvidia`](./nvidiaMetric.md)
 * [`customcmd`](./customCmdMetric.md)
@@ -31,10 +32,14 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`topprocs`](./topprocsMetric.md)
 * [`nfs3stat`](./nfs3Metric.md)
 * [`nfs4stat`](./nfs4Metric.md)
+* [`cpufreq`](./cpufreqMetric.md)
+* [`cpufreq_cpuinfo`](./cpufreqCpuinfoMetric.md)
+* [`numastat`](./numastatMetric.md)
+* [`gpfs`](./gpfsMetric.md)
+* [`ipmistat`](./ipmiMetric.md)
 
 ## Todos
 
-* [ ] Exclude devices for `diskstat` collector
 * [ ] Aggreate metrics to higher topology entity (sum hwthread metrics to socket metric, ...). Needs to be configurable
 
 # Contributing own collectors
