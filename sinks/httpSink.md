@@ -13,7 +13,10 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
     "host": "dbhost.example.com",
     "port": "4222",
     "jwt" : "0x0000q231",
-    "ssl" : false
+    "ssl" : false,
+    "timeout": "5s",
+    "max_idle_connections" : 10,
+    "idle_connection_timeout" : "5s"
   }
 }
 ```
@@ -25,3 +28,6 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
 - `port`: Portnumber (as string) of the InfluxDB database server
 - `jwt`: JSON web tokens for authentification
 - `ssl`: Activate SSL encryption
+- `timeout`: General timeout for the HTTP client (default '5s')
+- `max_idle_connections`: Maximally idle connections (default 10)
+- `idle_connection_timeout`: Timeout for idle connections (default '5s')

@@ -14,25 +14,34 @@ import (
 
 type HttpSinkConfig struct {
 	defaultSinkConfig
-	Host     string `json:"host,omitempty"`
-	Port     string `json:"port,omitempty"`
-	Database string `json:"database,omitempty"`
-	JWT      string `json:"jwt,omitempty"`
-	SSL      bool   `json:"ssl,omitempty"`
+	Host            string `json:"host,omitempty"`
+	Port            string `json:"port,omitempty"`
+	Database        string `json:"database,omitempty"`
+	JWT             string `json:"jwt,omitempty"`
+	SSL             bool   `json:"ssl,omitempty"`
+	Timeout         string `json:"timeout,omitempty"`
+	MaxIdleConns    int    `json:"max_idle_connections,omitempty"`
+	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
 }
 
 type HttpSink struct {
 	sink
-	client   *http.Client
-	url, jwt string
-	encoder  *influx.Encoder
-	buffer   *bytes.Buffer
-	config   HttpSinkConfig
+	client          *http.Client
+	url, jwt        string
+	encoder         *influx.Encoder
+	buffer          *bytes.Buffer
+	config          HttpSinkConfig
+	maxIdleConns    int
+	idleConnTimeout time.Duration
+	timeout         time.Duration
 }
 
 func (s *HttpSink) Init(config json.RawMessage) error {
 	s.name = "HttpSink"
 	s.config.SSL = false
+	s.config.MaxIdleConns = 10
+	s.config.IdleConnTimeout = "5s"
+	s.config.Timeout = "5s"
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -42,8 +51,26 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 	if len(s.config.Host) == 0 || len(s.config.Port) == 0 || len(s.config.Database) == 0 {
 		return errors.New("`host`, `port` and `database` config options required for TCP sink")
 	}
-
-	s.client = &http.Client{}
+	if s.config.MaxIdleConns > 0 {
+		s.maxIdleConns = s.config.MaxIdleConns
+	}
+	if len(s.config.IdleConnTimeout) > 0 {
+		t, err := time.ParseDuration(s.config.IdleConnTimeout)
+		if err == nil {
+			s.idleConnTimeout = t
+		}
+	}
+	if len(s.config.Timeout) > 0 {
+		t, err := time.ParseDuration(s.config.Timeout)
+		if err == nil {
+			s.timeout = t
+		}
+	}
+	tr := &http.Transport{
+		MaxIdleConns:    s.maxIdleConns,
+		IdleConnTimeout: s.idleConnTimeout,
+	}
+	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
 	proto := "http"
 	if s.config.SSL {
 		proto = "https"
@@ -58,7 +85,8 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 }
 
 func (s *HttpSink) Write(m lp.CCMetric) error {
-	_, err := s.encoder.Encode(m.ToPoint(s.config.MetaAsTags))
+	p := m.ToPoint(s.config.MetaAsTags)
+	_, err := s.encoder.Encode(p)
 	return err
 }
 
