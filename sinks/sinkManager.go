@@ -37,38 +37,50 @@ type SinkManager interface {
 	Close()
 }
 
+// Init initializes the sink manager by:
+// * Reading its configuration file
+// * Adding the configured sinks and providing them with the corresponding config
 func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 	sm.input = nil
 	sm.done = make(chan bool)
 	sm.wg = wg
 	sm.sinks = make(map[string]Sink, 0)
 
+	if len(sinkConfigFile) == 0 {
+		return nil
+	}
+
 	// Read sink config file
-	if len(sinkConfigFile) > 0 {
-		configFile, err := os.Open(sinkConfigFile)
+	configFile, err := os.Open(sinkConfigFile)
+	if err != nil {
+		cclog.ComponentError("SinkManager", err.Error())
+		return err
+	}
+	defer configFile.Close()
+
+	// Parse config
+	jsonParser := json.NewDecoder(configFile)
+	var rawConfigs map[string]json.RawMessage
+	err = jsonParser.Decode(&rawConfigs)
+	if err != nil {
+		cclog.ComponentError("SinkManager", err.Error())
+		return err
+	}
+
+	// Start sinks
+	for name, raw := range rawConfigs {
+		err = sm.AddOutput(name, raw)
 		if err != nil {
 			cclog.ComponentError("SinkManager", err.Error())
-			return err
-		}
-		defer configFile.Close()
-		jsonParser := json.NewDecoder(configFile)
-		var rawConfigs map[string]json.RawMessage
-		err = jsonParser.Decode(&rawConfigs)
-		if err != nil {
-			cclog.ComponentError("SinkManager", err.Error())
-			return err
-		}
-		for name, raw := range rawConfigs {
-			err = sm.AddOutput(name, raw)
-			if err != nil {
-				cclog.ComponentError("SinkManager", err.Error())
-				continue
-			}
+			continue
 		}
 	}
+
 	return nil
 }
 
+// Start starts the sink managers background task, which
+// distributes received metrics to the sinks
 func (sm *sinkManager) Start() {
 	batchcount := 20
 
@@ -156,7 +168,7 @@ func (sm *sinkManager) Close() {
 
 // New creates a new initialized sink manager
 func New(wg *sync.WaitGroup, sinkConfigFile string) (SinkManager, error) {
-	sm := &sinkManager{}
+	sm := new(sinkManager)
 	err := sm.Init(wg, sinkConfigFile)
 	if err != nil {
 		return nil, err
