@@ -82,8 +82,6 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 // Start starts the sink managers background task, which
 // distributes received metrics to the sinks
 func (sm *sinkManager) Start() {
-	batchcount := 20
-
 	sm.wg.Add(1)
 	go func() {
 		defer sm.wg.Done()
@@ -91,7 +89,6 @@ func (sm *sinkManager) Start() {
 		// Sink manager is done
 		done := func() {
 			for _, s := range sm.sinks {
-				s.Flush()
 				s.Close()
 			}
 
@@ -111,16 +108,6 @@ func (sm *sinkManager) Start() {
 				for _, s := range sm.sinks {
 					s.Write(p)
 				}
-
-				// Flush all outputs
-				if batchcount == 0 {
-					cclog.ComponentDebug("SinkManager", "FLUSH")
-					for _, s := range sm.sinks {
-						s.Flush()
-					}
-					batchcount = 20
-				}
-				batchcount--
 			}
 		}
 	}()

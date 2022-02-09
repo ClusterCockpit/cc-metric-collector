@@ -22,6 +22,7 @@ type HttpSinkConfig struct {
 	Timeout         string `json:"timeout,omitempty"`
 	MaxIdleConns    int    `json:"max_idle_connections,omitempty"`
 	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
+	BatchSize       int    `json:"batch_size,omitempty"`
 }
 
 type HttpSink struct {
@@ -34,14 +35,19 @@ type HttpSink struct {
 	maxIdleConns    int
 	idleConnTimeout time.Duration
 	timeout         time.Duration
+	batchCounter    int
 }
 
 func (s *HttpSink) Init(config json.RawMessage) error {
+	// Set default values
 	s.name = "HttpSink"
 	s.config.SSL = false
 	s.config.MaxIdleConns = 10
 	s.config.IdleConnTimeout = "5s"
 	s.config.Timeout = "5s"
+	s.config.BatchSize = 20
+
+	// Read config
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -87,27 +93,40 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 func (s *HttpSink) Write(m lp.CCMetric) error {
 	p := m.ToPoint(s.config.MetaAsTags)
 	_, err := s.encoder.Encode(p)
+
+	// Flush when received more metrics than batch size
+	s.batchCounter++
+	if s.batchCounter > s.config.BatchSize {
+		s.Flush()
+	}
 	return err
 }
 
 func (s *HttpSink) Flush() error {
+	// Create new request to send buffer
 	req, err := http.NewRequest(http.MethodPost, s.url, s.buffer)
 	if err != nil {
 		return err
 	}
 
+	// Set authorization header
 	if len(s.jwt) != 0 {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.jwt))
 	}
 
+	// Send
 	res, err := s.client.Do(req)
+
+	// Clear buffer
 	s.buffer.Reset()
 
+	// Handle error code
 	if err != nil {
 		return err
 	}
 
-	if res.StatusCode != 200 {
+	// Handle status code
+	if res.StatusCode != http.StatusOK {
 		return errors.New(res.Status)
 	}
 
@@ -115,5 +134,6 @@ func (s *HttpSink) Flush() error {
 }
 
 func (s *HttpSink) Close() {
+	s.Flush()
 	s.client.CloseIdleConnections()
 }
