@@ -1,8 +1,6 @@
 package sinks
 
 import (
-	//	"context"
-
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -54,10 +52,14 @@ func (s *InfluxAsyncSink) connect() error {
 	if batch == 0 {
 		batch = 100
 	}
-	s.client = influxdb2.NewClientWithOptions(uri, auth,
-		influxdb2.DefaultOptions().SetBatchSize(batch).SetTLSConfig(&tls.Config{
+	clientOptions := influxdb2.DefaultOptions()
+	clientOptions.SetBatchSize(batch)
+	clientOptions.SetTLSConfig(
+		&tls.Config{
 			InsecureSkipVerify: true,
-		}))
+		},
+	)
+	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
 	return nil
 }
@@ -78,7 +80,11 @@ func (s *InfluxAsyncSink) Init(config json.RawMessage) error {
 		len(s.config.Password) == 0 {
 		return errors.New("not all configuration variables set required by InfluxAsyncSink")
 	}
+
+	// Connect to InfluxDB server
 	err := s.connect()
+
+	// Start background: Read from error channel
 	s.errors = s.writeApi.Errors()
 	go func() {
 		for err := range s.errors {
@@ -90,7 +96,8 @@ func (s *InfluxAsyncSink) Init(config json.RawMessage) error {
 
 func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
 	s.writeApi.WritePoint(
-		m.ToPoint(s.config.MetaAsTags))
+		m.ToPoint(s.config.MetaAsTags),
+	)
 	return nil
 }
 

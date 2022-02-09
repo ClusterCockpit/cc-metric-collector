@@ -46,14 +46,13 @@ func (s *InfluxSink) connect() error {
 		auth = fmt.Sprintf("%s:%s", s.config.User, s.config.Password)
 	}
 	cclog.ComponentDebug(s.name, "Using URI", uri, "Org", s.config.Organization, "Bucket", s.config.Database)
-	s.client =
-		influxdb2.NewClientWithOptions(
-			uri,
-			auth,
-			influxdb2.DefaultOptions().SetTLSConfig(
-				&tls.Config{InsecureSkipVerify: true},
-			),
-		)
+	clientOptions := influxdb2.DefaultOptions()
+	clientOptions.SetTLSConfig(
+		&tls.Config{
+			InsecureSkipVerify: true,
+		},
+	)
+	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPIBlocking(s.config.Organization, s.config.Database)
 	return nil
 }
@@ -73,6 +72,8 @@ func (s *InfluxSink) Init(config json.RawMessage) error {
 		len(s.config.Password) == 0 {
 		return errors.New("not all configuration variables set required by InfluxSink")
 	}
+
+	// Connect to InfluxDB server
 	return s.connect()
 }
 
