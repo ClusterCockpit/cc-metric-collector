@@ -47,6 +47,9 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 	s.config.Timeout = "5s"
 	s.config.BatchSize = 20
 
+	// Reset counter
+	s.batchCounter = 0
+
 	// Read config
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
@@ -103,6 +106,14 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 }
 
 func (s *HttpSink) Flush() error {
+	// Do not flush empty buffer
+	if s.batchCounter == 0 {
+		return nil
+	}
+
+	// Reset counter
+	s.batchCounter = 0
+
 	// Create new request to send buffer
 	req, err := http.NewRequest(http.MethodPost, s.url, s.buffer)
 	if err != nil {
