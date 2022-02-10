@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
@@ -68,8 +69,12 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	for _, path := range ibDirs {
 
 		// Skip, when no LID is assigned
-		LID, ok := readOneLine(path + "/lid")
-		if !ok || LID == "0x0" {
+		line, err := ioutil.ReadFile(filepath.Join(path, "lid"))
+		if err != nil {
+			continue
+		}
+		LID := strings.TrimSpace(string(line))
+		if LID == "0x0" {
 			continue
 		}
 
@@ -142,13 +147,14 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		// device info
 		info := &m.info[i]
 		for counterName, counterFile := range info.portCounterFiles {
-			data, ok := readOneLine(counterFile)
-			if !ok {
+			line, err := ioutil.ReadFile(counterFile)
+			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to read one line from file '%s'", counterFile))
+					fmt.Sprintf("Read(): Failed to read from file '%s': %v", counterFile, err))
 				continue
 			}
+			data := strings.TrimSpace(string(line))
 			v, err := strconv.ParseInt(data, 10, 64)
 			if err != nil {
 				cclog.ComponentError(

@@ -1,10 +1,9 @@
 package collectors
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,23 +13,6 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"golang.org/x/sys/unix"
 )
-
-//
-// readOneLine reads one line from a file.
-// It returns ok when file was successfully read.
-// In this case text contains the first line of the files contents.
-//
-func readOneLine(filename string) (text string, ok bool) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	ok = scanner.Scan()
-	text = scanner.Text()
-	return
-}
 
 type CPUFreqCollectorTopology struct {
 	processor               string // logical processor number (continuous, starting at 0)
@@ -105,10 +87,11 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 
 		// Read package ID
 		physicalPackageIDFile := filepath.Join(cpuDir, "topology", "physical_package_id")
-		physicalPackageID, ok := readOneLine(physicalPackageIDFile)
-		if !ok {
-			return fmt.Errorf("Unable to read physical package ID from file '%s'", physicalPackageIDFile)
+		line, err := ioutil.ReadFile(physicalPackageIDFile)
+		if err != nil {
+			return fmt.Errorf("Unable to read physical package ID from file '%s': %v", physicalPackageIDFile, err)
 		}
+		physicalPackageID := strings.TrimSpace(string(line))
 		physicalPackageID_int, err := strconv.ParseInt(physicalPackageID, 10, 64)
 		if err != nil {
 			return fmt.Errorf("Unable to convert packageID '%s' to int64: %v", physicalPackageID, err)
@@ -116,10 +99,11 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 
 		// Read core ID
 		coreIDFile := filepath.Join(cpuDir, "topology", "core_id")
-		coreID, ok := readOneLine(coreIDFile)
-		if !ok {
-			return fmt.Errorf("Unable to read core ID from file '%s'", coreIDFile)
+		line, err = ioutil.ReadFile(coreIDFile)
+		if err != nil {
+			return fmt.Errorf("Unable to read core ID from file '%s': %v", coreIDFile, err)
 		}
+		coreID := strings.TrimSpace(string(line))
 		coreID_int, err := strconv.ParseInt(coreID, 10, 64)
 		if err != nil {
 			return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
@@ -205,14 +189,14 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		}
 
 		// Read current frequency
-		line, ok := readOneLine(t.scalingCurFreqFile)
-		if !ok {
+		line, err := ioutil.ReadFile(t.scalingCurFreqFile)
+		if err != nil {
 			cclog.ComponentError(
 				m.name,
-				fmt.Sprintf("Read(): Failed to read one line from file '%s'", t.scalingCurFreqFile))
+				fmt.Sprintf("Read(): Failed to read file '%s': %v", t.scalingCurFreqFile, err))
 			continue
 		}
-		cpuFreq, err := strconv.ParseInt(line, 10, 64)
+		cpuFreq, err := strconv.ParseInt(strings.TrimSpace(string(line)), 10, 64)
 		if err != nil {
 			cclog.ComponentError(
 				m.name,
