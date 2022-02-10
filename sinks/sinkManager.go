@@ -106,7 +106,9 @@ func (sm *sinkManager) Start() {
 				// Send received metric to all outputs
 				cclog.ComponentDebug("SinkManager", "WRITE", p)
 				for _, s := range sm.sinks {
-					s.Write(p)
+					if err := s.Write(p); err != nil {
+						cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
+					}
 				}
 			}
 		}
@@ -131,7 +133,7 @@ func (sm *sinkManager) AddOutput(name string, rawConfig json.RawMessage) error {
 		}
 	}
 	if _, found := AvailableSinks[sinkConfig.Type]; !found {
-		cclog.ComponentError("SinkManager", "SKIP", name, "unknown sink:", err.Error())
+		cclog.ComponentError("SinkManager", "SKIP", name, "unknown sink:", sinkConfig.Type)
 		return err
 	}
 	s := AvailableSinks[sinkConfig.Type]
