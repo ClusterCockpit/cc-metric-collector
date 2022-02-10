@@ -106,7 +106,9 @@ func (sm *sinkManager) Start() {
 				// Send received metric to all outputs
 				cclog.ComponentDebug("SinkManager", "WRITE", p)
 				for _, s := range sm.sinks {
-					s.Write(p)
+					if err := s.Write(p); err != nil {
+						cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
+					}
 				}
 			}
 		}
