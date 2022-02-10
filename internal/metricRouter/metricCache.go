@@ -23,6 +23,7 @@ type metricCachePeriod struct {
 type metricCache struct {
 	numPeriods int
 	curPeriod  int
+	lock       sync.Mutex
 	intervals  []*metricCachePeriod
 	wg         *sync.WaitGroup
 	ticker     mct.MultiChanTicker
@@ -103,9 +104,11 @@ func (c *metricCache) Start() {
 				done()
 				return
 			case tick := <-c.tickchan:
+				c.lock.Lock()
 				old := rotate(tick)
 				// Get the last period and evaluate aggregation metrics
 				starttime, endtime, metrics := c.GetPeriod(old)
+				c.lock.Unlock()
 				if len(metrics) > 0 {
 					c.aggEngine.Eval(starttime, endtime, metrics)
 				} else {
@@ -123,6 +126,7 @@ func (c *metricCache) Start() {
 // to avoid reallocations
 func (c *metricCache) Add(metric lp.CCMetric) {
 	if c.curPeriod >= 0 && c.curPeriod < c.numPeriods {
+		c.lock.Lock()
 		p := c.intervals[c.curPeriod]
 		if p.numMetrics < p.sizeMetrics {
 			p.metrics[p.numMetrics] = metric
@@ -134,6 +138,7 @@ func (c *metricCache) Add(metric lp.CCMetric) {
 			p.sizeMetrics = p.sizeMetrics + 1
 			p.stopstamp = metric.Time()
 		}
+		c.lock.Unlock()
 	}
 }
 
@@ -149,16 +154,26 @@ func (c *metricCache) DeleteAggregation(name string) error {
 // is the current one, index=1 the last interval and so on. Returns and empty array if a wrong index
 // is given (negative index, index larger than configured number of total intervals, ...)
 func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric) {
+	var start time.Time = time.Now()
+	var stop time.Time = time.Now()
+	var metrics []lp.CCMetric
 	if index >= 0 && index < c.numPeriods {
 		pindex := c.curPeriod - index
 		if pindex < 0 {
 			pindex = c.numPeriods - pindex
 		}
 		if pindex >= 0 && pindex < c.numPeriods {
-			return c.intervals[pindex].startstamp, c.intervals[pindex].stopstamp, c.intervals[pindex].metrics
+			start = c.intervals[pindex].startstamp
+			stop = c.intervals[pindex].stopstamp
+			metrics = c.intervals[pindex].metrics
+			//return c.intervals[pindex].startstamp, c.intervals[pindex].stopstamp, c.intervals[pindex].metrics
+		} else {
+			metrics = make([]lp.CCMetric, 0)
 		}
+	} else {
+		metrics = make([]lp.CCMetric, 0)
 	}
-	return time.Now(), time.Now(), make([]lp.CCMetric, 0)
+	return start, stop, metrics
 }
 
 // Close finishes / stops the metric cache
