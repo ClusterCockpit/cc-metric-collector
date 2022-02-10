@@ -14,11 +14,8 @@ import (
 
 type HttpSinkConfig struct {
 	defaultSinkConfig
-	Host            string `json:"host,omitempty"`
-	Port            string `json:"port,omitempty"`
-	Database        string `json:"database,omitempty"`
+	URL             string `json:"url,omitempty"`
 	JWT             string `json:"jwt,omitempty"`
-	SSL             bool   `json:"ssl,omitempty"`
 	Timeout         string `json:"timeout,omitempty"`
 	MaxIdleConns    int    `json:"max_idle_connections,omitempty"`
 	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
@@ -28,7 +25,6 @@ type HttpSinkConfig struct {
 type HttpSink struct {
 	sink
 	client          *http.Client
-	url, jwt        string
 	encoder         *influx.Encoder
 	buffer          *bytes.Buffer
 	config          HttpSinkConfig
@@ -41,7 +37,6 @@ type HttpSink struct {
 func (s *HttpSink) Init(config json.RawMessage) error {
 	// Set default values
 	s.name = "HttpSink"
-	s.config.SSL = false
 	s.config.MaxIdleConns = 10
 	s.config.IdleConnTimeout = "5s"
 	s.config.Timeout = "5s"
@@ -57,8 +52,8 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	if len(s.config.Host) == 0 || len(s.config.Port) == 0 || len(s.config.Database) == 0 {
-		return errors.New("`host`, `port` and `database` config options required for TCP sink")
+	if len(s.config.URL) == 0 {
+		return errors.New("`url` config option is required for HTTP sink")
 	}
 	if s.config.MaxIdleConns > 0 {
 		s.maxIdleConns = s.config.MaxIdleConns
@@ -80,12 +75,6 @@ func (s *HttpSink) Init(config json.RawMessage) error {
 		IdleConnTimeout: s.idleConnTimeout,
 	}
 	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
-	proto := "http"
-	if s.config.SSL {
-		proto = "https"
-	}
-	s.url = fmt.Sprintf("%s://%s:%s/%s", proto, s.config.Host, s.config.Port, s.config.Database)
-	s.jwt = s.config.JWT
 	s.buffer = &bytes.Buffer{}
 	s.encoder = influx.NewEncoder(s.buffer)
 	s.encoder.SetPrecision(time.Second)
@@ -115,14 +104,14 @@ func (s *HttpSink) Flush() error {
 	s.batchCounter = 0
 
 	// Create new request to send buffer
-	req, err := http.NewRequest(http.MethodPost, s.url, s.buffer)
+	req, err := http.NewRequest(http.MethodPost, s.config.URL, s.buffer)
 	if err != nil {
 		return err
 	}
 
 	// Set authorization header
-	if len(s.jwt) != 0 {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.jwt))
+	if len(s.config.JWT) != 0 {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.config.JWT))
 	}
 
 	// Send
