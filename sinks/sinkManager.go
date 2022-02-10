@@ -133,7 +133,7 @@ func (sm *sinkManager) AddOutput(name string, rawConfig json.RawMessage) error {
 		}
 	}
 	if _, found := AvailableSinks[sinkConfig.Type]; !found {
-		cclog.ComponentError("SinkManager", "SKIP", name, "unknown sink:", err.Error())
+		cclog.ComponentError("SinkManager", "SKIP", name, "unknown sink:", sinkConfig.Type)
 		return err
 	}
 	s := AvailableSinks[sinkConfig.Type]
