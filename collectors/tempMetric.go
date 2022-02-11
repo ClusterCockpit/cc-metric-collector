@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -22,7 +22,8 @@ type TempCollectorConfig struct {
 
 type TempCollector struct {
 	metricCollector
-	config TempCollectorConfig
+	config  TempCollectorConfig
+	sensors map[string]string
 }
 
 func (m *TempCollector) Init(config json.RawMessage) error {
@@ -35,79 +36,62 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
+
+	// Find all temperature sensor files
+	m.sensors = make(map[string]string)
+	globPattern := filepath.Join(HWMON_PATH, "*", "temp*_input")
+	inputFiles, err := filepath.Glob(globPattern)
+	if err != nil {
+		return fmt.Errorf("Unable to glob files with pattern '%s': %v", globPattern, err)
+	}
+	if inputFiles == nil {
+		return fmt.Errorf("Unable to find any files with pattern '%s'", globPattern)
+	}
+
+	// Get sensor name for each temperature sensor file
+	for _, file := range inputFiles {
+		nameFile := strings.TrimSuffix(file, "_input") + "_label"
+		name, err := ioutil.ReadFile(nameFile)
+		if err != nil {
+			continue
+		}
+		metricName := strings.TrimSpace(string(name))
+		metricName = strings.Replace(metricName, " ", "_", -1)
+		if !strings.Contains(metricName, "temp") {
+			metricName = "temp_" + metricName
+		}
+		metricName = strings.ToLower(metricName)
+		m.sensors[metricName] = file
+	}
+
 	m.init = true
 	return nil
 }
 
-func get_hwmon_sensors() (map[string]map[string]string, error) {
-	var folders []string
-	var sensors map[string]map[string]string
-	sensors = make(map[string]map[string]string)
-	err := filepath.Walk(HWMON_PATH, func(p string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		folders = append(folders, p)
-		return nil
-	})
-	if err != nil {
-		return sensors, err
-	}
+func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
-	for _, f := range folders {
-		sensors[f] = make(map[string]string)
-		myp := fmt.Sprintf("%s/", f)
-		err := filepath.Walk(myp, func(path string, info os.FileInfo, err error) error {
-			dir, fname := filepath.Split(path)
-			if strings.Contains(fname, "temp") && strings.Contains(fname, "_input") {
-				namefile := fmt.Sprintf("%s/%s", dir, strings.Replace(fname, "_input", "_label", -1))
-				name, ierr := ioutil.ReadFile(namefile)
-				if ierr == nil {
-					sensors[f][strings.Replace(string(name), "\n", "", -1)] = path
-				}
+	for metricName, file := range m.sensors {
+		tags := map[string]string{"type": "node"}
+		for key, newtags := range m.config.TagOverride {
+			if strings.Contains(file, key) {
+				tags = newtags
+				break
 			}
-			return nil
-		})
+		}
+		buffer, err := ioutil.ReadFile(file)
 		if err != nil {
 			continue
 		}
-	}
-	return sensors, nil
-}
-
-func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
-
-	sensors, err := get_hwmon_sensors()
-	if err != nil {
-		return
-	}
-	for _, files := range sensors {
-		for name, file := range files {
-			tags := map[string]string{"type": "node"}
-			for key, newtags := range m.config.TagOverride {
-				if strings.Contains(file, key) {
-					tags = newtags
-					break
-				}
-			}
-			mname := strings.Replace(name, " ", "_", -1)
-			if !strings.Contains(mname, "temp") {
-				mname = fmt.Sprintf("temp_%s", mname)
-			}
-			buffer, err := ioutil.ReadFile(string(file))
-			if err != nil {
-				continue
-			}
-			x, err := strconv.ParseInt(strings.Replace(string(buffer), "\n", "", -1), 0, 64)
+		x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64)
+		if err == nil {
+			y, err := lp.New(metricName, tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
 			if err == nil {
-				y, err := lp.New(strings.ToLower(mname), tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
-				if err == nil {
-					cclog.ComponentDebug(m.name, y)
-					output <- y
-				}
+				cclog.ComponentDebug(m.name, y)
+				output <- y
 			}
 		}
 	}
+
 }
 
 func (m *TempCollector) Close() {
