@@ -21,6 +21,7 @@ type GangliaSinkConfig struct {
 	GmetricPath     string `json:"gmetric_path,omitempty"`
 	GmetricConfig   string `json:"gmetric_config,omitempty"`
 	AddGangliaGroup bool   `json:"add_ganglia_group,omitempty"`
+	AddTagsAsDesc   bool   `json:"add_tags_as_desc,omitempty"`
 }
 
 type GangliaSink struct {
@@ -33,6 +34,8 @@ type GangliaSink struct {
 func (s *GangliaSink) Init(config json.RawMessage) error {
 	var err error = nil
 	s.name = "GangliaSink"
+	s.config.AddTagsAsDesc = false
+	s.config.AddGangliaGroup = false
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -67,16 +70,22 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	var err error = nil
 	var tagsstr []string
 	var argstr []string
+	if s.config.AddGangliaGroup {
+		if point.HasTag("group") {
+			g, _ := point.GetTag("group")
+			argstr = append(argstr, fmt.Sprintf("--group=%s", g))
+		} else if point.HasMeta("group") {
+			g, _ := point.GetMeta("group")
+			argstr = append(argstr, fmt.Sprintf("--group=%s", g))
+		}
+	}
+
 	for key, value := range point.Tags() {
 		switch key {
 		case "cluster":
 			argstr = append(argstr, fmt.Sprintf("--cluster=%s", value))
 		case "unit":
 			argstr = append(argstr, fmt.Sprintf("--units=%s", value))
-		case "group":
-			if s.config.AddGangliaGroup {
-				argstr = append(argstr, fmt.Sprintf("--group=%s", value))
-			}
 		default:
 			tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", key, value))
 		}
@@ -88,16 +97,12 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 				argstr = append(argstr, fmt.Sprintf("--cluster=%s", value))
 			case "unit":
 				argstr = append(argstr, fmt.Sprintf("--units=%s", value))
-			case "group":
-				if s.config.AddGangliaGroup {
-					argstr = append(argstr, fmt.Sprintf("--group=%s", value))
-				}
 			default:
 				tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", key, value))
 			}
 		}
 	}
-	if len(tagsstr) > 0 {
+	if s.config.AddTagsAsDesc && len(tagsstr) > 0 {
 		argstr = append(argstr, fmt.Sprintf("--desc=%q", strings.Join(tagsstr, ",")))
 	}
 	if len(s.gmetric_config) > 0 {
