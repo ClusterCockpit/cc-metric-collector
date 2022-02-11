@@ -26,7 +26,7 @@ type NetstatCollector struct {
 func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
-	m.meta = map[string]string{"source": m.name, "group": "network"}
+	m.meta = map[string]string{"source": m.name, "group": "Network"}
 	m.matches = map[int]string{
 		1:  "net_bytes_in",
 		9:  "net_bytes_out",
