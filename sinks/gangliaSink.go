@@ -113,20 +113,20 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 		if k == "value" {
 			switch value := v.(type) {
 			case float64:
-				argstr = append(argstr, fmt.Sprintf("--value=%v", value))
-				argstr = append(argstr, "--type=double")
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%v", value), "--type=double")
 			case float32:
-				argstr = append(argstr, fmt.Sprintf("--value=%v", value))
-				argstr = append(argstr, "--type=float")
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%v", value), "--type=float")
 			case int:
-				argstr = append(argstr, fmt.Sprintf("--value=%d", value))
-				argstr = append(argstr, "--type=int32")
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%d", value), "--type=int32")
 			case int64:
-				argstr = append(argstr, fmt.Sprintf("--value=%d", value))
-				argstr = append(argstr, "--type=int32")
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%d", value), "--type=int32")
 			case string:
-				argstr = append(argstr, fmt.Sprintf("--value=%q", value))
-				argstr = append(argstr, "--type=string")
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%q", value), "--type=string")
 			}
 		}
 	}
