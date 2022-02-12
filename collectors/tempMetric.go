@@ -50,12 +50,29 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 
 	// Get sensor name for each temperature sensor file
 	for _, file := range inputFiles {
-		nameFile := strings.TrimSuffix(file, "_input") + "_label"
-		name, err := ioutil.ReadFile(nameFile)
-		if err != nil {
-			continue
+		nameFile := filepath.Join(filepath.Dir(file), "name")
+		name := ""
+		n, err := ioutil.ReadFile(nameFile)
+		if err == nil {
+			name = strings.TrimSpace(string(n))
 		}
-		metricName := strings.TrimSpace(string(name))
+		labelFile := strings.TrimSuffix(file, "_input") + "_label"
+		label := ""
+		l, err := ioutil.ReadFile(labelFile)
+		if err == nil {
+			label = strings.TrimSpace(string(l))
+		}
+		metricName := ""
+		switch {
+		case len(name) == 0 && len(label) == 0:
+			continue
+		case len(name) != 0 && len(label) != 0:
+			metricName = name + "_" + label
+		case len(name) != 0:
+			metricName = name
+		case len(label) != 0:
+			metricName = label
+		}
 		metricName = strings.Replace(metricName, " ", "_", -1)
 		if !strings.Contains(metricName, "temp") {
 			metricName = "temp_" + metricName
@@ -64,6 +81,12 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		m.sensors[metricName] = file
 	}
 
+	// Empty sensors map
+	if len(m.sensors) == 0 {
+		return fmt.Errorf("No temperature sensors found")
+	}
+
+	// Finished initialization
 	m.init = true
 	return nil
 }
