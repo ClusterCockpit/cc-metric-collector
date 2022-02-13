@@ -18,6 +18,7 @@ var AvailableSinks = map[string]Sink{
 	"http":        new(HttpSink),
 	"ganglia":     new(GangliaSink),
 	"influxasync": new(InfluxAsyncSink),
+	"prometheus":  new(PrometheusSink),
 }
 
 // Metric collector manager data structure
