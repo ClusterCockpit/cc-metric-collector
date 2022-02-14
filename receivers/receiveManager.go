@@ -18,12 +18,12 @@ type receiveManager struct {
 	output chan lp.CCMetric
 	done   chan bool
 	wg     *sync.WaitGroup
-	config []ReceiverConfig
+	config []json.RawMessage
 }
 
 type ReceiveManager interface {
 	Init(wg *sync.WaitGroup, receiverConfigFile string) error
-	AddInput(rawConfig json.RawMessage) error
+	AddInput(name string, rawConfig json.RawMessage) error
 	AddOutput(output chan lp.CCMetric)
 	Start()
 	Close()
@@ -34,7 +34,7 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	rm.output = nil
 	rm.done = make(chan bool)
 	rm.wg = wg
-	rm.config = make([]ReceiverConfig, 0)
+	rm.config = make([]json.RawMessage, 0)
 	configFile, err := os.Open(receiverConfigFile)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", err.Error())
@@ -42,14 +42,14 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	}
 	defer configFile.Close()
 	jsonParser := json.NewDecoder(configFile)
-	var rawConfigs []json.RawMessage
+	var rawConfigs map[string]json.RawMessage
 	err = jsonParser.Decode(&rawConfigs)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", err.Error())
 		return err
 	}
-	for _, raw := range rawConfigs {
-		rm.AddInput(raw)
+	for name, raw := range rawConfigs {
+		rm.AddInput(name, raw)
 	}
 	return nil
 }
@@ -64,8 +64,8 @@ func (rm *receiveManager) Start() {
 	cclog.ComponentDebug("ReceiveManager", "STARTED")
 }
 
-func (rm *receiveManager) AddInput(rawConfig json.RawMessage) error {
-	var config ReceiverConfig
+func (rm *receiveManager) AddInput(name string, rawConfig json.RawMessage) error {
+	var config defaultReceiverConfig
 	err := json.Unmarshal(rawConfig, &config)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "JSON config error:", err.Error())
@@ -76,13 +76,13 @@ func (rm *receiveManager) AddInput(rawConfig json.RawMessage) error {
 		return err
 	}
 	r := AvailableReceivers[config.Type]
-	err = r.Init(config)
+	err = r.Init(name, rawConfig)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", "SKIP", r.Name(), "initialization failed:", err.Error())
 		return err
 	}
 	rm.inputs = append(rm.inputs, r)
-	rm.config = append(rm.config, config)
+	rm.config = append(rm.config, rawConfig)
 	cclog.ComponentDebug("ReceiveManager", "ADD RECEIVER", r.Name())
 	return nil
 }

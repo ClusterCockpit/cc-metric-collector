@@ -1,19 +1,22 @@
 package receivers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	"time"
 )
 
 type NatsReceiverConfig struct {
-	Addr     string `json:"address"`
-	Port     string `json:"port"`
-	Database string `json:"database"`
+	Type    string `json:"type"`
+	Addr    string `json:"address"`
+	Port    string `json:"port"`
+	Subject string `json:"subject"`
 }
 
 type NatsReceiver struct {
@@ -22,35 +25,35 @@ type NatsReceiver struct {
 	handler *influx.MetricHandler
 	parser  *influx.Parser
 	meta    map[string]string
-	config  ReceiverConfig
+	config  NatsReceiverConfig
 }
 
 var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
-func (r *NatsReceiver) Init(config ReceiverConfig) error {
-	r.name = "NatsReceiver"
-	r.config = config
+func (r *NatsReceiver) Init(name string, config json.RawMessage) error {
+	r.typename = "NatsReceiver"
+	r.name = name
+	r.config.Addr = nats.DefaultURL
+	r.config.Port = "4222"
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &r.config)
+		if err != nil {
+			cclog.ComponentError(r.name, "Error reading config:", err.Error())
+			return err
+		}
+	}
 	if len(r.config.Addr) == 0 ||
 		len(r.config.Port) == 0 ||
-		len(r.config.Database) == 0 {
-		return errors.New("Not all configuration variables set required by NatsReceiver")
+		len(r.config.Subject) == 0 {
+		return errors.New("not all configuration variables set required by NatsReceiver")
 	}
 	r.meta = map[string]string{"source": r.name}
-	r.addr = r.config.Addr
-	if len(r.addr) == 0 {
-		r.addr = nats.DefaultURL
-	}
-	r.port = r.config.Port
-	if len(r.port) == 0 {
-		r.port = "4222"
-	}
-	uri := fmt.Sprintf("%s:%s", r.addr, r.port)
-	cclog.ComponentDebug("NatsReceiver", "INIT", uri)
+	uri := fmt.Sprintf("%s:%s", r.config.Addr, r.config.Port)
+	cclog.ComponentDebug(r.name, "INIT", uri, "Subject", r.config.Subject)
 	nc, err := nats.Connect(uri)
 	if err == nil {
-		r.database = r.config.Database
 		r.nc = nc
 	} else {
 		r.nc = nil
@@ -63,8 +66,8 @@ func (r *NatsReceiver) Init(config ReceiverConfig) error {
 }
 
 func (r *NatsReceiver) Start() {
-	cclog.ComponentDebug("NatsReceiver", "START")
-	r.nc.Subscribe(r.database, r._NatsReceive)
+	cclog.ComponentDebug(r.name, "START")
+	r.nc.Subscribe(r.config.Subject, r._NatsReceive)
 }
 
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
@@ -84,7 +87,7 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 
 func (r *NatsReceiver) Close() {
 	if r.nc != nil {
-		cclog.ComponentDebug("NatsReceiver", "CLOSE")
+		cclog.ComponentDebug(r.name, "CLOSE")
 		r.nc.Close()
 	}
 }
