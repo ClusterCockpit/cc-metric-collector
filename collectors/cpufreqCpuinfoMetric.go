@@ -36,7 +36,7 @@ type CPUFreqCpuInfoCollectorTopology struct {
 
 type CPUFreqCpuInfoCollector struct {
 	metricCollector
-	topology []CPUFreqCpuInfoCollectorTopology
+	topology []*CPUFreqCpuInfoCollectorTopology
 }
 
 func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
@@ -44,6 +44,8 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	if m.init {
 		return nil
 	}
+
+	m.setup()
 
 	m.name = "CPUFreqCpuInfoCollector"
 	m.meta = map[string]string{
@@ -66,8 +68,10 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	coreID := ""
 	physicalPackageID := ""
 	var maxPhysicalPackageID int64 = 0
-	m.topology = make([]CPUFreqCpuInfoCollectorTopology, 0)
+	m.topology = make([]*CPUFreqCpuInfoCollectorTopology, 0)
 	coreSeenBefore := make(map[string]bool)
+
+	// Read cpuinfo file, line by line
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		lineSplit := strings.Split(scanner.Text(), ":")
@@ -93,39 +97,41 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			len(coreID) > 0 &&
 			len(physicalPackageID) > 0 {
 
-			coreID_int, err := strconv.ParseInt(coreID, 10, 64)
+			topology := new(CPUFreqCpuInfoCollectorTopology)
+
+			// Processor
+			topology.processor = processor
+
+			// Core ID
+			topology.coreID = coreID
+			topology.coreID_int, err = strconv.ParseInt(coreID, 10, 64)
 			if err != nil {
 				return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
 			}
-			physicalPackageID_int, err := strconv.ParseInt(physicalPackageID, 10, 64)
+
+			// Physical package ID
+			topology.physicalPackageID = physicalPackageID
+			topology.physicalPackageID_int, err = strconv.ParseInt(physicalPackageID, 10, 64)
 			if err != nil {
 				return fmt.Errorf("Unable to convert physicalPackageID '%s' to int64: %v", physicalPackageID, err)
 			}
 
 			// increase maximun socket / package ID, when required
-			if physicalPackageID_int > maxPhysicalPackageID {
-				maxPhysicalPackageID = physicalPackageID_int
+			if topology.physicalPackageID_int > maxPhysicalPackageID {
+				maxPhysicalPackageID = topology.physicalPackageID_int
 			}
 
+			// is hyperthread?
 			globalID := physicalPackageID + ":" + coreID
-			isHT := coreSeenBefore[globalID]
+			topology.isHT = coreSeenBefore[globalID]
 			coreSeenBefore[globalID] = true
-			if !isHT {
+			if !topology.isHT {
 				// increase number on non hyper thread cores
 				numNonHT_int++
 			}
 
 			// store collected topology information
-			m.topology = append(
-				m.topology,
-				CPUFreqCpuInfoCollectorTopology{
-					processor:             processor,
-					coreID:                coreID,
-					coreID_int:            coreID_int,
-					physicalPackageID:     physicalPackageID,
-					physicalPackageID_int: physicalPackageID_int,
-					isHT:                  isHT,
-				})
+			m.topology = append(m.topology, topology)
 
 			// reset topology information
 			foundFreq = false
@@ -138,8 +144,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	numPhysicalPackageID_int := maxPhysicalPackageID + 1
 	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
 	numNonHT := fmt.Sprint(numNonHT_int)
-	for i := range m.topology {
-		t := &m.topology[i]
+	for _, t := range m.topology {
 		t.numPhysicalPackages = numPhysicalPackageID
 		t.numPhysicalPackages_int = numPhysicalPackageID_int
 		t.numNonHT = numNonHT
@@ -183,7 +188,7 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 
 			// frequency
 			if key == "cpu MHz" {
-				t := &m.topology[processorCounter]
+				t := m.topology[processorCounter]
 				if !t.isHT {
 					value, err := strconv.ParseFloat(strings.TrimSpace(lineSplit[1]), 64)
 					if err != nil {
