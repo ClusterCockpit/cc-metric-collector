@@ -100,18 +100,17 @@ func (sm *sinkManager) Start() {
 			cclog.ComponentDebug("SinkManager", "DONE")
 		}
 
-		for {
-
-			toTheSinks := func(p lp.CCMetric) {
-				// Send received metric to all outputs
-				cclog.ComponentDebug("SinkManager", "WRITE", p)
-				for _, s := range sm.sinks {
-					if err := s.Write(p); err != nil {
-						cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
-					}
+		toTheSinks := func(p lp.CCMetric) {
+			// Send received metric to all outputs
+			cclog.ComponentDebug("SinkManager", "WRITE", p)
+			for _, s := range sm.sinks {
+				if err := s.Write(p); err != nil {
+					cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
 				}
 			}
+		}
 
+		for {
 			select {
 			case <-sm.done:
 				done()
