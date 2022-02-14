@@ -14,6 +14,8 @@ import (
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
 )
 
+const ROUTER_MAX_FORWARD = 50
+
 // Metric router tag configuration
 type metricRouterTagConfig struct {
 	Key       string `json:"key"`   // Tag name
@@ -49,6 +51,7 @@ type metricRouter struct {
 	config      metricRouterConfig  // json encoded config for metric router
 	cache       MetricCache         // pointer to MetricCache
 	cachewg     sync.WaitGroup      // wait group for MetricCache
+	maxForward  int                 // number of metrics to forward maximally in one iteration
 }
 
 // MetricRouter access functions
@@ -73,6 +76,7 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	r.cache_input = make(chan lp.CCMetric)
 	r.wg = wg
 	r.ticker = ticker
+	r.maxForward = ROUTER_MAX_FORWARD
 
 	// Set hostname
 	hostname, err := os.Hostname()
@@ -242,6 +246,43 @@ func (r *metricRouter) Start() {
 		}
 	}
 
+	// Foward message received from collector channel
+	coll_forward := func(p lp.CCMetric) {
+		// receive from metric collector
+		p.AddTag("hostname", r.hostname)
+		if r.config.IntervalStamp {
+			p.SetTime(r.timestamp)
+		}
+		if !r.dropMetric(p) {
+			forward(p)
+		}
+		// even if the metric is dropped, it is stored in the cache for
+		// aggregations
+		if r.config.NumCacheIntervals > 0 {
+			r.cache.Add(p)
+		}
+	}
+
+	// Foward message received from receivers channel
+	recv_forward := func(p lp.CCMetric) {
+		// receive from receive manager
+		if r.config.IntervalStamp {
+			p.SetTime(r.timestamp)
+		}
+		if !r.dropMetric(p) {
+			forward(p)
+		}
+	}
+
+	// Foward message received from cache channel
+	cache_forward := func(p lp.CCMetric) {
+		// receive from metric collector
+		if !r.dropMetric(p) {
+			p.AddTag("hostname", r.hostname)
+			forward(p)
+		}
+	}
+
 	// Start Metric Cache
 	if r.config.NumCacheIntervals > 0 {
 		r.cache.Start()
@@ -250,6 +291,7 @@ func (r *metricRouter) Start() {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
+
 		for {
 			select {
 			case <-r.done:
@@ -257,34 +299,21 @@ func (r *metricRouter) Start() {
 				return
 
 			case p := <-r.coll_input:
-				// receive from metric collector
-				p.AddTag("hostname", r.hostname)
-				if r.config.IntervalStamp {
-					p.SetTime(r.timestamp)
-				}
-				if !r.dropMetric(p) {
-					forward(p)
-				}
-				// even if the metric is dropped, it is stored in the cache for
-				// aggregations
-				if r.config.NumCacheIntervals > 0 {
-					r.cache.Add(p)
+				coll_forward(p)
+				for i := 0; len(r.coll_input) > 0 && i < r.maxForward; i++ {
+					coll_forward(<-r.coll_input)
 				}
 
 			case p := <-r.recv_input:
-				// receive from receive manager
-				if r.config.IntervalStamp {
-					p.SetTime(r.timestamp)
-				}
-				if !r.dropMetric(p) {
-					forward(p)
+				recv_forward(p)
+				for i := 0; len(r.recv_input) > 0 && i < r.maxForward; i++ {
+					recv_forward(<-r.recv_input)
 				}
 
 			case p := <-r.cache_input:
-				// receive from metric collector
-				if !r.dropMetric(p) {
-					p.AddTag("hostname", r.hostname)
-					forward(p)
+				cache_forward(p)
+				for i := 0; len(r.cache_input) > 0 && i < r.maxForward; i++ {
+					cache_forward(<-r.cache_input)
 				}
 			}
 		}

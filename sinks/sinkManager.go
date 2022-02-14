@@ -10,6 +10,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
+const SINK_MAX_FORWARD = 50
+
 // Map of all available sinks
 var AvailableSinks = map[string]Sink{
 	"influxdb":    new(InfluxSink),
@@ -22,10 +24,11 @@ var AvailableSinks = map[string]Sink{
 
 // Metric collector manager data structure
 type sinkManager struct {
-	input chan lp.CCMetric // input channel
-	done  chan bool        // channel to finish / stop metric sink manager
-	wg    *sync.WaitGroup  // wait group for all goroutines in cc-metric-collector
-	sinks map[string]Sink  // Mapping sink name to sink
+	input      chan lp.CCMetric // input channel
+	done       chan bool        // channel to finish / stop metric sink manager
+	wg         *sync.WaitGroup  // wait group for all goroutines in cc-metric-collector
+	sinks      map[string]Sink  // Mapping sink name to sink
+	maxForward int              // number of metrics to write maximally in one iteration
 }
 
 // Sink manager access functions
@@ -45,6 +48,7 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 	sm.done = make(chan bool)
 	sm.wg = wg
 	sm.sinks = make(map[string]Sink, 0)
+	sm.maxForward = SINK_MAX_FORWARD
 
 	if len(sinkConfigFile) == 0 {
 		return nil
@@ -97,18 +101,27 @@ func (sm *sinkManager) Start() {
 		}
 
 		for {
-			select {
-			case <-sm.done:
-				done()
-				return
 
-			case p := <-sm.input:
+			toTheSinks := func(p lp.CCMetric) {
 				// Send received metric to all outputs
 				cclog.ComponentDebug("SinkManager", "WRITE", p)
 				for _, s := range sm.sinks {
 					if err := s.Write(p); err != nil {
 						cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
 					}
+				}
+			}
+
+			select {
+			case <-sm.done:
+				done()
+				return
+
+			case p := <-sm.input:
+				toTheSinks(p)
+				for i := 0; len(sm.input) > 0 && i < sm.maxForward; i++ {
+					p := <-sm.input
+					toTheSinks(p)
 				}
 			}
 		}
