@@ -61,8 +61,8 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	}
 
 	// Loop for all NUMA node directories
-	baseDir := "/sys/devices/system/node"
-	globPattern := filepath.Join(baseDir, "node[0-9]*")
+	base := "/sys/devices/system/node/node"
+	globPattern := base + "[0-9]*"
 	dirs, err := filepath.Glob(globPattern)
 	if err != nil {
 		return fmt.Errorf("unable to glob files with pattern '%s'", globPattern)
@@ -72,7 +72,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	}
 	m.topology = make([]NUMAStatsCollectorTopolgy, 0, len(dirs))
 	for _, dir := range dirs {
-		node := strings.TrimPrefix(dir, "/sys/devices/system/node/node")
+		node := strings.TrimPrefix(dir, base)
 		file := filepath.Join(dir, "numastat")
 		m.topology = append(m.topology,
 			NUMAStatsCollectorTopolgy{
@@ -103,6 +103,8 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetri
 			return
 		}
 		scanner := bufio.NewScanner(file)
+
+		// Read line by line
 		for scanner.Scan() {
 			split := strings.Fields(scanner.Text())
 			if len(split) != 2 {
@@ -116,7 +118,13 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetri
 					fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
 				continue
 			}
-			y, err := lp.New("numastats_"+key, t.tagSet, m.meta, map[string]interface{}{"value": value}, now)
+			y, err := lp.New(
+				"numastats_"+key,
+				t.tagSet,
+				m.meta,
+				map[string]interface{}{"value": value},
+				now,
+			)
 			if err == nil {
 				output <- y
 			}
