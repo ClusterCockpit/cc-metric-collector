@@ -1,8 +1,8 @@
-[
-    {
+{
+    "natsrecv" : {
         "type": "nats",
         "address": "nats://my-url",
         "port" : "4222",
         "database": "testcluster"
     }
-]
+}
