@@ -1,5 +1,5 @@
 Name:           cc-metric-collector
-Version:        0.1
+Version:        0.2
 Release:        1%{?dist}
 Summary:        Metric collection daemon from the ClusterCockpit suite
 
