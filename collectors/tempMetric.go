@@ -13,23 +13,38 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const HWMON_PATH = `/sys/class/hwmon`
+// See: https://www.kernel.org/doc/html/latest/hwmon/sysfs-interface.html
+// /sys/class/hwmon/hwmon*/name -> coretemp
+// /sys/class/hwmon/hwmon*/temp*_label -> Core 0
+// /sys/class/hwmon/hwmon*/temp*_input -> 27800 = 27.8°C
+// /sys/class/hwmon/hwmon*/temp*_max -> 86000 = 86.0°C
+// /sys/class/hwmon/hwmon*/temp*_crit -> 100000 = 100.0°C
 
-type TempCollectorConfig struct {
-	ExcludeMetrics []string                     `json:"exclude_metrics"`
-	TagOverride    map[string]map[string]string `json:"tag_override"`
+type TempCollectorSensor struct {
+	name       string
+	label      string
+	metricName string // Default: name_label
+	file       string
+	tags       map[string]string
 }
 
 type TempCollector struct {
 	metricCollector
-	config  TempCollectorConfig
-	sensors map[string]string
+	config struct {
+		ExcludeMetrics []string                     `json:"exclude_metrics"`
+		TagOverride    map[string]map[string]string `json:"tag_override"`
+	}
+	sensors []*TempCollectorSensor
 }
 
 func (m *TempCollector) Init(config json.RawMessage) error {
+	// Check if already initialized
+	if m.init {
+		return nil
+	}
+
 	m.name = "TempCollector"
 	m.setup()
-	m.meta = map[string]string{"source": m.name, "group": "IPMI", "unit": "degC"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -37,9 +52,16 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		}
 	}
 
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "IPMI",
+		"unit":   "degC",
+	}
+
+	m.sensors = make([]*TempCollectorSensor, 0)
+
 	// Find all temperature sensor files
-	m.sensors = make(map[string]string)
-	globPattern := filepath.Join(HWMON_PATH, "*", "temp*_input")
+	globPattern := filepath.Join("/sys/class/hwmon", "*", "temp*_input")
 	inputFiles, err := filepath.Glob(globPattern)
 	if err != nil {
 		return fmt.Errorf("Unable to glob files with pattern '%s': %v", globPattern, err)
@@ -50,35 +72,57 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 
 	// Get sensor name for each temperature sensor file
 	for _, file := range inputFiles {
+		sensor := new(TempCollectorSensor)
+
+		// sensor name
 		nameFile := filepath.Join(filepath.Dir(file), "name")
-		name := ""
-		n, err := ioutil.ReadFile(nameFile)
+		name, err := ioutil.ReadFile(nameFile)
 		if err == nil {
-			name = strings.TrimSpace(string(n))
+			sensor.name = strings.TrimSpace(string(name))
 		}
+
+		// sensor label
 		labelFile := strings.TrimSuffix(file, "_input") + "_label"
-		label := ""
-		l, err := ioutil.ReadFile(labelFile)
+		label, err := ioutil.ReadFile(labelFile)
 		if err == nil {
-			label = strings.TrimSpace(string(l))
+			sensor.label = strings.TrimSpace(string(label))
 		}
-		metricName := ""
+
+		// sensor metric name
 		switch {
-		case len(name) == 0 && len(label) == 0:
+		case len(sensor.name) == 0 && len(sensor.label) == 0:
 			continue
-		case len(name) != 0 && len(label) != 0:
-			metricName = name + "_" + label
-		case len(name) != 0:
-			metricName = name
-		case len(label) != 0:
-			metricName = label
+		case len(sensor.name) != 0 && len(sensor.label) != 0:
+			sensor.metricName = sensor.name + "_" + sensor.label
+		case len(sensor.name) != 0:
+			sensor.metricName = sensor.name
+		case len(sensor.label) != 0:
+			sensor.metricName = sensor.label
 		}
-		metricName = strings.Replace(metricName, " ", "_", -1)
-		if !strings.Contains(metricName, "temp") {
-			metricName = "temp_" + metricName
+		sensor.metricName = strings.Replace(sensor.metricName, " ", "_", -1)
+		// Add temperature prefix, if required
+		if !strings.Contains(sensor.metricName, "temp") {
+			sensor.metricName = "temp_" + sensor.metricName
 		}
-		metricName = strings.ToLower(metricName)
-		m.sensors[metricName] = file
+		sensor.metricName = strings.ToLower(sensor.metricName)
+
+		// Sensor file
+		sensor.file = file
+
+		// Sensor tags
+		sensor.tags = map[string]string{
+			"type": "node",
+		}
+
+		// Apply tag override configuration
+		for key, newtags := range m.config.TagOverride {
+			if strings.Contains(sensor.file, key) {
+				sensor.tags = newtags
+				break
+			}
+		}
+
+		m.sensors = append(m.sensors, sensor)
 	}
 
 	// Empty sensors map
@@ -93,25 +137,32 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 
 func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
-	for metricName, file := range m.sensors {
-		tags := map[string]string{"type": "node"}
-		for key, newtags := range m.config.TagOverride {
-			if strings.Contains(file, key) {
-				tags = newtags
-				break
-			}
-		}
-		buffer, err := ioutil.ReadFile(file)
+	for _, sensor := range m.sensors {
+		// Read sensor file
+		buffer, err := ioutil.ReadFile(sensor.file)
 		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to read file '%s': %v", sensor.file, err))
 			continue
 		}
 		x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to convert temperature '%s' to int64: %v", buffer, err))
+			continue
+		}
+		x /= 1000
+		y, err := lp.New(
+			sensor.metricName,
+			sensor.tags,
+			m.meta,
+			map[string]interface{}{"value": x},
+			time.Now(),
+		)
 		if err == nil {
-			y, err := lp.New(metricName, tags, m.meta, map[string]interface{}{"value": int(float64(x) / 1000)}, time.Now())
-			if err == nil {
-				cclog.ComponentDebug(m.name, y)
-				output <- y
-			}
+			output <- y
 		}
 	}
 
