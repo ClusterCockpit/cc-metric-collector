@@ -31,7 +31,7 @@ type InfinibandCollector struct {
 	config struct {
 		ExcludeDevices []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
 	}
-	info []InfinibandCollectorInfo
+	info []*InfinibandCollectorInfo
 }
 
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
@@ -111,7 +111,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		}
 
 		m.info = append(m.info,
-			InfinibandCollectorInfo{
+			&InfinibandCollectorInfo{
 				LID:              LID,
 				device:           device,
 				port:             port,
@@ -142,10 +142,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 	}
 
 	now := time.Now()
-	for i := range m.info {
-
-		// device info
-		info := &m.info[i]
+	for _, info := range m.info {
 		for counterName, counterFile := range info.portCounterFiles {
 			line, err := ioutil.ReadFile(counterFile)
 			if err != nil {

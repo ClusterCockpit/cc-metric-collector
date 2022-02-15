@@ -6,6 +6,7 @@
             "test_fs"
         ]
     },
+    "ibstat": {},
     "loadavg": {
         "exclude_metrics": [
             "proc_total"
