@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - uses: TomTheBear/rpmbuild@master
       id: rpm
       name: Build RPM package on CentOS8
