@@ -16,7 +16,7 @@ jobs:
         go-version: '^1.17.6'
 
     - name: Setup Ganglia
-      run: apt install gmond ganglia-monitor
+      run: sudo apt install gmond ganglia-monitor
 
     - name: Build MetricCollector
       run: make
@@ -37,7 +37,7 @@ jobs:
         go-version: '^1.16.7' # The version AlmaLinux 8.5 uses
 
     - name: Setup Ganglia
-      run: apt install gmond ganglia-monitor
+      run: sudo apt install gmond ganglia-monitor
 
     - name: Build MetricCollector
       run: make
