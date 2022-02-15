@@ -6,6 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
@@ -22,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
