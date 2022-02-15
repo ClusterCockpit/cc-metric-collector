@@ -4,7 +4,6 @@ package sinks
 #cgo CFLAGS: -I./ganglia/include -DGM_PROTOCOL_GUARD
 #cgo LDFLAGS: -L/usr/lib -lganglia -lconfuse -ldl
 #include <stdlib.h>
-#include <confuse.h>
 #include <ganglia.h>
 */
 import "C"
@@ -19,7 +18,6 @@ import (
 )
 
 const LIBGANGLIA = `libganglia.so`
-const LIBCONFUSE = `libconfuse.so`
 
 type Ganglia2SinkConfig struct {
 	defaultSinkConfig
