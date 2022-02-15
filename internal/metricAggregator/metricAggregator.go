@@ -283,8 +283,10 @@ func (c *metricAggregator) AddFunction(name string, function func(args ...interf
 }
 
 func EvalBoolCondition(condition string, params map[string]interface{}) (bool, error) {
-	newcond := strings.ReplaceAll(condition, "'", "\"")
-	newcond = strings.ReplaceAll(newcond, "%", "\\")
+	newcond :=
+		strings.ReplaceAll(
+			strings.ReplaceAll(
+				condition, "'", "\""), "%", "\\")
 	language := gval.NewLanguage(
 		gval.Full(),
 		metricCacheLanguage,
@@ -293,31 +295,21 @@ func EvalBoolCondition(condition string, params map[string]interface{}) (bool, e
 	if err != nil {
 		return false, err
 	}
-	var endResult bool = false
+	endResult := false
 	err = nil
 	switch r := value.(type) {
 	case bool:
 		endResult = r
 	case float64:
-		if r != 0.0 {
-			endResult = true
-		}
+		endResult = r != 0.0
 	case float32:
-		if r != 0.0 {
-			endResult = true
-		}
+		endResult = r != 0.0
 	case int:
-		if r != 0 {
-			endResult = true
-		}
+		endResult = r != 0
 	case int64:
-		if r != 0 {
-			endResult = true
-		}
+		endResult = r != 0
 	case int32:
-		if r != 0 {
-			endResult = true
-		}
+		endResult = r != 0
 	default:
 		err = fmt.Errorf("cannot evaluate '%s' to bool", newcond)
 	}
