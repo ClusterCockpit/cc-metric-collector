@@ -159,12 +159,13 @@ func getParamMap(point lp.CCMetric) map[string]interface{} {
 
 // DoAddTags adds a tag when condition is fullfiled
 func (r *metricRouter) DoAddTags(point lp.CCMetric) {
+	var conditionMatches bool
 	for _, m := range r.config.AddTags {
-		var conditionMatches bool = false
-
 		if m.Condition == "*" {
+			// Condition is always matched
 			conditionMatches = true
 		} else {
+			// Evaluate condition
 			var err error
 			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
 			if err != nil {
@@ -180,12 +181,13 @@ func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 
 // DoDelTags removes a tag when condition is fullfiled
 func (r *metricRouter) DoDelTags(point lp.CCMetric) {
+	var conditionMatches bool
 	for _, m := range r.config.DelTags {
-		var conditionMatches bool = false
-
 		if m.Condition == "*" {
+			// Condition is always matched
 			conditionMatches = true
 		} else {
+			// Evaluate condition
 			var err error
 			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
 			if err != nil {
@@ -202,16 +204,23 @@ func (r *metricRouter) DoDelTags(point lp.CCMetric) {
 // Conditional test whether a metric should be dropped
 func (r *metricRouter) dropMetric(point lp.CCMetric) bool {
 	// Simple drop check
-	if _, ok := r.config.dropMetrics[point.Name()]; ok {
-		return true
+	if conditionMatches, ok := r.config.dropMetrics[point.Name()]; ok {
+		return conditionMatches
 	}
+
 	// Checking the dropping conditions
 	for _, m := range r.config.DropMetricsIf {
 		conditionMatches, err := agg.EvalBoolCondition(m, getParamMap(point))
-		if conditionMatches || err != nil {
-			return true
+		if err != nil {
+			cclog.ComponentError("MetricRouter", err.Error())
+			conditionMatches = false
+		}
+		if conditionMatches {
+			return conditionMatches
 		}
 	}
+
+	// No dropping condition met
 	return false
 }
 
