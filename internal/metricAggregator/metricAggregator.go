@@ -246,15 +246,16 @@ func (c *metricAggregator) AddAggregation(name, function, condition string, tags
 			return nil
 		}
 	}
-	var agg MetricAggregatorIntervalConfig
-	agg.Name = name
-	agg.Condition = newcond
-	agg.gvalCond = gvalCond
-	agg.Function = newfunc
-	agg.gvalFunc = gvalFunc
-	agg.Tags = tags
-	agg.Meta = meta
-	c.functions = append(c.functions, &agg)
+	agg := &MetricAggregatorIntervalConfig{
+		Name:      name,
+		Condition: newcond,
+		gvalCond:  gvalCond,
+		Function:  newfunc,
+		gvalFunc:  gvalFunc,
+		Tags:      tags,
+		Meta:      meta,
+	}
+	c.functions = append(c.functions, agg)
 	return nil
 }
 
