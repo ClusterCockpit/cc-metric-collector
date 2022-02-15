@@ -1,23 +1,28 @@
 {
-    "numastats": {},
     "cpufreq": {},
     "cpufreq_cpuinfo": {},
     "gpfs": {
-        "exclude_filesystem": [ "test_fs" ]
+        "exclude_filesystem": [
+            "test_fs"
+        ]
     },
     "loadavg": {
-        "exclude_metrics": [ "proc_total" ]
+        "exclude_metrics": [
+            "proc_total"
+        ]
     },
+    "numastats": {},
+    "nvidia": {},
     "tempstat": {
-      "tag_override": {
-        "hwmon0" : {
-            "type" : "socket",
-            "type-id" : "0"
-        },
-        "hwmon1" : {
-            "type" : "socket",
-            "type-id" : "1"
+        "tag_override": {
+            "hwmon0": {
+                "type": "socket",
+                "type-id": "0"
+            },
+            "hwmon1": {
+                "type": "socket",
+                "type-id": "1"
+            }
         }
-      }
     }
 }
