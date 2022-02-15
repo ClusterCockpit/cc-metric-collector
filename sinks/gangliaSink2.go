@@ -2,7 +2,7 @@ package sinks
 
 /*
 #cgo CFLAGS: -I./ganglia/include -DGM_PROTOCOL_GUARD
-#cgo LDFLAGS: -L/usr/lib -lganglia -lconfuse -ldl
+#cgo LDFLAGS: -L/usr/lib -lganglia
 #include <stdlib.h>
 #include <ganglia.h>
 */
