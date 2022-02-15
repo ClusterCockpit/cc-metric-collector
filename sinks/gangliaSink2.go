@@ -1,8 +1,8 @@
 package sinks
 
 /*
-#cgo CFLAGS: -I./ganglia/include -DGM_PROTOCOL_GUARD
-#cgo LDFLAGS: -L/usr/lib -lganglia
+#cgo CFLAGS: -DGM_PROTOCOL_GUARD
+#cgo LDFLAGS: -L. -lganglia
 #include <stdlib.h>
 enum ganglia_slope {
    GANGLIA_SLOPE_ZERO = 0,
