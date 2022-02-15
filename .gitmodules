@@ -2,6 +2,3 @@
 	path = .github/actions/rpmbuild-centos8-golang
 	url = https://github.com/naveenrajm7/rpmbuild.git
 	branch = centos8
-[submodule "sinks/ganglia"]
-	path = sinks/ganglia
-	url = https://github.com/ganglia/monitor-core
