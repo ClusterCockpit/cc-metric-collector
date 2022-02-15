@@ -263,7 +263,7 @@ func (r *metricRouter) Start() {
 		}
 	}
 
-	// Foward message received from receivers channel
+	// Forward message received from receivers channel
 	recv_forward := func(p lp.CCMetric) {
 		// receive from receive manager
 		if r.config.IntervalStamp {
@@ -274,7 +274,7 @@ func (r *metricRouter) Start() {
 		}
 	}
 
-	// Foward message received from cache channel
+	// Forward message received from cache channel
 	cache_forward := func(p lp.CCMetric) {
 		// receive from metric collector
 		if !r.dropMetric(p) {
@@ -342,13 +342,18 @@ func (r *metricRouter) Close() {
 	r.done <- true
 	// wait for close of channel r.done
 	<-r.done
+
+	// stop timer
 	if r.config.IntervalStamp {
 		cclog.ComponentDebug("MetricRouter", "TIMER CLOSE")
 		r.timerdone <- true
 		// wait for close of channel r.timerdone
 		<-r.timerdone
 	}
+
+	// stop metric cache
 	if r.config.NumCacheIntervals > 0 {
+		cclog.ComponentDebug("MetricRouter", "CACHE CLOSE")
 		r.cache.Close()
 		r.cachewg.Wait()
 	}
