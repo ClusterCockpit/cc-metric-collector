@@ -43,60 +43,84 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	m.name = "NvidiaCollector"
 	m.config.AddPciInfoTag = false
 	m.setup()
-	m.meta = map[string]string{"source": m.name, "group": "Nvidia"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Nvidia",
+	}
+
 	m.num_gpus = 0
 	defer m.CatchPanic()
+
+	// Initialize NVIDIA Management Library (NVML)
 	ret := nvml.Init()
 	if ret != nvml.SUCCESS {
 		err = errors.New(nvml.ErrorString(ret))
 		cclog.ComponentError(m.name, "Unable to initialize NVML", err.Error())
 		return err
 	}
+
+	// Number of NVIDIA GPUs
 	num_gpus, ret := nvml.DeviceGetCount()
 	if ret != nvml.SUCCESS {
 		err = errors.New(nvml.ErrorString(ret))
 		cclog.ComponentError(m.name, "Unable to get device count", err.Error())
 		return err
 	}
+
+	// For all GPUs
 	m.gpus = make([]NvidiaCollectorDevice, num_gpus)
-	idx := 0
-	for i := 0; i < num_gpus && idx < num_gpus; i++ {
+	for i := 0; i < num_gpus; i++ {
+		g := &m.gpus[i]
+
+		// Skip excluded devices
 		str_i := fmt.Sprintf("%d", i)
 		if _, skip := stringArrayContains(m.config.ExcludeDevices, str_i); skip {
 			continue
 		}
 
+		// Get device handle
 		device, ret := nvml.DeviceGetHandleByIndex(i)
 		if ret != nvml.SUCCESS {
 			err = errors.New(nvml.ErrorString(ret))
 			cclog.ComponentError(m.name, "Unable to get device at index", i, ":", err.Error())
 			return err
 		}
-		g := m.gpus[idx]
 		g.device = device
-		g.tags = map[string]string{"type": "accelerator", "type-id": str_i}
+
+		// Add tags
+		g.tags = map[string]string{
+			"type":    "accelerator",
+			"type-id": str_i,
+		}
+
+		// Add excluded metrics
 		g.excludeMetrics = map[string]bool{}
 		for _, e := range m.config.ExcludeMetrics {
 			g.excludeMetrics[e] = true
 		}
+
+		// Add PCI info as tag
 		if m.config.AddPciInfoTag {
-			pciinfo, ret := nvml.DeviceGetPciInfo(g.device)
+			pciInfo, ret := nvml.DeviceGetPciInfo(g.device)
 			if ret != nvml.SUCCESS {
 				err = errors.New(nvml.ErrorString(ret))
-				cclog.ComponentError(m.name, "Unable to get pciInfo for device at index", i, ":", err.Error())
+				cclog.ComponentError(m.name, "Unable to get PCI info for device at index", i, ":", err.Error())
 				return err
 			}
-			g.tags["pci_identifier"] = fmt.Sprintf("%08X:%02X:%02X.0", pciinfo.Domain, pciinfo.Bus, pciinfo.Device)
+			g.tags["pci_identifier"] = fmt.Sprintf(
+				"%08X:%02X:%02X.0",
+				pciInfo.Domain,
+				pciInfo.Bus,
+				pciInfo.Device)
 		}
-		m.gpus[idx] = g
-		idx++
 	}
+
 	m.init = true
 	return nil
 }
