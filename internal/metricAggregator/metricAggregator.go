@@ -66,6 +66,7 @@ var language gval.Language = gval.NewLanguage(
 	gval.Full(),
 	metricCacheLanguage,
 )
+var evaluables map[string]gval.Evaluable = make(map[string]gval.Evaluable)
 
 func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	c.output = output
@@ -288,66 +289,41 @@ func (c *metricAggregator) AddFunction(name string, function func(args ...interf
 }
 
 func EvalBoolCondition(condition string, params map[string]interface{}) (bool, error) {
-	newcond :=
-		strings.ReplaceAll(
+	var evaluable gval.Evaluable
+	var ok bool
+	if evaluable, ok = evaluables[condition]; !ok {
+		newcond :=
 			strings.ReplaceAll(
-				condition, "'", "\""), "%", "\\")
-	value, err := gval.Evaluate(newcond, params, language)
-	if err != nil {
-		return false, err
+				strings.ReplaceAll(
+					condition, "'", "\""), "%", "\\")
+		var err error
+		evaluable, err = language.NewEvaluable(newcond)
+		if err != nil {
+			return false, err
+		}
+		evaluables[condition] = evaluable
 	}
-	endResult := false
-	err = nil
-	switch r := value.(type) {
-	case bool:
-		endResult = r
-	case float64:
-		endResult = r != 0.0
-	case float32:
-		endResult = r != 0.0
-	case int:
-		endResult = r != 0
-	case int64:
-		endResult = r != 0
-	case int32:
-		endResult = r != 0
-	default:
-		err = fmt.Errorf("cannot evaluate '%s' to bool", newcond)
-	}
-	return endResult, err
+	value, err := evaluable.EvalBool(context.Background(), params)
+	return value, err
 }
 
 func EvalFloat64Condition(condition string, params map[string]interface{}) (float64, error) {
-	var endResult float64 = math.NaN()
-	newcond := strings.ReplaceAll(condition, "'", "\"")
-	newcond = strings.ReplaceAll(newcond, "%", "\\")
-	value, err := gval.Evaluate(newcond, params, language)
-	if err != nil {
-		cclog.ComponentDebug("MetricRouter", condition, " = ", err.Error())
-		return endResult, err
-	}
-	err = nil
-	switch r := value.(type) {
-	case bool:
-		if r {
-			endResult = 1.0
-		} else {
-			endResult = 0.0
+	var evaluable gval.Evaluable
+	var ok bool
+	if evaluable, ok = evaluables[condition]; !ok {
+		newcond :=
+			strings.ReplaceAll(
+				strings.ReplaceAll(
+					condition, "'", "\""), "%", "\\")
+		var err error
+		evaluable, err = language.NewEvaluable(newcond)
+		if err != nil {
+			return math.NaN(), err
 		}
-	case float64:
-		endResult = r
-	case float32:
-		endResult = float64(r)
-	case int:
-		endResult = float64(r)
-	case int64:
-		endResult = float64(r)
-	case int32:
-		endResult = float64(r)
-	default:
-		err = fmt.Errorf("cannot evaluate '%s' to float64", newcond)
+		evaluables[condition] = evaluable
 	}
-	return endResult, err
+	value, err := evaluable.EvalFloat64(context.Background(), params)
+	return value, err
 }
 
 func NewAggregator(output chan lp.CCMetric) (MetricAggregator, error) {
