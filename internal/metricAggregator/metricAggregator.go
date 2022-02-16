@@ -62,6 +62,10 @@ var metricCacheLanguage = gval.NewLanguage(
 	gval.Function("getCpuList", getCpuListOfNode),
 	gval.Function("getCpuListOfType", getCpuListOfType),
 )
+var language gval.Language = gval.NewLanguage(
+	gval.Full(),
+	metricCacheLanguage,
+)
 
 func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	c.output = output
@@ -288,10 +292,6 @@ func EvalBoolCondition(condition string, params map[string]interface{}) (bool, e
 		strings.ReplaceAll(
 			strings.ReplaceAll(
 				condition, "'", "\""), "%", "\\")
-	language := gval.NewLanguage(
-		gval.Full(),
-		metricCacheLanguage,
-	)
 	value, err := gval.Evaluate(newcond, params, language)
 	if err != nil {
 		return false, err
@@ -321,10 +321,6 @@ func EvalFloat64Condition(condition string, params map[string]interface{}) (floa
 	var endResult float64 = math.NaN()
 	newcond := strings.ReplaceAll(condition, "'", "\"")
 	newcond = strings.ReplaceAll(newcond, "%", "\\")
-	language := gval.NewLanguage(
-		gval.Full(),
-		metricCacheLanguage,
-	)
 	value, err := gval.Evaluate(newcond, params, language)
 	if err != nil {
 		cclog.ComponentDebug("MetricRouter", condition, " = ", err.Error())
