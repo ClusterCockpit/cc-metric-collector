@@ -7,7 +7,8 @@ This folder contains the SinkManager and sink implementations for the cc-metric-
 - [`http`](./httpSink.md): Send metrics to an HTTP server as POST requests
 - [`influxdb`](./influxSink.md): Send metrics to an [InfluxDB](https://www.influxdata.com/products/influxdb/) database
 - [`nats`](./natsSink.md): Publish metrics to the [NATS](https://nats.io/) network overlay system
-- [`ganglia`](./gangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/)
+- [`ganglia`](./gangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/) using the `gmetric` CLI tool
+- [`libganglia`](./libgangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/) directly using `libganglia.so`
 
 # Configuration
 

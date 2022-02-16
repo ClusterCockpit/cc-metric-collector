@@ -1,3 +1,5 @@
+//go:build ganglia
+
 package sinks
 
 import (
