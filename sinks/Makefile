@@ -2,7 +2,7 @@
 all: libganglia.so
 
 libganglia.so:
-	@find /usr -name "libganglia.so*" -exec ln -s {} libganglia.so \;
+	@find /usr -readable -name "libganglia.so*" -exec ln -sf {} libganglia.so \;
 
 
 clean:
