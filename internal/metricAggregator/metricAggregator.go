@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
@@ -66,7 +67,12 @@ var language gval.Language = gval.NewLanguage(
 	gval.Full(),
 	metricCacheLanguage,
 )
-var evaluables map[string]gval.Evaluable = make(map[string]gval.Evaluable)
+var evaluables = struct {
+	mapping map[string]gval.Evaluable
+	mutex   sync.Mutex
+}{
+	mapping: make(map[string]gval.Evaluable),
+}
 
 func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	c.output = output
@@ -289,9 +295,10 @@ func (c *metricAggregator) AddFunction(name string, function func(args ...interf
 }
 
 func EvalBoolCondition(condition string, params map[string]interface{}) (bool, error) {
-	var evaluable gval.Evaluable
-	var ok bool
-	if evaluable, ok = evaluables[condition]; !ok {
+	evaluables.mutex.Lock()
+	evaluable, ok := evaluables.mapping[condition]
+	evaluables.mutex.Unlock()
+	if !ok {
 		newcond :=
 			strings.ReplaceAll(
 				strings.ReplaceAll(
@@ -301,16 +308,19 @@ func EvalBoolCondition(condition string, params map[string]interface{}) (bool, e
 		if err != nil {
 			return false, err
 		}
-		evaluables[condition] = evaluable
+		evaluables.mutex.Lock()
+		evaluables.mapping[condition] = evaluable
+		evaluables.mutex.Unlock()
 	}
 	value, err := evaluable.EvalBool(context.Background(), params)
 	return value, err
 }
 
 func EvalFloat64Condition(condition string, params map[string]interface{}) (float64, error) {
-	var evaluable gval.Evaluable
-	var ok bool
-	if evaluable, ok = evaluables[condition]; !ok {
+	evaluables.mutex.Lock()
+	evaluable, ok := evaluables.mapping[condition]
+	evaluables.mutex.Unlock()
+	if !ok {
 		newcond :=
 			strings.ReplaceAll(
 				strings.ReplaceAll(
@@ -320,7 +330,9 @@ func EvalFloat64Condition(condition string, params map[string]interface{}) (floa
 		if err != nil {
 			return math.NaN(), err
 		}
-		evaluables[condition] = evaluable
+		evaluables.mutex.Lock()
+		evaluables.mapping[condition] = evaluable
+		evaluables.mutex.Unlock()
 	}
 	value, err := evaluable.EvalFloat64(context.Background(), params)
 	return value, err
