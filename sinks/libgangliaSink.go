@@ -69,6 +69,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"unsafe"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
@@ -93,6 +94,23 @@ type LibgangliaSink struct {
 	gmond_config   C.Ganglia_gmond_config
 	send_channels  C.Ganglia_udp_send_channels
 	cstrCache      map[string]*C.char
+}
+
+func gangliaMetricName(point lp.CCMetric) string {
+	name := point.Name()
+	metricType, typeOK := point.GetTag("type")
+	metricTid, tidOk := point.GetTag("type-id")
+	gangliaType := metricType + metricTid
+	if strings.Contains(name, metricType) && tidOk {
+		name = strings.Replace(name, metricType, gangliaType, -1)
+	} else if typeOK && tidOk {
+		name = metricType + metricTid + "_" + name
+	} else if point.HasTag("device") {
+		device, _ := point.GetTag("device")
+		name = name + "_" + device
+	}
+
+	return name
 }
 
 func (s *LibgangliaSink) Init(config json.RawMessage) error {
