@@ -39,14 +39,21 @@ See the component READMEs for their configuration:
 ```
 $ git clone git@github.com:ClusterCockpit/cc-metric-collector.git
 $ make (downloads LIKWID, builds it as static library with 'direct' accessmode and copies all required files for the collector)
-$ go get (requires at least golang 1.13)
-$ go build metric-collector
+$ go get (requires at least golang 1.16)
+$ make tags
+Available tags:
+ganglia
+[...]
+$ make # calls go build (-tags ganglia,...) -o cc-metric-collector
 ```
+
+## `ganglia` build tag
+If you want support for the [Ganglia Monitoring System](http://ganglia.info/), you have to add `-tags ganglia` to the build command line. This enables two metric sinks. One is using the command line application `gmetric` (see [`ganglia`](./sinks/gangliaSink.md) sink), the other one interacts directly with `libganglia` the main Ganglia library that is commonly installed on each compute node (see [`libganglia`](./sinks/libgangliaSink.md) sink). The later one requires configuration before building, so use `make` instead of `go build` directly.
 
 # Running
 
 ```
-$ ./metric-collector --help
+$ ./cc-metric-collector --help
 Usage of metric-collector:
   -config string
     	Path to configuration file (default "./config.json")
