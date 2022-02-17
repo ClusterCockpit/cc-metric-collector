@@ -78,7 +78,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const GMOND_CONFIG_FILE = `/var/ganglia/gmond.conf`
+const GMOND_CONFIG_FILE = `/etc/ganglia/gmond.conf`
 
 type LibgangliaSinkConfig struct {
 	defaultSinkConfig
