@@ -21,16 +21,17 @@ type CpustatCollectorConfig struct {
 
 type CpustatCollector struct {
 	metricCollector
-	config   CpustatCollectorConfig
-	matches  map[string]int
-	cputags  map[string]map[string]string
-	nodetags map[string]string
+	config          CpustatCollectorConfig
+	matches         map[string]int
+	cputags         map[string]map[string]string
+	nodetags        map[string]string
+	num_cpus_metric lp.CCMetric
 }
 
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
-	m.meta = map[string]string{"source": m.name, "group": "CPU"}
+	m.meta = map[string]string{"source": m.name, "group": "CPU", "unit": "Percent"}
 	m.nodetags = map[string]string{"type": "node"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
@@ -38,33 +39,30 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	matches := []string{
-		"",
-		"cpu_user",
-		"cpu_nice",
-		"cpu_system",
-		"cpu_idle",
-		"cpu_iowait",
-		"cpu_irq",
-		"cpu_softirq",
-		"cpu_steal",
-		"cpu_guest",
-		"cpu_guest_nice",
+	matches := map[string]int{
+		"cpu_user":       1,
+		"cpu_nice":       2,
+		"cpu_system":     3,
+		"cpu_idle":       4,
+		"cpu_iowait":     5,
+		"cpu_irq":        6,
+		"cpu_softirq":    7,
+		"cpu_steal":      8,
+		"cpu_guest":      9,
+		"cpu_guest_nice": 10,
 	}
 
 	m.matches = make(map[string]int)
-	for index, match := range matches {
-		if len(match) > 0 {
-			doExclude := false
-			for _, exclude := range m.config.ExcludeMetrics {
-				if match == exclude {
-					doExclude = true
-					break
-				}
+	for match, index := range matches {
+		doExclude := false
+		for _, exclude := range m.config.ExcludeMetrics {
+			if match == exclude {
+				doExclude = true
+				break
 			}
-			if !doExclude {
-				m.matches[match] = index
-			}
+		}
+		if !doExclude {
+			m.matches[match] = index
 		}
 	}
 
@@ -76,6 +74,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	defer file.Close()
 
 	// Pre-generate tags for all CPUs
+	num_cpus := 0
 	m.cputags = make(map[string]map[string]string)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -85,6 +84,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			cpustr := strings.TrimLeft(linefields[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
 			m.cputags[linefields[0]] = map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", cpu)}
+			num_cpus++
 		}
 	}
 	m.init = true
@@ -103,8 +103,9 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 			}
 		}
 	}
+	t := time.Now()
 	for name, value := range values {
-		y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": (value * 100.0) / total}, time.Now())
+		y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": (value * 100.0) / total}, t)
 		if err == nil {
 			output <- y
 		}
@@ -134,14 +135,14 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		}
 	}
 
-	y, err := lp.New("num_cpus",
+	num_cpus_metric, err := lp.New("num_cpus",
 		m.nodetags,
 		m.meta,
 		map[string]interface{}{"value": int(num_cpus)},
 		time.Now(),
 	)
 	if err == nil {
-		output <- y
+		output <- num_cpus_metric
 	}
 }
 
