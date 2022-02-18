@@ -3,19 +3,19 @@
 
 ```json
   "netstat": {
-    "exclude_devices": [
-      "lo"
+    "include_devices": [
+      "eth0"
     ]
   }
 ```
 
-The `netstat` collector reads data from `/proc/net/dev` and outputs a handful **node** metrics. If a device is not required, it can be excluded from forwarding it to the sink. Commonly the `lo` device should be excluded.
+The `netstat` collector reads data from `/proc/net/dev` and outputs a handful **node** metrics. With the `include_devices` list you can specify which network devices should be measured. **Note**: Most other collectors use an _exclude_ list instead of an include list.
 
 Metrics:
-* `bytes_in`
-* `bytes_out`
-* `pkts_in`
-* `pkts_out`
+* `net_bytes_in` (`unit=bytes/sec`)
+* `net_bytes_out` (`unit=bytes/sec`)
+* `net_pkts_in` (`unit=packets/sec`)
+* `net_pkts_out` (`unit=packets/sec`)
 
 The device name is added as tag `device`.
 
