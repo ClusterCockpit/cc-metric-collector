@@ -1,18 +1,21 @@
 package collectors
 
 import (
-	"io/ioutil"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	//	"log"
+	"bufio"
 	"encoding/json"
-	"errors"
-	"strconv"
+	"fmt"
+	"os"
 	"strings"
+	"syscall"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const DISKSTATFILE = `/proc/diskstats`
-const DISKSTAT_SYSFSPATH = `/sys/block`
+//	"log"
+
+const MOUNTFILE = `/proc/self/mounts`
 
 type DiskstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
@@ -20,93 +23,89 @@ type DiskstatCollectorConfig struct {
 
 type DiskstatCollector struct {
 	metricCollector
-	matches map[int]string
-	config  DiskstatCollectorConfig
+	//matches map[string]int
+	config IOstatCollectorConfig
+	//devices map[string]IOstatCollectorEntry
 }
 
 func (m *DiskstatCollector) Init(config json.RawMessage) error {
-	var err error
 	m.name = "DiskstatCollector"
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	m.setup()
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
+		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
-	// https://www.kernel.org/doc/html/latest/admin-guide/iostats.html
-	matches := map[int]string{
-		3:  "reads",
-		4:  "reads_merged",
-		5:  "read_sectors",
-		6:  "read_ms",
-		7:  "writes",
-		8:  "writes_merged",
-		9:  "writes_sectors",
-		10: "writes_ms",
-		11: "ioops",
-		12: "ioops_ms",
-		13: "ioops_weighted_ms",
-		14: "discards",
-		15: "discards_merged",
-		16: "discards_sectors",
-		17: "discards_ms",
-		18: "flushes",
-		19: "flushes_ms",
+	file, err := os.Open(string(MOUNTFILE))
+	if err != nil {
+		cclog.ComponentError(m.name, err.Error())
+		return err
 	}
-	m.matches = make(map[int]string)
-	for k, v := range matches {
-		_, skip := stringArrayContains(m.config.ExcludeMetrics, v)
-		if !skip {
-			m.matches[k] = v
-		}
-	}
-	if len(m.matches) == 0 {
-		return errors.New("No metrics to collect")
-	}
-	_, err = ioutil.ReadFile(string(DISKSTATFILE))
-	if err == nil {
-		m.init = true
-	}
-	return err
+	defer file.Close()
+	m.init = true
+	return nil
 }
 
 func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
-	var lines []string
 	if !m.init {
 		return
 	}
 
-	buffer, err := ioutil.ReadFile(string(DISKSTATFILE))
+	file, err := os.Open(string(MOUNTFILE))
 	if err != nil {
+		cclog.ComponentError(m.name, err.Error())
 		return
 	}
-	lines = strings.Split(string(buffer), "\n")
+	defer file.Close()
 
-	for _, line := range lines {
+	part_max_used := uint64(0)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if len(line) == 0 {
 			continue
 		}
-		f := strings.Fields(line)
-		if strings.Contains(f[2], "loop") {
+		if !strings.HasPrefix(line, "/dev") {
 			continue
 		}
-		tags := map[string]string{
-			"device": f[2],
-			"type":   "node",
+		linefields := strings.Fields(line)
+		if strings.Contains(linefields[0], "loop") {
+			continue
 		}
-		for idx, name := range m.matches {
-			if idx < len(f) {
-				x, err := strconv.ParseInt(f[idx], 0, 64)
-				if err == nil {
-					y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": int(x)}, time.Now())
-					if err == nil {
-						output <- y
-					}
-				}
-			}
+		if strings.Contains(linefields[1], "boot") {
+			continue
 		}
+		path := strings.Replace(linefields[1], `\040`, " ", -1)
+		stat := syscall.Statfs_t{}
+		err := syscall.Statfs(path, &stat)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		tags := map[string]string{"type": "node", "device": linefields[0]}
+		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
+		y, err := lp.New("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
+		if err == nil {
+			y.AddMeta("unit", "GBytes")
+			output <- y
+		}
+		free := (stat.Bfree * uint64(stat.Bsize)) / uint64(1000000000)
+		y, err = lp.New("disk_free", tags, m.meta, map[string]interface{}{"value": free}, time.Now())
+		if err == nil {
+			y.AddMeta("unit", "GBytes")
+			output <- y
+		}
+		perc := (100 * (total - free)) / total
+		if perc > part_max_used {
+			part_max_used = perc
+		}
+	}
+	y, err := lp.New("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": part_max_used}, time.Now())
+	if err == nil {
+		y.AddMeta("unit", "percent")
+		output <- y
 	}
 }
 

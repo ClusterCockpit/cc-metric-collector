@@ -4,31 +4,18 @@
 ```json
   "diskstat": {
     "exclude_metrics": [
-      "read_ms"
+      "disk_total"
     ],
   }
 ```
 
-The `netstat` collector reads data from `/proc/net/dev` and outputs a handful **node** metrics. If a metric is not required, it can be excluded from forwarding it to the sink.
+The `diskstat` collector reads data from `/proc/self/mounts` and outputs a handful **node** metrics. If a metric is not required, it can be excluded from forwarding it to the sink.
 
-Metrics:
-* `reads`
-* `reads_merged`
-* `read_sectors`
-* `read_ms`
-* `writes`
-* `writes_merged`
-* `writes_sectors`
-* `writes_ms`
-* `ioops`
-* `ioops_ms`
-* `ioops_weighted_ms`
-* `discards`
-* `discards_merged`
-* `discards_sectors`
-* `discards_ms`
-* `flushes`
-* `flushes_ms`
+Metrics per device (with `device` tag):
+* `disk_total` (unit `GBytes`)
+* `disk_free` (unit `GBytes`)
 
-The device name is added as tag `device`.
+Global metrics:
+* `part_max_used` (unit `percent`)
+
 
