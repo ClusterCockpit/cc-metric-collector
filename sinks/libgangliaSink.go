@@ -1,11 +1,8 @@
-//go:build ganglia
-// +build ganglia
-
 package sinks
 
 /*
 #cgo CFLAGS: -DGM_PROTOCOL_GUARD
-#cgo LDFLAGS: -L. -lganglia
+#cgo LDFLAGS: -L. -lganglia -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 
 // This is a copy&paste snippet of ganglia.h (BSD-3 license)
@@ -72,22 +69,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"unsafe"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
-const GMOND_CONFIG_FILE = `/etc/ganglia/gmond.conf`
+const (
+	GANGLIA_LIB_NAME     = "libganglia.so"
+	GANGLIA_LIB_DL_FLAGS = dl.RTLD_LAZY | dl.RTLD_GLOBAL
+	GMOND_CONFIG_FILE    = `/etc/ganglia/gmond.conf`
+)
+
+type LibgangliaSinkSpecialMetric struct {
+	MetricName string `json:"metric_name,omitempty"`
+	NewName    string `json:"new_name,omitempty"`
+	Slope      string `json:"slope,omitempty"`
+}
 
 type LibgangliaSinkConfig struct {
 	defaultSinkConfig
-	GmondConfig     string `json:"gmond_config,omitempty"`
-	AddGangliaGroup bool   `json:"add_ganglia_group,omitempty"`
-	//AddTagsAsDesc   bool   `json:"add_tags_as_desc,omitempty"`
-	AddTypeToName bool   `json:"add_type_to_name,omitempty"`
-	AddUnits      bool   `json:"add_units,omitempty"`
-	ClusterName   string `json:"cluster_name,omitempty"`
+	GangliaLib      string                                 `json:"libganglia_path,omitempty"`
+	GmondConfig     string                                 `json:"gmond_config,omitempty"`
+	AddGangliaGroup bool                                   `json:"add_ganglia_group,omitempty"`
+	AddTypeToName   bool                                   `json:"add_type_to_name,omitempty"`
+	AddUnits        bool                                   `json:"add_units,omitempty"`
+	ClusterName     string                                 `json:"cluster_name,omitempty"`
+	SpecialMetrics  map[string]LibgangliaSinkSpecialMetric `json:"rename_metrics,omitempty"` // Map to rename metric name from key to value
+	//AddTagsAsDesc   bool              `json:"add_tags_as_desc,omitempty"`
 }
 
 type LibgangliaSink struct {
@@ -99,23 +108,6 @@ type LibgangliaSink struct {
 	cstrCache      map[string]*C.char
 }
 
-func gangliaMetricName(point lp.CCMetric) string {
-	name := point.Name()
-	metricType, typeOK := point.GetTag("type")
-	metricTid, tidOk := point.GetTag("type-id")
-	gangliaType := metricType + metricTid
-	if strings.Contains(name, metricType) && tidOk {
-		name = strings.Replace(name, metricType, gangliaType, -1)
-	} else if typeOK && tidOk {
-		name = metricType + metricTid + "_" + name
-	} else if point.HasTag("device") {
-		device, _ := point.GetTag("device")
-		name = name + "_" + device
-	}
-
-	return name
-}
-
 func (s *LibgangliaSink) Init(config json.RawMessage) error {
 	var err error = nil
 	s.name = "LibgangliaSink"
@@ -124,12 +116,17 @@ func (s *LibgangliaSink) Init(config json.RawMessage) error {
 	s.config.AddTypeToName = false
 	s.config.AddUnits = true
 	s.config.GmondConfig = string(GMOND_CONFIG_FILE)
+	s.config.GangliaLib = string(GANGLIA_LIB_NAME)
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &s.config)
 		if err != nil {
 			fmt.Println(s.name, "Error reading config for", s.name, ":", err.Error())
 			return err
 		}
+	}
+	lib := dl.New(s.config.GangliaLib, GANGLIA_LIB_DL_FLAGS)
+	if lib == nil {
+		return fmt.Errorf("error instantiating DynamicLibrary for %s", s.config.GangliaLib)
 	}
 
 	// Set up cache for the C strings
@@ -182,16 +179,17 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 	}
 
 	// Get metric name
+	metricname := GangliaMetricRename(point)
 	if s.config.AddTypeToName {
-		c_name = lookup(gangliaMetricName(point))
+		c_name = lookup(GangliaMetricName(point))
 	} else {
-		c_name = lookup(point.Name())
+		c_name = lookup(metricname)
 	}
 
 	// Get the value C string and lookup the type string in the cache
 	value, ok := point.GetField("value")
 	if !ok {
-		return fmt.Errorf("metric %s has no 'value' field", point.Name())
+		return fmt.Errorf("metric %s has no 'value' field", metricname)
 	}
 	switch real := value.(type) {
 	case float64:
@@ -229,14 +227,24 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 		c_unit = lookup("")
 	}
 
+	// Determine the slope of the metric. Ganglia's own collector mostly use
+	// 'both' but the mem and swap total uses 'zero'.
+	slope := GangliaSlopeType(point)
+	slope_type := C.GANGLIA_SLOPE_BOTH
+	switch slope {
+	case 0:
+		slope_type = C.GANGLIA_SLOPE_ZERO
+	}
+
 	// Create a new Ganglia metric
 	gmetric := C.Ganglia_metric_create(s.global_context)
-	rval := C.int(0)
 	// Set name, value, type and unit in the Ganglia metric
 	// Since we don't have this information from the collectors,
 	// we assume that the metric value can go up and down (slope),
-	// and their is no maximum for 'dmax' and 'tmax'
-	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.GANGLIA_SLOPE_BOTH, 0, 0)
+	// and there is no maximum for 'dmax' and 'tmax'.
+	// Ganglia's collectors set 'tmax' but not 'dmax'
+	rval := C.int(0)
+	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), 0, 0)
 	switch rval {
 	case 1:
 		C.free(unsafe.Pointer(c_value))

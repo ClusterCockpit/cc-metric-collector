@@ -1,6 +1,3 @@
-//go:build ganglia
-// +build ganglia
-
 package sinks
 
 import (
@@ -25,6 +22,8 @@ type GangliaSinkConfig struct {
 	GmetricConfig   string `json:"gmetric_config,omitempty"`
 	AddGangliaGroup bool   `json:"add_ganglia_group,omitempty"`
 	AddTagsAsDesc   bool   `json:"add_tags_as_desc,omitempty"`
+	ClusterName     string `json:"cluster_name,omitempty"`
+	AddTypeToName   bool   `json:"add_type_to_name,omitempty"`
 }
 
 type GangliaSink struct {
@@ -85,8 +84,6 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 
 	for key, value := range point.Tags() {
 		switch key {
-		case "cluster":
-			argstr = append(argstr, fmt.Sprintf("--cluster=%s", value))
 		case "unit":
 			argstr = append(argstr, fmt.Sprintf("--units=%s", value))
 		default:
@@ -96,8 +93,6 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	if s.config.MetaAsTags {
 		for key, value := range point.Meta() {
 			switch key {
-			case "cluster":
-				argstr = append(argstr, fmt.Sprintf("--cluster=%s", value))
 			case "unit":
 				argstr = append(argstr, fmt.Sprintf("--units=%s", value))
 			default:
@@ -105,13 +100,28 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 			}
 		}
 	}
+	if len(s.config.ClusterName) > 0 {
+		argstr = append(argstr, fmt.Sprintf("--cluster=%s", s.config.ClusterName))
+	}
 	if s.config.AddTagsAsDesc && len(tagsstr) > 0 {
 		argstr = append(argstr, fmt.Sprintf("--desc=%q", strings.Join(tagsstr, ",")))
 	}
 	if len(s.gmetric_config) > 0 {
 		argstr = append(argstr, fmt.Sprintf("--conf=%s", s.gmetric_config))
 	}
-	argstr = append(argstr, fmt.Sprintf("--name=%s", point.Name()))
+	name := GangliaMetricRename(point)
+	if s.config.AddTypeToName {
+		argstr = append(argstr, fmt.Sprintf("--name=%s", GangliaMetricName(point)))
+	} else {
+		argstr = append(argstr, fmt.Sprintf("--name=%s", name))
+	}
+	slope := GangliaSlopeType(point)
+	slopeStr := "both"
+	if slope == 0 {
+		slopeStr = "zero"
+	}
+	argstr = append(argstr, fmt.Sprintf("--slope=%s", slopeStr))
+
 	for k, v := range point.Fields() {
 		if k == "value" {
 			switch value := v.(type) {
