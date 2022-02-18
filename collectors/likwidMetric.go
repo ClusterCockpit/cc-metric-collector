@@ -2,7 +2,7 @@ package collectors
 
 /*
 #cgo CFLAGS: -I./likwid
-#cgo LDFLAGS: -L./likwid -llikwid -llikwid-hwloc -lm
+#cgo LDFLAGS: -L./likwid -llikwid -llikwid-hwloc -lm -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 #include <likwid.h>
 */
@@ -25,6 +25,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
+	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
 type MetricScope string
@@ -68,6 +69,11 @@ func (ms MetricScope) Granularity() int {
 func GetAllMetricScopes() []MetricScope {
 	return []MetricScope{"cpu" /*, "core", "llc", "numadomain", "die",*/, "socket", "node"}
 }
+
+const (
+	LIKWID_LIB_NAME     = "liblikwid.so"
+	LIKWID_LIB_DL_FLAGS = dl.RTLD_LAZY | dl.RTLD_GLOBAL
+)
 
 type LikwidCollectorMetricConfig struct {
 	Name string `json:"name"` // Name of the metric
@@ -259,6 +265,10 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		if err != nil {
 			return err
 		}
+	}
+	lib := dl.New(LIKWID_LIB_NAME, LIKWID_LIB_DL_FLAGS)
+	if lib == nil {
+		return fmt.Errorf("error instantiating DynamicLibrary for %s", LIKWID_LIB_NAME)
 	}
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
