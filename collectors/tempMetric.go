@@ -21,18 +21,24 @@ import (
 // /sys/class/hwmon/hwmon*/temp*_crit -> 100000 = 100.0°C
 
 type TempCollectorSensor struct {
-	name       string
-	label      string
-	metricName string // Default: name_label
-	file       string
-	tags       map[string]string
+	name         string
+	label        string
+	metricName   string // Default: name_label
+	file         string
+	maxTempName  string
+	maxTemp      int64
+	critTempName string
+	critTemp     int64
+	tags         map[string]string
 }
 
 type TempCollector struct {
 	metricCollector
 	config struct {
-		ExcludeMetrics []string                     `json:"exclude_metrics"`
-		TagOverride    map[string]map[string]string `json:"tag_override"`
+		ExcludeMetrics     []string                     `json:"exclude_metrics"`
+		TagOverride        map[string]map[string]string `json:"tag_override"`
+		ReportMaxTemp      bool                         `json:"report_max_temperature"`
+		ReportCriticalTemp bool                         `json:"report_critical_temperature"`
 	}
 	sensors []*TempCollectorSensor
 }
@@ -92,6 +98,9 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		switch {
 		case len(sensor.name) == 0 && len(sensor.label) == 0:
 			continue
+		case sensor.name == "coretemp" && strings.HasPrefix(sensor.label, "Core ") ||
+			sensor.name == "coretemp" && strings.HasPrefix(sensor.label, "Package id "):
+			sensor.metricName = "temp_" + sensor.label
 		case len(sensor.name) != 0 && len(sensor.label) != 0:
 			sensor.metricName = sensor.name + "_" + sensor.label
 		case len(sensor.name) != 0:
@@ -99,12 +108,12 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		case len(sensor.label) != 0:
 			sensor.metricName = sensor.label
 		}
+		sensor.metricName = strings.ToLower(sensor.metricName)
 		sensor.metricName = strings.Replace(sensor.metricName, " ", "_", -1)
 		// Add temperature prefix, if required
 		if !strings.Contains(sensor.metricName, "temp") {
 			sensor.metricName = "temp_" + sensor.metricName
 		}
-		sensor.metricName = strings.ToLower(sensor.metricName)
 
 		// Sensor file
 		sensor.file = file
@@ -119,6 +128,28 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 			if strings.Contains(sensor.file, key) {
 				sensor.tags = newtags
 				break
+			}
+		}
+
+		// max temperature
+		if m.config.ReportMaxTemp {
+			maxTempFile := strings.TrimSuffix(file, "_input") + "_max"
+			if buffer, err := ioutil.ReadFile(maxTempFile); err == nil {
+				if x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64); err == nil {
+					sensor.maxTempName = strings.Replace(sensor.metricName, "temp", "max_temp", 1)
+					sensor.maxTemp = x / 1000
+				}
+			}
+		}
+
+		// critical temperature
+		if m.config.ReportCriticalTemp {
+			criticalTempFile := strings.TrimSuffix(file, "_input") + "_crit"
+			if buffer, err := ioutil.ReadFile(criticalTempFile); err == nil {
+				if x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64); err == nil {
+					sensor.critTempName = strings.Replace(sensor.metricName, "temp", "crit_temp", 1)
+					sensor.critTemp = x / 1000
+				}
 			}
 		}
 
@@ -163,6 +194,34 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		)
 		if err == nil {
 			output <- y
+		}
+
+		// max temperature
+		if m.config.ReportMaxTemp && sensor.maxTemp != 0 {
+			y, err := lp.New(
+				sensor.maxTempName,
+				sensor.tags,
+				m.meta,
+				map[string]interface{}{"value": sensor.maxTemp},
+				time.Now(),
+			)
+			if err == nil {
+				output <- y
+			}
+		}
+
+		// critical temperature
+		if m.config.ReportCriticalTemp && sensor.critTemp != 0 {
+			y, err := lp.New(
+				sensor.critTempName,
+				sensor.tags,
+				m.meta,
+				map[string]interface{}{"value": sensor.critTemp},
+				time.Now(),
+			)
+			if err == nil {
+				output <- y
+			}
 		}
 	}
 

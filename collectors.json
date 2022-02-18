@@ -15,6 +15,8 @@
     "numastats": {},
     "nvidia": {},
     "tempstat": {
+        "report_max_temperature": true,
+        "report_critical_temperature": true,
         "tag_override": {
             "hwmon0": {
                 "type": "socket",
