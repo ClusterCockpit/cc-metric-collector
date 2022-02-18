@@ -69,7 +69,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"unsafe"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
@@ -107,23 +106,6 @@ type LibgangliaSink struct {
 	gmond_config   C.Ganglia_gmond_config
 	send_channels  C.Ganglia_udp_send_channels
 	cstrCache      map[string]*C.char
-}
-
-func gangliaMetricName(point lp.CCMetric) string {
-	name := point.Name()
-	metricType, typeOK := point.GetTag("type")
-	metricTid, tidOk := point.GetTag("type-id")
-	gangliaType := metricType + metricTid
-	if strings.Contains(name, metricType) && tidOk {
-		name = strings.Replace(name, metricType, gangliaType, -1)
-	} else if typeOK && tidOk {
-		name = metricType + metricTid + "_" + name
-	} else if point.HasTag("device") {
-		device, _ := point.GetTag("device")
-		name = name + "_" + device
-	}
-
-	return name
 }
 
 func (s *LibgangliaSink) Init(config json.RawMessage) error {
@@ -197,9 +179,9 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 	}
 
 	// Get metric name
-	metricname := point.Name()
+	metricname := GangliaMetricRename(point)
 	if s.config.AddTypeToName {
-		c_name = lookup(gangliaMetricName(point))
+		c_name = lookup(GangliaMetricName(point))
 	} else {
 		c_name = lookup(metricname)
 	}
@@ -247,11 +229,10 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 
 	// Determine the slope of the metric. Ganglia's own collector mostly use
 	// 'both' but the mem and swap total uses 'zero'.
+	slope := GangliaSlopeType(point)
 	slope_type := C.GANGLIA_SLOPE_BOTH
-	switch metricname {
-	case "mem_total":
-		slope_type = C.GANGLIA_SLOPE_ZERO
-	case "swap_total":
+	switch slope {
+	case 0:
 		slope_type = C.GANGLIA_SLOPE_ZERO
 	}
 
