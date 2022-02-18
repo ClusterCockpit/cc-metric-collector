@@ -161,11 +161,9 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		t.numNonHT = numNonHT
 		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
-			"type":        "cpu",
-			"type-id":     t.processor,
-			"num_core":    t.numNonHT,
-			"package_id":  t.physicalPackageID,
-			"num_package": t.numPhysicalPackages,
+			"type":       "cpu",
+			"type-id":    t.processor,
+			"package_id": t.physicalPackageID,
 		}
 	}
 
