@@ -9,7 +9,7 @@ The `likwid` configuration consists of two parts, the "eventsets" and "globalmet
 
 Additional options:
 - `force_overwrite`: Same as setting `LIKWID_FORCE=1`. In case counters are already in-use, LIKWID overwrites their configuration to do its measurements
-- `nan_to_zero`: In some cases, the calculations result in `NaN`. With this option, all `NaN` values are replaces with `0.0`.
+- `invalid_to_zero`: In some cases, the calculations result in `NaN` or `Inf`. With this option, all `NaN` and `Inf` values are replaces with `0.0`.
 
 ### Available metric scopes
 

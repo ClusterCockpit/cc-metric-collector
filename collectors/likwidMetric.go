@@ -2,7 +2,7 @@ package collectors
 
 /*
 #cgo CFLAGS: -I./likwid
-#cgo LDFLAGS: -L./likwid -llikwid -llikwid-hwloc -lm
+#cgo LDFLAGS: -L./likwid -llikwid -llikwid-hwloc -lm -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 #include <likwid.h>
 */
@@ -25,6 +25,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
+	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
 type MetricScope string
@@ -69,6 +70,11 @@ func GetAllMetricScopes() []MetricScope {
 	return []MetricScope{"cpu" /*, "core", "llc", "numadomain", "die",*/, "socket", "node"}
 }
 
+const (
+	LIKWID_LIB_NAME     = "liblikwid.so"
+	LIKWID_LIB_DL_FLAGS = dl.RTLD_LAZY | dl.RTLD_GLOBAL
+)
+
 type LikwidCollectorMetricConfig struct {
 	Name string `json:"name"` // Name of the metric
 	Calc string `json:"calc"` // Calculation for the metric using
@@ -88,7 +94,7 @@ type LikwidCollectorConfig struct {
 	Eventsets      []LikwidCollectorEventsetConfig `json:"eventsets"`
 	Metrics        []LikwidCollectorMetricConfig   `json:"globalmetrics,omitempty"`
 	ForceOverwrite bool                            `json:"force_overwrite,omitempty"`
-	NanToZero      bool                            `json:"nan_to_zero,omitempty"`
+	InvalidToZero  bool                            `json:"invalid_to_zero,omitempty"`
 }
 
 type LikwidCollector struct {
@@ -260,6 +266,10 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
+	lib := dl.New(LIKWID_LIB_NAME, LIKWID_LIB_DL_FLAGS)
+	if lib == nil {
+		return fmt.Errorf("error instantiating DynamicLibrary for %s", LIKWID_LIB_NAME)
+	}
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
 		os.Setenv("LIKWID_FORCE", "1")
@@ -374,15 +384,13 @@ func (m *LikwidCollector) takeMeasurement(group int, interval time.Duration) err
 	ret = C.perfmon_setupCounters(gid)
 	if ret != 0 {
 		gctr := C.GoString(C.perfmon_getGroupName(gid))
-		err := fmt.Errorf("failed to setup performance group %s", gctr)
-		cclog.ComponentError(m.name, err.Error())
+		err := fmt.Errorf("failed to setup performance group %d (%s)", gid, gctr)
 		return err
 	}
 	ret = C.perfmon_startCounters()
 	if ret != 0 {
 		gctr := C.GoString(C.perfmon_getGroupName(gid))
-		err := fmt.Errorf("failed to start performance group %s", gctr)
-		cclog.ComponentError(m.name, err.Error())
+		err := fmt.Errorf("failed to start performance group %d (%s)", gid, gctr)
 		return err
 	}
 	m.running = true
@@ -391,8 +399,7 @@ func (m *LikwidCollector) takeMeasurement(group int, interval time.Duration) err
 	ret = C.perfmon_stopCounters()
 	if ret != 0 {
 		gctr := C.GoString(C.perfmon_getGroupName(gid))
-		err := fmt.Errorf("failed to stop performance group %s", gctr)
-		cclog.ComponentError(m.name, err.Error())
+		err := fmt.Errorf("failed to stop performance group %d (%s)", gid, gctr)
 		return err
 	}
 	return nil
@@ -439,7 +446,10 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 					continue
 				}
 				m.mresults[group][tid][metric.Name] = value
-				if m.config.NanToZero && math.IsNaN(value) {
+				if m.config.InvalidToZero && math.IsNaN(value) {
+					value = 0.0
+				}
+				if m.config.InvalidToZero && math.IsInf(value, 0) {
 					value = 0.0
 				}
 				// Now we have the result, send it with the proper tags
@@ -483,7 +493,10 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 					continue
 				}
 				m.gmresults[tid][metric.Name] = value
-				if m.config.NanToZero && math.IsNaN(value) {
+				if m.config.InvalidToZero && math.IsNaN(value) {
+					value = 0.0
+				}
+				if m.config.InvalidToZero && math.IsInf(value, 0) {
 					value = 0.0
 				}
 				// Now we have the result, send it with the proper tags
@@ -517,7 +530,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 		err := m.takeMeasurement(i, interval)
 		if err != nil {
 			cclog.ComponentError(m.name, err.Error())
-			continue
+			return
 		}
 		// read measurements and derive event set metrics
 		m.calcEventsetMetrics(i, interval, output)
