@@ -94,7 +94,7 @@ type LikwidCollectorConfig struct {
 	Eventsets      []LikwidCollectorEventsetConfig `json:"eventsets"`
 	Metrics        []LikwidCollectorMetricConfig   `json:"globalmetrics,omitempty"`
 	ForceOverwrite bool                            `json:"force_overwrite,omitempty"`
-	NanToZero      bool                            `json:"nan_to_zero,omitempty"`
+	InvalidToZero  bool                            `json:"invalid_to_zero,omitempty"`
 }
 
 type LikwidCollector struct {
@@ -449,7 +449,10 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 					continue
 				}
 				m.mresults[group][tid][metric.Name] = value
-				if m.config.NanToZero && math.IsNaN(value) {
+				if m.config.InvalidToZero && math.IsNaN(value) {
+					value = 0.0
+				}
+				if m.config.InvalidToZero && math.IsInf(value, 0) {
 					value = 0.0
 				}
 				// Now we have the result, send it with the proper tags
@@ -493,7 +496,10 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 					continue
 				}
 				m.gmresults[tid][metric.Name] = value
-				if m.config.NanToZero && math.IsNaN(value) {
+				if m.config.InvalidToZero && math.IsNaN(value) {
+					value = 0.0
+				}
+				if m.config.InvalidToZero && math.IsInf(value, 0) {
 					value = 0.0
 				}
 				// Now we have the result, send it with the proper tags
