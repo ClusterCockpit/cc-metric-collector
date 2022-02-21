@@ -9,13 +9,8 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< HEAD
-	lp "github.com/influxdata/line-protocol"
-=======
-	ccmetric "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	influx "github.com/influxdata/line-protocol"
->>>>>>> develop
 )
 
 const CUSTOMCMDPATH = `/home/unrz139/Work/cc-metric-collector/collectors/custom`
@@ -103,7 +98,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 				continue
 			}
 
-			y := ccmetric.FromInfluxMetric(c)
+			y := lp.FromInfluxMetric(c)
 			if err == nil {
 				output <- y
 			}
@@ -125,7 +120,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			if skip {
 				continue
 			}
-			y := ccmetric.FromInfluxMetric(f)
+			y := lp.FromInfluxMetric(f)
 			if err == nil {
 				output <- y
 			}
