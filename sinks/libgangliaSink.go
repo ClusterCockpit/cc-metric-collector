@@ -2,7 +2,7 @@ package sinks
 
 /*
 #cgo CFLAGS: -DGM_PROTOCOL_GUARD
-#cgo LDFLAGS: -L. -lganglia -Wl,--unresolved-symbols=ignore-in-object-files
+#cgo LDFLAGS: -L. -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 
 // This is a copy&paste snippet of ganglia.h (BSD-3 license)
@@ -71,6 +71,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
@@ -120,13 +121,17 @@ func (s *LibgangliaSink) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &s.config)
 		if err != nil {
-			fmt.Println(s.name, "Error reading config for", s.name, ":", err.Error())
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
 			return err
 		}
 	}
 	lib := dl.New(s.config.GangliaLib, GANGLIA_LIB_DL_FLAGS)
 	if lib == nil {
 		return fmt.Errorf("error instantiating DynamicLibrary for %s", s.config.GangliaLib)
+	}
+	err = lib.Open()
+	if err != nil {
+		return fmt.Errorf("error opening %s: %v", s.config.GangliaLib, err)
 	}
 
 	// Set up cache for the C strings
