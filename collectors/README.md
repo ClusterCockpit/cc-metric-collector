@@ -18,6 +18,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 
 * [`cpustat`](./cpustatMetric.md)
 * [`memstat`](./memstatMetric.md)
+* [`iostat`](./iostatMetric.md)
 * [`diskstat`](./diskstatMetric.md)
 * [`loadavg`](./loadavgMetric.md)
 * [`netstat`](./netstatMetric.md)
