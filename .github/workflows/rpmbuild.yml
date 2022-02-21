@@ -24,6 +24,12 @@ jobs:
       with:
         name: cc-metric-collector SRPM AlmaLinux 8.5
         path: ${{ steps.rpm.outputs.source_rpm_path }}
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+         ${{ steps.rpm.outputs.source_rpm_path }}
+         ${{ steps.rpm.outputs.rpm_dir_path }}
   build-rhel-ubi8:
     runs-on: ubuntu-latest
     steps:
@@ -43,3 +49,9 @@ jobs:
       with:
         name: cc-metric-collector SRPM Red Hat Universal Base Image 8
         path: ${{ steps.rpm.outputs.source_rpm_path }}
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+         ${{ steps.rpm.outputs.source_rpm_path }}
+         ${{ steps.rpm.outputs.rpm_dir_path }}
