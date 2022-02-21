@@ -27,9 +27,8 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-         ${{ steps.rpm.outputs.source_rpm_path }}
-         ${{ steps.rpm.outputs.rpm_path }}
+        name: cc-metric-collector-${{github.ref}}
+        files: ${{ steps.rpm.outputs.rpm_path }}
   build-rhel-ubi8:
     runs-on: ubuntu-latest
     steps:
@@ -52,6 +51,5 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-         ${{ steps.rpm.outputs.source_rpm_path }}
-         ${{ steps.rpm.outputs.rpm_path }}
+        name: cc-metric-collector-${{github.ref}}
+        files: ${{ steps.rpm.outputs.rpm_path }}
