@@ -18,7 +18,7 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: cc-metric-collector RPM AlmaLinux 8.5
-        path: ${{ steps.rpm.outputs.rpm_dir_path }}
+        path: ${{ steps.rpm.outputs.rpm_path }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v1.0.0
       with:
@@ -29,7 +29,7 @@ jobs:
       with:
         files: |
          ${{ steps.rpm.outputs.source_rpm_path }}
-         ${{ steps.rpm.outputs.rpm_dir_path }}
+         ${{ steps.rpm.outputs.rpm_path }}
   build-rhel-ubi8:
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +43,7 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: cc-metric-collector RPM Red Hat Universal Base Image 8
-        path: ${{ steps.rpm.outputs.rpm_dir_path }}
+        path: ${{ steps.rpm.outputs.rpm_path }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v1.0.0
       with:
@@ -54,4 +54,4 @@ jobs:
       with:
         files: |
          ${{ steps.rpm.outputs.source_rpm_path }}
-         ${{ steps.rpm.outputs.rpm_dir_path }}
+         ${{ steps.rpm.outputs.rpm_path }}
