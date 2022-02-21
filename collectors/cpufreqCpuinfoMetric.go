@@ -2,14 +2,16 @@ package collectors
 
 import (
 	"bufio"
+	"encoding/json"
+
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	lp "github.com/influxdata/line-protocol"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 //
@@ -21,41 +23,55 @@ import (
 type CPUFreqCpuInfoCollectorTopology struct {
 	processor               string // logical processor number (continuous, starting at 0)
 	coreID                  string // socket local core ID
-	coreID_int              int
+	coreID_int              int64
 	physicalPackageID       string // socket / package ID
-	physicalPackageID_int   int
+	physicalPackageID_int   int64
 	numPhysicalPackages     string // number of  sockets / packages
-	numPhysicalPackages_int int
+	numPhysicalPackages_int int64
 	isHT                    bool
 	numNonHT                string // number of non hyperthreading processors
-	numNonHT_int            int
+	numNonHT_int            int64
 	tagSet                  map[string]string
 }
 
 type CPUFreqCpuInfoCollector struct {
-	MetricCollector
-	topology []CPUFreqCpuInfoCollectorTopology
+	metricCollector
+	topology []*CPUFreqCpuInfoCollectorTopology
 }
 
-func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
+func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
+	// Check if already initialized
+	if m.init {
+		return nil
+	}
+
+	m.setup()
+
 	m.name = "CPUFreqCpuInfoCollector"
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "CPU",
+		"unit":   "MHz",
+	}
 
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		return fmt.Errorf("Failed to open '%s': %v", cpuInfoFile, err)
+		return fmt.Errorf("Failed to open file '%s': %v", cpuInfoFile, err)
 	}
 	defer file.Close()
 
 	// Collect topology information from file cpuinfo
 	foundFreq := false
 	processor := ""
-	numNonHT_int := 0
+	var numNonHT_int int64 = 0
 	coreID := ""
 	physicalPackageID := ""
-	maxPhysicalPackageID := 0
-	m.topology = make([]CPUFreqCpuInfoCollectorTopology, 0)
+	var maxPhysicalPackageID int64 = 0
+	m.topology = make([]*CPUFreqCpuInfoCollectorTopology, 0)
 	coreSeenBefore := make(map[string]bool)
+
+	// Read cpuinfo file, line by line
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		lineSplit := strings.Split(scanner.Text(), ":")
@@ -81,39 +97,41 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 			len(coreID) > 0 &&
 			len(physicalPackageID) > 0 {
 
-			coreID_int, err := strconv.Atoi(coreID)
+			topology := new(CPUFreqCpuInfoCollectorTopology)
+
+			// Processor
+			topology.processor = processor
+
+			// Core ID
+			topology.coreID = coreID
+			topology.coreID_int, err = strconv.ParseInt(coreID, 10, 64)
 			if err != nil {
-				return fmt.Errorf("Unable to convert coreID to int: %v", err)
+				return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
 			}
-			physicalPackageID_int, err := strconv.Atoi(physicalPackageID)
+
+			// Physical package ID
+			topology.physicalPackageID = physicalPackageID
+			topology.physicalPackageID_int, err = strconv.ParseInt(physicalPackageID, 10, 64)
 			if err != nil {
-				return fmt.Errorf("Unable to convert physicalPackageID to int: %v", err)
+				return fmt.Errorf("Unable to convert physicalPackageID '%s' to int64: %v", physicalPackageID, err)
 			}
 
 			// increase maximun socket / package ID, when required
-			if physicalPackageID_int > maxPhysicalPackageID {
-				maxPhysicalPackageID = physicalPackageID_int
+			if topology.physicalPackageID_int > maxPhysicalPackageID {
+				maxPhysicalPackageID = topology.physicalPackageID_int
 			}
 
+			// is hyperthread?
 			globalID := physicalPackageID + ":" + coreID
-			isHT := coreSeenBefore[globalID]
+			topology.isHT = coreSeenBefore[globalID]
 			coreSeenBefore[globalID] = true
-			if !isHT {
+			if !topology.isHT {
 				// increase number on non hyper thread cores
 				numNonHT_int++
 			}
 
 			// store collected topology information
-			m.topology = append(
-				m.topology,
-				CPUFreqCpuInfoCollectorTopology{
-					processor:             processor,
-					coreID:                coreID,
-					coreID_int:            coreID_int,
-					physicalPackageID:     physicalPackageID,
-					physicalPackageID_int: physicalPackageID_int,
-					isHT:                  isHT,
-				})
+			m.topology = append(m.topology, topology)
 
 			// reset topology information
 			foundFreq = false
@@ -126,18 +144,15 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 	numPhysicalPackageID_int := maxPhysicalPackageID + 1
 	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
 	numNonHT := fmt.Sprint(numNonHT_int)
-	for i := range m.topology {
-		t := &m.topology[i]
+	for _, t := range m.topology {
 		t.numPhysicalPackages = numPhysicalPackageID
 		t.numPhysicalPackages_int = numPhysicalPackageID_int
 		t.numNonHT = numNonHT
 		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
-			"type":        "cpu",
-			"type-id":     t.processor,
-			"num_core":    t.numNonHT,
-			"package_id":  t.physicalPackageID,
-			"num_package": t.numPhysicalPackages,
+			"type":       "cpu",
+			"type-id":    t.processor,
+			"package_id": t.physicalPackageID,
 		}
 	}
 
@@ -145,14 +160,18 @@ func (m *CPUFreqCpuInfoCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+	// Check if already initialized
 	if !m.init {
 		return
 	}
+
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		log.Printf("Failed to open '%s': %v", cpuInfoFile, err)
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", cpuInfoFile, err))
 		return
 	}
 	defer file.Close()
@@ -167,16 +186,17 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, out *[]lp.Mutable
 
 			// frequency
 			if key == "cpu MHz" {
-				t := &m.topology[processorCounter]
+				t := m.topology[processorCounter]
 				if !t.isHT {
 					value, err := strconv.ParseFloat(strings.TrimSpace(lineSplit[1]), 64)
 					if err != nil {
-						log.Printf("Failed to convert cpu MHz to float: %v", err)
+						cclog.ComponentError(
+							m.name,
+							fmt.Sprintf("Read(): Failed to convert cpu MHz '%s' to float64: %v", lineSplit[1], err))
 						return
 					}
-					y, err := lp.New("cpufreq", t.tagSet, map[string]interface{}{"value": value}, now)
-					if err == nil {
-						*out = append(*out, y)
+					if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now); err == nil {
+						output <- y
 					}
 				}
 				processorCounter++

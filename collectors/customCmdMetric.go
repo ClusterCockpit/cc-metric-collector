@@ -9,7 +9,13 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< HEAD
 	lp "github.com/influxdata/line-protocol"
+=======
+	ccmetric "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
+>>>>>>> develop
 )
 
 const CUSTOMCMDPATH = `/home/unrz139/Work/cc-metric-collector/collectors/custom`
@@ -21,17 +27,18 @@ type CustomCmdCollectorConfig struct {
 }
 
 type CustomCmdCollector struct {
-	MetricCollector
-	handler  *lp.MetricHandler
-	parser   *lp.Parser
+	metricCollector
+	handler  *influx.MetricHandler
+	parser   *influx.Parser
 	config   CustomCmdCollectorConfig
 	commands []string
 	files    []string
 }
 
-func (m *CustomCmdCollector) Init(config []byte) error {
+func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "CustomCmdCollector"
+	m.meta = map[string]string{"source": m.name, "group": "Custom"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -61,8 +68,8 @@ func (m *CustomCmdCollector) Init(config []byte) error {
 	if len(m.files) == 0 && len(m.commands) == 0 {
 		return errors.New("No metrics to collect")
 	}
-	m.handler = lp.NewMetricHandler()
-	m.parser = lp.NewParser(m.handler)
+	m.handler = influx.NewMetricHandler()
+	m.parser = influx.NewParser(m.handler)
 	m.parser.SetTimeFunc(DefaultTime)
 	m.init = true
 	return nil
@@ -72,7 +79,7 @@ var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
-func (m *CustomCmdCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -95,9 +102,10 @@ func (m *CustomCmdCollector) Read(interval time.Duration, out *[]lp.MutableMetri
 			if skip {
 				continue
 			}
-			y, err := lp.New(c.Name(), Tags2Map(c), Fields2Map(c), c.Time())
+
+			y := ccmetric.FromInfluxMetric(c)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}
@@ -117,9 +125,9 @@ func (m *CustomCmdCollector) Read(interval time.Duration, out *[]lp.MutableMetri
 			if skip {
 				continue
 			}
-			y, err := lp.New(f.Name(), Tags2Map(f), Fields2Map(f), f.Time())
+			y := ccmetric.FromInfluxMetric(f)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 	}

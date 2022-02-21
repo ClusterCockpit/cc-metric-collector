@@ -1,40 +1,48 @@
 package collectors
 
 import (
-	"errors"
-	lp "github.com/influxdata/line-protocol"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-type MetricGetter interface {
+type MetricCollector interface {
 	Name() string
-	Init(config []byte) error
+	Init(config json.RawMessage) error
 	Initialized() bool
-	Read(time.Duration, *[]lp.MutableMetric)
+	Read(duration time.Duration, output chan lp.CCMetric)
 	Close()
 }
 
-type MetricCollector struct {
+type metricCollector struct {
 	name string
 	init bool
+	meta map[string]string
 }
 
-func (c *MetricCollector) Name() string {
+// Name() returns the name of the metric collector
+func (c *metricCollector) Name() string {
 	return c.name
 }
 
-func (c *MetricCollector) setup() error {
+func (c *metricCollector) setup() error {
 	return nil
 }
 
-func (c *MetricCollector) Initialized() bool {
-	return c.init == true
+// Initialized() indicates whether the metric collector has been initialized.
+func (c *metricCollector) Initialized() bool {
+	return c.init
 }
 
+// intArrayContains scans an array of ints if the value str is present in the array
+// If the specified value is found, the corresponding array index is returned.
+// The bool value is used to signal success or failure
 func intArrayContains(array []int, str int) (int, bool) {
 	for i, a := range array {
 		if a == str {
@@ -44,6 +52,9 @@ func intArrayContains(array []int, str int) (int, bool) {
 	return -1, false
 }
 
+// stringArrayContains scans an array of strings if the value str is present in the array
+// If the specified value is found, the corresponding array index is returned.
+// The bool value is used to signal success or failure
 func stringArrayContains(array []string, str string) (int, bool) {
 	for i, a := range array {
 		if a == str {
@@ -103,27 +114,13 @@ func CpuList() []int {
 	return cpulist
 }
 
-func Tags2Map(metric lp.Metric) map[string]string {
-	tags := make(map[string]string)
-	for _, t := range metric.TagList() {
-		tags[t.Key] = t.Value
-	}
-	return tags
-}
-
-func Fields2Map(metric lp.Metric) map[string]interface{} {
-	fields := make(map[string]interface{})
-	for _, f := range metric.FieldList() {
-		fields[f.Key] = f.Value
-	}
-	return fields
-}
-
+// RemoveFromStringList removes the string r from the array of strings s
+// If r is not contained in the array an error is returned
 func RemoveFromStringList(s []string, r string) ([]string, error) {
 	for i, item := range s {
 		if r == item {
 			return append(s[:i], s[i+1:]...), nil
 		}
 	}
-	return s, errors.New("No such string in list")
+	return s, fmt.Errorf("No such string in list")
 }

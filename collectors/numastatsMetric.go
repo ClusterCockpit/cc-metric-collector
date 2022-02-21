@@ -2,15 +2,16 @@ package collectors
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	lp "github.com/influxdata/line-protocol"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 //
@@ -42,11 +43,11 @@ type NUMAStatsCollectorTopolgy struct {
 }
 
 type NUMAStatsCollector struct {
-	MetricCollector
+	metricCollector
 	topology []NUMAStatsCollectorTopolgy
 }
 
-func (m *NUMAStatsCollector) Init(config []byte) error {
+func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	// Check if already initialized
 	if m.init {
 		return nil
@@ -54,25 +55,29 @@ func (m *NUMAStatsCollector) Init(config []byte) error {
 
 	m.name = "NUMAStatsCollector"
 	m.setup()
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "NUMA",
+	}
 
 	// Loop for all NUMA node directories
-	baseDir := "/sys/devices/system/node"
-	globPattern := filepath.Join(baseDir, "node[0-9]*")
+	base := "/sys/devices/system/node/node"
+	globPattern := base + "[0-9]*"
 	dirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("unable to glob files with pattern %s", globPattern)
+		return fmt.Errorf("unable to glob files with pattern '%s'", globPattern)
 	}
 	if dirs == nil {
-		return fmt.Errorf("unable to find any files with pattern %s", globPattern)
+		return fmt.Errorf("unable to find any files with pattern '%s'", globPattern)
 	}
 	m.topology = make([]NUMAStatsCollectorTopolgy, 0, len(dirs))
 	for _, dir := range dirs {
-		node := strings.TrimPrefix(dir, "/sys/devices/system/node/node")
+		node := strings.TrimPrefix(dir, base)
 		file := filepath.Join(dir, "numastat")
 		m.topology = append(m.topology,
 			NUMAStatsCollectorTopolgy{
 				file:   file,
-				tagSet: map[string]string{"domain": node},
+				tagSet: map[string]string{"memoryDomain": node},
 			})
 	}
 
@@ -80,7 +85,7 @@ func (m *NUMAStatsCollector) Init(config []byte) error {
 	return nil
 }
 
-func (m *NUMAStatsCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
+func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
@@ -92,9 +97,14 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, out *[]lp.MutableMetri
 		now := time.Now()
 		file, err := os.Open(t.file)
 		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to open file '%s': %v", t.file, err))
 			return
 		}
 		scanner := bufio.NewScanner(file)
+
+		// Read line by line
 		for scanner.Scan() {
 			split := strings.Fields(scanner.Text())
 			if len(split) != 2 {
@@ -103,12 +113,20 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, out *[]lp.MutableMetri
 			key := split[0]
 			value, err := strconv.ParseInt(split[1], 10, 64)
 			if err != nil {
-				log.Printf("failed to convert %s='%s' to int64: %v", key, split[1], err)
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
 				continue
 			}
-			y, err := lp.New("numastats_"+key, t.tagSet, map[string]interface{}{"value": value}, now)
+			y, err := lp.New(
+				"numastats_"+key,
+				t.tagSet,
+				m.meta,
+				map[string]interface{}{"value": value},
+				now,
+			)
 			if err == nil {
-				*out = append(*out, y)
+				output <- y
 			}
 		}
 

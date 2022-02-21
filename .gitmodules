@@ -1,0 +1,4 @@
+[submodule ".github/actions/rpmbuild-centos8-golang"]
+	path = .github/actions/rpmbuild-centos8-golang
+	url = https://github.com/naveenrajm7/rpmbuild.git
+	branch = centos8

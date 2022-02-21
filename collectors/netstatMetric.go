@@ -1,86 +1,138 @@
 package collectors
 
 import (
+	"bufio"
 	"encoding/json"
-	"io/ioutil"
-	"log"
+	"errors"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	lp "github.com/influxdata/line-protocol"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
 const NETSTATFILE = `/proc/net/dev`
 
 type NetstatCollectorConfig struct {
-	ExcludeDevices []string `json:"exclude_devices"`
+	IncludeDevices []string `json:"include_devices"`
+}
+
+type NetstatCollectorMetric struct {
+	index     int
+	lastValue float64
 }
 
 type NetstatCollector struct {
-	MetricCollector
-	config  NetstatCollectorConfig
-	matches map[int]string
+	metricCollector
+	config        NetstatCollectorConfig
+	matches       map[string]map[string]NetstatCollectorMetric
+	devtags       map[string]map[string]string
+	lastTimestamp time.Time
 }
 
-func (m *NetstatCollector) Init(config []byte) error {
+func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
-	m.matches = map[int]string{
-		1:  "bytes_in",
-		9:  "bytes_out",
-		2:  "pkts_in",
-		10: "pkts_out",
+	m.lastTimestamp = time.Now()
+	m.meta = map[string]string{"source": m.name, "group": "Network"}
+	m.devtags = make(map[string]map[string]string)
+	nameIndexMap := map[string]int{
+		"net_bytes_in":  1,
+		"net_pkts_in":   2,
+		"net_bytes_out": 9,
+		"net_pkts_out":  10,
 	}
+	m.matches = make(map[string]map[string]NetstatCollectorMetric)
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			log.Print(err.Error())
+			cclog.ComponentError(m.name, "Error reading config:", err.Error())
 			return err
 		}
 	}
-	_, err := ioutil.ReadFile(string(NETSTATFILE))
-	if err == nil {
-		m.init = true
-	}
-	return nil
-}
-
-func (m *NetstatCollector) Read(interval time.Duration, out *[]lp.MutableMetric) {
-	data, err := ioutil.ReadFile(string(NETSTATFILE))
+	file, err := os.Open(string(NETSTATFILE))
 	if err != nil {
-		log.Print(err.Error())
-		return
+		cclog.ComponentError(m.name, err.Error())
+		return err
 	}
+	defer file.Close()
 
-	lines := strings.Split(string(data), "\n")
-	for _, l := range lines {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		l := scanner.Text()
 		if !strings.Contains(l, ":") {
 			continue
 		}
 		f := strings.Fields(l)
-		dev := f[0][0 : len(f[0])-1]
-		cont := false
-		for _, d := range m.config.ExcludeDevices {
-			if d == dev {
-				cont = true
+		dev := strings.Trim(f[0], ": ")
+		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
+			m.matches[dev] = make(map[string]NetstatCollectorMetric)
+			for name, idx := range nameIndexMap {
+				m.matches[dev][name] = NetstatCollectorMetric{
+					index:     idx,
+					lastValue: 0,
+				}
 			}
+			m.devtags[dev] = map[string]string{"device": dev, "type": "node"}
 		}
-		if cont {
+	}
+	if len(m.devtags) == 0 {
+		return errors.New("no devices to collector metrics found")
+	}
+	m.init = true
+	return nil
+}
+
+func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+	if !m.init {
+		return
+	}
+	now := time.Now()
+	file, err := os.Open(string(NETSTATFILE))
+	if err != nil {
+		cclog.ComponentError(m.name, err.Error())
+		return
+	}
+	defer file.Close()
+	tdiff := now.Sub(m.lastTimestamp)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		l := scanner.Text()
+		if !strings.Contains(l, ":") {
 			continue
 		}
-		tags := map[string]string{"device": dev, "type": "node"}
-		for i, name := range m.matches {
-			v, err := strconv.ParseInt(f[i], 10, 0)
-			if err == nil {
-				y, err := lp.New(name, tags, map[string]interface{}{"value": int(float64(v) * 1.0e-3)}, time.Now())
+		f := strings.Fields(l)
+		dev := strings.Trim(f[0], ":")
+
+		if devmetrics, ok := m.matches[dev]; ok {
+			for name, data := range devmetrics {
+				v, err := strconv.ParseFloat(f[data.index], 64)
 				if err == nil {
-					*out = append(*out, y)
+					vdiff := v - data.lastValue
+					value := vdiff / tdiff.Seconds()
+					if data.lastValue == 0 {
+						value = 0
+					}
+					data.lastValue = v
+					y, err := lp.New(name, m.devtags[dev], m.meta, map[string]interface{}{"value": value}, now)
+					if err == nil {
+						switch {
+						case strings.Contains(name, "byte"):
+							y.AddMeta("unit", "bytes/sec")
+						case strings.Contains(name, "pkt"):
+							y.AddMeta("unit", "packets/sec")
+						}
+						output <- y
+					}
+					devmetrics[name] = data
 				}
 			}
 		}
 	}
-
+	m.lastTimestamp = time.Now()
 }
 
 func (m *NetstatCollector) Close() {

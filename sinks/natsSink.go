@@ -2,90 +2,106 @@ package sinks
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	lp "github.com/influxdata/line-protocol"
-	nats "github.com/nats-io/nats.go"
-	"log"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
+	nats "github.com/nats-io/nats.go"
 )
 
+type NatsSinkConfig struct {
+	defaultSinkConfig
+	Host     string `json:"host,omitempty"`
+	Port     string `json:"port,omitempty"`
+	Database string `json:"database,omitempty"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
 type NatsSink struct {
-	Sink
+	sink
 	client  *nats.Conn
-	encoder *lp.Encoder
+	encoder *influx.Encoder
 	buffer  *bytes.Buffer
+	config  NatsSinkConfig
 }
 
 func (s *NatsSink) connect() error {
-	uinfo := nats.UserInfo(s.user, s.password)
-	uri := fmt.Sprintf("nats://%s:%s", s.host, s.port)
-	log.Print("Using URI ", uri)
+	var err error
+	var uinfo nats.Option = nil
+	var nc *nats.Conn
+	if len(s.config.User) > 0 && len(s.config.Password) > 0 {
+		uinfo = nats.UserInfo(s.config.User, s.config.Password)
+	}
+	uri := fmt.Sprintf("nats://%s:%s", s.config.Host, s.config.Port)
+	cclog.ComponentDebug(s.name, "Connect to", uri)
 	s.client = nil
-	nc, err := nats.Connect(uri, uinfo)
+	if uinfo != nil {
+		nc, err = nats.Connect(uri, uinfo)
+	} else {
+		nc, err = nats.Connect(uri)
+	}
 	if err != nil {
-		log.Fatal(err)
+		cclog.ComponentError(s.name, "Connect to", uri, "failed:", err.Error())
 		return err
 	}
 	s.client = nc
 	return nil
 }
 
-func (s *NatsSink) Init(config SinkConfig) error {
-	if len(config.Host) == 0 ||
-		len(config.Port) == 0 ||
-		len(config.Database) == 0 {
-		return errors.New("Not all configuration variables set required by NatsSink")
+func (s *NatsSink) Init(config json.RawMessage) error {
+	s.name = "NatsSink"
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
+			return err
+		}
 	}
-	s.host = config.Host
-	s.port = config.Port
-	s.database = config.Database
-	s.organization = config.Organization
-	s.user = config.User
-	s.password = config.Password
+	if len(s.config.Host) == 0 ||
+		len(s.config.Port) == 0 ||
+		len(s.config.Database) == 0 {
+		return errors.New("not all configuration variables set required by NatsSink")
+	}
 	// Setup Influx line protocol
 	s.buffer = &bytes.Buffer{}
 	s.buffer.Grow(1025)
-	s.encoder = lp.NewEncoder(s.buffer)
+	s.encoder = influx.NewEncoder(s.buffer)
 	s.encoder.SetPrecision(time.Second)
 	s.encoder.SetMaxLineBytes(1024)
 	// Setup infos for connection
 	return s.connect()
 }
 
-func (s *NatsSink) Write(point lp.MutableMetric) error {
+func (s *NatsSink) Write(m lp.CCMetric) error {
 	if s.client != nil {
-		//	    var tags map[string]string
-		//        var fields map[string]interface{}
-		//        for _, t := range point.TagList() {
-		//            tags[t.Key] = t.Value
-		//        }
-		//        for _, f := range point.FieldList() {
-		//            fields[f.Key] = f.Value
-		//        }
-		//		m, err := protocol.New(point.Name(), tags, fields, point.Time())
-		//		if err != nil {
-		//			log.Print(err)
-		//			return err
-		//		}
-		_, err := s.encoder.Encode(point)
+		_, err := s.encoder.Encode(m.ToPoint(s.config.MetaAsTags))
 		if err != nil {
-			log.Print(err)
+			cclog.ComponentError(s.name, "Write:", err.Error())
 			return err
 		}
-		s.client.Publish(s.database, s.buffer.Bytes())
-		s.buffer.Reset()
 	}
 	return nil
 }
 
 func (s *NatsSink) Flush() error {
+	if s.client != nil {
+		if err := s.client.Publish(s.config.Database, s.buffer.Bytes()); err != nil {
+			cclog.ComponentError(s.name, "Flush:", err.Error())
+			return err
+		}
+		s.buffer.Reset()
+	}
 	return nil
 }
 
 func (s *NatsSink) Close() {
-	log.Print("Closing Nats connection")
 	if s.client != nil {
+		cclog.ComponentDebug(s.name, "Close")
 		s.client.Close()
 	}
 }

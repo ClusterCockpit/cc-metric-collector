@@ -1,67 +1,85 @@
 package receivers
 
 import (
+	"encoding/json"
 	"errors"
-	s "github.com/ClusterCockpit/cc-metric-collector/sinks"
-	lp "github.com/influxdata/line-protocol"
-	nats "github.com/nats-io/nats.go"
-	"log"
+	"fmt"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	influx "github.com/influxdata/line-protocol"
+	nats "github.com/nats-io/nats.go"
 )
 
+type NatsReceiverConfig struct {
+	Type    string `json:"type"`
+	Addr    string `json:"address"`
+	Port    string `json:"port"`
+	Subject string `json:"subject"`
+}
+
 type NatsReceiver struct {
-	Receiver
+	receiver
 	nc      *nats.Conn
-	handler *lp.MetricHandler
-	parser  *lp.Parser
+	handler *influx.MetricHandler
+	parser  *influx.Parser
+	meta    map[string]string
+	config  NatsReceiverConfig
 }
 
 var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
-func (r *NatsReceiver) Init(config ReceiverConfig, sink s.SinkFuncs) error {
-	if len(config.Addr) == 0 ||
-		len(config.Port) == 0 ||
-		len(config.Database) == 0 {
-		return errors.New("Not all configuration variables set required by NatsReceiver")
+func (r *NatsReceiver) Init(name string, config json.RawMessage) error {
+	r.typename = "NatsReceiver"
+	r.name = name
+	r.config.Addr = nats.DefaultURL
+	r.config.Port = "4222"
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &r.config)
+		if err != nil {
+			cclog.ComponentError(r.name, "Error reading config:", err.Error())
+			return err
+		}
 	}
-	r.addr = config.Addr
-	if len(r.addr) == 0 {
-		r.addr = nats.DefaultURL
+	if len(r.config.Addr) == 0 ||
+		len(r.config.Port) == 0 ||
+		len(r.config.Subject) == 0 {
+		return errors.New("not all configuration variables set required by NatsReceiver")
 	}
-	r.port = config.Port
-	if len(r.port) == 0 {
-		r.port = "4222"
-	}
-	log.Print("Init NATS Receiver")
-	nc, err := nats.Connect(r.addr)
+	r.meta = map[string]string{"source": r.name}
+	uri := fmt.Sprintf("%s:%s", r.config.Addr, r.config.Port)
+	cclog.ComponentDebug(r.name, "INIT", uri, "Subject", r.config.Subject)
+	nc, err := nats.Connect(uri)
 	if err == nil {
-		r.database = config.Database
-		r.sink = sink
 		r.nc = nc
 	} else {
-		log.Print(err)
 		r.nc = nil
+		return err
 	}
-	r.handler = lp.NewMetricHandler()
-	r.parser = lp.NewParser(r.handler)
+	r.handler = influx.NewMetricHandler()
+	r.parser = influx.NewParser(r.handler)
 	r.parser.SetTimeFunc(DefaultTime)
 	return err
 }
 
 func (r *NatsReceiver) Start() {
-	log.Print("Start NATS Receiver")
-	r.nc.Subscribe(r.database, r._NatsReceive)
+	cclog.ComponentDebug(r.name, "START")
+	r.nc.Subscribe(r.config.Subject, r._NatsReceive)
 }
 
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 	metrics, err := r.parser.Parse(m.Data)
 	if err == nil {
 		for _, m := range metrics {
-			y, err := lp.New(m.Name(), Tags2Map(m), Fields2Map(m), m.Time())
-			if err == nil {
-				r.sink.Write(y)
+			y := lp.FromInfluxMetric(m)
+			for k, v := range r.meta {
+				y.AddMeta(k, v)
+			}
+			if r.sink != nil {
+				r.sink <- y
 			}
 		}
 	}
@@ -69,7 +87,7 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 
 func (r *NatsReceiver) Close() {
 	if r.nc != nil {
-		log.Print("Close NATS Receiver")
+		cclog.ComponentDebug(r.name, "CLOSE")
 		r.nc.Close()
 	}
 }

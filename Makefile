@@ -3,19 +3,31 @@ GOSRC_APP        := metric-collector.go
 GOSRC_COLLECTORS := $(wildcard collectors/*.go)
 GOSRC_SINKS      := $(wildcard sinks/*.go)
 GOSRC_RECEIVERS  := $(wildcard receivers/*.go)
-GOSRC            := $(GOSRC_APP) $(GOSRC_COLLECTORS) $(GOSRC_SINKS) $(GOSRC_RECEIVERS)
+GOSRC_INTERNAL   := $(wildcard internal/*/*.go)
+GOSRC            := $(GOSRC_APP) $(GOSRC_COLLECTORS) $(GOSRC_SINKS) $(GOSRC_RECEIVERS) $(GOSRC_INTERNAL)
+COMPONENT_DIRS   := collectors \
+			sinks \
+			receivers \
+			internal/metricRouter \
+			internal/ccMetric \
+			internal/metricAggregator \
+			internal/ccLogger \
+			internal/ccTopology \
+			internal/multiChanTicker
+
 
 .PHONY: all
 all: $(APP)
 
 $(APP): $(GOSRC)
 	make -C collectors
+	make -C sinks
 	go get
 	go build -o $(APP) $(GOSRC_APP)
 
 .PHONY: clean
 clean:
-	make -C collectors clean
+	@for COMP in $(COMPONENT_DIRS); do if [ -e $$COMP/Makefile ]; then make -C $$COMP clean; fi; done
 	rm -f $(APP)
 
 .PHONY: fmt
@@ -24,6 +36,8 @@ fmt:
 	go fmt $(GOSRC_SINKS)
 	go fmt $(GOSRC_RECEIVERS)
 	go fmt $(GOSRC_APP)
+	@for F in $(GOSRC_INTERNAL); do go fmt $$F; done
+
 
 # Examine Go source code and reports suspicious constructs
 .PHONY: vet
