@@ -384,15 +384,13 @@ func (m *LikwidCollector) takeMeasurement(group int, interval time.Duration) err
 	ret = C.perfmon_setupCounters(gid)
 	if ret != 0 {
 		gctr := C.GoString(C.perfmon_getGroupName(gid))
-		err := fmt.Errorf("failed to setup performance group %s", gctr)
-		cclog.ComponentError(m.name, err.Error())
+		err := fmt.Errorf("failed to setup performance group %d (%s)", gid, gctr)
 		return err
 	}
 	ret = C.perfmon_startCounters()
 	if ret != 0 {
 		gctr := C.GoString(C.perfmon_getGroupName(gid))
-		err := fmt.Errorf("failed to start performance group %s", gctr)
-		cclog.ComponentError(m.name, err.Error())
+		err := fmt.Errorf("failed to start performance group %d (%s)", gid, gctr)
 		return err
 	}
 	m.running = true
@@ -401,8 +399,7 @@ func (m *LikwidCollector) takeMeasurement(group int, interval time.Duration) err
 	ret = C.perfmon_stopCounters()
 	if ret != 0 {
 		gctr := C.GoString(C.perfmon_getGroupName(gid))
-		err := fmt.Errorf("failed to stop performance group %s", gctr)
-		cclog.ComponentError(m.name, err.Error())
+		err := fmt.Errorf("failed to stop performance group %d (%s)", gid, gctr)
 		return err
 	}
 	return nil
@@ -533,7 +530,7 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 		err := m.takeMeasurement(i, interval)
 		if err != nil {
 			cclog.ComponentError(m.name, err.Error())
-			continue
+			return
 		}
 		// read measurements and derive event set metrics
 		m.calcEventsetMetrics(i, interval, output)
