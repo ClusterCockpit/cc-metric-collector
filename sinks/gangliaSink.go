@@ -134,9 +134,21 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 			case int:
 				argstr = append(argstr,
 					fmt.Sprintf("--value=%d", value), "--type=int32")
+			case int32:
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%d", value), "--type=int32")
 			case int64:
 				argstr = append(argstr,
 					fmt.Sprintf("--value=%d", value), "--type=int32")
+			case uint:
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%d", value), "--type=uint32")
+			case uint32:
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%d", value), "--type=uint32")
+			case uint64:
+				argstr = append(argstr,
+					fmt.Sprintf("--value=%d", value), "--type=uint32")
 			case string:
 				argstr = append(argstr,
 					fmt.Sprintf("--value=%q", value), "--type=string")
@@ -155,3 +167,5 @@ func (s *GangliaSink) Flush() error {
 
 func (s *GangliaSink) Close() {
 }
+
+func NewGangliaSink()

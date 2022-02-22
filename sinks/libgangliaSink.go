@@ -212,6 +212,15 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 	case int:
 		c_value = C.CString(fmt.Sprintf("%d", real))
 		c_type = lookup("int32")
+	case uint64:
+		c_value = C.CString(fmt.Sprintf("%d", real))
+		c_type = lookup("uint32")
+	case uint32:
+		c_value = C.CString(fmt.Sprintf("%d", real))
+		c_type = lookup("uint32")
+	case uint:
+		c_value = C.CString(fmt.Sprintf("%d", real))
+		c_type = lookup("uint32")
 	case string:
 		c_value = C.CString(real)
 		c_type = lookup("string")
