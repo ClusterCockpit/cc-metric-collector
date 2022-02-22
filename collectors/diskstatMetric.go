@@ -102,7 +102,7 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 			part_max_used = perc
 		}
 	}
-	y, err := lp.New("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": part_max_used}, time.Now())
+	y, err := lp.New("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())
 	if err == nil {
 		y.AddMeta("unit", "percent")
 		output <- y
