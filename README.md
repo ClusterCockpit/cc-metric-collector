@@ -74,11 +74,13 @@ flowchart TD
 ``` mermaid
 flowchart TD
   subgraph a [ClusterA]
+  direction LR
   nodeA[NodeA with CC collector]
   nodeB[NodeB with CC collector]
   nodeC[NodeC with CC collector]
   end
   subgraph b [ClusterB]
+  direction LR
   nodeD[NodeD with CC collector]
   nodeE[NodeE with CC collector]
   nodeF[NodeF with CC collector]
