@@ -33,8 +33,7 @@ var DefaultTime = func() time.Time {
 }
 
 func (r *NatsReceiver) Init(name string, config json.RawMessage) error {
-	r.typename = "NatsReceiver"
-	r.name = name
+	r.name = fmt.Sprintf("NatsReceiver(%s)", name)
 	r.config.Addr = nats.DefaultURL
 	r.config.Port = "4222"
 	if len(config) > 0 {
@@ -90,4 +89,10 @@ func (r *NatsReceiver) Close() {
 		cclog.ComponentDebug(r.name, "CLOSE")
 		r.nc.Close()
 	}
+}
+
+func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
+	r := new(NatsReceiver)
+	err := r.Init(name, config)
+	return r, err
 }

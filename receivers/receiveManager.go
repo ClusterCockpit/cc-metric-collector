@@ -9,8 +9,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-var AvailableReceivers = map[string]Receiver{
-	"nats": &NatsReceiver{},
+var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
+	"nats": NewNatsReceiver,
 }
 
 type receiveManager struct {
@@ -75,8 +75,7 @@ func (rm *receiveManager) AddInput(name string, rawConfig json.RawMessage) error
 		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "unknown receiver:", err.Error())
 		return err
 	}
-	r := AvailableReceivers[config.Type]
-	err = r.Init(name, rawConfig)
+	r, err := AvailableReceivers[config.Type](name, rawConfig)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", "SKIP", r.Name(), "initialization failed:", err.Error())
 		return err

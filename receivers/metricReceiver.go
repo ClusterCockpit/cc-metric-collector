@@ -20,9 +20,8 @@ type ReceiverConfig struct {
 }
 
 type receiver struct {
-	typename string
-	name     string
-	sink     chan lp.CCMetric
+	name string
+	sink chan lp.CCMetric
 }
 
 type Receiver interface {
