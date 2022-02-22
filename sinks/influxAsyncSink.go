@@ -68,8 +68,8 @@ func (s *InfluxAsyncSink) connect() error {
 	return nil
 }
 
-func (s *InfluxAsyncSink) Init(config json.RawMessage) error {
-	s.name = "InfluxSink"
+func (s *InfluxAsyncSink) Init(name string, config json.RawMessage) error {
+	s.name = fmt.Sprintf("InfluxSink(%s)", name)
 
 	// Set default for maximum number of points sent to server in single request.
 	s.config.BatchSize = 100
@@ -117,4 +117,10 @@ func (s *InfluxAsyncSink) Close() {
 	cclog.ComponentDebug(s.name, "Closing InfluxDB connection")
 	s.writeApi.Flush()
 	s.client.Close()
+}
+
+func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(InfluxAsyncSink)
+	s.Init(name, config)
+	return s, nil
 }

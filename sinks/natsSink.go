@@ -53,8 +53,8 @@ func (s *NatsSink) connect() error {
 	return nil
 }
 
-func (s *NatsSink) Init(config json.RawMessage) error {
-	s.name = "NatsSink"
+func (s *NatsSink) Init(name string, config json.RawMessage) error {
+	s.name = fmt.Sprintf("NatsSink(%s)", name)
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -104,4 +104,10 @@ func (s *NatsSink) Close() {
 		cclog.ComponentDebug(s.name, "Close")
 		s.client.Close()
 	}
+}
+
+func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(NatsSink)
+	s.Init(name, config)
+	return s, nil
 }

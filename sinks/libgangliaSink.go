@@ -109,9 +109,9 @@ type LibgangliaSink struct {
 	cstrCache      map[string]*C.char
 }
 
-func (s *LibgangliaSink) Init(config json.RawMessage) error {
+func (s *LibgangliaSink) Init(name string, config json.RawMessage) error {
 	var err error = nil
-	s.name = "LibgangliaSink"
+	s.name = fmt.Sprintf("LibgangliaSink(%s)", name)
 	//s.config.AddTagsAsDesc = false
 	s.config.AddGangliaGroup = false
 	s.config.AddTypeToName = false
@@ -315,4 +315,10 @@ func (s *LibgangliaSink) Close() {
 	for _, cstr := range s.cstrCache {
 		C.free(unsafe.Pointer(cstr))
 	}
+}
+
+func NewLibgangliaSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(LibgangliaSink)
+	s.Init(name, config)
+	return s, nil
 }

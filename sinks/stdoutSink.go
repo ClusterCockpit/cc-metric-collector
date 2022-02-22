@@ -19,8 +19,8 @@ type StdoutSink struct {
 	}
 }
 
-func (s *StdoutSink) Init(config json.RawMessage) error {
-	s.name = "StdoutSink"
+func (s *StdoutSink) Init(name string, config json.RawMessage) error {
+	s.name = fmt.Sprintf("StdoutSink(%s)", name)
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -64,4 +64,10 @@ func (s *StdoutSink) Close() {
 	if s.output != os.Stdout && s.output != os.Stderr {
 		s.output.Close()
 	}
+}
+
+func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(StdoutSink)
+	s.Init(name, config)
+	return s, nil
 }

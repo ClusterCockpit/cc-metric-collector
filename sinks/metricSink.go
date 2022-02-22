@@ -17,7 +17,7 @@ type sink struct {
 }
 
 type Sink interface {
-	Init(config json.RawMessage) error
+	Init(name string, config json.RawMessage) error
 	Write(point lp.CCMetric) error
 	Flush() error
 	Close()

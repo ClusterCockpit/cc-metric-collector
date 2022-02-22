@@ -38,9 +38,9 @@ type HttpSink struct {
 	flushDelay      time.Duration
 }
 
-func (s *HttpSink) Init(config json.RawMessage) error {
+func (s *HttpSink) Init(name string, config json.RawMessage) error {
 	// Set default values
-	s.name = "HttpSink"
+	s.name = fmt.Sprintf("HttpSink(%s)", name)
 	s.config.MaxIdleConns = 10
 	s.config.IdleConnTimeout = "5s"
 	s.config.Timeout = "5s"
@@ -168,4 +168,10 @@ func (s *HttpSink) Close() {
 		cclog.ComponentError("HttpSink", "flush failed:", err.Error())
 	}
 	s.client.CloseIdleConnections()
+}
+
+func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(HttpSink)
+	s.Init(name, config)
+	return s, nil
 }

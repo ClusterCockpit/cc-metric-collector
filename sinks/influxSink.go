@@ -57,8 +57,8 @@ func (s *InfluxSink) connect() error {
 	return nil
 }
 
-func (s *InfluxSink) Init(config json.RawMessage) error {
-	s.name = "InfluxSink"
+func (s *InfluxSink) Init(name string, config json.RawMessage) error {
+	s.name = fmt.Sprintf("InfluxSink(%s)", name)
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
 		if err != nil {
@@ -93,4 +93,10 @@ func (s *InfluxSink) Flush() error {
 func (s *InfluxSink) Close() {
 	cclog.ComponentDebug(s.name, "Closing InfluxDB connection")
 	s.client.Close()
+}
+
+func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(InfluxSink)
+	s.Init(name, config)
+	return s, nil
 }

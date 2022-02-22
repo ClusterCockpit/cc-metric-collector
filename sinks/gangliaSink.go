@@ -33,9 +33,9 @@ type GangliaSink struct {
 	config         GangliaSinkConfig
 }
 
-func (s *GangliaSink) Init(config json.RawMessage) error {
+func (s *GangliaSink) Init(name string, config json.RawMessage) error {
 	var err error = nil
-	s.name = "GangliaSink"
+	s.name = fmt.Sprintf("GangliaSink(%s)", name)
 	s.config.AddTagsAsDesc = false
 	s.config.AddGangliaGroup = false
 	if len(config) > 0 {
@@ -168,4 +168,8 @@ func (s *GangliaSink) Flush() error {
 func (s *GangliaSink) Close() {
 }
 
-func NewGangliaSink()
+func NewGangliaSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(GangliaSink)
+	s.Init(name, config)
+	return s, nil
+}
