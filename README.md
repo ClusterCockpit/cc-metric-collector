@@ -56,7 +56,39 @@ Usage of metric-collector:
   -once
     	Run all collectors only once
 ```
+# Scenarios
 
+The metric collector was designed with flexibility in mind, so it can be used in many scenarios. Here are a few:
+
+```mermaid
+flowchart TD
+  subgraph a ["Cluster A"]
+  nodeA[NodeA with CC collector]
+  nodeB[NodeB with CC collector]
+  nodeC[NodeC with CC collector]
+  end
+  a --> db[(Database)]
+  db <--> ccweb("Webfrontend")
+```
+
+``` mermaid
+flowchart TD
+  subgraph a [ClusterA]
+  nodeA[NodeA with CC collector]
+  nodeB[NodeB with CC collector]
+  nodeC[NodeC with CC collector]
+  end
+  subgraph b [ClusterB]
+  nodeD[NodeD with CC collector]
+  nodeE[NodeE with CC collector]
+  nodeF[NodeF with CC collector]
+  end
+  a --> ccrecv{"CC collector as receiver"}
+  b --> ccrecv
+  ccrecv --> db[("Database1")]
+  ccrecv -.-> db2[("Database2")]
+  db <-.-> ccweb("Webfrontend")
+```
 
 # Contributing
 The ClusterCockpit ecosystem is designed to be used by different HPC computing centers. Since configurations and setups differ between the centers, the centers likely have to put some work into the cc-metric-collector to gather all desired metrics.
