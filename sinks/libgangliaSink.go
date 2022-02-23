@@ -82,21 +82,21 @@ const (
 	GMOND_CONFIG_FILE    = `/etc/ganglia/gmond.conf`
 )
 
-type LibgangliaSinkSpecialMetric struct {
-	MetricName string `json:"metric_name,omitempty"`
-	NewName    string `json:"new_name,omitempty"`
-	Slope      string `json:"slope,omitempty"`
-}
+// type LibgangliaSinkSpecialMetric struct {
+// 	MetricName string `json:"metric_name,omitempty"`
+// 	NewName    string `json:"new_name,omitempty"`
+// 	Slope      string `json:"slope,omitempty"`
+// }
 
 type LibgangliaSinkConfig struct {
 	defaultSinkConfig
-	GangliaLib      string                                 `json:"libganglia_path,omitempty"`
-	GmondConfig     string                                 `json:"gmond_config,omitempty"`
-	AddGangliaGroup bool                                   `json:"add_ganglia_group,omitempty"`
-	AddTypeToName   bool                                   `json:"add_type_to_name,omitempty"`
-	AddUnits        bool                                   `json:"add_units,omitempty"`
-	ClusterName     string                                 `json:"cluster_name,omitempty"`
-	SpecialMetrics  map[string]LibgangliaSinkSpecialMetric `json:"rename_metrics,omitempty"` // Map to rename metric name from key to value
+	GangliaLib      string `json:"libganglia_path,omitempty"`
+	GmondConfig     string `json:"gmond_config,omitempty"`
+	AddGangliaGroup bool   `json:"add_ganglia_group,omitempty"`
+	AddTypeToName   bool   `json:"add_type_to_name,omitempty"`
+	AddUnits        bool   `json:"add_units,omitempty"`
+	ClusterName     string `json:"cluster_name,omitempty"`
+	//SpecialMetrics  map[string]LibgangliaSinkSpecialMetric `json:"rename_metrics,omitempty"` // Map to rename metric name from key to value
 	//AddTagsAsDesc   bool              `json:"add_tags_as_desc,omitempty"`
 }
 
@@ -184,81 +184,48 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 	}
 
 	// Get metric name
-	metricname := GangliaMetricRename(point)
-	if s.config.AddTypeToName {
-		c_name = lookup(GangliaMetricName(point))
-	} else {
-		c_name = lookup(metricname)
-	}
+	metricname := GangliaMetricRename(point.Name())
 
-	// Get the value C string and lookup the type string in the cache
-	value, ok := point.GetField("value")
-	if !ok {
+	conf := GetCommonGangliaConfig(point)
+	if len(conf.Type) == 0 {
+		conf = GetGangliaConfig(point)
+	}
+	if len(conf.Type) == 0 {
 		return fmt.Errorf("metric %s has no 'value' field", metricname)
 	}
-	switch real := value.(type) {
-	case float64:
-		c_value = C.CString(fmt.Sprintf("%f", real))
-		c_type = lookup("double")
-	case float32:
-		c_value = C.CString(fmt.Sprintf("%f", real))
-		c_type = lookup("float")
-	case int64:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("int32")
-	case int32:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("int32")
-	case int:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("int32")
-	case uint64:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("uint32")
-	case uint32:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("uint32")
-	case uint:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("uint32")
-	case string:
-		c_value = C.CString(real)
-		c_type = lookup("string")
-	default:
-		return fmt.Errorf("metric %s has invalid 'value' type for %s", point.Name(), s.name)
+
+	if s.config.AddTypeToName {
+		metricname = GangliaMetricName(point)
 	}
 
+	c_value = C.CString(conf.Value)
+	c_type = lookup(conf.Type)
+	c_name = lookup(metricname)
+
 	// Add unit
+	unit := ""
 	if s.config.AddUnits {
-		if tagunit, tagok := point.GetTag("unit"); tagok {
-			c_unit = lookup(tagunit)
-		} else if metaunit, metaok := point.GetMeta("unit"); metaok {
-			c_unit = lookup(metaunit)
-		} else {
-			c_unit = lookup("")
-		}
-	} else {
-		c_unit = lookup("")
+		unit = conf.Unit
 	}
+	c_unit = lookup(unit)
 
 	// Determine the slope of the metric. Ganglia's own collector mostly use
 	// 'both' but the mem and swap total uses 'zero'.
-	slope := GangliaSlopeType(point)
 	slope_type := C.GANGLIA_SLOPE_BOTH
-	switch slope {
-	case 0:
+	switch conf.Slope {
+	case "zero":
 		slope_type = C.GANGLIA_SLOPE_ZERO
+	case "both":
+		slope_type = C.GANGLIA_SLOPE_BOTH
 	}
 
 	// Create a new Ganglia metric
 	gmetric := C.Ganglia_metric_create(s.global_context)
 	// Set name, value, type and unit in the Ganglia metric
-	// Since we don't have this information from the collectors,
-	// we assume that the metric value can go up and down (slope),
-	// and there is no maximum for 'dmax' and 'tmax'.
-	// Ganglia's collectors set 'tmax' but not 'dmax'
+	// The default slope_type is both directions, so up and down. Some metrics want 'zero' slope, probably constant.
+	// The 'tmax' value is by default 300.
 	rval := C.int(0)
-	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), 0, 0)
+	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), C.uint(conf.Tmax), 0)
 	switch rval {
 	case 1:
 		C.free(unsafe.Pointer(c_value))
@@ -268,10 +235,10 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 		return errors.New("one of your parameters has an invalid character '\"'")
 	case 3:
 		C.free(unsafe.Pointer(c_value))
-		return fmt.Errorf("the type parameter \"%s\" is not a valid type", C.GoString(c_type))
+		return fmt.Errorf("the type parameter \"%s\" is not a valid type", conf.Type)
 	case 4:
 		C.free(unsafe.Pointer(c_value))
-		return fmt.Errorf("the value parameter \"%s\" does not represent a number", C.GoString(c_value))
+		return fmt.Errorf("the value parameter \"%s\" does not represent a number", conf.Value)
 	default:
 	}
 
@@ -280,8 +247,8 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 		C.Ganglia_metadata_add(gmetric, lookup("CLUSTER"), lookup(s.config.ClusterName))
 	}
 	// Set the group metadata in the Ganglia metric if configured
-	if group, ok := point.GetMeta("group"); ok && s.config.AddGangliaGroup {
-		c_group := lookup(group)
+	if s.config.AddGangliaGroup {
+		c_group := lookup(conf.Group)
 		C.Ganglia_metadata_add(gmetric, lookup("GROUP"), c_group)
 	}
 
