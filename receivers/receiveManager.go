@@ -30,11 +30,13 @@ type ReceiveManager interface {
 }
 
 func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) error {
+	// Initialize struct fields
 	rm.inputs = make([]Receiver, 0)
 	rm.output = nil
 	rm.done = make(chan bool)
 	rm.wg = wg
 	rm.config = make([]json.RawMessage, 0)
+
 	configFile, err := os.Open(receiverConfigFile)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", err.Error())
@@ -51,6 +53,7 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	for name, raw := range rawConfigs {
 		rm.AddInput(name, raw)
 	}
+
 	return nil
 }
 
@@ -77,7 +80,7 @@ func (rm *receiveManager) AddInput(name string, rawConfig json.RawMessage) error
 	}
 	r, err := AvailableReceivers[config.Type](name, rawConfig)
 	if err != nil {
-		cclog.ComponentError("ReceiveManager", "SKIP", r.Name(), "initialization failed:", err.Error())
+		cclog.ComponentError("ReceiveManager", "SKIP", name, "initialization failed:", err.Error())
 		return err
 	}
 	rm.inputs = append(rm.inputs, r)
