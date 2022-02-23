@@ -1,9 +1,6 @@
 package receivers
 
 import (
-	//	"time"
-	"encoding/json"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -25,7 +22,6 @@ type receiver struct {
 }
 
 type Receiver interface {
-	Init(name string, config json.RawMessage) error
 	Start()
 	Close()
 	Name() string

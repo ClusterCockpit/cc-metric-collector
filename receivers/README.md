@@ -14,7 +14,6 @@ The configuration file for the receivers is a list of configurations. The `type`
 }
 ```
 
-
 ## Type `nats`
 
 ```json
@@ -30,7 +29,6 @@ The `nats` receiver subscribes to the topic `database` and listens on `address` 
 
 # Contributing own receivers
 A receiver contains a few functions and is derived from the type `Receiver` (in `metricReceiver.go`):
-* `Init(name string, config json.RawMessage) error`
 * `Start() error`
 * `Close()`
 * `Name() string`

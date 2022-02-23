@@ -32,38 +32,6 @@ var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
-func (r *NatsReceiver) Init(name string, config json.RawMessage) error {
-	r.name = fmt.Sprintf("NatsReceiver(%s)", name)
-	r.config.Addr = nats.DefaultURL
-	r.config.Port = "4222"
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &r.config)
-		if err != nil {
-			cclog.ComponentError(r.name, "Error reading config:", err.Error())
-			return err
-		}
-	}
-	if len(r.config.Addr) == 0 ||
-		len(r.config.Port) == 0 ||
-		len(r.config.Subject) == 0 {
-		return errors.New("not all configuration variables set required by NatsReceiver")
-	}
-	r.meta = map[string]string{"source": r.name}
-	uri := fmt.Sprintf("%s:%s", r.config.Addr, r.config.Port)
-	cclog.ComponentDebug(r.name, "INIT", uri, "Subject", r.config.Subject)
-	nc, err := nats.Connect(uri)
-	if err == nil {
-		r.nc = nc
-	} else {
-		r.nc = nil
-		return err
-	}
-	r.handler = influx.NewMetricHandler()
-	r.parser = influx.NewParser(r.handler)
-	r.parser.SetTimeFunc(DefaultTime)
-	return err
-}
-
 func (r *NatsReceiver) Start() {
 	cclog.ComponentDebug(r.name, "START")
 	r.nc.Subscribe(r.config.Subject, r._NatsReceive)
@@ -93,6 +61,32 @@ func (r *NatsReceiver) Close() {
 
 func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
 	r := new(NatsReceiver)
-	err := r.Init(name, config)
-	return r, err
+	r.name = fmt.Sprintf("NatsReceiver(%s)", name)
+	r.config.Addr = nats.DefaultURL
+	r.config.Port = "4222"
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &r.config)
+		if err != nil {
+			cclog.ComponentError(r.name, "Error reading config:", err.Error())
+			return nil, err
+		}
+	}
+	if len(r.config.Addr) == 0 ||
+		len(r.config.Port) == 0 ||
+		len(r.config.Subject) == 0 {
+		return nil, errors.New("not all configuration variables set required by NatsReceiver")
+	}
+	r.meta = map[string]string{"source": r.name}
+	uri := fmt.Sprintf("%s:%s", r.config.Addr, r.config.Port)
+	cclog.ComponentDebug(r.name, "NewNatsReceiver", uri, "Subject", r.config.Subject)
+	if nc, err := nats.Connect(uri); err == nil {
+		r.nc = nc
+	} else {
+		r.nc = nil
+		return nil, err
+	}
+	r.handler = influx.NewMetricHandler()
+	r.parser = influx.NewParser(r.handler)
+	r.parser.SetTimeFunc(DefaultTime)
+	return r, nil
 }
