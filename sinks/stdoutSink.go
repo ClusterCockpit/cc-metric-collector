@@ -19,34 +19,6 @@ type StdoutSink struct {
 	}
 }
 
-func (s *StdoutSink) Init(name string, config json.RawMessage) error {
-	s.name = fmt.Sprintf("StdoutSink(%s)", name)
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			return err
-		}
-	}
-
-	s.output = os.Stdout
-	if len(s.config.Output) > 0 {
-		switch strings.ToLower(s.config.Output) {
-		case "stdout":
-			s.output = os.Stdout
-		case "stderr":
-			s.output = os.Stderr
-		default:
-			f, err := os.OpenFile(s.config.Output, os.O_CREATE|os.O_WRONLY, os.FileMode(0600))
-			if err != nil {
-				return err
-			}
-			s.output = f
-		}
-	}
-	s.meta_as_tags = s.config.MetaAsTags
-	return nil
-}
-
 func (s *StdoutSink) Write(m lp.CCMetric) error {
 	fmt.Fprint(
 		s.output,
@@ -68,6 +40,30 @@ func (s *StdoutSink) Close() {
 
 func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(StdoutSink)
-	s.Init(name, config)
+	s.name = fmt.Sprintf("StdoutSink(%s)", name)
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	s.output = os.Stdout
+	if len(s.config.Output) > 0 {
+		switch strings.ToLower(s.config.Output) {
+		case "stdout":
+			s.output = os.Stdout
+		case "stderr":
+			s.output = os.Stderr
+		default:
+			f, err := os.OpenFile(s.config.Output, os.O_CREATE|os.O_WRONLY, os.FileMode(0600))
+			if err != nil {
+				return nil, err
+			}
+			s.output = f
+		}
+	}
+	s.meta_as_tags = s.config.MetaAsTags
+
 	return s, nil
 }

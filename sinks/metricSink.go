@@ -1,8 +1,6 @@
 package sinks
 
 import (
-	"encoding/json"
-
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
@@ -17,7 +15,6 @@ type sink struct {
 }
 
 type Sink interface {
-	Init(name string, config json.RawMessage) error
 	Write(point lp.CCMetric) error
 	Flush() error
 	Close()

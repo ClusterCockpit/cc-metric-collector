@@ -57,26 +57,6 @@ func (s *InfluxSink) connect() error {
 	return nil
 }
 
-func (s *InfluxSink) Init(name string, config json.RawMessage) error {
-	s.name = fmt.Sprintf("InfluxSink(%s)", name)
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			return err
-		}
-	}
-	if len(s.config.Host) == 0 ||
-		len(s.config.Port) == 0 ||
-		len(s.config.Database) == 0 ||
-		len(s.config.Organization) == 0 ||
-		len(s.config.Password) == 0 {
-		return errors.New("not all configuration variables set required by InfluxSink")
-	}
-
-	// Connect to InfluxDB server
-	return s.connect()
-}
-
 func (s *InfluxSink) Write(m lp.CCMetric) error {
 	err :=
 		s.writeApi.WritePoint(
@@ -97,6 +77,24 @@ func (s *InfluxSink) Close() {
 
 func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(InfluxSink)
-	s.Init(name, config)
+	s.name = fmt.Sprintf("InfluxSink(%s)", name)
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(s.config.Host) == 0 ||
+		len(s.config.Port) == 0 ||
+		len(s.config.Database) == 0 ||
+		len(s.config.Organization) == 0 ||
+		len(s.config.Password) == 0 {
+		return nil, errors.New("not all configuration variables set required by InfluxSink")
+	}
+
+	// Connect to InfluxDB server
+	if err := s.connect(); err != nil {
+		return nil, fmt.Errorf("Unable to connect: %v", err)
+	}
 	return s, nil
 }

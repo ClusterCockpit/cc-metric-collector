@@ -53,30 +53,6 @@ func (s *NatsSink) connect() error {
 	return nil
 }
 
-func (s *NatsSink) Init(name string, config json.RawMessage) error {
-	s.name = fmt.Sprintf("NatsSink(%s)", name)
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
-			return err
-		}
-	}
-	if len(s.config.Host) == 0 ||
-		len(s.config.Port) == 0 ||
-		len(s.config.Database) == 0 {
-		return errors.New("not all configuration variables set required by NatsSink")
-	}
-	// Setup Influx line protocol
-	s.buffer = &bytes.Buffer{}
-	s.buffer.Grow(1025)
-	s.encoder = influx.NewEncoder(s.buffer)
-	s.encoder.SetPrecision(time.Second)
-	s.encoder.SetMaxLineBytes(1024)
-	// Setup infos for connection
-	return s.connect()
-}
-
 func (s *NatsSink) Write(m lp.CCMetric) error {
 	if s.client != nil {
 		_, err := s.encoder.Encode(m.ToPoint(s.config.MetaAsTags))
@@ -108,6 +84,28 @@ func (s *NatsSink) Close() {
 
 func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(NatsSink)
-	s.Init(name, config)
+	s.name = fmt.Sprintf("NatsSink(%s)", name)
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
+			return nil, err
+		}
+	}
+	if len(s.config.Host) == 0 ||
+		len(s.config.Port) == 0 ||
+		len(s.config.Database) == 0 {
+		return nil, errors.New("not all configuration variables set required by NatsSink")
+	}
+	// Setup Influx line protocol
+	s.buffer = &bytes.Buffer{}
+	s.buffer.Grow(1025)
+	s.encoder = influx.NewEncoder(s.buffer)
+	s.encoder.SetPrecision(time.Second)
+	s.encoder.SetMaxLineBytes(1024)
+	// Setup infos for connection
+	if err := s.connect(); err != nil {
+		return nil, fmt.Errorf("Unable to connect: %v", err)
+	}
 	return s, nil
 }
