@@ -38,57 +38,6 @@ type HttpSink struct {
 	flushDelay      time.Duration
 }
 
-func (s *HttpSink) Init(config json.RawMessage) error {
-	// Set default values
-	s.name = "HttpSink"
-	s.config.MaxIdleConns = 10
-	s.config.IdleConnTimeout = "5s"
-	s.config.Timeout = "5s"
-	s.config.FlushDelay = "1s"
-
-	// Read config
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			return err
-		}
-	}
-	if len(s.config.URL) == 0 {
-		return errors.New("`url` config option is required for HTTP sink")
-	}
-	if s.config.MaxIdleConns > 0 {
-		s.maxIdleConns = s.config.MaxIdleConns
-	}
-	if len(s.config.IdleConnTimeout) > 0 {
-		t, err := time.ParseDuration(s.config.IdleConnTimeout)
-		if err == nil {
-			s.idleConnTimeout = t
-		}
-	}
-	if len(s.config.Timeout) > 0 {
-		t, err := time.ParseDuration(s.config.Timeout)
-		if err == nil {
-			s.timeout = t
-		}
-	}
-	if len(s.config.FlushDelay) > 0 {
-		t, err := time.ParseDuration(s.config.FlushDelay)
-		if err == nil {
-			s.flushDelay = t
-		}
-	}
-	tr := &http.Transport{
-		MaxIdleConns:    s.maxIdleConns,
-		IdleConnTimeout: s.idleConnTimeout,
-	}
-	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
-	s.buffer = &bytes.Buffer{}
-	s.encoder = influx.NewEncoder(s.buffer)
-	s.encoder.SetPrecision(time.Second)
-
-	return nil
-}
-
 func (s *HttpSink) Write(m lp.CCMetric) error {
 	if s.buffer.Len() == 0 && s.flushDelay != 0 {
 		// This is the first write since the last flush, start the flushTimer!
@@ -168,4 +117,55 @@ func (s *HttpSink) Close() {
 		cclog.ComponentError("HttpSink", "flush failed:", err.Error())
 	}
 	s.client.CloseIdleConnections()
+}
+
+func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(HttpSink)
+	// Set default values
+	s.name = fmt.Sprintf("HttpSink(%s)", name)
+	s.config.MaxIdleConns = 10
+	s.config.IdleConnTimeout = "5s"
+	s.config.Timeout = "5s"
+	s.config.FlushDelay = "1s"
+
+	// Read config
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(s.config.URL) == 0 {
+		return nil, errors.New("`url` config option is required for HTTP sink")
+	}
+	if s.config.MaxIdleConns > 0 {
+		s.maxIdleConns = s.config.MaxIdleConns
+	}
+	if len(s.config.IdleConnTimeout) > 0 {
+		t, err := time.ParseDuration(s.config.IdleConnTimeout)
+		if err == nil {
+			s.idleConnTimeout = t
+		}
+	}
+	if len(s.config.Timeout) > 0 {
+		t, err := time.ParseDuration(s.config.Timeout)
+		if err == nil {
+			s.timeout = t
+		}
+	}
+	if len(s.config.FlushDelay) > 0 {
+		t, err := time.ParseDuration(s.config.FlushDelay)
+		if err == nil {
+			s.flushDelay = t
+		}
+	}
+	tr := &http.Transport{
+		MaxIdleConns:    s.maxIdleConns,
+		IdleConnTimeout: s.idleConnTimeout,
+	}
+	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
+	s.buffer = &bytes.Buffer{}
+	s.encoder = influx.NewEncoder(s.buffer)
+	s.encoder.SetPrecision(time.Second)
+	return s, nil
 }
