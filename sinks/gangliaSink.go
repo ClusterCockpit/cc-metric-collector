@@ -24,6 +24,7 @@ type GangliaSinkConfig struct {
 	AddTagsAsDesc   bool   `json:"add_tags_as_desc,omitempty"`
 	ClusterName     string `json:"cluster_name,omitempty"`
 	AddTypeToName   bool   `json:"add_type_to_name,omitempty"`
+	AddUnits        bool   `json:"add_units,omitempty"`
 }
 
 type GangliaSink struct {
@@ -35,91 +36,48 @@ type GangliaSink struct {
 
 func (s *GangliaSink) Write(point lp.CCMetric) error {
 	var err error = nil
-	var tagsstr []string
+	//var tagsstr []string
 	var argstr []string
-	if s.config.AddGangliaGroup {
-		if point.HasTag("group") {
-			g, _ := point.GetTag("group")
-			argstr = append(argstr, fmt.Sprintf("--group=%s", g))
-		} else if point.HasMeta("group") {
-			g, _ := point.GetMeta("group")
-			argstr = append(argstr, fmt.Sprintf("--group=%s", g))
-		}
+
+	// Get metric name
+	metricname := GangliaMetricRename(point.Name())
+
+	// Get metric config (type, value, ... in suitable format)
+	conf := GetCommonGangliaConfig(point)
+	if len(conf.Type) == 0 {
+		conf = GetGangliaConfig(point)
+	}
+	if len(conf.Type) == 0 {
+		return fmt.Errorf("metric %s has no 'value' field", metricname)
 	}
 
-	for key, value := range point.Tags() {
-		switch key {
-		case "unit":
-			argstr = append(argstr, fmt.Sprintf("--units=%s", value))
-		default:
-			tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", key, value))
-		}
+	if s.config.AddGangliaGroup {
+		argstr = append(argstr, fmt.Sprintf("--group=%s", conf.Group))
 	}
-	if s.config.MetaAsTags {
-		for key, value := range point.Meta() {
-			switch key {
-			case "unit":
-				argstr = append(argstr, fmt.Sprintf("--units=%s", value))
-			default:
-				tagsstr = append(tagsstr, fmt.Sprintf("%s=%s", key, value))
-			}
-		}
+	if s.config.AddUnits && len(conf.Unit) > 0 {
+		argstr = append(argstr, fmt.Sprintf("--units=%s", conf.Unit))
 	}
+
 	if len(s.config.ClusterName) > 0 {
 		argstr = append(argstr, fmt.Sprintf("--cluster=%s", s.config.ClusterName))
 	}
-	if s.config.AddTagsAsDesc && len(tagsstr) > 0 {
-		argstr = append(argstr, fmt.Sprintf("--desc=%q", strings.Join(tagsstr, ",")))
-	}
+	// if s.config.AddTagsAsDesc && len(tagsstr) > 0 {
+	// 	argstr = append(argstr, fmt.Sprintf("--desc=%q", strings.Join(tagsstr, ",")))
+	// }
 	if len(s.gmetric_config) > 0 {
 		argstr = append(argstr, fmt.Sprintf("--conf=%s", s.gmetric_config))
 	}
-	name := GangliaMetricRename(point)
 	if s.config.AddTypeToName {
 		argstr = append(argstr, fmt.Sprintf("--name=%s", GangliaMetricName(point)))
 	} else {
-		argstr = append(argstr, fmt.Sprintf("--name=%s", name))
+		argstr = append(argstr, fmt.Sprintf("--name=%s", metricname))
 	}
-	slope := GangliaSlopeType(point)
-	slopeStr := "both"
-	if slope == 0 {
-		slopeStr = "zero"
-	}
-	argstr = append(argstr, fmt.Sprintf("--slope=%s", slopeStr))
+	argstr = append(argstr, fmt.Sprintf("--slope=%s", conf.Slope))
+	argstr = append(argstr, fmt.Sprintf("--value=%s", conf.Value))
+	argstr = append(argstr, fmt.Sprintf("--type=%s", conf.Type))
+	argstr = append(argstr, fmt.Sprintf("--tmax=%d", conf.Tmax))
 
-	for k, v := range point.Fields() {
-		if k == "value" {
-			switch value := v.(type) {
-			case float64:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%v", value), "--type=double")
-			case float32:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%v", value), "--type=float")
-			case int:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%d", value), "--type=int32")
-			case int32:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%d", value), "--type=int32")
-			case int64:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%d", value), "--type=int32")
-			case uint:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%d", value), "--type=uint32")
-			case uint32:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%d", value), "--type=uint32")
-			case uint64:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%d", value), "--type=uint32")
-			case string:
-				argstr = append(argstr,
-					fmt.Sprintf("--value=%q", value), "--type=string")
-			}
-		}
-	}
+	cclog.ComponentDebug(s.name, s.gmetric_path, strings.Join(argstr, " "))
 	command := exec.Command(s.gmetric_path, argstr...)
 	command.Wait()
 	_, err = command.Output()
