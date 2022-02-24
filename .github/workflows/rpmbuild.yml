@@ -5,46 +5,6 @@ on:
   - '**'
 
 jobs:
-  build-centos8:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: recursive
-    - uses: TomTheBear/rpmbuild@master
-      id: rpm
-      name: Build RPM package on CentOS8
-      with:
-        spec_file: "./scripts/cc-metric-collector.spec"
-    - name: Save RPM as artifact
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: cc-metric-collector RPM CentOS8
-        path: ${{ steps.rpm.outputs.rpm_dir_path }}
-    - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: cc-metric-collector SRPM CentOS8
-        path: ${{ steps.rpm.outputs.source_rpm_path }}
-  build-centos-latest:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: TomTheBear/rpmbuild@centos_latest
-      id: rpm
-      name: Build RPM package on CentOS 'Latest'
-      with:
-        spec_file: "./scripts/cc-metric-collector.spec"
-    - name: Save RPM as artifact
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: cc-metric-collector RPM CentOS 'Latest'
-        path: ${{ steps.rpm.outputs.rpm_dir_path }}
-    - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: cc-metric-collector SRPM CentOS 'Latest'
-        path: ${{ steps.rpm.outputs.source_rpm_path }}
   build-alma-8_5:
     runs-on: ubuntu-latest
     steps:
@@ -58,9 +18,41 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: cc-metric-collector RPM AlmaLinux 8.5
-        path: ${{ steps.rpm.outputs.rpm_dir_path }}
+        path: ${{ steps.rpm.outputs.rpm_path }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: cc-metric-collector SRPM AlmaLinux 8.5
         path: ${{ steps.rpm.outputs.source_rpm_path }}
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: cc-metric-collector-${{github.ref_name}}
+        files: |
+         ${{ steps.rpm.outputs.source_rpm_path }}
+         ${{ steps.rpm.outputs.rpm_path }}
+  build-rhel-ubi8:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: TomTheBear/rpmbuild@rh-ubi8
+      id: rpm
+      name: Build RPM package on Red Hat Universal Base Image 8
+      with:
+        spec_file: "./scripts/cc-metric-collector.spec"
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: cc-metric-collector RPM Red Hat Universal Base Image 8
+        path: ${{ steps.rpm.outputs.rpm_path }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: cc-metric-collector SRPM Red Hat Universal Base Image 8
+        path: ${{ steps.rpm.outputs.source_rpm_path }}
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+         ${{ steps.rpm.outputs.source_rpm_path }}
+         ${{ steps.rpm.outputs.rpm_path }}

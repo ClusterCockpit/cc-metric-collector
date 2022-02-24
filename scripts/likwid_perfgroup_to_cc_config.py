@@ -39,7 +39,7 @@ def group_to_json(groupfile):
             llist = re.split("\s+", line)
             calc = llist[-1]
             metric = " ".join(llist[:-1])
-            scope = "hwthread"
+            scope = "cpu"
             if "BOX" in calc:
                 scope = "socket"
             if "PWR" in calc:

@@ -40,15 +40,9 @@ See the component READMEs for their configuration:
 $ git clone git@github.com:ClusterCockpit/cc-metric-collector.git
 $ make (downloads LIKWID, builds it as static library with 'direct' accessmode and copies all required files for the collector)
 $ go get (requires at least golang 1.16)
-$ make tags
-Available tags:
-ganglia
-[...]
-$ make # calls go build (-tags ganglia,...) -o cc-metric-collector
+$ make
 ```
 
-## `ganglia` build tag
-If you want support for the [Ganglia Monitoring System](http://ganglia.info/), you have to add `-tags ganglia` to the build command line. This enables two metric sinks. One is using the command line application `gmetric` (see [`ganglia`](./sinks/gangliaSink.md) sink), the other one interacts directly with `libganglia` the main Ganglia library that is commonly installed on each compute node (see [`libganglia`](./sinks/libgangliaSink.md) sink). The later one requires configuration before building, so use `make` instead of `go build` directly.
 
 # Running
 
@@ -62,7 +56,41 @@ Usage of metric-collector:
   -once
     	Run all collectors only once
 ```
+# Scenarios
 
+The metric collector was designed with flexibility in mind, so it can be used in many scenarios. Here are a few:
+
+```mermaid
+flowchart TD
+  subgraph a ["Cluster A"]
+  nodeA[NodeA with CC collector]
+  nodeB[NodeB with CC collector]
+  nodeC[NodeC with CC collector]
+  end
+  a --> db[(Database)]
+  db <--> ccweb("Webfrontend")
+```
+
+``` mermaid
+flowchart TD
+  subgraph a [ClusterA]
+  direction LR
+  nodeA[NodeA with CC collector]
+  nodeB[NodeB with CC collector]
+  nodeC[NodeC with CC collector]
+  end
+  subgraph b [ClusterB]
+  direction LR
+  nodeD[NodeD with CC collector]
+  nodeE[NodeE with CC collector]
+  nodeF[NodeF with CC collector]
+  end
+  a --> ccrecv{"CC collector as receiver"}
+  b --> ccrecv
+  ccrecv --> db[("Database1")]
+  ccrecv -.-> db2[("Database2")]
+  db <-.-> ccweb("Webfrontend")
+```
 
 # Contributing
 The ClusterCockpit ecosystem is designed to be used by different HPC computing centers. Since configurations and setups differ between the centers, the centers likely have to put some work into the cc-metric-collector to gather all desired metrics.

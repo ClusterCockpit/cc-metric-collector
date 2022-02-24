@@ -21,13 +21,18 @@ all: $(APP)
 
 $(APP): $(GOSRC)
 	make -C collectors
-	make -C sinks
 	go get
 	go build -o $(APP) $(GOSRC_APP)
 
 .PHONY: clean
+.ONESHELL:
 clean:
-	@for COMP in $(COMPONENT_DIRS); do if [ -e $$COMP/Makefile ]; then make -C $$COMP clean; fi; done
+	@for COMP in $(COMPONENT_DIRS)
+	do
+	    if [[ -e $$COMP/Makefile ]]; then
+	        make -C $$COMP clean
+	    fi
+	done
 	rm -f $(APP)
 
 .PHONY: fmt
