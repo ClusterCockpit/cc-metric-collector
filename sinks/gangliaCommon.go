@@ -155,12 +155,38 @@ func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 	for _, group := range CommonGangliaMetrics {
 		for _, metric := range group.Metrics {
 			if metric.Name == mname {
+				valueStr := ""
+				value, ok := point.GetField("value")
+				if ok {
+					switch real := value.(type) {
+					case float64:
+						valueStr = fmt.Sprintf("%f", real)
+					case float32:
+						valueStr = fmt.Sprintf("%f", real)
+					case int64:
+						valueStr = fmt.Sprintf("%d", real)
+					case int32:
+						valueStr = fmt.Sprintf("%d", real)
+					case int:
+						valueStr = fmt.Sprintf("%d", real)
+					case uint64:
+						valueStr = fmt.Sprintf("%d", real)
+					case uint32:
+						valueStr = fmt.Sprintf("%d", real)
+					case uint:
+						valueStr = fmt.Sprintf("%d", real)
+					case string:
+						valueStr = real
+					default:
+					}
+				}
 				return GangliaMetricConfig{
 					Group: group.Name,
 					Type:  metric.Type,
 					Slope: metric.Slope,
 					Tmax:  metric.Tmax,
 					Unit:  metric.Unit,
+					Value: valueStr,
 				}
 			}
 		}
