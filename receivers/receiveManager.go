@@ -9,8 +9,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-var AvailableReceivers = map[string]Receiver{
-	"nats": &NatsReceiver{},
+var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
+	"nats": NewNatsReceiver,
 }
 
 type receiveManager struct {
@@ -30,11 +30,13 @@ type ReceiveManager interface {
 }
 
 func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) error {
+	// Initialize struct fields
 	rm.inputs = make([]Receiver, 0)
 	rm.output = nil
 	rm.done = make(chan bool)
 	rm.wg = wg
 	rm.config = make([]json.RawMessage, 0)
+
 	configFile, err := os.Open(receiverConfigFile)
 	if err != nil {
 		cclog.ComponentError("ReceiveManager", err.Error())
@@ -51,6 +53,7 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	for name, raw := range rawConfigs {
 		rm.AddInput(name, raw)
 	}
+
 	return nil
 }
 
@@ -75,10 +78,9 @@ func (rm *receiveManager) AddInput(name string, rawConfig json.RawMessage) error
 		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "unknown receiver:", err.Error())
 		return err
 	}
-	r := AvailableReceivers[config.Type]
-	err = r.Init(name, rawConfig)
+	r, err := AvailableReceivers[config.Type](name, rawConfig)
 	if err != nil {
-		cclog.ComponentError("ReceiveManager", "SKIP", r.Name(), "initialization failed:", err.Error())
+		cclog.ComponentError("ReceiveManager", "SKIP", name, "initialization failed:", err.Error())
 		return err
 	}
 	rm.inputs = append(rm.inputs, r)

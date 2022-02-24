@@ -34,42 +34,6 @@ type GangliaSink struct {
 	config         GangliaSinkConfig
 }
 
-func (s *GangliaSink) Init(config json.RawMessage) error {
-	var err error = nil
-	s.name = "GangliaSink"
-	s.config.AddTagsAsDesc = false
-	s.config.AddGangliaGroup = false
-	s.config.AddUnits = false
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
-			return err
-		}
-	}
-	s.gmetric_path = ""
-	s.gmetric_config = ""
-	if len(s.config.GmetricPath) > 0 {
-		p, err := exec.LookPath(s.config.GmetricPath)
-		if err == nil {
-			s.gmetric_path = p
-		}
-	}
-	if len(s.gmetric_path) == 0 {
-		p, err := exec.LookPath(string(GMETRIC_EXEC))
-		if err == nil {
-			s.gmetric_path = p
-		}
-	}
-	if len(s.gmetric_path) == 0 {
-		err = errors.New("cannot find executable 'gmetric'")
-	}
-	if len(s.config.GmetricConfig) > 0 {
-		s.gmetric_config = s.config.GmetricConfig
-	}
-	return err
-}
-
 func (s *GangliaSink) Write(point lp.CCMetric) error {
 	var err error = nil
 	//var tagsstr []string
@@ -127,4 +91,37 @@ func (s *GangliaSink) Flush() error {
 func (s *GangliaSink) Close() {
 }
 
-func NewGangliaSink()
+func NewGangliaSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(GangliaSink)
+	s.name = fmt.Sprintf("GangliaSink(%s)", name)
+	s.config.AddTagsAsDesc = false
+	s.config.AddGangliaGroup = false
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
+			return nil, err
+		}
+	}
+	s.gmetric_path = ""
+	s.gmetric_config = ""
+	if len(s.config.GmetricPath) > 0 {
+		p, err := exec.LookPath(s.config.GmetricPath)
+		if err == nil {
+			s.gmetric_path = p
+		}
+	}
+	if len(s.gmetric_path) == 0 {
+		p, err := exec.LookPath(string(GMETRIC_EXEC))
+		if err == nil {
+			s.gmetric_path = p
+		}
+	}
+	if len(s.gmetric_path) == 0 {
+		return nil, errors.New("cannot find executable 'gmetric'")
+	}
+	if len(s.config.GmetricConfig) > 0 {
+		s.gmetric_config = s.config.GmetricConfig
+	}
+	return s, nil
+}
