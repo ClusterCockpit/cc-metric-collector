@@ -13,14 +13,14 @@ import (
 const SINK_MAX_FORWARD = 50
 
 // Map of all available sinks
-var AvailableSinks = map[string]Sink{
-	"influxdb":    new(InfluxSink),
-	"stdout":      new(StdoutSink),
-	"nats":        new(NatsSink),
-	"http":        new(HttpSink),
-	"ganglia":     new(GangliaSink),
-	"influxasync": new(InfluxAsyncSink),
-	"libganglia":  new(LibgangliaSink),
+var AvailableSinks = map[string]func(name string, config json.RawMessage) (Sink, error){
+	"ganglia":     NewGangliaSink,
+	"libganglia":  NewLibgangliaSink,
+	"stdout":      NewStdoutSink,
+	"nats":        NewNatsSink,
+	"influxdb":    NewInfluxSink,
+	"influxasync": NewInfluxAsyncSink,
+	"http":        NewHttpSink,
 }
 
 // Metric collector manager data structure
@@ -149,8 +149,7 @@ func (sm *sinkManager) AddOutput(name string, rawConfig json.RawMessage) error {
 		cclog.ComponentError("SinkManager", "SKIP", name, "unknown sink:", sinkConfig.Type)
 		return err
 	}
-	s := AvailableSinks[sinkConfig.Type]
-	err = s.Init(rawConfig)
+	s, err := AvailableSinks[sinkConfig.Type](name, rawConfig)
 	if err != nil {
 		cclog.ComponentError("SinkManager", "SKIP", s.Name(), "initialization failed:", err.Error())
 		return err

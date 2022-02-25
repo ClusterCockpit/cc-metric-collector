@@ -82,21 +82,21 @@ const (
 	GMOND_CONFIG_FILE    = `/etc/ganglia/gmond.conf`
 )
 
-type LibgangliaSinkSpecialMetric struct {
-	MetricName string `json:"metric_name,omitempty"`
-	NewName    string `json:"new_name,omitempty"`
-	Slope      string `json:"slope,omitempty"`
-}
+// type LibgangliaSinkSpecialMetric struct {
+// 	MetricName string `json:"metric_name,omitempty"`
+// 	NewName    string `json:"new_name,omitempty"`
+// 	Slope      string `json:"slope,omitempty"`
+// }
 
 type LibgangliaSinkConfig struct {
 	defaultSinkConfig
-	GangliaLib      string                                 `json:"libganglia_path,omitempty"`
-	GmondConfig     string                                 `json:"gmond_config,omitempty"`
-	AddGangliaGroup bool                                   `json:"add_ganglia_group,omitempty"`
-	AddTypeToName   bool                                   `json:"add_type_to_name,omitempty"`
-	AddUnits        bool                                   `json:"add_units,omitempty"`
-	ClusterName     string                                 `json:"cluster_name,omitempty"`
-	SpecialMetrics  map[string]LibgangliaSinkSpecialMetric `json:"rename_metrics,omitempty"` // Map to rename metric name from key to value
+	GangliaLib      string `json:"libganglia_path,omitempty"`
+	GmondConfig     string `json:"gmond_config,omitempty"`
+	AddGangliaGroup bool   `json:"add_ganglia_group,omitempty"`
+	AddTypeToName   bool   `json:"add_type_to_name,omitempty"`
+	AddUnits        bool   `json:"add_units,omitempty"`
+	ClusterName     string `json:"cluster_name,omitempty"`
+	//SpecialMetrics  map[string]LibgangliaSinkSpecialMetric `json:"rename_metrics,omitempty"` // Map to rename metric name from key to value
 	//AddTagsAsDesc   bool              `json:"add_tags_as_desc,omitempty"`
 }
 
@@ -107,65 +107,6 @@ type LibgangliaSink struct {
 	gmond_config   C.Ganglia_gmond_config
 	send_channels  C.Ganglia_udp_send_channels
 	cstrCache      map[string]*C.char
-}
-
-func (s *LibgangliaSink) Init(config json.RawMessage) error {
-	var err error = nil
-	s.name = "LibgangliaSink"
-	//s.config.AddTagsAsDesc = false
-	s.config.AddGangliaGroup = false
-	s.config.AddTypeToName = false
-	s.config.AddUnits = true
-	s.config.GmondConfig = string(GMOND_CONFIG_FILE)
-	s.config.GangliaLib = string(GANGLIA_LIB_NAME)
-	if len(config) > 0 {
-		err = json.Unmarshal(config, &s.config)
-		if err != nil {
-			cclog.ComponentError(s.name, "Error reading config:", err.Error())
-			return err
-		}
-	}
-	lib := dl.New(s.config.GangliaLib, GANGLIA_LIB_DL_FLAGS)
-	if lib == nil {
-		return fmt.Errorf("error instantiating DynamicLibrary for %s", s.config.GangliaLib)
-	}
-	err = lib.Open()
-	if err != nil {
-		return fmt.Errorf("error opening %s: %v", s.config.GangliaLib, err)
-	}
-
-	// Set up cache for the C strings
-	s.cstrCache = make(map[string]*C.char)
-	// s.cstrCache["globals"] = C.CString("globals")
-
-	// s.cstrCache["override_hostname"] = C.CString("override_hostname")
-	// s.cstrCache["override_ip"] = C.CString("override_ip")
-
-	// Add some constant strings
-	s.cstrCache["GROUP"] = C.CString("GROUP")
-	s.cstrCache["CLUSTER"] = C.CString("CLUSTER")
-	s.cstrCache[""] = C.CString("")
-
-	// Add cluster name for lookup in Write()
-	if len(s.config.ClusterName) > 0 {
-		s.cstrCache[s.config.ClusterName] = C.CString(s.config.ClusterName)
-	}
-	// Add supported types for later lookup in Write()
-	s.cstrCache["double"] = C.CString("double")
-	s.cstrCache["int32"] = C.CString("int32")
-	s.cstrCache["string"] = C.CString("string")
-
-	// Create Ganglia pool
-	s.global_context = C.Ganglia_pool_create(nil)
-	// Load Ganglia configuration
-	s.cstrCache[s.config.GmondConfig] = C.CString(s.config.GmondConfig)
-	s.gmond_config = C.Ganglia_gmond_config_create(s.cstrCache[s.config.GmondConfig], 0)
-	//globals := C.cfg_getsec(gmond_config, s.cstrCache["globals"])
-	//override_hostname := C.cfg_getstr(globals, s.cstrCache["override_hostname"])
-	//override_ip := C.cfg_getstr(globals, s.cstrCache["override_ip"])
-
-	s.send_channels = C.Ganglia_udp_send_channels_create(s.global_context, s.gmond_config)
-	return nil
 }
 
 func (s *LibgangliaSink) Write(point lp.CCMetric) error {
@@ -184,72 +125,48 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 	}
 
 	// Get metric name
-	metricname := GangliaMetricRename(point)
-	if s.config.AddTypeToName {
-		c_name = lookup(GangliaMetricName(point))
-	} else {
-		c_name = lookup(metricname)
-	}
+	metricname := GangliaMetricRename(point.Name())
 
-	// Get the value C string and lookup the type string in the cache
-	value, ok := point.GetField("value")
-	if !ok {
+	conf := GetCommonGangliaConfig(point)
+	if len(conf.Type) == 0 {
+		conf = GetGangliaConfig(point)
+	}
+	if len(conf.Type) == 0 {
 		return fmt.Errorf("metric %s has no 'value' field", metricname)
 	}
-	switch real := value.(type) {
-	case float64:
-		c_value = C.CString(fmt.Sprintf("%f", real))
-		c_type = lookup("double")
-	case float32:
-		c_value = C.CString(fmt.Sprintf("%f", real))
-		c_type = lookup("float")
-	case int64:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("int32")
-	case int32:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("int32")
-	case int:
-		c_value = C.CString(fmt.Sprintf("%d", real))
-		c_type = lookup("int32")
-	case string:
-		c_value = C.CString(real)
-		c_type = lookup("string")
-	default:
-		return fmt.Errorf("metric %s has invalid 'value' type for %s", point.Name(), s.name)
+
+	if s.config.AddTypeToName {
+		metricname = GangliaMetricName(point)
 	}
 
+	c_value = C.CString(conf.Value)
+	c_type = lookup(conf.Type)
+	c_name = lookup(metricname)
+
 	// Add unit
+	unit := ""
 	if s.config.AddUnits {
-		if tagunit, tagok := point.GetTag("unit"); tagok {
-			c_unit = lookup(tagunit)
-		} else if metaunit, metaok := point.GetMeta("unit"); metaok {
-			c_unit = lookup(metaunit)
-		} else {
-			c_unit = lookup("")
-		}
-	} else {
-		c_unit = lookup("")
+		unit = conf.Unit
 	}
+	c_unit = lookup(unit)
 
 	// Determine the slope of the metric. Ganglia's own collector mostly use
 	// 'both' but the mem and swap total uses 'zero'.
-	slope := GangliaSlopeType(point)
 	slope_type := C.GANGLIA_SLOPE_BOTH
-	switch slope {
-	case 0:
+	switch conf.Slope {
+	case "zero":
 		slope_type = C.GANGLIA_SLOPE_ZERO
+	case "both":
+		slope_type = C.GANGLIA_SLOPE_BOTH
 	}
 
 	// Create a new Ganglia metric
 	gmetric := C.Ganglia_metric_create(s.global_context)
 	// Set name, value, type and unit in the Ganglia metric
-	// Since we don't have this information from the collectors,
-	// we assume that the metric value can go up and down (slope),
-	// and there is no maximum for 'dmax' and 'tmax'.
-	// Ganglia's collectors set 'tmax' but not 'dmax'
+	// The default slope_type is both directions, so up and down. Some metrics want 'zero' slope, probably constant.
+	// The 'tmax' value is by default 300.
 	rval := C.int(0)
-	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), 0, 0)
+	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), C.uint(conf.Tmax), 0)
 	switch rval {
 	case 1:
 		C.free(unsafe.Pointer(c_value))
@@ -259,10 +176,10 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 		return errors.New("one of your parameters has an invalid character '\"'")
 	case 3:
 		C.free(unsafe.Pointer(c_value))
-		return fmt.Errorf("the type parameter \"%s\" is not a valid type", C.GoString(c_type))
+		return fmt.Errorf("the type parameter \"%s\" is not a valid type", conf.Type)
 	case 4:
 		C.free(unsafe.Pointer(c_value))
-		return fmt.Errorf("the value parameter \"%s\" does not represent a number", C.GoString(c_value))
+		return fmt.Errorf("the value parameter \"%s\" does not represent a number", conf.Value)
 	default:
 	}
 
@@ -271,8 +188,8 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 		C.Ganglia_metadata_add(gmetric, lookup("CLUSTER"), lookup(s.config.ClusterName))
 	}
 	// Set the group metadata in the Ganglia metric if configured
-	if group, ok := point.GetMeta("group"); ok && s.config.AddGangliaGroup {
-		c_group := lookup(group)
+	if s.config.AddGangliaGroup {
+		c_group := lookup(conf.Group)
 		C.Ganglia_metadata_add(gmetric, lookup("GROUP"), c_group)
 	}
 
@@ -306,4 +223,64 @@ func (s *LibgangliaSink) Close() {
 	for _, cstr := range s.cstrCache {
 		C.free(unsafe.Pointer(cstr))
 	}
+}
+
+func NewLibgangliaSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(LibgangliaSink)
+	var err error = nil
+	s.name = fmt.Sprintf("LibgangliaSink(%s)", name)
+	//s.config.AddTagsAsDesc = false
+	s.config.AddGangliaGroup = false
+	s.config.AddTypeToName = false
+	s.config.AddUnits = true
+	s.config.GmondConfig = string(GMOND_CONFIG_FILE)
+	s.config.GangliaLib = string(GANGLIA_LIB_NAME)
+	if len(config) > 0 {
+		err = json.Unmarshal(config, &s.config)
+		if err != nil {
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
+			return nil, err
+		}
+	}
+	lib := dl.New(s.config.GangliaLib, GANGLIA_LIB_DL_FLAGS)
+	if lib == nil {
+		return nil, fmt.Errorf("error instantiating DynamicLibrary for %s", s.config.GangliaLib)
+	}
+	err = lib.Open()
+	if err != nil {
+		return nil, fmt.Errorf("error opening %s: %v", s.config.GangliaLib, err)
+	}
+
+	// Set up cache for the C strings
+	s.cstrCache = make(map[string]*C.char)
+	// s.cstrCache["globals"] = C.CString("globals")
+
+	// s.cstrCache["override_hostname"] = C.CString("override_hostname")
+	// s.cstrCache["override_ip"] = C.CString("override_ip")
+
+	// Add some constant strings
+	s.cstrCache["GROUP"] = C.CString("GROUP")
+	s.cstrCache["CLUSTER"] = C.CString("CLUSTER")
+	s.cstrCache[""] = C.CString("")
+
+	// Add cluster name for lookup in Write()
+	if len(s.config.ClusterName) > 0 {
+		s.cstrCache[s.config.ClusterName] = C.CString(s.config.ClusterName)
+	}
+	// Add supported types for later lookup in Write()
+	s.cstrCache["double"] = C.CString("double")
+	s.cstrCache["int32"] = C.CString("int32")
+	s.cstrCache["string"] = C.CString("string")
+
+	// Create Ganglia pool
+	s.global_context = C.Ganglia_pool_create(nil)
+	// Load Ganglia configuration
+	s.cstrCache[s.config.GmondConfig] = C.CString(s.config.GmondConfig)
+	s.gmond_config = C.Ganglia_gmond_config_create(s.cstrCache[s.config.GmondConfig], 0)
+	//globals := C.cfg_getsec(gmond_config, s.cstrCache["globals"])
+	//override_hostname := C.cfg_getstr(globals, s.cstrCache["override_hostname"])
+	//override_ip := C.cfg_getstr(globals, s.cstrCache["override_ip"])
+
+	s.send_channels = C.Ganglia_udp_send_channels_create(s.global_context, s.gmond_config)
+	return s, nil
 }

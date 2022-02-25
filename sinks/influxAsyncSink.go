@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -30,11 +31,10 @@ type InfluxAsyncSinkConfig struct {
 
 type InfluxAsyncSink struct {
 	sink
-	client    influxdb2.Client
-	writeApi  influxdb2Api.WriteAPI
-	retPolicy string
-	errors    <-chan error
-	config    InfluxAsyncSinkConfig
+	client   influxdb2.Client
+	writeApi influxdb2Api.WriteAPI
+	errors   <-chan error
+	config   InfluxAsyncSinkConfig
 }
 
 func (s *InfluxAsyncSink) connect() error {
@@ -65,40 +65,14 @@ func (s *InfluxAsyncSink) connect() error {
 	)
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
+	ok, err := s.client.Ping(context.Background())
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("connection to %s not healthy", uri)
+	}
 	return nil
-}
-
-func (s *InfluxAsyncSink) Init(config json.RawMessage) error {
-	s.name = "InfluxSink"
-
-	// Set default for maximum number of points sent to server in single request.
-	s.config.BatchSize = 100
-
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			return err
-		}
-	}
-	if len(s.config.Host) == 0 ||
-		len(s.config.Port) == 0 ||
-		len(s.config.Database) == 0 ||
-		len(s.config.Organization) == 0 ||
-		len(s.config.Password) == 0 {
-		return errors.New("not all configuration variables set required by InfluxAsyncSink")
-	}
-
-	// Connect to InfluxDB server
-	err := s.connect()
-
-	// Start background: Read from error channel
-	s.errors = s.writeApi.Errors()
-	go func() {
-		for err := range s.errors {
-			cclog.ComponentError(s.name, err.Error())
-		}
-	}()
-	return err
 }
 
 func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
@@ -117,4 +91,41 @@ func (s *InfluxAsyncSink) Close() {
 	cclog.ComponentDebug(s.name, "Closing InfluxDB connection")
 	s.writeApi.Flush()
 	s.client.Close()
+}
+
+func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(InfluxAsyncSink)
+	s.name = fmt.Sprintf("InfluxSink(%s)", name)
+
+	// Set default for maximum number of points sent to server in single request.
+	s.config.BatchSize = 100
+
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &s.config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(s.config.Host) == 0 ||
+		len(s.config.Port) == 0 ||
+		len(s.config.Database) == 0 ||
+		len(s.config.Organization) == 0 ||
+		len(s.config.Password) == 0 {
+		return nil, errors.New("not all configuration variables set required by InfluxAsyncSink")
+	}
+
+	// Connect to InfluxDB server
+	if err := s.connect(); err != nil {
+		return nil, fmt.Errorf("unable to connect: %v", err)
+	}
+
+	// Start background: Read from error channel
+	s.errors = s.writeApi.Errors()
+	go func() {
+		for err := range s.errors {
+			cclog.ComponentError(s.name, err.Error())
+		}
+	}()
+
+	return s, nil
 }

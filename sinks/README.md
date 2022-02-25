@@ -6,9 +6,11 @@ This folder contains the SinkManager and sink implementations for the cc-metric-
 - [`stdout`](./stdoutSink.md): Print all metrics to `stdout`, `stderr` or a file
 - [`http`](./httpSink.md): Send metrics to an HTTP server as POST requests
 - [`influxdb`](./influxSink.md): Send metrics to an [InfluxDB](https://www.influxdata.com/products/influxdb/) database
+- [`influxasync`](./influxAsyncSink.md): Send metrics to an [InfluxDB](https://www.influxdata.com/products/influxdb/) database with non-blocking write API
 - [`nats`](./natsSink.md): Publish metrics to the [NATS](https://nats.io/) network overlay system
 - [`ganglia`](./gangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/) using the `gmetric` CLI tool
 - [`libganglia`](./libgangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/) directly using `libganglia.so`
+- [`prometeus`](./prometheusSink.md): Publish metrics for the [Prometheus Monitoring System](https://prometheus.io/)
 
 # Configuration
 
@@ -34,11 +36,12 @@ The configuration file for the sinks is a list of configurations. The `type` fie
 
 
 # Contributing own sinks
-A sink contains four functions and is derived from the type `sink`:
-* `Init(config json.RawMessage) error`
+A sink contains five functions and is derived from the type `sink`:
+* `Init(name string, config json.RawMessage) error`
 * `Write(point CCMetric) error`
 * `Flush() error`
 * `Close()`
+* `New<Typename>(name string, config json.RawMessage) (Sink, error)` (calls the `Init()` function)
 
 The data structures should be set up in `Init()` like opening a file or server connection. The `Write()` function writes/sends the data. For non-blocking sinks, the `Flush()` method tells the sink to drain its internal buffers. The `Close()` function should tear down anything created in `Init()`.
 
@@ -65,8 +68,8 @@ type SampleSink struct {
 }
 
 // Initialize the sink by giving it a name and reading in the config JSON
-func (s *SampleSink) Init(config json.RawMessage) error {
-	s.name = "SampleSink"   // Always specify a name here
+func (s *SampleSink) Init(name string, config json.RawMessage) error {
+	s.name = fmt.Sprintf("SampleSink(%s)", name)   // Always specify a name here
   // Read in the config JSON
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
@@ -91,4 +94,13 @@ func (s *SampleSink) Flush() error {
 
 // Close sink: close network connection, close files, close libraries, ...
 func (s *SampleSink) Close() {}
+
+
+// New function to create a new instance of the sink
+func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
+	s := new(SampleSink)
+	err := s.Init(name, config)
+	return s, err
+}
+
 ```
