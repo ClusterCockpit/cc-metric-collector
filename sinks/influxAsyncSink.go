@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -64,6 +65,13 @@ func (s *InfluxAsyncSink) connect() error {
 	)
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
+	ok, err := s.client.Ping(context.Background())
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("connection to %s not healthy", uri)
+	}
 	return nil
 }
 
@@ -108,7 +116,7 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 
 	// Connect to InfluxDB server
 	if err := s.connect(); err != nil {
-		return nil, fmt.Errorf("Unable to connect: %v", err)
+		return nil, fmt.Errorf("unable to connect: %v", err)
 	}
 
 	// Start background: Read from error channel
