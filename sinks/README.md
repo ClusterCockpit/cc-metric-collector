@@ -10,6 +10,7 @@ This folder contains the SinkManager and sink implementations for the cc-metric-
 - [`nats`](./natsSink.md): Publish metrics to the [NATS](https://nats.io/) network overlay system
 - [`ganglia`](./gangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/) using the `gmetric` CLI tool
 - [`libganglia`](./libgangliaSink.md): Publish metrics in the [Ganglia Monitoring System](http://ganglia.info/) directly using `libganglia.so`
+- [`prometeus`](./prometheusSink.md): Publish metrics for the [Prometheus Monitoring System](https://prometheus.io/)
 
 # Configuration
 
