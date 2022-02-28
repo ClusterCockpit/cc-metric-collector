@@ -12,7 +12,7 @@ jobs:
   # Job build-1-16
   # Build on AlmaLinux 8.5 using golang version 1.16
   #
-  build-1-16:
+  AlmaLinux-rpmbuild:
     runs-on: ubuntu-latest
     container: almalinux:8.5
     steps:
@@ -34,12 +34,8 @@ jobs:
       with:
         go-version: '^1.16.7'
 
-    # Install libganglia
-    - name: Setup Ganglia
-      run: sudo apt install ganglia-monitor libganglia1
-
     - name: Build MetricCollector
-      run: make
+      run: rpmbuild -bb scripts/cc-metric-collector.spec
 
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
