@@ -14,7 +14,7 @@ jobs:
   #
   build-1-16:
     runs-on: ubuntu-latest
-    container: almalinux@8.5
+    container: almalinux:8.5
     steps:
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
