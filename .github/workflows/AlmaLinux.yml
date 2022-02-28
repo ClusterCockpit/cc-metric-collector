@@ -17,9 +17,8 @@ jobs:
     container: almalinux:8.5
     steps:
 
-    - name: Install GIT
-      run: |
-          yum -y install git
+    - name: Install dependencies
+      run: yum -y install git rpm-build
 
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
