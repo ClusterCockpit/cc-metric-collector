@@ -18,7 +18,7 @@ jobs:
     steps:
 
     - name: Install dependencies
-      run: dnf group install "Development Tools" "RPM Development Tools"
+      run: dnf --assumeyes group install "Development Tools" "RPM Development Tools"
 
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
