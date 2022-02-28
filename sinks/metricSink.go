@@ -10,17 +10,18 @@ type defaultSinkConfig struct {
 }
 
 type sink struct {
-	meta_as_tags bool
-	name         string
+	meta_as_tags bool   // Use meta data tags as tags
+	name         string // Name of the sink
 }
 
 type Sink interface {
-	Write(point lp.CCMetric) error
-	Flush() error
-	Close()
-	Name() string
+	Write(point lp.CCMetric) error // Write metric to the sink
+	Flush() error                  // Flush buffered metrics
+	Close()                        // Close / finish metric sink
+	Name() string                  // Name of the metric sink
 }
 
+// Name returns the name of the metric sink
 func (s *sink) Name() string {
 	return s.name
 }

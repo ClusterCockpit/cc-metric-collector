@@ -46,6 +46,9 @@ func (s *SampleSink) Close() {
 // Initialize the sink by giving it a name and reading in the config JSON
 func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(SampleSink)
+
+	// Set name of sampleSink
+	// The name should be chosen in such a way that different instances of SampleSink can be distinguished
 	s.name = fmt.Sprintf("SampleSink(%s)", name) // Always specify a name here
 
 	// Set defaults in s.config

@@ -7,6 +7,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 )
 
+// SampleReceiver configuration: receiver type, listen address, port
 type SampleReceiverConfig struct {
 	Type string `json:"type"`
 	Addr string `json:"address"`
@@ -23,6 +24,10 @@ type SampleReceiver struct {
 	// done chan bool
 	// wg   sync.WaitGroup
 }
+
+// Implement functions required for Receiver interface
+// Start(), Close()
+// See: metricReceiver.go
 
 func (r *SampleReceiver) Start() {
 	cclog.ComponentDebug(r.name, "START")
@@ -44,6 +49,7 @@ func (r *SampleReceiver) Start() {
 	// }()
 }
 
+// Close receiver: close network connection, close files, close libraries, ...
 func (r *SampleReceiver) Close() {
 	cclog.ComponentDebug(r.name, "CLOSE")
 
@@ -54,12 +60,20 @@ func (r *SampleReceiver) Close() {
 	// r.wg.Wait()
 }
 
+// New function to create a new instance of the receiver
+// Initialize the receiver by giving it a name and reading in the config JSON
 func NewSampleReceiver(name string, config json.RawMessage) (Receiver, error) {
 	r := new(SampleReceiver)
-	r.name = fmt.Sprintf("HttpReceiver(%s)", name)
+
+	// Set name of SampleReceiver
+	// The name should be chosen in such a way that different instances of SampleReceiver can be distinguished
+	r.name = fmt.Sprintf("SampleReceiver(%s)", name)
 
 	// Set static information
 	r.meta = map[string]string{"source": r.name}
+
+	// Set defaults in r.config
+	// Allow overwriting these defaults by reading config JSON
 
 	// Read the sample receiver specific JSON config
 	if len(config) > 0 {
