@@ -40,3 +40,10 @@ jobs:
 
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
+
+    # See: https://github.com/actions/download-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector RPM AlmaLinux 8.5
+        path: ~/rpmbuild/RPMS/*/cc-metric-collector-*.rpm
