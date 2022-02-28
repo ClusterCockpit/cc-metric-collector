@@ -10,14 +10,21 @@ import (
 )
 
 type SampleSinkConfig struct {
-	defaultSinkConfig // defines JSON tags for 'type' and 'meta_as_tags'
-	// Add additional options
+	// defines JSON tags for 'type' and 'meta_as_tags'
+	// See: metricSink.go
+	defaultSinkConfig
+	// Additional config options, for SampleSink
 }
 
 type SampleSink struct {
-	sink                    // declarate 'name' and 'meta_as_tags'
+	// declares elements 	'name' and 'meta_as_tags'
+	sink
 	config SampleSinkConfig // entry point to the SampleSinkConfig
 }
+
+// Implement functions required for Sink interface
+// Write(...), Flush(), Close()
+// See: metricSink.go
 
 // Code to submit a single CCMetric to the sink
 func (s *SampleSink) Write(point lp.CCMetric) error {
@@ -42,6 +49,7 @@ func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
 	s.name = fmt.Sprintf("SampleSink(%s)", name) // Always specify a name here
 
 	// Set defaults in s.config
+	// Allow overwriting these defaults by reading config JSON
 
 	// Read in the config JSON
 	if len(config) > 0 {
@@ -52,7 +60,7 @@ func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
 	}
 
 	// Check if all required fields in the config are set
-	// Use 'len(s.config.Option) > 0' for string settings
+	// E.g. use 'len(s.config.Option) > 0' for string settings
 
 	// Establish connection to the server, library, ...
 	// Check required files exist and lookup path(s) of executable(s)
