@@ -18,7 +18,7 @@ jobs:
     steps:
 
     - name: Install dependencies
-      run: yum -y install git rpm-build
+      run: yum -y install git rpm-build make
 
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
