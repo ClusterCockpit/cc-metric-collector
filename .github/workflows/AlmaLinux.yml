@@ -34,7 +34,7 @@ jobs:
         go-version: '^1.16.7'
 
     - name: Build MetricCollector
-      run: rpmbuild -bb scripts/cc-metric-collector.spec
+      run: rpmbuild -bb --build-in-place --nodeps scripts/cc-metric-collector.spec
 
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
