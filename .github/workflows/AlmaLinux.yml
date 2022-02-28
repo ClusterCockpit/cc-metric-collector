@@ -18,7 +18,9 @@ jobs:
     steps:
 
     - name: Install dependencies
-      run: dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+      run: |
+        dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+        dnf --assumeyes       install wget
 
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
@@ -33,7 +35,7 @@ jobs:
       with:
         go-version: '^1.16.7'
 
-    - name: Build MetricCollector
+    - name: RPM build MetricCollector
       run: rpmbuild -bb --build-in-place --nodeps scripts/cc-metric-collector.spec
 
     - name: Run MetricCollector once
