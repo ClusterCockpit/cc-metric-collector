@@ -1,0 +1,60 @@
+# See: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+
+# Workflow name
+name: Go Toolset for UBI 8 RPM build
+
+# Run on event push
+on: push
+
+jobs:
+
+  #
+  # Build with Go Toolset for UBI 8
+  #
+  Go-Toolset-for-UBI-8-RPM-build:
+    runs-on: ubuntu-latest
+    container: registry.access.redhat.com/ubi8/go-toolset:1.16.12-4.1645821242
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: dnf --assumeyes --disableplugin=subscription-manager group install "Development Tools" "RPM Development Tools"
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    # Use dnf to install build dependencies
+    - name: Install build dependencies
+      run: dnf --assumeyes --disableplugin=subscription-manager builddep scripts/cc-metric-collector.spec
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: make RPM
+
+    # See: https://github.com/actions/upload-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector RPM build on Go Toolset for UBI 8
+        path: ${{ steps.rpmbuild.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector SRPM build on Go Toolset for UBI 8
+        path: ${{ steps.rpmbuild.outputs.SRPM }}
+
+    # See: https://github.com/softprops/action-gh-release
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: cc-metric-collector-${{github.ref_name}}
+        files: |
+         ${{ steps.rpmbuild.outputs.RPM }}
+         ${{ steps.rpmbuild.outputs.SRPM }}
