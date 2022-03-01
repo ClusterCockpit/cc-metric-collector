@@ -19,7 +19,7 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager rpm-build go-srpm-macros rpm-build-libs rpm-libs gcc make python38 git
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros rpm-build-libs rpm-libs gcc make python38 git
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
