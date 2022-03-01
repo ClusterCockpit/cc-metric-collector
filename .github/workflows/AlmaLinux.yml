@@ -50,4 +50,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: cc-metric-collector RPM AlmaLinux 8.5
-        path: ~/rpmbuild/*/*/cc-metric-collector-*.rpm
+        files: |
+          ~/rpmbuild/RPMS/*/cc-metric-collector-*.rpm
+          ~/rpmbuild/SRPMS/cc-metric-collector-*.src.rpm
+          
