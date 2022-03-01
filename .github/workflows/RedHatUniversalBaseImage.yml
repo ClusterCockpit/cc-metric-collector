@@ -1,7 +1,7 @@
 # See: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 
 # Workflow name
-name: AlmaLinux 8.5 RPM build
+name: Red Hat Universal Base Image 8 RPM build
 
 # Run on event push
 on: push
@@ -9,17 +9,17 @@ on: push
 jobs:
 
   #
-  # Build on AlmaLinux 8.5 using go-toolset
+  # Build on UBI 8 using go-toolset
   #
-  AlmaLinux-RPM-build:
+  UBI-8-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://hub.docker.com/_/almalinux
-    container: almalinux:8.5
+    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    container: registry.access.redhat.com/ubi8/ubi:8.5-226.1645809065
     steps:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros rpm-build-libs rpm-libs gcc make python38 git
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
@@ -32,7 +32,7 @@ jobs:
 
     # Use dnf to install build dependencies
     - name: Install build dependencies
-      run: dnf --assumeyes builddep scripts/cc-metric-collector.spec
+      run: dnf --assumeyes --disableplugin=subscription-manager builddep scripts/cc-metric-collector.spec
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -42,12 +42,12 @@ jobs:
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector RPM for AlmaLinux 8.5
+        name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector SRPM for AlmaLinux 8.5
+        name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
     # See: https://github.com/softprops/action-gh-release
