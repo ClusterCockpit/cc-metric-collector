@@ -55,16 +55,13 @@ $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION): $(BUILD_FOLDER)/likwid-$(LIKWID_VERSIO
 	tar -C $(BUILD_FOLDER) -xf $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION).tar.gz
 
 $(INSTALL_FOLDER)/liblikwid.a: $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION) $(INSTALL_FOLDER)
-	sed -i -e s+"PREFIX ?= .*"+"PREFIX = $(LIKWID_BASE)"+g \
-		-e s+"SHARED_LIBRARY = .*"+"SHARED_LIBRARY = false"+g \
-		-e s+"ACCESSMODE = .*"+"ACCESSMODE = $(ACCESSMODE)"+g \
-		-e s+"INSTALLED_ACCESSDAEMON = .*"+"INSTALLED_ACCESSDAEMON = $(DAEMON_INSTALLDIR)/likwid-accessD"+g \
-		$(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/config.mk
-	cd $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION) && make
-	cp $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/liblikwid.a $(INSTALL_FOLDER)
-	cp $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/ext/hwloc/liblikwid-hwloc.a $(INSTALL_FOLDER)
-	cp $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/src/includes/likwid*.h $(INSTALL_FOLDER)
-	cp $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/src/includes/bstrlib.h $(INSTALL_FOLDER)
+	cd "$(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)" && make "PREFIX=$(LIKWID_BASE)" "SHARED_LIBRARY=false" "ACCESSMODE=$(ACCESSMODE)" "INSTALLED_ACCESSDAEMON=$(DAEMON_INSTALLDIR)/likwid-accessD"
+	cp \
+	    $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/liblikwid.a \
+	    $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/ext/hwloc/liblikwid-hwloc.a \
+	    $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/src/includes/likwid*.h \
+	    $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/src/includes/bstrlib.h \
+	    $(INSTALL_FOLDER)
 
 $(DAEMON_INSTALLDIR)/likwid-accessD: $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/likwid-accessD
 	sudo -u $(DAEMON_USER) -g $(DAEMON_GROUP) install -m 4775 $(BUILD_FOLDER)/likwid-$(LIKWID_VERSION)/likwid-accessD $(DAEMON_INSTALLDIR)/likwid-accessD
