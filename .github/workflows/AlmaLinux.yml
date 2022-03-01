@@ -16,11 +16,9 @@ jobs:
     container: almalinux:8.5
     steps:
 
-    # Use dnf to install required dependencies
-    - name: Install dependencies
-      run: |
-        dnf --assumeyes group install "Development Tools" "RPM Development Tools"
-        dnf --assumeyes       install wget
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: dnf --assumeyes group install "Development Tools" "RPM Development Tools"
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
@@ -30,6 +28,10 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0
+
+    # Use dnf to install build dependencies
+    - name: Install build dependencies
+      run: dnf --assumeyes builddep scripts/cc-metric-collector.spec
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
