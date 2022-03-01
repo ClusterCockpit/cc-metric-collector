@@ -66,10 +66,12 @@ RPM: scripts/cc-metric-collector.spec
 	@eval $$(rpm --eval "ARCH='%{_arch}' RPMDIR='%{_rpmdir}' SOURCEDIR='%{_sourcedir}' SPECDIR='%{_specdir}' SRPMDIR='%{_srcrpmdir}' BUILDDIR='%{_builddir}'")
 	@mkdir --parents --verbose "$${RPMDIR}" "$${SOURCEDIR}" "$${SPECDIR}" "$${SRPMDIR}" "$${BUILDDIR}"
 	# Create source tarball
-	@VERS=$$(git describe --tags | sed -e 's/^v//g' -e 's/-/+/g')
+	@VERS=$$(git describe --tags)
+	@VERS=$${VERS#v}
+	@VERS=$${VERS//-/_}
 	@PREFIX=$$(rpmspec --query --queryformat "%{name}-%{version}" --define="VERS $${VERS}" "$${SPECFILE}")
 	@FORMAT="tar.gz"
 	@SRCFILE="$${SOURCEDIR}/$${PREFIX}.$${FORMAT}"
 	@git archive --verbose --format "$${FORMAT}" --prefix="$${PREFIX}/" --output="$${SRCFILE}" HEAD
 	# Build RPM and SRPM
-	@rpmbuild -ba --define="VERS $${VERS}" --define "_unitdir /usr/lib/systemd/system"--rmsource --clean --nodeps "$${SPECFILE}"
+	@rpmbuild -ba --define="VERS $${VERS}" --rmsource --clean --nodeps "$${SPECFILE}"
