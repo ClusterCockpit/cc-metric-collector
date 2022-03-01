@@ -51,7 +51,9 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: cc-metric-collector RPM AlmaLinux 8.5
-        path: |
-          ${{ steps.rpmbuild.outputs.SRPM }}
-          ${{ steps.rpmbuild.outputs.RPM }}
-          
+        path: ${{ steps.rpmbuild.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector SRPM AlmaLinux 8.5
+        path: ${{ steps.rpmbuild.outputs.SRPM }}
