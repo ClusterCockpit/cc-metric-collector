@@ -75,3 +75,5 @@ RPM: scripts/cc-metric-collector.spec
 	@git archive --verbose --format "$${FORMAT}" --prefix="$${PREFIX}/" --output="$${SRCFILE}" HEAD
 	# Build RPM and SRPM
 	@rpmbuild -ba --define="VERS $${VERS}" --rmsource --clean "$${SPECFILE}"
+	# Report RPMs and SRPMs when in GitHub Workflow
+	@printenv
