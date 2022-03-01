@@ -79,6 +79,8 @@ RPM: scripts/cc-metric-collector.spec
 	@if [[ "$${GITHUB_ACTIONS}" == true ]]; then
 	@     RPMFILES="$${RPMDIR}"/*/*.rpm
 	@     SRPMFILES="$${SRPMDIR}"/*.src.rpm
-	@     echo ::set-output name="SRPM::$${SRPM}"
-	@     echo ::set-output name="RPM::$${RPM}"
+	@     echo "RPMs: $${RPMFILES}"
+	@     echo "SRPMs: $${SRPMFILES}"
+	@     echo "::set-output name=SRPM::$${SRPMFILES}"
+	@     echo "::set-output name=RPM::$${RPMFILES}"
 	@fi
