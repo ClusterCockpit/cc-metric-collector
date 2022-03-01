@@ -76,4 +76,9 @@ RPM: scripts/cc-metric-collector.spec
 	# Build RPM and SRPM
 	@rpmbuild -ba --define="VERS $${VERS}" --rmsource --clean "$${SPECFILE}"
 	# Report RPMs and SRPMs when in GitHub Workflow
-	@printenv
+	@if [[ "$${GITHUB_ACTIONS}" == true ]]; then
+	@     RPMFILES="$${RPMDIR}"/*/*.rpm
+	@     SRPMFILES="$${SRPMDIR}"/*.src.rpm
+	@     echo ::set-output name="SRPM::$${SRPM}"
+	@     echo ::set-output name="RPM::$${RPM}"
+	@fi
