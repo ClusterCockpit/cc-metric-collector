@@ -18,7 +18,7 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager group install "Development Tools" "RPM Development Tools"
+      run: sudo dnf --assumeyes --disableplugin=subscription-manager group install "Development Tools" "RPM Development Tools"
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
@@ -31,7 +31,7 @@ jobs:
 
     # Use dnf to install build dependencies
     - name: Install build dependencies
-      run: dnf --assumeyes --disableplugin=subscription-manager builddep scripts/cc-metric-collector.spec
+      run: sudo dnf --assumeyes --disableplugin=subscription-manager builddep scripts/cc-metric-collector.spec
 
     - name: RPM build MetricCollector
       id: rpmbuild
