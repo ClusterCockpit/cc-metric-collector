@@ -74,4 +74,4 @@ RPM: scripts/cc-metric-collector.spec
 	@SRCFILE="$${SOURCEDIR}/$${PREFIX}.$${FORMAT}"
 	@git archive --verbose --format "$${FORMAT}" --prefix="$${PREFIX}/" --output="$${SRCFILE}" HEAD
 	# Build RPM and SRPM
-	@rpmbuild -ba --define="VERS $${VERS}" --rmsource --clean --nodeps "$${SPECFILE}"
+	@rpmbuild -ba --define="VERS $${VERS}" --rmsource --clean "$${SPECFILE}"
