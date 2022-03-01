@@ -39,7 +39,7 @@ jobs:
 
   #
   # Job build-1-16
-  # Build on latest Ubuntu using golang version 1.17 
+  # Build on latest Ubuntu using golang version 1.16
   #
   build-1-16:
     runs-on: ubuntu-latest

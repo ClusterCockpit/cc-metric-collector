@@ -56,3 +56,20 @@ vet:
 staticcheck:
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 	$$(go env GOPATH)/bin/staticcheck ./...
+
+.ONESHELL:
+.PHONY: RPM
+RPM: scripts/cc-metric-collector.spec
+	@WORKSPACE="$${PWD}"
+	@SPECFILE="$${WORKSPACE}/scripts/cc-metric-collector.spec"
+	# Setup RPM build tree
+	@eval $$(rpm --eval "ARCH='%{_arch}' RPMDIR='%{_rpmdir}' SOURCEDIR='%{_sourcedir}' SPECDIR='%{_specdir}' SRPMDIR='%{_srcrpmdir}' BUILDDIR='%{_builddir}'")
+	@mkdir --parents --verbose "$${RPMDIR}" "$${SOURCEDIR}" "$${SPECDIR}" "$${SRPMDIR}" "$${BUILDDIR}"
+	# Create source tarball
+	@VERS=$$(git describe --tags | sed -e 's/^v//g' -e 's/-/+/g')
+	@PREFIX=$$(rpmspec --query --queryformat "%{name}-%{version}" --define="VERS $${VERS}" "$${SPECFILE}")
+	@FORMAT="tar.gz"
+	@SRCFILE="$${SOURCEDIR}/$${PREFIX}.$${FORMAT}"
+	@git archive --verbose --format "$${FORMAT}" --prefix="$${PREFIX}/" --output="$${SRCFILE}" HEAD
+	# Build RPM and SRPM
+	@rpmbuild -ba --define="VERS $${VERS}" --define "_unitdir /usr/lib/systemd/system"--rmsource --clean --nodeps "$${SPECFILE}"

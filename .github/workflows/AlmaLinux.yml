@@ -36,7 +36,7 @@ jobs:
         go-version: '^1.16.7'
 
     - name: RPM build MetricCollector
-      run: rpmbuild -bb --build-in-place --nodeps scripts/cc-metric-collector.spec
+      run: make rpm
 
     # See: https://github.com/actions/download-artifact
     - name: Save RPM as artifact
