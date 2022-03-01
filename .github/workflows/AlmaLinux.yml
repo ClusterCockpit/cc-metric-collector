@@ -9,10 +9,11 @@ on: push
 jobs:
 
   #
-  # Build on AlmaLinux 8.5 using golang version 1.16
+  # Build on AlmaLinux 8.5 using go-toolset
   #
   AlmaLinux-RPM-build:
     runs-on: ubuntu-latest
+    # See: https://hub.docker.com/_/almalinux
     container: almalinux:8.5
     steps:
 
@@ -41,12 +42,12 @@ jobs:
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector RPM AlmaLinux 8.5
+        name: cc-metric-collector RPM for AlmaLinux 8.5
         path: ${{ steps.rpmbuild.outputs.RPM }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector SRPM AlmaLinux 8.5
+        name: cc-metric-collector SRPM for AlmaLinux 8.5
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
     # See: https://github.com/softprops/action-gh-release

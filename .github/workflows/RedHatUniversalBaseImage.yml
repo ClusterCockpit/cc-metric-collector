@@ -9,7 +9,7 @@ on: push
 jobs:
 
   #
-  # Build with UBI 8
+  # Build on UBI 8 using go-toolset
   #
   UBI-8-RPM-build:
     runs-on: ubuntu-latest
@@ -42,12 +42,12 @@ jobs:
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector RPM build for UBI 8
+        name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector SRPM build for UBI 8
+        name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
     # See: https://github.com/softprops/action-gh-release
