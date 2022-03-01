@@ -69,7 +69,8 @@ RPM: scripts/cc-metric-collector.spec
 	@VERS=$$(git describe --tags)
 	@VERS=$${VERS#v}
 	@VERS=$${VERS//-/_}
-	@PREFIX=$$(rpmspec --query --queryformat "%{name}-%{version}" --define="VERS $${VERS}" "$${SPECFILE}")
+	@eval $$(rpmspec --query --queryformat "NAME='%{name}' VERSION='%{version}' RELEASE='%{release}' NVR='%{NVR}' NVRA='%{NVRA}'" --define="VERS $${VERS}" "$${SPECFILE}")
+	@PREFIX="$${NAME}-$${VERSION}"
 	@FORMAT="tar.gz"
 	@SRCFILE="$${SOURCEDIR}/$${PREFIX}.$${FORMAT}"
 	@git archive --verbose --format "$${FORMAT}" --prefix="$${PREFIX}/" --output="$${SRCFILE}" HEAD
@@ -77,10 +78,10 @@ RPM: scripts/cc-metric-collector.spec
 	@rpmbuild -ba --define="VERS $${VERS}" --rmsource --clean "$${SPECFILE}"
 	# Report RPMs and SRPMs when in GitHub Workflow
 	@if [[ "$${GITHUB_ACTIONS}" == true ]]; then
-	@     RPMFILES="$${RPMDIR}"/*/*.rpm
-	@     SRPMFILES="$${SRPMDIR}"/*.src.rpm
-	@     echo "RPMs: $${RPMFILES}"
-	@     echo "SRPMs: $${SRPMFILES}"
-	@     echo "::set-output name=SRPM::$${SRPMFILES}"
-	@     echo "::set-output name=RPM::$${RPMFILES}"
+	@     RPMFILE="$${RPMDIR}/$${ARCH}/$${NVRA}.rpm"
+	@     SRPMFILE="$${SRPMDIR}/$${NVR}.src.rpm"
+	@     echo "RPM: $${RPMFILE}"
+	@     echo "SRPM: $${SRPMFILE}"
+	@     echo "::set-output name=SRPM::$${SRPMFILE}"
+	@     echo "::set-output name=RPM::$${RPMFILE}"
 	@fi
