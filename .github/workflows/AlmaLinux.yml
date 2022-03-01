@@ -37,6 +37,8 @@ jobs:
 
     - name: RPM build MetricCollector
       run: |
+        printenv
+        ls -la .git
         make RPM
         RPM=~/rpmbuild/RPMS/*/*.rpm
         SRPM=~/rpmbuild/SRPMS/*.src.rpm
