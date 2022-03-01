@@ -36,7 +36,13 @@ jobs:
         go-version: '^1.16.7'
 
     - name: RPM build MetricCollector
-      run: make rpm
+      run: |
+        make RPM
+        RPM=~/rpmbuild/RPMS/*/*.rpm
+        SRPM=~/rpmbuild/SRPMS/*.src.rpm
+        echo ::set-output name="SRPM::${SRPM}"
+        echo ::set-output name="RPM::${RPM}"
+        echo ::set-output name="rpm_content_type::application/octet-stream"
 
     # See: https://github.com/actions/download-artifact
     - name: Save RPM as artifact
