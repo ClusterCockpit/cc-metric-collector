@@ -61,7 +61,21 @@ $ scripts/likwid_perfgroup_to_cc_config.py ICX MEM_DP
 }
 ```
 
-You can copy this JSON and add it to the `eventsets` list. If you specify multiple event sets, you can add globally derived metrics in the extra `global_metrics` section with the metric names as variables. 
+You can copy this JSON and add it to the `eventsets` list. If you specify multiple event sets, you can add globally derived metrics in the extra `global_metrics` section with the metric names as variables.
+
+### Mixed usage between daemon and users
+
+LIKWID checks the file `/var/run/likwid.lock` before performing any interfering operations. Who is allowed to access the counters is determined by the owner of the file. If it does not exist, it is created for the current user. So, if you want to temporarly allow counter access to a user (e.g. in a job):
+
+Before (SLURM prolog, ...)
+```
+$ chwon $USER /var/run/likwid.lock
+```
+
+After (SLURM epilog, ...)
+```
+$ chwon root /var/run/likwid.lock
+```
 
 ### Example configuration
 
