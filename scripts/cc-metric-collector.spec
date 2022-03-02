@@ -39,11 +39,25 @@ install -Dpm 0600 scripts/%{name}.config %{buildroot}%{_sysconfdir}/default/%{na
 %check
 # go test should be here... :)
 
+%pre
+getent group clustercockpit >/dev/null || groupadd -r clustercockpit
+getent passwd clustercockpit >/dev/null || \
+    useradd -r -g clustercockpit -d /nonexistent -s /sbin/nologin \
+    -c "Create system user and group for CC metric collector" clustercockpit
+exit 0
+
 %post
 %systemd_post %{name}.service
 
 %preun
 %systemd_preun %{name}.service
+
+%postun
+if [ "$1" = "1" ]; then
+getent passwd clustercockpit >/dev/null && userdel clustercockpit
+getent group clustercockpit >/dev/null && groupdel clustercockpit
+fi
+exit 0
 
 %files
 %dir %{_sysconfdir}/%{name}
