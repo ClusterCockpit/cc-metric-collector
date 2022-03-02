@@ -22,6 +22,13 @@ type SampleCollector struct {
 	tags   map[string]string          // default tags
 }
 
+// Functions to implement MetricCollector interface
+// Init(...), Read(...), Close()
+// See: metricCollector.go
+
+// Init initializes the sample collector
+// Called once by the collector manager
+// All tags, meta data tags and metrics that do not change over the runtime should be set here
 func (m *SampleCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	// Always set the name early in Init() to use it in cclog.Component* functions
@@ -56,12 +63,14 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	return err
 }
 
+// Read collects all metrics belonging to the sample collector
+// and sends them through the output channel to the collector manager
 func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	// Create a sample metric
 	timestamp := time.Now()
 
 	value := 1.0
-	// If you want to measure something for a specific amout of time, use interval
+	// If you want to measure something for a specific amount of time, use interval
 	// start := readState()
 	// time.Sleep(interval)
 	// stop := readState()
@@ -75,6 +84,8 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 
 }
 
+// Close metric collector: close network connection, close files, close libraries, ...
+// Called once by the collector manager
 func (m *SampleCollector) Close() {
 	// Unset flag
 	m.init = false

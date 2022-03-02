@@ -10,7 +10,7 @@ The `prometheus` receiver can be used to scrape the metrics of a single `prometh
     "type": "prometheus",
     "address" : "testpromhost",
     "port" : "12345",
-    "port" : "/prometheus",
+    "path" : "/prometheus",
     "interval": "5s",
     "ssl" : true,
   }

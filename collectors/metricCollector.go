@@ -13,29 +13,30 @@ import (
 )
 
 type MetricCollector interface {
-	Name() string
-	Init(config json.RawMessage) error
-	Initialized() bool
-	Read(duration time.Duration, output chan lp.CCMetric)
-	Close()
+	Name() string                                         // Name of the metric collector
+	Init(config json.RawMessage) error                    // Initialize metric collector
+	Initialized() bool                                    // Is metric collector initialized?
+	Read(duration time.Duration, output chan lp.CCMetric) // Read metrics from metric collector
+	Close()                                               // Close / finish metric collector
 }
 
 type metricCollector struct {
-	name string
-	init bool
-	meta map[string]string
+	name string            // name of the metric
+	init bool              // is metric collector initialized?
+	meta map[string]string // static meta data tags
 }
 
-// Name() returns the name of the metric collector
+// Name returns the name of the metric collector
 func (c *metricCollector) Name() string {
 	return c.name
 }
 
+// Setup is for future use
 func (c *metricCollector) setup() error {
 	return nil
 }
 
-// Initialized() indicates whether the metric collector has been initialized.
+// Initialized indicates whether the metric collector has been initialized
 func (c *metricCollector) Initialized() bool {
 	return c.init
 }
@@ -64,6 +65,7 @@ func stringArrayContains(array []string, str string) (int, bool) {
 	return -1, false
 }
 
+// SocketList returns the list of physical sockets as read from /proc/cpuinfo
 func SocketList() []int {
 	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
 	if err != nil {
@@ -89,6 +91,7 @@ func SocketList() []int {
 	return packs
 }
 
+// CpuList returns the list of physical CPUs (in contrast to logical CPUs) as read from /proc/cpuinfo
 func CpuList() []int {
 	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
 	if err != nil {
@@ -117,8 +120,8 @@ func CpuList() []int {
 // RemoveFromStringList removes the string r from the array of strings s
 // If r is not contained in the array an error is returned
 func RemoveFromStringList(s []string, r string) ([]string, error) {
-	for i, item := range s {
-		if r == item {
+	for i := range s {
+		if r == s[i] {
 			return append(s[:i], s[i+1:]...), nil
 		}
 	}
