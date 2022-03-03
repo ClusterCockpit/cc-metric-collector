@@ -1,2 +1,2 @@
 #Type Name  ID GECOS                     Home directory           Shell
-s     hpcop -  "User for ClusterCockpit" /run/cc-metric-collector /sbin/nologin
+u     hpcop -  "User for ClusterCockpit" /run/cc-metric-collector /sbin/nologin
