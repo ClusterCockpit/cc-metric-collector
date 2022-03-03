@@ -2,7 +2,7 @@ package collectors
 
 /*
 #cgo CFLAGS: -I./likwid
-#cgo LDFLAGS: -L./likwid -llikwid -llikwid-hwloc -lm -Wl,--unresolved-symbols=ignore-in-object-files
+#cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 #include <likwid.h>
 */
@@ -71,8 +71,9 @@ func GetAllMetricScopes() []MetricScope {
 }
 
 const (
-	LIKWID_LIB_NAME     = "liblikwid.so"
-	LIKWID_LIB_DL_FLAGS = dl.RTLD_LAZY | dl.RTLD_GLOBAL
+	LIKWID_LIB_NAME       = "liblikwid.so"
+	LIKWID_LIB_DL_FLAGS   = dl.RTLD_LAZY | dl.RTLD_GLOBAL
+	LIKWID_DEF_ACCESSMODE = "direct"
 )
 
 type LikwidCollectorMetricConfig struct {
@@ -95,6 +96,8 @@ type LikwidCollectorConfig struct {
 	Metrics        []LikwidCollectorMetricConfig   `json:"globalmetrics,omitempty"`
 	ForceOverwrite bool                            `json:"force_overwrite,omitempty"`
 	InvalidToZero  bool                            `json:"invalid_to_zero,omitempty"`
+	AccessMode     string                          `json:"access_mode,omitempty"`
+	DaemonPath     string                          `json:"accessdaemon_path,omitempty"`
 }
 
 type LikwidCollector struct {
@@ -260,6 +263,7 @@ func (m *LikwidCollector) getResponsiblities() map[MetricScope]map[int]int {
 func (m *LikwidCollector) Init(config json.RawMessage) error {
 	var ret C.int
 	m.name = "LikwidCollector"
+	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -270,6 +274,11 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	if lib == nil {
 		return fmt.Errorf("error instantiating DynamicLibrary for %s", LIKWID_LIB_NAME)
 	}
+	err := lib.Open()
+	if err != nil {
+		return fmt.Errorf("error opening %s: %v", LIKWID_LIB_NAME, err)
+	}
+
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
 		os.Setenv("LIKWID_FORCE", "1")
@@ -301,6 +310,16 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.initGranularity()
 	// Generate map for MetricScope -> scope_id (like socket id) -> responsible id (offset in cpulist)
 	m.scopeRespTids = m.getResponsiblities()
+	switch m.config.AccessMode {
+	case "direct":
+		C.HPMmode(0)
+	case "accessdaemon":
+		if len(m.config.DaemonPath) > 0 {
+			p := os.Getenv("PATH")
+			os.Setenv("PATH", m.config.DaemonPath+":"+p)
+		}
+		C.HPMmode(1)
+	}
 
 	cclog.ComponentDebug(m.name, "initialize LIKWID perfmon module")
 	ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])

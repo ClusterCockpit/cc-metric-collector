@@ -1,5 +1,5 @@
 APP = cc-metric-collector
-GOSRC_APP        := metric-collector.go
+GOSRC_APP        := cc-metric-collector.go
 GOSRC_COLLECTORS := $(wildcard collectors/*.go)
 GOSRC_SINKS      := $(wildcard sinks/*.go)
 GOSRC_RECEIVERS  := $(wildcard receivers/*.go)

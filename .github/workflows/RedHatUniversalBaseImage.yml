@@ -3,8 +3,11 @@
 # Workflow name
 name: Red Hat Universal Base Image 8 RPM build
 
-# Run on event push
-on: push
+# Run on tag push
+on:
+ push:
+  tags:
+  - '**'
 
 jobs:
 

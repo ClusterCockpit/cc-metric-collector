@@ -3,8 +3,11 @@
 # Workflow name
 name: AlmaLinux 8.5 RPM build
 
-# Run on event push
-on: push
+# Run on tag push
+on:
+ push:
+  tags:
+  - '**'
 
 jobs:
 
