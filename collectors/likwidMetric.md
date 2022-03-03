@@ -8,6 +8,8 @@ The `likwid` configuration consists of two parts, the "eventsets" and "globalmet
 - The global metrics are metrics which require data from all event set measurements to be derived. The inputs are the metrics in the event sets. Similar to the metrics in the event sets, the global metrics are defined by a name, a formula, a scope and a publish flag. See event set metrics for details. The only difference is that there is no access to the raw event measurements anymore but only to the metrics. So, the idea is to derive a metric in the "eventsets" section and reuse it in the "globalmetrics" part. If you need a metric only for deriving the global metrics, disable forwarding of the event set metrics. **Be aware** that the combination might be misleading because the "behavior" of a metric changes over time and the multiple measurements might count different computing phases.
 
 Additional options:
+- `access_mode` : Method to use for hardware performance monitoring (`direct` access as root user, `accessdaemon` for the daemon mode)
+- `accessdaemon_path`: Folder with the access daemon `likwid-accessD`, commonly `$LIKWID_INSTALL_LOC/sbin`
 - `force_overwrite`: Same as setting `LIKWID_FORCE=1`. In case counters are already in-use, LIKWID overwrites their configuration to do its measurements
 - `invalid_to_zero`: In some cases, the calculations result in `NaN` or `Inf`. With this option, all `NaN` and `Inf` values are replaces with `0.0`.
 
@@ -69,12 +71,12 @@ LIKWID checks the file `/var/run/likwid.lock` before performing any interfering 
 
 Before (SLURM prolog, ...)
 ```
-$ chwon $USER /var/run/likwid.lock
+$ chwon $JOBUSER /var/run/likwid.lock
 ```
 
 After (SLURM epilog, ...)
 ```
-$ chwon root /var/run/likwid.lock
+$ chwon $CCUSER /var/run/likwid.lock
 ```
 
 ### Example configuration
