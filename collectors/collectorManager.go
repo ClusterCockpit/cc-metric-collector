@@ -19,7 +19,6 @@ var AvailableCollectors = map[string]MetricCollector{
 	"memstat":          new(MemstatCollector),
 	"netstat":          new(NetstatCollector),
 	"ibstat":           new(InfinibandCollector),
-	"ibstat_perfquery": new(InfinibandPerfQueryCollector),
 	"lustrestat":       new(LustreCollector),
 	"cpustat":          new(CpustatCollector),
 	"topprocs":         new(TopProcsCollector),
