@@ -50,7 +50,7 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 	m.setup()
 	// Set default beegfs-ctl binary
 
-	m.config.Beegfs = "/usr/bin/beegfs-ctl"
+	m.config.Beegfs = DEFAULT_BEEGFS_CMD
 
 	// Read JSON configuration
 	if len(config) > 0 {

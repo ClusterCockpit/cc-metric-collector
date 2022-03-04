@@ -18,6 +18,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
+const DEFAULT_BEEGFS_CMD = "beegfs-ctl"
+
 // Struct for the collector-specific JSON config
 type BeegfsMetaCollectorConfig struct {
 	Beegfs            string   `json:"beegfs_path"`
@@ -55,7 +57,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 	m.setup()
 	// Set default beegfs-ctl binary
 
-	m.config.Beegfs = "/usr/bin/beegfs-ctl"
+	m.config.Beegfs = DEFAULT_BEEGFS_CMD
 
 	// Read JSON configuration
 	if len(config) > 0 {
