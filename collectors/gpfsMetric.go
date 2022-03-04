@@ -17,7 +17,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const DEFAULT_GPFS_CMD = "mmpmon"
+const DEFAULT_GPFS_CMD = `mmpmon`
 
 type GpfsCollector struct {
 	metricCollector
@@ -40,7 +40,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.setup()
 
 	// Set default mmpmon binary
-	m.config.Mmpmon = DEFAULT_GPFS_CMD
+	m.config.Mmpmon = string(DEFAULT_GPFS_CMD)
 
 	// Read JSON configuration
 	if len(config) > 0 {
