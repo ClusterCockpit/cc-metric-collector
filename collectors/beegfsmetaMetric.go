@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -17,8 +18,6 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
-
-const BEEGFS_CMD = "beegfs-ctl"
 
 // Struct for the collector-specific JSON config
 type BeegfsMetaCollectorConfig struct {
@@ -132,9 +131,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetr
 	}
 
 	if len(mountpoints) == 0 {
-		cclog.ComponentError(
-			m.name,
-			"Read(): Failed to find BeeGFS on Demand FS.")
+		return errors.New("Could not find any BeeGFS mountpoint")
 	}
 
 	for _, mountpoint := range mountpoints {

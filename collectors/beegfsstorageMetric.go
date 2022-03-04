@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -124,9 +125,7 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 		}
 	}
 	if len(mountpoints) == 0 {
-		cclog.ComponentError(
-			m.name,
-			"Read(): Failed to find BeeGFS on Demand FS.")
+		return errors.New("Could not find any BeeGFS mountpoint")
 	}
 	// collects stats for each BeeGFS on Demand FS
 	for _, mountpoint := range mountpoints {
