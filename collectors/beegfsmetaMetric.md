@@ -25,6 +25,10 @@ in the configuration.
 
 When using the `exclude_metrics` option, the excluded metrics are summed as `other`.
 
+Important: The metrics listed below, are similar to the naming of BeeGFS. The Collector prefixes these with `beegfs_cstorage`(beegfs client storage).
+
+For example beegfs metric `open`-> `beegfs_cstorage_open`
+
 Available Metrics:
 
 * sum
