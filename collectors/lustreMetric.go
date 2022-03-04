@@ -116,7 +116,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		return err
 	}
 	if user.Uid != "0" {
-		cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root:", err.Error())
+		cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root")
 		return err
 	}
 
