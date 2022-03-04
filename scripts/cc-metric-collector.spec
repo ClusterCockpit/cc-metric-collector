@@ -53,7 +53,7 @@ install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.c
 %files
 # Binary
 %attr(-,clustercockpit,clustercockpit) %{_sbindir}/%{name}
-# Configuration
+# Config
 %dir %{_sysconfdir}/%{name}
 %attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
 %attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/collectors.json
@@ -61,9 +61,9 @@ install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.c
 %attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/receivers.json
 %attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/router.json
 # Systemd
-%{_sysusersdir}/%{name}.conf
 %{_unitdir}/%{name}.service
 %{_sysconfdir}/default/%{name}
+%{_sysusersdir}/%{name}.conf
 
 %changelog
 * Thu Mar 03 2022 Thomas Gruber - 0.3

@@ -110,14 +110,16 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		"inode_permission": {"lustre_inode_permission": 1}}
 
 	// Lustre file system statistics can only be queried by user root
-	user, err := user.Current()
-	if err != nil {
-		cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
-		return err
-	}
-	if user.Uid != "0" {
-		cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root")
-		return err
+	if !m.config.Sudo {
+		user, err := user.Current()
+		if err != nil {
+			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
+			return err
+		}
+		if user.Uid != "0" {
+			cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root")
+			return err
+		}
 	}
 
 	m.matches = make(map[string]map[string]int)
