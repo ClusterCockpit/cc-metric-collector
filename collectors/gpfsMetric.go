@@ -73,10 +73,11 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	}
 
 	// Check if mmpmon is in executable search path
-	_, err = exec.LookPath(m.config.Mmpmon)
+	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
 		return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
 	}
+	m.config.Mmpmon = p
 
 	m.init = true
 	return nil
