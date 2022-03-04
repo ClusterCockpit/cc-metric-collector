@@ -51,16 +51,19 @@ install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.c
 %systemd_preun %{name}.service
 
 %files
+# Binary
+%attr(-,clustercockpit,clustercockpit) %{_sbindir}/%{name}
+# Configuration
 %dir %{_sysconfdir}/%{name}
-%{_sbindir}/%{name}
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/collectors.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/sinks.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/receivers.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/router.json
+# Systemd
+%{_sysusersdir}/%{name}.conf
 %{_unitdir}/%{name}.service
 %{_sysconfdir}/default/%{name}
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/collectors.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/sinks.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/receivers.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/router.json
-%{_sysusersdir}/%{name}.conf
 
 %changelog
 * Thu Mar 03 2022 Thomas Gruber - 0.3
