@@ -17,6 +17,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
+const DEFAULT_GPFS_CMD = "mmpmon"
+
 type GpfsCollector struct {
 	metricCollector
 	tags   map[string]string
@@ -38,7 +40,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.setup()
 
 	// Set default mmpmon binary
-	m.config.Mmpmon = "/usr/lpp/mmfs/bin/mmpmon"
+	m.config.Mmpmon = DEFAULT_GPFS_CMD
 
 	// Read JSON configuration
 	if len(config) > 0 {
@@ -64,7 +66,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
 	user, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("Failed to get current user: %v", err)
+		return fmt.Errorf("failed to get current user: %v", err)
 	}
 	if user.Uid != "0" {
 		return fmt.Errorf("GPFS file system statistics can only be queried by user root")
@@ -73,7 +75,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// Check if mmpmon is in executable search path
 	_, err = exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		return fmt.Errorf("Failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+		return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
 	}
 
 	m.init = true
