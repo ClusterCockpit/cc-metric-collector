@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -131,7 +130,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetr
 	}
 
 	if len(mountpoints) == 0 {
-		return errors.New("Could not find any BeeGFS mountpoint")
+		return
 	}
 
 	for _, mountpoint := range mountpoints {
