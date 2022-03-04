@@ -34,6 +34,8 @@ var AvailableCollectors = map[string]MetricCollector{
 	"nfs3stat":         new(Nfs3Collector),
 	"nfs4stat":         new(Nfs4Collector),
 	"numastats":        new(NUMAStatsCollector),
+	"beegfs_meta":      new(BeegfsMetaCollector),
+	"beegfs_storage":   new(BeegfsStorageCollector),
 }
 
 // Metric collector manager data structure
