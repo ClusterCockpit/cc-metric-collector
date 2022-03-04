@@ -37,11 +37,12 @@ flowchart LR
   subgraph Receivers ["Receivers"]
   direction TB
   nats["NATS"]
+  httprecv["HTTP"]
   miscrecv[...]
   end
 
   subgraph calc["Aggregator"]
-  direction TB
+  direction LR
   cache["Cache"]
   agg["Calculator"]
   end
@@ -60,6 +61,7 @@ flowchart LR
   misc --> CollectorManager
 
   nats  --> ReceiverManager["ReceiverManager"]
+  httprecv --> ReceiverManager
   miscrecv --> ReceiverManager
 
   CollectorManager --> newrouter["Router"]
