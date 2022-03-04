@@ -11,6 +11,7 @@ This Collector is to collect BeeGFS on Demand (BeeOND) metadata clientstats.
           "ack",
           "entInf",
           "fndOwn"
+    ]
   }
 ```
 

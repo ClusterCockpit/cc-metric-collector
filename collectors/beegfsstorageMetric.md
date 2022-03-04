@@ -11,6 +11,7 @@ This Collector is to collect BeeGFS on Demand (BeeOND) storage stats.
           "ack",
 		  "storInf",
 		  "unlnk"
+    ]
   }
 ```
 
