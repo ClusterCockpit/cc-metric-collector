@@ -21,6 +21,7 @@ This allows to specify
 
 - [`nats`](./natsReceiver.md): Receive metrics from the NATS network
 - [`prometheus`](./prometheusReceiver.md): Scrape data from a Prometheus client
+- [`http`](./httpReceiver.md): Listen for HTTP Post requests transporting metrics in InfluxDB line protocol
 
 # Contributing own receivers
 A receiver contains a few functions and is derived from the type `Receiver` (in `metricReceiver.go`):
