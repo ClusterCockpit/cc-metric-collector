@@ -8,8 +8,8 @@ Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  go-toolset
 BuildRequires:  systemd-rpm-macros
-# for internal LIKWID installation
-BuildRequires:  wget perl-Data-Dumper
+# for header downloads
+BuildRequires:  wget
 
 Provides:       %{name} = %{version}
 
