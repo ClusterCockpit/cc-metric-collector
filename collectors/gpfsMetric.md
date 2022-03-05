@@ -16,7 +16,7 @@ The reported filesystems can be filtered with the `exclude_filesystem` option
 in the configuration.
 
 The path to the `mmpmon` command can be configured with the `mmpmon_path` option
-in the configuration.
+in the configuration. If nothing is set, the collector searches in `$PATH` for `mmpmon`.
 
 Metrics:
 * `bytes_read`
