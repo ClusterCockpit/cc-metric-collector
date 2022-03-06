@@ -46,12 +46,12 @@ jobs:
       run: |
         OLD_RPM="${{steps.rpmbuild.outputs.RPM}}"
         OLD_SRPM="${{steps.rpmbuild.outputs.SRPM}}"
-        NEW_RPM="$${OLD_RPM/el8/alma85}"
-        NEW_SRPM=$${OLD_SRPM/el8/alma85}
-        mv "$${OLD_RPM}" "$${NEW_RPM}"
-        mv "$${OLD_SRPM}" "$${NEW_SRPM}"
-        echo "::set-output name=SRPM::$${NEW_SRPM}"
-        echo "::set-output name=RPM::$${NEW_RPM}"
+        NEW_RPM="${OLD_RPM/el8/alma85}"
+        NEW_SRPM=${OLD_SRPM/el8/alma85}
+        mv "${OLD_RPM}" "${NEW_RPM}"
+        mv "${OLD_SRPM}" "${NEW_SRPM}"
+        echo "::set-output name=SRPM::${NEW_SRPM}"
+        echo "::set-output name=RPM::${NEW_RPM}"
 
     # # See: https://github.com/actions/upload-artifact
     # - name: Save RPM as artifact
