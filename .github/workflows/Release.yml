@@ -4,10 +4,7 @@
 name: Release
 
 # Run on tag push
-on:
- push:
-  tags:
-  - '**'
+on: push
 
 jobs:
 
