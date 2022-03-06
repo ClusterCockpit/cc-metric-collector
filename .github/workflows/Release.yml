@@ -53,17 +53,17 @@ jobs:
         echo "::set-output name=SRPM::${NEW_SRPM}"
         echo "::set-output name=RPM::${NEW_RPM}"
 
-    # # See: https://github.com/actions/upload-artifact
-    # - name: Save RPM as artifact
-    #   uses: actions/upload-artifact@v2
-    #   with:
-    #     name: cc-metric-collector RPM for AlmaLinux 8.5
-    #     path: ${{ steps.rpmbuild.outputs.RPM }}
-    # - name: Save SRPM as artifact
-    #   uses: actions/upload-artifact@v2
-    #   with:
-    #     name: cc-metric-collector SRPM for AlmaLinux 8.5
-    #     path: ${{ steps.rpmbuild.outputs.SRPM }}
+    # See: https://github.com/actions/upload-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector RPM for AlmaLinux 8.5
+        path: ${{ steps.rpmrename.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector SRPM for AlmaLinux 8.5
+        path: ${{ steps.rpmrename.outputs.SRPM }}
 
     # # See: https://github.com/softprops/action-gh-release
     # - name: Release
@@ -107,17 +107,17 @@ jobs:
       id: rpmbuild
       run: make RPM
 
-    # # See: https://github.com/actions/upload-artifact
-    # - name: Save RPM as artifact
-    #   uses: actions/upload-artifact@v2
-    #   with:
-    #     name: cc-metric-collector RPM for UBI 8
-    #     path: ${{ steps.rpmbuild.outputs.RPM }}
-    # - name: Save SRPM as artifact
-    #   uses: actions/upload-artifact@v2
-    #   with:
-    #     name: cc-metric-collector SRPM for UBI 8
-    #     path: ${{ steps.rpmbuild.outputs.SRPM }}
+    # See: https://github.com/actions/upload-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector RPM for UBI 8
+        path: ${{ steps.rpmbuild.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector SRPM for UBI 8
+        path: ${{ steps.rpmbuild.outputs.SRPM }}
 
     
 
@@ -126,22 +126,35 @@ jobs:
     needs: [AlmaLinux-RPM-build, UBI-8-RPM-build]
 
     steps:
-    - name: Print files
-      run: |
-        echo "${{ needs.AlmaLinux-RPM-build.outputs.RPM }}"
-        ls "${{ needs.AlmaLinux-RPM-build.outputs.RPM }}"
-        echo "${{ needs.AlmaLinux-RPM-build.outputs.SRPM }}"
-        echo "${{ needs.UBI-8-RPM-build.outputs.RPM }}"
-        ls "${{ needs.UBI-8-RPM-build.outputs.RPM }}"
-        echo "${{ needs.UBI-8-RPM-build.outputs.SRPM }}"
-    # See: https://github.com/softprops/action-gh-release
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Download AlmaLinux 8.5 RPM
+      uses: actions/download-artifact@v2
       with:
-        name: cc-metric-collector-${{github.ref_name}}
-        files: |
-         ${{ needs.AlmaLinux-RPM-build.outputs.RPM }}
-         ${{ needs.AlmaLinux-RPM-build.outputs.SRPM }}
-         ${{ needs.UBI-8-RPM-build.outputs.RPM }}
-         ${{ needs.UBI-8-RPM-build.outputs.SRPM }}
+        name: cc-metric-collector RPM for AlmaLinux 8.5
+    - name: Download AlmaLinux 8.5 SRPM
+      uses: actions/download-artifact@v2
+      with:
+        name: cc-metric-collector SRPM for AlmaLinux 8.5
+    
+    - name: Download UBI 8 RPM
+      uses: actions/download-artifact@v2
+      with:
+        name: cc-metric-collector RPM for UBI 8
+    - name: Download UBI 8 SRPM
+      uses: actions/download-artifact@v2
+      with:
+        name: cc-metric-collector SRPM for UBI 8
+    
+    - name: Check files
+      run: ls *
+
+    # # See: https://github.com/softprops/action-gh-release
+    # - name: Release
+    #   uses: softprops/action-gh-release@v1
+    #   if: startsWith(github.ref, 'refs/tags/')
+    #   with:
+    #     name: cc-metric-collector-${{github.ref_name}}
+    #     files: |
+    #      ${{ needs.AlmaLinux-RPM-build.outputs.RPM }}
+    #      ${{ needs.AlmaLinux-RPM-build.outputs.SRPM }}
+    #      ${{ needs.UBI-8-RPM-build.outputs.RPM }}
+    #      ${{ needs.UBI-8-RPM-build.outputs.SRPM }}
