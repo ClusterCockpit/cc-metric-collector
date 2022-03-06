@@ -148,10 +148,10 @@ jobs:
     - name: Set RPM variables
       id: files
       run: |
-        ALMA_85_RPM=$(ls *alma85*.rpm)
-        ALMA_85_SRPM=$(ls *alma85*.srpm)
-        UBI_8_RPM=$(ls *el8*.rpm)
-        UBI_8_SRPM=$(ls *el8*.srpm)
+        ALMA_85_RPM=$(ls *alma85*.rpm | grep -v src)
+        ALMA_85_SRPM=$(ls *alma85*.src.rpm)
+        UBI_8_RPM=$(ls *el8*.rpm | grep -v src)
+        UBI_8_SRPM=$(ls *el8*.src.rpm)
         echo "ALMA_85_RPM::${ALMA_85_RPM}"
         echo "ALMA_85_SRPM::${ALMA_85_SRPM}"
         echo "UBI_8_RPM::${UBI_8_RPM}"
