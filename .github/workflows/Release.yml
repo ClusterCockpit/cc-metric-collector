@@ -44,9 +44,9 @@ jobs:
     - name: Rename RPMs (s/el8/alma85/)
       id: rpmrename
       run: |
-        OLD_RPM=${{steps.rpmbuild.outputs.RPM}}
-        OLD_SRPM=${{steps.rpmbuild.outputs.SRPM}}
-        echo "::set-output name=SRPM::$${OLD_SRPM/el8/alma85}""
+        OLD_RPM="${{steps.rpmbuild.outputs.RPM}}"
+        OLD_SRPM="${{steps.rpmbuild.outputs.SRPM}}"
+        echo "::set-output name=SRPM::$${OLD_SRPM/el8/alma85}"
         echo "::set-output name=RPM::$${OLD_RPM/el8/alma85}"
 
     # # See: https://github.com/actions/upload-artifact
