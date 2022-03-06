@@ -4,7 +4,10 @@
 name: Release
 
 # Run on tag push
-on: push
+on:
+ push:
+  tags:
+  - '**'
 
 jobs:
 
@@ -129,8 +132,10 @@ jobs:
     - name: Print files
       run: |
         echo "${{ needs.AlmaLinux-RPM-build.outputs.RPM }}"
+        ls "${{ needs.AlmaLinux-RPM-build.outputs.RPM }}"
         echo "${{ needs.AlmaLinux-RPM-build.outputs.SRPM }}"
         echo "${{ needs.UBI-8-RPM-build.outputs.RPM }}"
+        ls "${{ needs.UBI-8-RPM-build.outputs.RPM }}"
         echo "${{ needs.UBI-8-RPM-build.outputs.SRPM }}"
     # See: https://github.com/softprops/action-gh-release
     - name: Release
