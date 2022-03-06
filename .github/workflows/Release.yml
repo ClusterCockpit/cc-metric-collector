@@ -46,8 +46,12 @@ jobs:
       run: |
         OLD_RPM="${{steps.rpmbuild.outputs.RPM}}"
         OLD_SRPM="${{steps.rpmbuild.outputs.SRPM}}"
-        echo "::set-output name=SRPM::$${OLD_SRPM/el8/alma85}"
-        echo "::set-output name=RPM::$${OLD_RPM/el8/alma85}"
+        NEW_RPM="$${OLD_RPM/el8/alma85}"
+        NEW_SRPM=$${OLD_SRPM/el8/alma85}
+        mv "$${OLD_RPM}" "$${NEW_RPM}"
+        mv "$${OLD_SRPM}" "$${NEW_SRPM}"
+        echo "::set-output name=SRPM::$${NEW_SRPM}"
+        echo "::set-output name=RPM::$${NEW_RPM}"
 
     # # See: https://github.com/actions/upload-artifact
     # - name: Save RPM as artifact
@@ -122,6 +126,12 @@ jobs:
     needs: [AlmaLinux-RPM-build, UBI-8-RPM-build]
 
     steps:
+    - name: Print files
+      run: |
+        echo "${{ needs.AlmaLinux-RPM-build.outputs.RPM }}"
+        echo "${{ needs.AlmaLinux-RPM-build.outputs.SRPM }}"
+        echo "${{ needs.UBI-8-RPM-build.outputs.RPM }}"
+        echo "${{ needs.UBI-8-RPM-build.outputs.SRPM }}"
     # See: https://github.com/softprops/action-gh-release
     - name: Release
       uses: softprops/action-gh-release@v1
