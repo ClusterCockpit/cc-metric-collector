@@ -4,7 +4,10 @@
 name: Release
 
 # Run on tag push
-on: push
+on:
+ push:
+  tags:
+  - '**'
 
 jobs:
 
@@ -65,15 +68,6 @@ jobs:
         name: cc-metric-collector SRPM for AlmaLinux 8.5
         path: ${{ steps.rpmrename.outputs.SRPM }}
 
-    # # See: https://github.com/softprops/action-gh-release
-    # - name: Release
-    #   uses: softprops/action-gh-release@v1
-    #   if: startsWith(github.ref, 'refs/tags/')
-    #   with:
-    #     name: cc-metric-collector-${{github.ref_name}}
-    #     files: |
-    #      ${{ steps.rpmbuild.outputs.RPM }}
-    #      ${{ steps.rpmbuild.outputs.SRPM }}
   #
   # Build on UBI 8 using go-toolset
   #
@@ -119,10 +113,12 @@ jobs:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
-    
-
+  #
+  # Create release with fresh RPMs
+  #
   Release:
     runs-on: ubuntu-latest
+    # We need the RPMs, so add dependency
     needs: [AlmaLinux-RPM-build, UBI-8-RPM-build]
 
     steps:
@@ -148,10 +144,10 @@ jobs:
     - name: Set RPM variables
       id: files
       run: |
-        ALMA_85_RPM=$(ls *alma85*.rpm | grep -v src)
-        ALMA_85_SRPM=$(ls *alma85*.src.rpm)
-        UBI_8_RPM=$(ls *el8*.rpm | grep -v src)
-        UBI_8_SRPM=$(ls *el8*.src.rpm)
+        ALMA_85_RPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.rpm}}")
+        ALMA_85_SRPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.srpm}}")
+        UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
+        UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
         echo "ALMA_85_RPM::${ALMA_85_RPM}"
         echo "ALMA_85_SRPM::${ALMA_85_SRPM}"
         echo "UBI_8_RPM::${UBI_8_RPM}"
