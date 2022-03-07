@@ -4,7 +4,10 @@
 name: Release
 
 # Run on tag push
-on: push
+on:
+ push:
+  tags:
+  - '**'
 
 jobs:
 
@@ -15,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     # See: https://hub.docker.com/_/almalinux
     container: almalinux:8.5
+    # The job outputs link to the outputs of the 'rpmrename' step
+    # Only job outputs can be used in child jobs
     outputs:
       rpm : ${{steps.rpmrename.outputs.RPM}}
       srpm : ${{steps.rpmrename.outputs.SRPM}}
@@ -41,6 +46,11 @@ jobs:
       id: rpmbuild
       run: make RPM
     
+    # AlmaLinux 8.5 is a derivate of RedHat Enterprise Linux 8 (UBI8),
+    # so the created RPM both contain the substring 'el8' in the RPM file names
+    # This step replaces the substring 'el8' to 'alma85'. It uses the move operation
+    # because it is unclear whether the default AlmaLinux 8.5 container contains the 
+    # 'rename' command. This way we also get the new names for output.
     - name: Rename RPMs (s/el8/alma85/)
       id: rpmrename
       run: |
@@ -72,6 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
     container: registry.access.redhat.com/ubi8/ubi:8.5-226.1645809065
+    # The job outputs link to the outputs of the 'rpmbuild' step
     outputs:
       rpm : ${{steps.rpmbuild.outputs.RPM}}
       srpm : ${{steps.rpmbuild.outputs.SRPM}}
@@ -138,6 +149,12 @@ jobs:
       with:
         name: cc-metric-collector SRPM for UBI 8
 
+    # The download actions do not publish the name of the downloaded file,
+    # so we re-use the job outputs of the parent jobs. The files are all
+    # downloaded to the current folder.
+    # The gh-release action afterwards does not accept file lists but all
+    # files have to be listed at 'files'. The step creates one output per
+    # RPM package (2 per distro)
     - name: Set RPM variables
       id: files
       run: |
