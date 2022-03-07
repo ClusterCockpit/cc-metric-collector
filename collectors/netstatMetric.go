@@ -16,7 +16,9 @@ import (
 const NETSTATFILE = `/proc/net/dev`
 
 type NetstatCollectorConfig struct {
-	IncludeDevices []string `json:"include_devices"`
+	IncludeDevices     []string `json:"include_devices"`
+	SendAbsoluteValues bool     `json:"send_abs_values"`
+	SendDerivedValues  bool     `json:"send_derived_values"`
 }
 
 type NetstatCollectorMetric struct {
@@ -111,21 +113,34 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			for name, data := range devmetrics {
 				v, err := strconv.ParseFloat(f[data.index], 64)
 				if err == nil {
-					vdiff := v - data.lastValue
-					value := vdiff / tdiff.Seconds()
-					if data.lastValue == 0 {
-						value = 0
-					}
-					data.lastValue = v
-					y, err := lp.New(name, m.devtags[dev], m.meta, map[string]interface{}{"value": value}, now)
-					if err == nil {
-						switch {
-						case strings.Contains(name, "byte"):
-							y.AddMeta("unit", "bytes/sec")
-						case strings.Contains(name, "pkt"):
-							y.AddMeta("unit", "packets/sec")
+					if m.config.SendAbsoluteValues {
+						if y, err := lp.New(name, m.devtags[dev], m.meta, map[string]interface{}{"value": v}, now); err == nil {
+							switch {
+							case strings.Contains(name, "byte"):
+								y.AddMeta("unit", "bytes")
+							case strings.Contains(name, "pkt"):
+								y.AddMeta("unit", "packets")
+							}
+							output <- y
 						}
-						output <- y
+					}
+					if m.config.SendDerivedValues {
+
+						vdiff := v - data.lastValue
+						value := vdiff / tdiff.Seconds()
+						if data.lastValue == 0 {
+							value = 0
+						}
+						data.lastValue = v
+						if y, err := lp.New(name+"_bw", m.devtags[dev], m.meta, map[string]interface{}{"value": value}, now); err == nil {
+							switch {
+							case strings.Contains(name, "byte"):
+								y.AddMeta("unit", "bytes/sec")
+							case strings.Contains(name, "pkt"):
+								y.AddMeta("unit", "packets/sec")
+							}
+							output <- y
+						}
 					}
 					devmetrics[name] = data
 				}
