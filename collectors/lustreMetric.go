@@ -22,6 +22,7 @@ type LustreCollectorConfig struct {
 	LCtlCommand    string   `json:"lctl_command"`
 	ExcludeMetrics []string `json:"exclude_metrics"`
 	SendAllMetrics bool     `json:"send_all_metrics"`
+	Sudo           bool     `json:"use_sudo"`
 }
 
 type LustreCollector struct {
@@ -31,11 +32,17 @@ type LustreCollector struct {
 	stats   map[string]map[string]int64
 	config  LustreCollectorConfig
 	lctl    string
+	sudoCmd string
 }
 
 func (m *LustreCollector) getDeviceDataCommand(device string) []string {
+	var command *exec.Cmd
 	statsfile := fmt.Sprintf("llite.%s.stats", device)
-	command := exec.Command(m.lctl, LCTL_OPTION, statsfile)
+	if m.config.Sudo {
+		command = exec.Command(m.sudoCmd, m.lctl, LCTL_OPTION, statsfile)
+	} else {
+		command = exec.Command(m.lctl, LCTL_OPTION, statsfile)
+	}
 	command.Wait()
 	stdout, _ := command.Output()
 	return strings.Split(string(stdout), "\n")
@@ -103,14 +110,16 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		"inode_permission": {"lustre_inode_permission": 1}}
 
 	// Lustre file system statistics can only be queried by user root
-	user, err := user.Current()
-	if err != nil {
-		cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
-		return err
-	}
-	if user.Uid != "0" {
-		cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root:", err.Error())
-		return err
+	if !m.config.Sudo {
+		user, err := user.Current()
+		if err != nil {
+			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
+			return err
+		}
+		if user.Uid != "0" {
+			cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root")
+			return err
+		}
 	}
 
 	m.matches = make(map[string]map[string]int)
@@ -136,6 +145,12 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		}
 	}
 	m.lctl = p
+	if m.config.Sudo {
+		p, err := exec.LookPath("sudo")
+		if err != nil {
+			m.sudoCmd = p
+		}
+	}
 
 	devices := m.getDevices()
 	if len(devices) == 0 {

@@ -9,32 +9,21 @@ The configuration file for the receivers is a list of configurations. The `type`
 ```json
 {
   "myreceivername" : {
+    "type": "receiver-type",
     <receiver-specific configuration>
   }
 }
 ```
 
-## Type `nats`
+This allows to specify
 
-```json
-{
-  "type": "nats",
-  "address": "<nats-URI or hostname>",
-  "port" : "<portnumber>",
-  "subject": "<subscribe topic>"
-}
-```
+## Available receivers
 
-The `nats` receiver subscribes to the topic `database` and listens on `address` and `port` for metrics in the InfluxDB line protocol.
+- [`nats`](./natsReceiver.md): Receive metrics from the NATS network
+- [`prometheus`](./prometheusReceiver.md): Scrape data from a Prometheus client
+- [`http`](./httpReceiver.md): Listen for HTTP Post requests transporting metrics in InfluxDB line protocol
 
 # Contributing own receivers
 A receiver contains a few functions and is derived from the type `Receiver` (in `metricReceiver.go`):
-* `Start() error`
-* `Close()`
-* `Name() string`
-* `SetSink(sink chan lp.CCMetric)`
-* `New<Typename>(name string, config json.RawMessage)`
 
-The data structures should be set up in `Init()` like opening a file or server connection. The `Start()` function should either start a go routine or issue some other asynchronous mechanism for receiving metrics. The `Close()` function should tear down anything created in `Init()`.
-
-Finally, the receiver needs to be registered in the `receiveManager.go`. There is a list of receivers called `AvailableReceivers` which is a map (`receiver_type_string` -> `pointer to NewReceiver function`). Add a new entry with a descriptive name and the new receiver.
+For an example, check the [sample receiver](./sampleReceiver.go)

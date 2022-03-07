@@ -1,0 +1,64 @@
+# See: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+
+# Workflow name
+name: Red Hat Universal Base Image 8 RPM build
+
+# Run on tag push
+on:
+ push:
+  tags:
+  - '**'
+
+jobs:
+
+  #
+  # Build on UBI 8 using go-toolset
+  #
+  UBI-8-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    container: registry.access.redhat.com/ubi8/ubi:8.5-226.1645809065
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros rpm-build-libs rpm-libs gcc make python38 git
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    # Use dnf to install build dependencies
+    - name: Install build dependencies
+      run: dnf --assumeyes --disableplugin=subscription-manager builddep scripts/cc-metric-collector.spec
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: make RPM
+
+    # See: https://github.com/actions/upload-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector RPM for UBI 8
+        path: ${{ steps.rpmbuild.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector SRPM for UBI 8
+        path: ${{ steps.rpmbuild.outputs.SRPM }}
+
+    # See: https://github.com/softprops/action-gh-release
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: cc-metric-collector-${{github.ref_name}}
+        files: |
+         ${{ steps.rpmbuild.outputs.RPM }}
+         ${{ steps.rpmbuild.outputs.SRPM }}

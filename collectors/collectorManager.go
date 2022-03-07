@@ -19,7 +19,6 @@ var AvailableCollectors = map[string]MetricCollector{
 	"memstat":          new(MemstatCollector),
 	"netstat":          new(NetstatCollector),
 	"ibstat":           new(InfinibandCollector),
-	"ibstat_perfquery": new(InfinibandPerfQueryCollector),
 	"lustrestat":       new(LustreCollector),
 	"cpustat":          new(CpustatCollector),
 	"topprocs":         new(TopProcsCollector),
@@ -35,6 +34,8 @@ var AvailableCollectors = map[string]MetricCollector{
 	"nfs3stat":         new(Nfs3Collector),
 	"nfs4stat":         new(Nfs4Collector),
 	"numastats":        new(NUMAStatsCollector),
+	"beegfs_meta":      new(BeegfsMetaCollector),
+	"beegfs_storage":   new(BeegfsStorageCollector),
 }
 
 // Metric collector manager data structure

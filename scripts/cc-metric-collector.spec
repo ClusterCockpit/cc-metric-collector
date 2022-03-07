@@ -1,5 +1,5 @@
 Name:           cc-metric-collector
-Version:        0.2
+Version:        %{VERS}
 Release:        1%{?dist}
 Summary:        Metric collection daemon from the ClusterCockpit suite
 
@@ -7,8 +7,9 @@ License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  go-toolset
-# for internal LIKWID installation
-BuildRequires:  wget perl-Data-Dumper
+BuildRequires:  systemd-rpm-macros
+# for header downloads
+BuildRequires:  wget
 
 Provides:       %{name} = %{version}
 
@@ -34,10 +35,14 @@ install -Dpm 0600 receivers.json %{buildroot}%{_sysconfdir}/%{name}/receivers.js
 install -Dpm 0600 router.json %{buildroot}%{_sysconfdir}/%{name}/router.json
 install -Dpm 0644 scripts/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 install -Dpm 0600 scripts/%{name}.config %{buildroot}%{_sysconfdir}/default/%{name}
+install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.conf
 
 
 %check
 # go test should be here... :)
+
+%pre
+%sysusers_create_package scripts/%{name}.sysusers
 
 %post
 %systemd_post %{name}.service
@@ -46,17 +51,23 @@ install -Dpm 0600 scripts/%{name}.config %{buildroot}%{_sysconfdir}/default/%{na
 %systemd_preun %{name}.service
 
 %files
+# Binary
+%attr(-,clustercockpit,clustercockpit) %{_sbindir}/%{name}
+# Config
 %dir %{_sysconfdir}/%{name}
-%{_sbindir}/%{name}
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/collectors.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/sinks.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/receivers.json
+%attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/router.json
+# Systemd
 %{_unitdir}/%{name}.service
 %{_sysconfdir}/default/%{name}
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/collectors.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/sinks.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/receivers.json
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/%{name}/router.json
+%{_sysusersdir}/%{name}.conf
 
 %changelog
+* Thu Mar 03 2022 Thomas Gruber - 0.3
+- Add clustercockpit user installation
 * Mon Feb 14 2022 Thomas Gruber - 0.2
 - Add component specific configuration files
 - Add %attr to config files
