@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const IB_BASEPATH = `/sys/class/infiniband/`
+const IB_BASEPATH = "/sys/class/infiniband/"
 
 type InfinibandCollectorInfo struct {
 	LID              string            // IB local Identifier (LID)
@@ -24,15 +24,15 @@ type InfinibandCollectorInfo struct {
 	port             string            // IB device port
 	portCounterFiles map[string]string // mapping counter name -> sysfs file
 	tagSet           map[string]string // corresponding tag list
-	stats            map[string]int64
+	lastState        map[string]int64  // State from last measurement
 }
 
 type InfinibandCollector struct {
 	metricCollector
 	config struct {
 		ExcludeDevices     []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
-		SendAbsoluteValues bool     `json:"send_abs_values"`
-		SendDerivedValues  bool     `json:"send_derived_values"`
+		SendAbsoluteValues bool     `json:"send_abs_values"`           // Send absolut values as read from sys filesystem
+		SendDerivedValues  bool     `json:"send_derived_values"`       // Send derived values e.g. rates
 	}
 	info          []*InfinibandCollectorInfo
 	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
@@ -54,8 +54,11 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		"group":  "Network",
 	}
 	m.lastTimestamp = time.Now()
+
+	// Set default configuration,
 	m.config.SendAbsoluteValues = true
 	m.config.SendDerivedValues = false
+	// Read configuration file, allow overwriting default config
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -117,6 +120,12 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 			}
 		}
 
+		// Initialize last state
+		lastState := make(map[string]int64)
+		for counter := range portCounterFiles {
+			lastState[counter] = 0
+		}
+
 		m.info = append(m.info,
 			&InfinibandCollectorInfo{
 				LID:              LID,
@@ -129,12 +138,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 					"port":   port,
 					"lid":    LID,
 				},
-				stats: map[string]int64{
-					"ib_recv":      0,
-					"ib_xmit":      0,
-					"ib_recv_pkts": 0,
-					"ib_xmit_pkts": 0,
-				},
+				lastState: lastState,
 			})
 	}
 
@@ -154,10 +158,15 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		return
 	}
 
+	// Current time stamp
 	now := time.Now()
-	tdiff := now.Sub(m.lastTimestamp)
+	// time difference to last time stamp
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+
 	for _, info := range m.info {
 		for counterName, counterFile := range info.portCounterFiles {
+
+			// Read counter file
 			line, err := ioutil.ReadFile(counterFile)
 			if err != nil {
 				cclog.ComponentError(
@@ -166,6 +175,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 				continue
 			}
 			data := strings.TrimSpace(string(line))
+
+			// convert counter to int64
 			v, err := strconv.ParseInt(data, 10, 64)
 			if err != nil {
 				cclog.ComponentError(
@@ -173,21 +184,28 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterName, data, err))
 				continue
 			}
+
+			// Send absolut values
 			if m.config.SendAbsoluteValues {
 				if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
 					output <- y
 				}
 			}
+
+			// Send derived values
 			if m.config.SendDerivedValues {
-				diff := float64((v - info.stats[counterName])) / tdiff.Seconds()
-				if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": diff}, now); err == nil {
+				rate := float64((v - info.lastState[counterName])) / timeDiff
+				if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
 					output <- y
 				}
-				info.stats[counterName] = v
+				// Save current state
+				info.lastState[counterName] = v
 			}
 		}
 
 	}
+
+	// Save current timestamp
 	m.lastTimestamp = now
 }
 
