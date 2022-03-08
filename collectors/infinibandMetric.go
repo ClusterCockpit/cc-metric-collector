@@ -53,7 +53,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		"source": m.name,
 		"group":  "Network",
 	}
-	m.lastTimestamp = time.Now()
 
 	// Set default configuration,
 	m.config.SendAbsoluteValues = true
@@ -123,7 +122,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		// Initialize last state
 		lastState := make(map[string]int64)
 		for counter := range portCounterFiles {
-			lastState[counter] = 0
+			lastState[counter] = -1
 		}
 
 		m.info = append(m.info,
@@ -194,9 +193,11 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 
 			// Send derived values
 			if m.config.SendDerivedValues {
-				rate := float64((v - info.lastState[counterName])) / timeDiff
-				if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
-					output <- y
+				if info.lastState[counterName] >= 0 {
+					rate := float64((v - info.lastState[counterName])) / timeDiff
+					if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+						output <- y
+					}
 				}
 				// Save current state
 				info.lastState[counterName] = v
