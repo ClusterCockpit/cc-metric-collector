@@ -24,8 +24,8 @@ type ccMetric struct {
 
 // ccMetric access functions
 type CCMetric interface {
-	ToPoint(metaAsTags bool) *write.Point  // Generate influxDB point for data type ccMetric
-	ToLineProtocol(metaAsTags bool) string // Generate influxDB line protocol for data type ccMetric
+	ToPoint(metaAsTags map[string]bool) *write.Point  // Generate influxDB point for data type ccMetric
+	ToLineProtocol(metaAsTags map[string]bool) string // Generate influxDB line protocol for data type ccMetric
 
 	Name() string        // Get metric name
 	SetName(name string) // Set metric name
@@ -61,25 +61,18 @@ func (m *ccMetric) String() string {
 }
 
 // ToLineProtocol generates influxDB line protocol for data type ccMetric
-func (m *ccMetric) ToPoint(metaAsTags bool) (p *write.Point) {
-
-	if !metaAsTags {
-		p = influxdb2.NewPoint(m.name, m.tags, m.fields, m.tm)
-	} else {
-		tags := make(map[string]string, len(m.tags)+len(m.meta))
-		for key, value := range m.tags {
-			tags[key] = value
+func (m *ccMetric) ToPoint(metaAsTags map[string]bool) (p *write.Point) {
+	p = influxdb2.NewPoint(m.name, m.tags, m.fields, m.tm)
+	for key, ok1 := range metaAsTags {
+		if val, ok2 := m.GetMeta(key); ok1 && ok2 {
+			p.AddTag(key, val)
 		}
-		for key, value := range m.meta {
-			tags[key] = value
-		}
-		p = influxdb2.NewPoint(m.name, tags, m.fields, m.tm)
 	}
-	return
+	return p
 }
 
 // ToLineProtocol generates influxDB line protocol for data type ccMetric
-func (m *ccMetric) ToLineProtocol(metaAsTags bool) string {
+func (m *ccMetric) ToLineProtocol(metaAsTags map[string]bool) string {
 
 	return write.PointToLineProtocol(
 		m.ToPoint(metaAsTags),
