@@ -134,24 +134,36 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	if !m.init {
 		return
 	}
+	// Current time stamp
 	now := time.Now()
+	// time difference to last time stamp
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	// Save current timestamp
+	m.lastTimestamp = now
+
 	file, err := os.Open(string(NETSTATFILE))
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return
 	}
 	defer file.Close()
-	tdiff := now.Sub(m.lastTimestamp)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		l := scanner.Text()
+
+		// Skip lines with no net device entry
 		if !strings.Contains(l, ":") {
 			continue
 		}
+
+		// Split line into fields
 		f := strings.Fields(l)
+
+		// Get net device entry
 		dev := strings.Trim(f[0], ":")
 
+		// Check if device is a included device
 		if devmetrics, ok := m.matches[dev]; ok {
 			for name, data := range devmetrics {
 				v, err := strconv.ParseFloat(f[data.index], 64)
@@ -170,7 +182,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 					if m.config.SendDerivedValues {
 
 						vdiff := v - data.lastValue
-						value := vdiff / tdiff.Seconds()
+						value := vdiff / timeDiff
 						if data.lastValue == 0 {
 							value = 0
 						}
@@ -190,7 +202,6 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			}
 		}
 	}
-	m.lastTimestamp = time.Now()
 }
 
 func (m *NetstatCollector) Close() {
