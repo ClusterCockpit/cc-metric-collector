@@ -109,19 +109,20 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	var ret C.int
 	m.name = "LikwidCollector"
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
+	m.config.LibraryPath = LIKWID_LIB_NAME
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
-	lib := dl.New(LIKWID_LIB_NAME, LIKWID_LIB_DL_FLAGS)
+	lib := dl.New(m.config.LibraryPath, LIKWID_LIB_DL_FLAGS)
 	if lib == nil {
-		return fmt.Errorf("error instantiating DynamicLibrary for %s", LIKWID_LIB_NAME)
+		return fmt.Errorf("error instantiating DynamicLibrary for %s", m.config.LibraryPath)
 	}
 	err := lib.Open()
 	if err != nil {
-		return fmt.Errorf("error opening %s: %v", LIKWID_LIB_NAME, err)
+		return fmt.Errorf("error opening %s: %v", m.config.LibraryPath, err)
 	}
 
 	if m.config.ForceOverwrite {
