@@ -18,6 +18,10 @@ The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go
     "organization": "myorg",
     "ssl": true,
     "batch_size": 200,
+    "retry_interval" : "1s",
+    "retry_exponential_base" : 2,
+    "max_retries": 20,
+    "max_retry_time" : "168h"
   }
 }
 ```
@@ -32,3 +36,9 @@ The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go
 - `organization`: Organization in the InfluxDB
 - `ssl`: Use SSL connection
 - `batch_size`: batch up metrics internally, default 100
+- `retry_interval`: Base retry interval for failed write requests, default 1s
+- `retry_exponential_base`: The retry interval is exponentially increased with this base, default 2
+- `max_retries`: Maximal number of retry attempts
+- `max_retry_time`: Maximal time to retry failed writes, default 168h (one week)
+
+For information about the calculation of the retry interval settings, see [offical influxdb-client-go documentation](https://github.com/influxdata/influxdb-client-go#handling-of-failed-async-writes)
