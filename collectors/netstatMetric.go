@@ -24,14 +24,15 @@ type NetstatCollectorConfig struct {
 type NetstatCollectorMetric struct {
 	name      string
 	index     int
-	devtags   map[string]string
+	tags      map[string]string
+	rate_tags map[string]string
 	lastValue float64
 }
 
 type NetstatCollector struct {
 	metricCollector
 	config        NetstatCollectorConfig
-	matches       map[string]map[string]NetstatCollectorMetric
+	matches       map[string][]NetstatCollectorMetric
 	lastTimestamp time.Time
 }
 
@@ -64,14 +65,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		fieldTransmitCompressed = iota
 	)
 
-	nameIndexMap := map[string]int{
-		"net_bytes_in":  fieldReceiveBytes,
-		"net_pkts_in":   fieldReceivePackets,
-		"net_bytes_out": fieldTransmitBytes,
-		"net_pkts_out":  fieldTransmitPackets,
-	}
-
-	m.matches = make(map[string]map[string]NetstatCollectorMetric)
+	m.matches = make(map[string][]NetstatCollectorMetric)
 
 	// Set default configuration,
 	m.config.SendAbsoluteValues = true
@@ -110,20 +104,40 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 
 		// Check if device is a included device
 		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
-			m.matches[dev] = make(map[string]NetstatCollectorMetric)
-			for name, idx := range nameIndexMap {
-				m.matches[dev][name] = NetstatCollectorMetric{
-					name:      name,
-					index:     idx,
+			m.matches[dev] = []NetstatCollectorMetric{
+				{
+					name:      "net_bytes_in",
+					index:     fieldReceiveBytes,
 					lastValue: 0,
-					devtags: map[string]string{
-						"device": dev,
-						"type":   "node",
-					},
-				}
+					tags:      map[string]string{"device": dev, "type": "node", "unit": "bytes"},
+					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"},
+				},
+				{
+					name:      "net_pkts_in",
+					index:     fieldReceivePackets,
+					lastValue: 0,
+					tags:      map[string]string{"device": dev, "type": "node", "unit": "packets"},
+					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "packets/sec"},
+				},
+				{
+					name:      "net_bytes_out",
+					index:     fieldTransmitBytes,
+					lastValue: 0,
+					tags:      map[string]string{"device": dev, "type": "node", "unit": "bytes"},
+					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"},
+				},
+				{
+					name:      "net_pkts_out",
+					index:     fieldTransmitPackets,
+					lastValue: 0,
+					tags:      map[string]string{"device": dev, "type": "node", "unit": "packets"},
+					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "packets/sec"},
+				},
 			}
 		}
+
 	}
+
 	if len(m.matches) == 0 {
 		return errors.New("no devices to collector metrics found")
 	}
@@ -166,17 +180,11 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 		// Check if device is a included device
 		if devmetrics, ok := m.matches[dev]; ok {
-			for name, data := range devmetrics {
+			for _, data := range devmetrics {
 				v, err := strconv.ParseFloat(f[data.index], 64)
 				if err == nil {
 					if m.config.SendAbsoluteValues {
-						if y, err := lp.New(name, data.devtags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
-							switch {
-							case strings.Contains(name, "byte"):
-								y.AddMeta("unit", "bytes")
-							case strings.Contains(name, "pkt"):
-								y.AddMeta("unit", "packets")
-							}
+						if y, err := lp.New(data.name, data.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
 							output <- y
 						}
 					}
@@ -188,17 +196,10 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 							value = 0
 						}
 						data.lastValue = v
-						if y, err := lp.New(name+"_bw", data.devtags, m.meta, map[string]interface{}{"value": value}, now); err == nil {
-							switch {
-							case strings.Contains(name, "byte"):
-								y.AddMeta("unit", "bytes/sec")
-							case strings.Contains(name, "pkt"):
-								y.AddMeta("unit", "packets/sec")
-							}
+						if y, err := lp.New(data.name+"_bw", data.rate_tags, m.meta, map[string]interface{}{"value": value}, now); err == nil {
 							output <- y
 						}
 					}
-					devmetrics[name] = data
 				}
 			}
 		}
