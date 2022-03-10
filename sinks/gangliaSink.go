@@ -39,16 +39,13 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	//var tagsstr []string
 	var argstr []string
 
-	// Get metric name
-	metricname := GangliaMetricRename(point.Name())
-
 	// Get metric config (type, value, ... in suitable format)
 	conf := GetCommonGangliaConfig(point)
 	if len(conf.Type) == 0 {
 		conf = GetGangliaConfig(point)
 	}
 	if len(conf.Type) == 0 {
-		return fmt.Errorf("metric %s has no 'value' field", metricname)
+		return fmt.Errorf("metric %q (Ganglia name %q) has no 'value' field", point.Name(), conf.Name)
 	}
 
 	if s.config.AddGangliaGroup {
@@ -70,7 +67,7 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	if s.config.AddTypeToName {
 		argstr = append(argstr, fmt.Sprintf("--name=%s", GangliaMetricName(point)))
 	} else {
-		argstr = append(argstr, fmt.Sprintf("--name=%s", metricname))
+		argstr = append(argstr, fmt.Sprintf("--name=%s", conf.Name))
 	}
 	argstr = append(argstr, fmt.Sprintf("--slope=%s", conf.Slope))
 	argstr = append(argstr, fmt.Sprintf("--value=%s", conf.Value))

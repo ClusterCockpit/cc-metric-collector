@@ -124,24 +124,21 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 		return s.cstrCache[key]
 	}
 
-	// Get metric name
-	metricname := GangliaMetricRename(point.Name())
-
 	conf := GetCommonGangliaConfig(point)
 	if len(conf.Type) == 0 {
 		conf = GetGangliaConfig(point)
 	}
 	if len(conf.Type) == 0 {
-		return fmt.Errorf("metric %s has no 'value' field", metricname)
+		return fmt.Errorf("metric %q (Ganglia name %q) has no 'value' field", point.Name(), conf.Name)
 	}
 
 	if s.config.AddTypeToName {
-		metricname = GangliaMetricName(point)
+		conf.Name = GangliaMetricName(point)
 	}
 
 	c_value = C.CString(conf.Value)
 	c_type = lookup(conf.Type)
-	c_name = lookup(metricname)
+	c_name = lookup(conf.Name)
 
 	// Add unit
 	unit := ""
