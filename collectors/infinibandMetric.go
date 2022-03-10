@@ -161,6 +161,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 	now := time.Now()
 	// time difference to last time stamp
 	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	// Save current timestamp
+	m.lastTimestamp = now
 
 	for _, info := range m.info {
 		for counterName, counterFile := range info.portCounterFiles {
@@ -205,9 +207,6 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		}
 
 	}
-
-	// Save current timestamp
-	m.lastTimestamp = now
 }
 
 func (m *InfinibandCollector) Close() {
