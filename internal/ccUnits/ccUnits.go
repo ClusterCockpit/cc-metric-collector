@@ -6,7 +6,7 @@ import (
 )
 
 type Unit struct {
-	scale      Scale
+	scale      Prefix
 	measure    Measure
 	divMeasure Measure
 }
@@ -31,7 +31,7 @@ func (u *Unit) AddDivisorUnit(div Measure) {
 	u.divMeasure = div
 }
 
-func GetScaleFactor(in Scale, out Scale) float64 {
+func GetPrefixFactor(in Prefix, out Prefix) float64 {
 	var factor = 1.0
 	var in_scale = 1.0
 	var out_scale = 1.0
@@ -45,11 +45,11 @@ func GetScaleFactor(in Scale, out Scale) float64 {
 	return factor
 }
 
-func GetUnitScaleFactor(in Unit, out Unit) (float64, error) {
+func GetUnitPrefixFactor(in Unit, out Unit) (float64, error) {
 	if in.measure != out.measure || in.divMeasure != out.divMeasure {
 		return 1.0, fmt.Errorf("invalid measures in in and out Unit")
 	}
-	return GetScaleFactor(in.scale, out.scale), nil
+	return GetPrefixFactor(in.scale, out.scale), nil
 }
 
 func NewUnit(unit string) Unit {
@@ -60,7 +60,7 @@ func NewUnit(unit string) Unit {
 	}
 	matches := prefixRegex.FindStringSubmatch(unit)
 	if len(matches) > 2 {
-		u.scale = NewScale(matches[1])
+		u.scale = NewPrefix(matches[1])
 		measures := strings.Split(matches[2], "/")
 		u.measure = NewMeasure(measures[0])
 		// Special case for 'm' as scale for Bytes as thers is nothing like MilliBytes

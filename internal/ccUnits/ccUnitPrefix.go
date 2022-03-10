@@ -2,28 +2,28 @@ package ccunits
 
 import "regexp"
 
-type Scale float64
+type Prefix float64
 
 const (
-	Base  Scale = iota
-	Peta        = 1e15
-	Tera        = 1e12
-	Giga        = 1e9
-	Mega        = 1e6
-	Kilo        = 1e3
-	Milli       = 1e-3
-	Micro       = 1e-6
-	Nano        = 1e-9
-	Kibi        = 1024
-	Mebi        = 1024 * 1024
-	Gibi        = 1024 * 1024 * 1024
-	Tebi        = 1024 * 1024 * 1024 * 1024
+	Base  Prefix = iota
+	Peta         = 1e15
+	Tera         = 1e12
+	Giga         = 1e9
+	Mega         = 1e6
+	Kilo         = 1e3
+	Milli        = 1e-3
+	Micro        = 1e-6
+	Nano         = 1e-9
+	Kibi         = 1024
+	Mebi         = 1024 * 1024
+	Gibi         = 1024 * 1024 * 1024
+	Tebi         = 1024 * 1024 * 1024 * 1024
 )
 const prefixRegexStr = `^([kKmMgGtTpP]?[i]?)(.*)`
 
 var prefixRegex = regexp.MustCompile(prefixRegexStr)
 
-func (s *Scale) String() string {
+func (s *Prefix) String() string {
 	switch *s {
 	case Base:
 		return ""
@@ -56,7 +56,7 @@ func (s *Scale) String() string {
 	}
 }
 
-func (s *Scale) Prefix() string {
+func (s *Prefix) Prefix() string {
 	switch *s {
 	case Base:
 		return ""
@@ -89,7 +89,7 @@ func (s *Scale) Prefix() string {
 	}
 }
 
-func NewScale(prefix string) Scale {
+func NewPrefix(prefix string) Prefix {
 	switch prefix {
 	case "k":
 		return Kilo

@@ -55,7 +55,7 @@ func TestUnitsExact(t *testing.T) {
 	}
 }
 
-func TestUnitsDifferentScale(t *testing.T) {
+func TestUnitsDifferentPrefix(t *testing.T) {
 	testCases := []struct {
 		in          string
 		want        Unit
@@ -71,9 +71,9 @@ func TestUnitsDifferentScale(t *testing.T) {
 		{"Mib", NewUnit("MBytes"), (1024 * 1024.0) / (1e6)},
 		{"mb", NewUnit("MBytes"), 1.0},
 	}
-	compareUnitWithScale := func(in, out Unit, factor float64) bool {
+	compareUnitWithPrefix := func(in, out Unit, factor float64) bool {
 		if in.measure == out.measure && in.divMeasure == out.divMeasure {
-			if f := GetScaleFactor(in.scale, out.scale); f == factor {
+			if f := GetPrefixFactor(in.scale, out.scale); f == factor {
 				return true
 			} else {
 				fmt.Println(f)
@@ -83,7 +83,7 @@ func TestUnitsDifferentScale(t *testing.T) {
 	}
 	for _, c := range testCases {
 		u := NewUnit(c.in)
-		if !compareUnitWithScale(u, c.want, c.scaleFactor) {
+		if !compareUnitWithPrefix(u, c.want, c.scaleFactor) {
 			t.Errorf("func NewUnit(%q) == %q, want %q with factor %f", c.in, u.String(), c.want.String(), c.scaleFactor)
 		}
 	}
