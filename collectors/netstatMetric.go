@@ -13,7 +13,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const NETSTATFILE = `/proc/net/dev`
+const NETSTATFILE = "/proc/net/dev"
 
 type NetstatCollectorConfig struct {
 	IncludeDevices     []string `json:"include_devices"`
@@ -38,14 +38,39 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
 	m.lastTimestamp = time.Now()
-	m.meta = map[string]string{"source": m.name, "group": "Network"}
-	m.devtags = make(map[string]map[string]string)
-	nameIndexMap := map[string]int{
-		"net_bytes_in":  1,
-		"net_pkts_in":   2,
-		"net_bytes_out": 9,
-		"net_pkts_out":  10,
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Network",
 	}
+	m.devtags = make(map[string]map[string]string)
+
+	const (
+		fieldInterface          = iota
+		fieldReceiveBytes       = iota
+		fieldReceivePackets     = iota
+		fieldReceiveErrs        = iota
+		fieldReceiveDrop        = iota
+		fieldReceiveFifo        = iota
+		fieldReceiveFrame       = iota
+		fieldReceiveCompressed  = iota
+		fieldReceiveMulticast   = iota
+		fieldTransmitBytes      = iota
+		fieldTransmitPackets    = iota
+		fieldTransmitErrs       = iota
+		fieldTransmitDrop       = iota
+		fieldTransmitFifo       = iota
+		fieldTransmitColls      = iota
+		fieldTransmitCarrier    = iota
+		fieldTransmitCompressed = iota
+	)
+
+	nameIndexMap := map[string]int{
+		"net_bytes_in":  fieldReceiveBytes,
+		"net_pkts_in":   fieldReceivePackets,
+		"net_bytes_out": fieldTransmitBytes,
+		"net_pkts_out":  fieldTransmitPackets,
+	}
+
 	m.matches = make(map[string]map[string]NetstatCollectorMetric)
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
@@ -54,7 +79,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	file, err := os.Open(string(NETSTATFILE))
+	file, err := os.Open(NETSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return err
