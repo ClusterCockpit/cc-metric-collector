@@ -22,7 +22,9 @@ type NetstatCollectorConfig struct {
 }
 
 type NetstatCollectorMetric struct {
+	name      string
 	index     int
+	devtags   map[string]string
 	lastValue float64
 }
 
@@ -30,7 +32,6 @@ type NetstatCollector struct {
 	metricCollector
 	config        NetstatCollectorConfig
 	matches       map[string]map[string]NetstatCollectorMetric
-	devtags       map[string]map[string]string
 	lastTimestamp time.Time
 }
 
@@ -42,7 +43,6 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		"source": m.name,
 		"group":  "Network",
 	}
-	m.devtags = make(map[string]map[string]string)
 
 	const (
 		fieldInterface          = iota
@@ -113,17 +113,18 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 			m.matches[dev] = make(map[string]NetstatCollectorMetric)
 			for name, idx := range nameIndexMap {
 				m.matches[dev][name] = NetstatCollectorMetric{
+					name:      name,
 					index:     idx,
 					lastValue: 0,
+					devtags: map[string]string{
+						"device": dev,
+						"type":   "node",
+					},
 				}
-			}
-			m.devtags[dev] = map[string]string{
-				"device": dev,
-				"type":   "node",
 			}
 		}
 	}
-	if len(m.devtags) == 0 {
+	if len(m.matches) == 0 {
 		return errors.New("no devices to collector metrics found")
 	}
 	m.init = true
@@ -169,7 +170,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				v, err := strconv.ParseFloat(f[data.index], 64)
 				if err == nil {
 					if m.config.SendAbsoluteValues {
-						if y, err := lp.New(name, m.devtags[dev], m.meta, map[string]interface{}{"value": v}, now); err == nil {
+						if y, err := lp.New(name, data.devtags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
 							switch {
 							case strings.Contains(name, "byte"):
 								y.AddMeta("unit", "bytes")
@@ -187,7 +188,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 							value = 0
 						}
 						data.lastValue = v
-						if y, err := lp.New(name+"_bw", m.devtags[dev], m.meta, map[string]interface{}{"value": value}, now); err == nil {
+						if y, err := lp.New(name+"_bw", data.devtags, m.meta, map[string]interface{}{"value": value}, now); err == nil {
 							switch {
 							case strings.Contains(name, "byte"):
 								y.AddMeta("unit", "bytes/sec")
