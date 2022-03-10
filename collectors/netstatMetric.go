@@ -180,25 +180,27 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 		// Check if device is a included device
 		if devmetrics, ok := m.matches[dev]; ok {
-			for _, data := range devmetrics {
-				v, err := strconv.ParseFloat(f[data.index], 64)
-				if err == nil {
-					if m.config.SendAbsoluteValues {
-						if y, err := lp.New(data.name, data.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
-							output <- y
-						}
-					}
-					if m.config.SendDerivedValues {
+			for i := range devmetrics {
+				data := &devmetrics[i]
 
-						vdiff := v - data.lastValue
-						value := vdiff / timeDiff
-						if data.lastValue == 0 {
-							value = 0
-						}
-						data.lastValue = v
-						if y, err := lp.New(data.name+"_bw", data.rate_tags, m.meta, map[string]interface{}{"value": value}, now); err == nil {
-							output <- y
-						}
+				// Read value
+				v, err := strconv.ParseFloat(f[data.index], 64)
+				if err != nil {
+					continue
+				}
+				if m.config.SendAbsoluteValues {
+					if y, err := lp.New(data.name, data.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+						output <- y
+					}
+				}
+				if m.config.SendDerivedValues {
+					rate := (v - data.lastValue) / timeDiff
+					if data.lastValue == 0 {
+						rate = 0
+					}
+					data.lastValue = v
+					if y, err := lp.New(data.name+"_bw", data.rate_tags, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+						output <- y
 					}
 				}
 			}
