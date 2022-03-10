@@ -72,6 +72,11 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	}
 
 	m.matches = make(map[string]map[string]NetstatCollectorMetric)
+
+	// Set default configuration,
+	m.config.SendAbsoluteValues = true
+	m.config.SendDerivedValues = false
+	// Read configuration file, allow overwriting default config
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -79,6 +84,8 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
+
+	// Check access to net statistic file
 	file, err := os.Open(NETSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
@@ -89,11 +96,19 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		l := scanner.Text()
+
+		// Skip lines with no net device entry
 		if !strings.Contains(l, ":") {
 			continue
 		}
+
+		// Split line into fields
 		f := strings.Fields(l)
+
+		// Get net device entry
 		dev := strings.Trim(f[0], ": ")
+
+		// Check if device is a included device
 		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
 			m.matches[dev] = make(map[string]NetstatCollectorMetric)
 			for name, idx := range nameIndexMap {
@@ -102,7 +117,10 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 					lastValue: 0,
 				}
 			}
-			m.devtags[dev] = map[string]string{"device": dev, "type": "node"}
+			m.devtags[dev] = map[string]string{
+				"device": dev,
+				"type":   "node",
+			}
 		}
 	}
 	if len(m.devtags) == 0 {
