@@ -72,14 +72,16 @@ Special parsing rules for the following measures: iff `prefix==Milli`, use `pref
   - `Cycles`
   - `Requests`
 
-This means the prefixes `Micro` (like `ubytes`) and `Nano` like (`nflops/sec`) are not allowed and return an invalid unit.
+This means the prefixes `Micro` (like `ubytes`) and `Nano` like (`nflops/sec`) are not allowed and return an invalid unit. But you can specify `mflops` and `mb`.
 
+Prefixes for `%` or `percent` are ignored.
 
 ## Supported prefixes
 
 ```go
 const (
 	Base  Prefix = iota
+	Exa          = 1e18
 	Peta         = 1e15
 	Tera         = 1e12
 	Giga         = 1e9
@@ -110,8 +112,8 @@ const (
 	Rotation
 	Hertz
 	Time
-	Power
-	Energy
+	Watt
+	Joule
 	Cycles
 	Requests
 	Packets
@@ -141,4 +143,10 @@ If there are special conversation rules between measures and you want to convert
 The two parsers for prefix and measure are called under the hood by `NewUnit()` and there might some special rules apply. Like in the above section about 'special unit detection', special rules for your new measure might be required. Currently there are two special cases:
 
 - Measures that are non-dividable like Flops, Bytes, Events, ... cannot use `Milli`, `Micro` and `Nano`. The prefix `m` is forced to `M` for these measures
-- If the prefix is `p`/`P` (`Peta`) or `e`/`E` (`Exa`) and the measure is not detectable, it retries detection with the prefix. So first round it tries for example (prefix `p`, measure `ackets`) which fails, to it retries with (measure `packets` and no prefix).
+- If the prefix is `p`/`P` (`Peta`) or `e`/`E` (`Exa`) and the measure is not detectable, it retries detection with the prefix. So first round it tries, for example, prefix `p` and measure `ackets` which fails, so it retries the detection with measure `packets` and `<empty>` prefix (resolves to `Base` prefix).
+
+## Limitations
+
+The `ccUnits` package is a simple implemtation of a unit system and comes with some limitations:
+
+- The unit denominator (like `s` in `Mbyte/s`) can only have the `Base` prefix, you cannot specify `Byte/ms` for "Bytes per milli second".
