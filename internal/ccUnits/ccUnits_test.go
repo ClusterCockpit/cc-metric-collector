@@ -40,16 +40,36 @@ func TestUnitsExact(t *testing.T) {
 		{"degC", NewUnit("degC")},
 		{"degf", NewUnit("degF")},
 		{"°f", NewUnit("degF")},
+		{"events", NewUnit("events")},
+		{"event", NewUnit("events")},
+		{"EveNts", NewUnit("events")},
+		{"reqs", NewUnit("requests")},
+		{"requests", NewUnit("requests")},
+		{"Requests", NewUnit("requests")},
+		{"cyc", NewUnit("cycles")},
+		{"cy", NewUnit("cycles")},
+		{"Cycles", NewUnit("cycles")},
+		{"J", NewUnit("Joules")},
+		{"Joule", NewUnit("Joules")},
+		{"joule", NewUnit("Joules")},
+		{"W", NewUnit("Watt")},
+		{"Watts", NewUnit("Watt")},
+		{"watt", NewUnit("Watt")},
+		{"s", NewUnit("seconds")},
+		{"sec", NewUnit("seconds")},
+		{"secs", NewUnit("seconds")},
+		{"RPM", NewUnit("rpm")},
+		{"rPm", NewUnit("rpm")},
 	}
 	compareUnitExact := func(in, out Unit) bool {
-		if in.measure == out.measure && in.divMeasure == out.divMeasure && in.scale == out.scale {
+		if in.getMeasure() == out.getMeasure() && in.getDivMeasure() == out.getDivMeasure() && in.getPrefix() == out.getPrefix() {
 			return true
 		}
 		return false
 	}
 	for _, c := range testCases {
 		u := NewUnit(c.in)
-		if !compareUnitExact(u, c.want) {
+		if (!u.Valid()) || (!compareUnitExact(u, c.want)) {
 			t.Errorf("func NewUnit(%q) == %q, want %q", c.in, u.String(), c.want.String())
 		}
 	}
@@ -57,9 +77,9 @@ func TestUnitsExact(t *testing.T) {
 
 func TestUnitsDifferentPrefix(t *testing.T) {
 	testCases := []struct {
-		in          string
-		want        Unit
-		scaleFactor float64
+		in           string
+		want         Unit
+		prefixFactor float64
 	}{
 		{"kb", NewUnit("Bytes"), 1000},
 		{"Mb", NewUnit("Bytes"), 1000000},
@@ -72,19 +92,19 @@ func TestUnitsDifferentPrefix(t *testing.T) {
 		{"mb", NewUnit("MBytes"), 1.0},
 	}
 	compareUnitWithPrefix := func(in, out Unit, factor float64) bool {
-		if in.measure == out.measure && in.divMeasure == out.divMeasure {
-			if f := GetPrefixFactor(in.scale, out.scale); f == factor {
+		if in.getMeasure() == out.getMeasure() && in.getDivMeasure() == out.getDivMeasure() {
+			if f := GetPrefixFactor(in.getPrefix(), out.getPrefix()); f(1.0) == factor {
 				return true
 			} else {
-				fmt.Println(f)
+				fmt.Println(f(1.0))
 			}
 		}
 		return false
 	}
 	for _, c := range testCases {
 		u := NewUnit(c.in)
-		if !compareUnitWithPrefix(u, c.want, c.scaleFactor) {
-			t.Errorf("func NewUnit(%q) == %q, want %q with factor %f", c.in, u.String(), c.want.String(), c.scaleFactor)
+		if (!u.Valid()) || (!compareUnitWithPrefix(u, c.want, c.prefixFactor)) {
+			t.Errorf("func NewUnit(%q) == %q, want %q with factor %f", c.in, u.String(), c.want.String(), c.prefixFactor)
 		}
 	}
 }

@@ -1,29 +1,42 @@
 # ccUnits - A unit system for ClusterCockpit
 
-When working with metrics, the problem comes up that they may use different unit name but have the same unit in fact. There are a lot of real world examples like 'kB' and 'Kbyte'. In CC Metric Collector, the Collectors read data from different sources which may use different units or the programmer specifies a unit for a metric by hand. In order to enable unit comparison and conversion, the ccUnits package provides some helpers:
+When working with metrics, the problem comes up that they may use different unit name but have the same unit in fact. There are a lot of real world examples like 'kB' and 'Kbyte'. In CC Metric Collector, the Collectors read data from different sources which may use different units or the programmer specifies a unit for a metric by hand. The ccUnits system is not comparable with the SI unit system. If you are looking for a package for the SI units, see [here](https://pkg.go.dev/github.com/gurre/si).
 
+In order to enable unit comparison and conversion, the ccUnits package provides some helpers:
 There are basically two important functions:
 ```go
 NewUnit(unit string) Unit
-GetUnitPrefixFactor(in, out Unit) (float64, error) // Get the prefix difference for conversion
+GetUnitPrefixFactor(in Unit, out Unit) (func(value float64) float64, error) // Get conversion function for the value
+
+type Unit interface {
+	Valid() bool
+	String() string
+	Short() string
+	AddDivisorUnit(div Measure)
+}
 ```
 
-In order to get the "normalized" string unit back, you can use:
+In order to get the "normalized" string unit back or test for validity, you can use:
 ```go
 u := NewUnit("MB")
-fmt.Printf("Long string %q", u.String())
-fmt.Printf("Short string %q", u.Short())
+fmt.Println(u.Valid())                   // true
+fmt.Printf("Long string %q", u.String()) // MegaBytes
+fmt.Printf("Short string %q", u.Short()) // MBytes
+v := NewUnit("foo")
+fmt.Println(v.Valid())                   // false
 ```
 
-If you have two units and need the conversion factor:
+If you have two units and need the conversion function:
 ```go
 u1 := NewUnit("kB")
 u2 := NewUnit("MBytes")
-factor, err := GetUnitPrefixFactor(u1, u2) // Returns an error if the units have different measures
+convFunc, err := GetUnitPrefixFactor(u1, u2) // Returns an error if the units have different measures
 if err == nil {
-    v2 := v1 * factor
+    v2 := convFunc(v1)
 }
 ```
+
+(In the ClusterCockpit ecosystem the separation between values and units if useful since they are commonly not stored as a single entity but the value is a field in the CCMetric while unit is a tag or a meta information).
 
 If you have a metric and want the derivation to a bandwidth or events per second, you can use the original unit:
 
@@ -34,10 +47,11 @@ if err == nil {
     if ok {
         out_unit = NewUnit(in_unit)
         out_unit.AddDivisorUnit("seconds")
+		seconds := timeDiff.Seconds()
         y, err := lp.New(metric.Name()+"_bw",
                          metric.Tags(),
                          metric.Meta(),
-                         map[string]interface{"value": value/time},
+                         map[string]interface{"value": value/seconds},
                          metric.Time())
         if err == nil {
             y.AddMeta("unit", out_unit.Short())
@@ -45,6 +59,21 @@ if err == nil {
     }
 }
 ```
+
+## Special unit detection
+
+Some used measures like Bytes and Flops are non-dividable. Consequently there prefixes like Milli, Micro and Nano are not useful. This is quite handy since a unit `mb` for `MBytes` is not uncommon but would by default be parsed as "MilliBytes".
+
+Special parsing rules for the following measures: iff `prefix==Milli`, use `prefix==Mega`
+  - `Bytes`
+  - `Flops`
+  - `Packets`
+  - `Events`
+  - `Cycles`
+  - `Requests`
+
+This means the prefixes `Micro` (like `ubytes`) and `Nano` like (`nflops/sec`) are not allowed and return an invalid unit.
+
 
 ## Supported prefixes
 
@@ -91,3 +120,25 @@ const (
 ```
 
 There a regular expression for each of the measures like `^([bB][yY]?[tT]?[eE]?[sS]?)` for the `Bytes` measure. 
+
+
+## New units
+
+If the selected units are not suitable for your metric, feel free to send a PR.
+
+### New prefix
+
+For a new prefix, add it to the big `const` in `ccUnitPrefix.go` and adjust the prefix-unit-splitting regular expression. Afterwards, you have to add cases to the three functions `String()`, `Prefix()` and `NewPrefix()`. `NewPrefix()` contains the parser (`k` or `K` -> `Kilo`). The other one are used for output. `String()` outputs a longer version of the prefix (`Kilo`), while `Prefix()` returns only the short notation (`K`).
+
+### New measure
+
+Adding new prefixes is probably rare but adding a new measure is a more common task. At first, add it to the big `const` in `ccUnitMeasure.go`. Moreover, create a regular expression matching the measure (and pre-compile it like the others). Add the expression matching to `NewMeasure()`. The `String()` and `Short()` functions return descriptive strings for the measure in long form (like `Hertz`) and short form (like `Hz`).
+
+If there are special conversation rules between measures and you want to convert one measure to another, like temperatures in Celsius to Fahrenheit, a special case in `GetUnitPrefixFactor()` is required.
+
+### Special parsing rules
+
+The two parsers for prefix and measure are called under the hood by `NewUnit()` and there might some special rules apply. Like in the above section about 'special unit detection', special rules for your new measure might be required. Currently there are two special cases:
+
+- Measures that are non-dividable like Flops, Bytes, Events, ... cannot use `Milli`, `Micro` and `Nano`. The prefix `m` is forced to `M` for these measures
+- If the prefix is `p`/`P` (`Peta`) or `e`/`E` (`Exa`) and the measure is not detectable, it retries detection with the prefix. So first round it tries for example (prefix `p`, measure `ackets`) which fails, to it retries with (measure `packets` and no prefix).

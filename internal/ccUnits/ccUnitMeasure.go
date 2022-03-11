@@ -94,7 +94,7 @@ func (m *Measure) Short() string {
 
 const bytesRegexStr = `^([bB][yY]?[tT]?[eE]?[sS]?)`
 const flopsRegexStr = `^([fF][lL]?[oO]?[pP]?[sS]?)`
-const percentRegexStr = `^(%%|[pP]ercent)`
+const percentRegexStr = `^(%|[pP]ercent)`
 const degreeCRegexStr = `^(deg[Cc]|°[cC])`
 const degreeFRegexStr = `^(deg[fF]|°[fF])`
 const rpmRegexStr = `^([rR][pP][mM])`
@@ -105,6 +105,7 @@ const energyRegexStr = `^([jJ][oO]?[uU]?[lL]?[eE]?[sS]?)`
 const cyclesRegexStr = `^([cC][yY][cC]?[lL]?[eE]?[sS]?)`
 const requestsRegexStr = `^([rR][eE][qQ][uU]?[eE]?[sS]?[tT]?[sS]?)`
 const packetsRegexStr = `^([pP][aA]?[cC]?[kK][eE]?[tT][sS]?)`
+const eventsRegexStr = `^([eE][vV]?[eE]?[nN][tT][sS]?)`
 
 var bytesRegex = regexp.MustCompile(bytesRegexStr)
 var flopsRegex = regexp.MustCompile(flopsRegexStr)
@@ -119,6 +120,7 @@ var energyRegex = regexp.MustCompile(energyRegexStr)
 var cyclesRegex = regexp.MustCompile(cyclesRegexStr)
 var requestsRegex = regexp.MustCompile(requestsRegexStr)
 var packetsRegex = regexp.MustCompile(packetsRegexStr)
+var eventsRegex = regexp.MustCompile(eventsRegexStr)
 
 func NewMeasure(unit string) Measure {
 	var match []string
@@ -173,6 +175,10 @@ func NewMeasure(unit string) Measure {
 	match = packetsRegex.FindStringSubmatch(unit)
 	if match != nil {
 		return Packets
+	}
+	match = eventsRegex.FindStringSubmatch(unit)
+	if match != nil {
+		return Events
 	}
 	return None
 }

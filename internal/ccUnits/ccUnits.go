@@ -5,71 +5,140 @@ import (
 	"strings"
 )
 
-type Unit struct {
-	scale      Prefix
+type unit struct {
+	prefix     Prefix
 	measure    Measure
 	divMeasure Measure
 }
 
-func (u *Unit) String() string {
+type Unit interface {
+	Valid() bool
+	String() string
+	Short() string
+	AddDivisorUnit(div Measure)
+	getPrefix() Prefix
+	getMeasure() Measure
+	getDivMeasure() Measure
+}
+
+func (u *unit) Valid() bool {
+	return u.measure != None
+}
+
+func (u *unit) String() string {
 	if u.divMeasure != None {
-		return fmt.Sprintf("%s%s/%s", u.scale.String(), u.measure.String(), u.divMeasure.String())
+		return fmt.Sprintf("%s%s/%s", u.prefix.String(), u.measure.String(), u.divMeasure.String())
 	} else {
-		return fmt.Sprintf("%s%s", u.scale.String(), u.measure.String())
+		return fmt.Sprintf("%s%s", u.prefix.String(), u.measure.String())
 	}
 }
 
-func (u *Unit) Short() string {
+func (u *unit) Short() string {
 	if u.divMeasure != None {
-		return fmt.Sprintf("%s%s/%s", u.scale.Prefix(), u.measure.Short(), u.divMeasure.Short())
+		return fmt.Sprintf("%s%s/%s", u.prefix.Prefix(), u.measure.Short(), u.divMeasure.Short())
 	} else {
-		return fmt.Sprintf("%s%s", u.scale.Prefix(), u.measure.Short())
+		return fmt.Sprintf("%s%s", u.prefix.Prefix(), u.measure.Short())
 	}
 }
 
-func (u *Unit) AddDivisorUnit(div Measure) {
+func (u *unit) AddDivisorUnit(div Measure) {
 	u.divMeasure = div
 }
 
-func GetPrefixFactor(in Prefix, out Prefix) float64 {
+func (u *unit) getPrefix() Prefix {
+	return u.prefix
+}
+
+func (u *unit) getMeasure() Measure {
+	return u.measure
+}
+
+func (u *unit) getDivMeasure() Measure {
+	return u.divMeasure
+}
+
+func GetPrefixFactor(in Prefix, out Prefix) func(value float64) float64 {
 	var factor = 1.0
-	var in_scale = 1.0
-	var out_scale = 1.0
+	var in_prefix = 1.0
+	var out_prefix = 1.0
 	if in != Base {
-		in_scale = float64(in)
+		in_prefix = float64(in)
 	}
 	if out != Base {
-		out_scale = float64(out)
+		out_prefix = float64(out)
 	}
-	factor = in_scale / out_scale
-	return factor
+	factor = in_prefix / out_prefix
+	return func(value float64) float64 { return factor }
 }
 
-func GetUnitPrefixFactor(in Unit, out Unit) (float64, error) {
-	if in.measure != out.measure || in.divMeasure != out.divMeasure {
-		return 1.0, fmt.Errorf("invalid measures in in and out Unit")
+func GetUnitPrefixFactor(in Unit, out Unit) (func(value float64) float64, error) {
+	if in.getMeasure() == TemperatureC && out.getMeasure() == TemperatureF {
+		return func(value float64) float64 { return (value * 1.8) + 32 }, nil
+	} else if in.getMeasure() == TemperatureF && out.getMeasure() == TemperatureC {
+		return func(value float64) float64 { return (value - 32) / 1.8 }, nil
+	} else if in.getMeasure() != out.getMeasure() || in.getDivMeasure() != out.getDivMeasure() {
+		return func(value float64) float64 { return 1.0 }, fmt.Errorf("invalid measures in in and out Unit")
 	}
-	return GetPrefixFactor(in.scale, out.scale), nil
+	return GetPrefixFactor(in.getPrefix(), out.getPrefix()), nil
 }
 
-func NewUnit(unit string) Unit {
-	u := Unit{
-		scale:      Base,
+func NewUnit(unitStr string) Unit {
+	u := &unit{
+		prefix:     Base,
 		measure:    None,
 		divMeasure: None,
 	}
-	matches := prefixRegex.FindStringSubmatch(unit)
+	matches := prefixRegex.FindStringSubmatch(unitStr)
 	if len(matches) > 2 {
-		u.scale = NewPrefix(matches[1])
+		pre := NewPrefix(matches[1])
 		measures := strings.Split(matches[2], "/")
-		u.measure = NewMeasure(measures[0])
-		// Special case for 'm' as scale for Bytes as thers is nothing like MilliBytes
-		if u.measure == Bytes && u.scale == Milli {
-			u.scale = Mega
+		m := NewMeasure(measures[0])
+		// Special case for prefix 'p' or 'P' (Peta) and measures starting with 'p' or 'P'
+		// like 'packets' or 'percent'. Same for 'e' or 'E' (Exa) for measures starting with
+		// 'e' or 'E' like 'events'
+		if m == None && pre == Base {
+			if strings.ToLower(matches[1]) == "p" || strings.ToLower(matches[1]) == "e" {
+				t := NewMeasure(matches[1] + measures[0])
+				if t != None {
+					m = t
+					pre = Base
+				}
+			}
 		}
+		div := None
 		if len(measures) > 1 {
-			u.divMeasure = NewMeasure(measures[1])
+			div = NewMeasure(measures[1])
 		}
+		// Special case for 'm' as prefix for Bytes as thers is nothing like MilliBytes
+		switch m {
+		case Bytes:
+			if pre == Milli {
+				pre = Mega
+			}
+		case Flops:
+			if pre == Milli {
+				pre = Mega
+			}
+		case Packets:
+			if pre == Milli {
+				pre = Mega
+			}
+		case Events:
+			if pre == Milli {
+				pre = Mega
+			}
+		case Cycles:
+			if pre == Milli {
+				pre = Mega
+			}
+		case Requests:
+			if pre == Milli {
+				pre = Mega
+			}
+		}
+		u.prefix = pre
+		u.measure = m
+		u.divMeasure = div
 	}
 	return u
 }
