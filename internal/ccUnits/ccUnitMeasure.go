@@ -14,8 +14,8 @@ const (
 	Rotation
 	Hertz
 	Time
-	Power
-	Energy
+	Watt
+	Joule
 	Cycles
 	Requests
 	Packets
@@ -40,9 +40,9 @@ func (m *Measure) String() string {
 		return "Hertz"
 	case Time:
 		return "Seconds"
-	case Power:
+	case Watt:
 		return "Watts"
-	case Energy:
+	case Joule:
 		return "Joules"
 	case Cycles:
 		return "Cycles"
@@ -75,9 +75,9 @@ func (m *Measure) Short() string {
 		return "Hz"
 	case Time:
 		return "s"
-	case Power:
+	case Watt:
 		return "W"
-	case Energy:
+	case Joule:
 		return "J"
 	case Cycles:
 		return "cyc"
@@ -100,8 +100,8 @@ const degreeFRegexStr = `^(deg[fF]|°[fF])`
 const rpmRegexStr = `^([rR][pP][mM])`
 const hertzRegexStr = `^([hH][eE]?[rR]?[tT]?[zZ])`
 const timeRegexStr = `^([sS][eE]?[cC]?[oO]?[nN]?[dD]?[sS]?)`
-const powerRegexStr = `^([wW][aA]?[tT]?[tT]?[sS]?)`
-const energyRegexStr = `^([jJ][oO]?[uU]?[lL]?[eE]?[sS]?)`
+const wattRegexStr = `^([wW][aA]?[tT]?[tT]?[sS]?)`
+const jouleRegexStr = `^([jJ][oO]?[uU]?[lL]?[eE]?[sS]?)`
 const cyclesRegexStr = `^([cC][yY][cC]?[lL]?[eE]?[sS]?)`
 const requestsRegexStr = `^([rR][eE][qQ][uU]?[eE]?[sS]?[tT]?[sS]?)`
 const packetsRegexStr = `^([pP][aA]?[cC]?[kK][eE]?[tT][sS]?)`
@@ -115,8 +115,8 @@ var degreeFRegex = regexp.MustCompile(degreeFRegexStr)
 var rpmRegex = regexp.MustCompile(rpmRegexStr)
 var hertzRegex = regexp.MustCompile(hertzRegexStr)
 var timeRegex = regexp.MustCompile(timeRegexStr)
-var powerRegex = regexp.MustCompile(powerRegexStr)
-var energyRegex = regexp.MustCompile(energyRegexStr)
+var wattRegex = regexp.MustCompile(wattRegexStr)
+var jouleRegex = regexp.MustCompile(jouleRegexStr)
 var cyclesRegex = regexp.MustCompile(cyclesRegexStr)
 var requestsRegex = regexp.MustCompile(requestsRegexStr)
 var packetsRegex = regexp.MustCompile(packetsRegexStr)
@@ -160,13 +160,13 @@ func NewMeasure(unit string) Measure {
 	if match != nil {
 		return Cycles
 	}
-	match = powerRegex.FindStringSubmatch(unit)
+	match = wattRegex.FindStringSubmatch(unit)
 	if match != nil {
-		return Power
+		return Watt
 	}
-	match = energyRegex.FindStringSubmatch(unit)
+	match = jouleRegex.FindStringSubmatch(unit)
 	if match != nil {
-		return Energy
+		return Joule
 	}
 	match = requestsRegex.FindStringSubmatch(unit)
 	if match != nil {
