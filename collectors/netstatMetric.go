@@ -13,22 +13,26 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
-const NETSTATFILE = `/proc/net/dev`
+const NETSTATFILE = "/proc/net/dev"
 
 type NetstatCollectorConfig struct {
-	IncludeDevices []string `json:"include_devices"`
+	IncludeDevices     []string `json:"include_devices"`
+	SendAbsoluteValues bool     `json:"send_abs_values"`
+	SendDerivedValues  bool     `json:"send_derived_values"`
 }
 
 type NetstatCollectorMetric struct {
+	name      string
 	index     int
-	lastValue float64
+	tags      map[string]string
+	rate_tags map[string]string
+	lastValue int64
 }
 
 type NetstatCollector struct {
 	metricCollector
 	config        NetstatCollectorConfig
-	matches       map[string]map[string]NetstatCollectorMetric
-	devtags       map[string]map[string]string
+	matches       map[string][]NetstatCollectorMetric
 	lastTimestamp time.Time
 }
 
@@ -36,15 +40,37 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
 	m.lastTimestamp = time.Now()
-	m.meta = map[string]string{"source": m.name, "group": "Network"}
-	m.devtags = make(map[string]map[string]string)
-	nameIndexMap := map[string]int{
-		"net_bytes_in":  1,
-		"net_pkts_in":   2,
-		"net_bytes_out": 9,
-		"net_pkts_out":  10,
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Network",
 	}
-	m.matches = make(map[string]map[string]NetstatCollectorMetric)
+
+	const (
+		fieldInterface          = iota
+		fieldReceiveBytes       = iota
+		fieldReceivePackets     = iota
+		fieldReceiveErrs        = iota
+		fieldReceiveDrop        = iota
+		fieldReceiveFifo        = iota
+		fieldReceiveFrame       = iota
+		fieldReceiveCompressed  = iota
+		fieldReceiveMulticast   = iota
+		fieldTransmitBytes      = iota
+		fieldTransmitPackets    = iota
+		fieldTransmitErrs       = iota
+		fieldTransmitDrop       = iota
+		fieldTransmitFifo       = iota
+		fieldTransmitColls      = iota
+		fieldTransmitCarrier    = iota
+		fieldTransmitCompressed = iota
+	)
+
+	m.matches = make(map[string][]NetstatCollectorMetric)
+
+	// Set default configuration,
+	m.config.SendAbsoluteValues = true
+	m.config.SendDerivedValues = false
+	// Read configuration file, allow overwriting default config
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -52,7 +78,9 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	file, err := os.Open(string(NETSTATFILE))
+
+	// Check access to net statistic file
+	file, err := os.Open(NETSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return err
@@ -62,23 +90,60 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		l := scanner.Text()
+
+		// Skip lines with no net device entry
 		if !strings.Contains(l, ":") {
 			continue
 		}
+
+		// Split line into fields
 		f := strings.Fields(l)
+
+		// Get net device entry
 		dev := strings.Trim(f[0], ": ")
+
+		// Check if device is a included device
 		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
-			m.matches[dev] = make(map[string]NetstatCollectorMetric)
-			for name, idx := range nameIndexMap {
-				m.matches[dev][name] = NetstatCollectorMetric{
-					index:     idx,
-					lastValue: 0,
-				}
+			tags_unit_byte := map[string]string{"device": dev, "type": "node", "unit": "bytes"}
+			tags_unit_byte_per_sec := map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"}
+			tags_unit_pkts := map[string]string{"device": dev, "type": "node", "unit": "packets"}
+			tags_unit_pkts_per_sec := map[string]string{"device": dev, "type": "node", "unit": "packets/sec"}
+
+			m.matches[dev] = []NetstatCollectorMetric{
+				{
+					name:      "net_bytes_in",
+					index:     fieldReceiveBytes,
+					lastValue: -1,
+					tags:      tags_unit_byte,
+					rate_tags: tags_unit_byte_per_sec,
+				},
+				{
+					name:      "net_pkts_in",
+					index:     fieldReceivePackets,
+					lastValue: -1,
+					tags:      tags_unit_pkts,
+					rate_tags: tags_unit_pkts_per_sec,
+				},
+				{
+					name:      "net_bytes_out",
+					index:     fieldTransmitBytes,
+					lastValue: -1,
+					tags:      tags_unit_byte,
+					rate_tags: tags_unit_byte_per_sec,
+				},
+				{
+					name:      "net_pkts_out",
+					index:     fieldTransmitPackets,
+					lastValue: -1,
+					tags:      tags_unit_pkts,
+					rate_tags: tags_unit_pkts_per_sec,
+				},
 			}
-			m.devtags[dev] = map[string]string{"device": dev, "type": "node"}
 		}
+
 	}
-	if len(m.devtags) == 0 {
+
+	if len(m.matches) == 0 {
 		return errors.New("no devices to collector metrics found")
 	}
 	m.init = true
@@ -89,50 +154,62 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	if !m.init {
 		return
 	}
+	// Current time stamp
 	now := time.Now()
+	// time difference to last time stamp
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	// Save current timestamp
+	m.lastTimestamp = now
+
 	file, err := os.Open(string(NETSTATFILE))
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return
 	}
 	defer file.Close()
-	tdiff := now.Sub(m.lastTimestamp)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		l := scanner.Text()
+
+		// Skip lines with no net device entry
 		if !strings.Contains(l, ":") {
 			continue
 		}
+
+		// Split line into fields
 		f := strings.Fields(l)
+
+		// Get net device entry
 		dev := strings.Trim(f[0], ":")
 
+		// Check if device is a included device
 		if devmetrics, ok := m.matches[dev]; ok {
-			for name, data := range devmetrics {
-				v, err := strconv.ParseFloat(f[data.index], 64)
-				if err == nil {
-					vdiff := v - data.lastValue
-					value := vdiff / tdiff.Seconds()
-					if data.lastValue == 0 {
-						value = 0
-					}
-					data.lastValue = v
-					y, err := lp.New(name, m.devtags[dev], m.meta, map[string]interface{}{"value": value}, now)
-					if err == nil {
-						switch {
-						case strings.Contains(name, "byte"):
-							y.AddMeta("unit", "bytes/sec")
-						case strings.Contains(name, "pkt"):
-							y.AddMeta("unit", "packets/sec")
-						}
+			for i := range devmetrics {
+				metric := &devmetrics[i]
+
+				// Read value
+				v, err := strconv.ParseInt(f[metric.index], 10, 64)
+				if err != nil {
+					continue
+				}
+				if m.config.SendAbsoluteValues {
+					if y, err := lp.New(metric.name, metric.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
 						output <- y
 					}
-					devmetrics[name] = data
+				}
+				if m.config.SendDerivedValues {
+					if metric.lastValue >= 0 {
+						rate := float64(v-metric.lastValue) / timeDiff
+						if y, err := lp.New(metric.name+"_bw", metric.rate_tags, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+							output <- y
+						}
+					}
+					metric.lastValue = v
 				}
 			}
 		}
 	}
-	m.lastTimestamp = time.Now()
 }
 
 func (m *NetstatCollector) Close() {
