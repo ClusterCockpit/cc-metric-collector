@@ -35,8 +35,6 @@ func GangliaMetricRename(name string) string {
 		return "pkts_out"
 	} else if name == "cpu_iowait" {
 		return "cpu_wio"
-	} else if name == "cpu_load" {
-		return "load_one"
 	}
 	return name
 }
@@ -156,7 +154,7 @@ type GangliaMetricConfig struct {
 func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 	mname := GangliaMetricRename(point.Name())
 	if oldname, ok := point.GetMeta("oldname"); ok {
-		mname = oldname
+		mname = GangliaMetricRename(oldname)
 	}
 	for _, group := range CommonGangliaMetrics {
 		for _, metric := range group.Metrics {
@@ -212,7 +210,7 @@ func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 func GetGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 	mname := GangliaMetricRename(point.Name())
 	if oldname, ok := point.GetMeta("oldname"); ok {
-		mname = oldname
+		mname = GangliaMetricRename(oldname)
 	}
 	group := ""
 	if g, ok := point.GetMeta("group"); ok {
