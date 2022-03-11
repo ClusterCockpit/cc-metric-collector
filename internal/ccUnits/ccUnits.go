@@ -96,8 +96,9 @@ func NewUnit(unitStr string) Unit {
 		// Special case for prefix 'p' or 'P' (Peta) and measures starting with 'p' or 'P'
 		// like 'packets' or 'percent'. Same for 'e' or 'E' (Exa) for measures starting with
 		// 'e' or 'E' like 'events'
-		if m == None && pre == Base {
-			if strings.ToLower(matches[1]) == "p" || strings.ToLower(matches[1]) == "e" {
+		if m == None {
+			switch pre {
+			case Peta, Exa:
 				t := NewMeasure(matches[1] + measures[0])
 				if t != None {
 					m = t
@@ -111,27 +112,7 @@ func NewUnit(unitStr string) Unit {
 		}
 		// Special case for 'm' as prefix for Bytes as thers is nothing like MilliBytes
 		switch m {
-		case Bytes:
-			if pre == Milli {
-				pre = Mega
-			}
-		case Flops:
-			if pre == Milli {
-				pre = Mega
-			}
-		case Packets:
-			if pre == Milli {
-				pre = Mega
-			}
-		case Events:
-			if pre == Milli {
-				pre = Mega
-			}
-		case Cycles:
-			if pre == Milli {
-				pre = Mega
-			}
-		case Requests:
+		case Bytes, Flops, Packets, Events, Cycles, Requests:
 			if pre == Milli {
 				pre = Mega
 			}
