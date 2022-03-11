@@ -61,7 +61,7 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 		}
 	}
 	if len(m.files) == 0 && len(m.commands) == 0 {
-		return errors.New("No metrics to collect")
+		return errors.New("no metrics to collect")
 	}
 	m.handler = influx.NewMetricHandler()
 	m.parser = influx.NewParser(m.handler)
