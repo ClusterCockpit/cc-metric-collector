@@ -46,12 +46,7 @@ install: $(APP)
 .PHONY: clean
 .ONESHELL:
 clean:
-	@for COMP in $(COMPONENT_DIRS)
-	do
-	    if [[ -e $$COMP/Makefile ]]; then
-	        make -C $$COMP clean
-	    fi
-	done
+	@for COMP in $(COMPONENT_DIRS); do if [ -e $$COMP/Makefile ]; then make -C $$COMP clean;  fi; done
 	rm -f $(APP)
 
 .PHONY: fmt
