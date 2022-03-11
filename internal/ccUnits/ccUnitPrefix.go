@@ -6,6 +6,7 @@ type Prefix float64
 
 const (
 	Base  Prefix = iota
+	Exa          = 1e18
 	Peta         = 1e15
 	Tera         = 1e12
 	Giga         = 1e9
@@ -37,6 +38,8 @@ func (s *Prefix) String() string {
 		return "Tera"
 	case Peta:
 		return "Peta"
+	case Exa:
+		return "Exa"
 	case Milli:
 		return "Milli"
 	case Micro:
@@ -70,6 +73,8 @@ func (s *Prefix) Prefix() string {
 		return "T"
 	case Peta:
 		return "P"
+	case Exa:
+		return "E"
 	case Milli:
 		return "m"
 	case Micro:
@@ -107,6 +112,14 @@ func NewPrefix(prefix string) Prefix {
 		return Tera
 	case "T":
 		return Tera
+	case "p":
+		return Peta
+	case "P":
+		return Peta
+	case "e":
+		return Exa
+	case "E":
+		return Exa
 	case "u":
 		return Micro
 	case "n":
