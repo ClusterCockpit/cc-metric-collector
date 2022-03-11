@@ -46,23 +46,23 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	}
 
 	const (
-		fieldInterface          = iota
-		fieldReceiveBytes       = iota
-		fieldReceivePackets     = iota
-		fieldReceiveErrs        = iota
-		fieldReceiveDrop        = iota
-		fieldReceiveFifo        = iota
-		fieldReceiveFrame       = iota
-		fieldReceiveCompressed  = iota
-		fieldReceiveMulticast   = iota
-		fieldTransmitBytes      = iota
-		fieldTransmitPackets    = iota
-		fieldTransmitErrs       = iota
-		fieldTransmitDrop       = iota
-		fieldTransmitFifo       = iota
-		fieldTransmitColls      = iota
-		fieldTransmitCarrier    = iota
-		fieldTransmitCompressed = iota
+		fieldInterface = iota
+		fieldReceiveBytes
+		fieldReceivePackets
+		fieldReceiveErrs
+		fieldReceiveDrop
+		fieldReceiveFifo
+		fieldReceiveFrame
+		fieldReceiveCompressed
+		fieldReceiveMulticast
+		fieldTransmitBytes
+		fieldTransmitPackets
+		fieldTransmitErrs
+		fieldTransmitDrop
+		fieldTransmitFifo
+		fieldTransmitColls
+		fieldTransmitCarrier
+		fieldTransmitCompressed
 	)
 
 	m.matches = make(map[string][]NetstatCollectorMetric)
