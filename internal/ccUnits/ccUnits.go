@@ -59,14 +59,8 @@ func (u *unit) getDivMeasure() Measure {
 
 func GetPrefixFactor(in Prefix, out Prefix) func(value float64) float64 {
 	var factor = 1.0
-	var in_prefix = 1.0
-	var out_prefix = 1.0
-	if in != Base {
-		in_prefix = float64(in)
-	}
-	if out != Base {
-		out_prefix = float64(out)
-	}
+	var in_prefix = float64(in)
+	var out_prefix = float64(out)
 	factor = in_prefix / out_prefix
 	return func(value float64) float64 { return factor }
 }
@@ -110,12 +104,16 @@ func NewUnit(unitStr string) Unit {
 		if len(measures) > 1 {
 			div = NewMeasure(measures[1])
 		}
-		// Special case for 'm' as prefix for Bytes as thers is nothing like MilliBytes
+
 		switch m {
+		// Special case for 'm' as prefix for Bytes and some others as thers is no unit like MilliBytes
 		case Bytes, Flops, Packets, Events, Cycles, Requests:
 			if pre == Milli {
 				pre = Mega
 			}
+		// Special case for percentage. No/ignore prefix
+		case Percentage:
+			pre = Base
 		}
 		u.prefix = pre
 		u.measure = m
