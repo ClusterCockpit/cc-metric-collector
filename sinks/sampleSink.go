@@ -10,14 +10,14 @@ import (
 )
 
 type SampleSinkConfig struct {
-	// defines JSON tags for 'type' and 'meta_as_tags'
+	// defines JSON tags for 'type' and 'meta_as_tags' (string list)
 	// See: metricSink.go
 	defaultSinkConfig
 	// Additional config options, for SampleSink
 }
 
 type SampleSink struct {
-	// declares elements 	'name' and 'meta_as_tags'
+	// declares elements 	'name' and 'meta_as_tags' (string to bool map!)
 	sink
 	config SampleSinkConfig // entry point to the SampleSinkConfig
 }
@@ -28,6 +28,7 @@ type SampleSink struct {
 
 // Code to submit a single CCMetric to the sink
 func (s *SampleSink) Write(point lp.CCMetric) error {
+	// based on s.meta_as_tags use meta infos as tags
 	log.Print(point)
 	return nil
 }
@@ -60,6 +61,12 @@ func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Create lookup map to use meta infos as tags in the output metric
+	s.meta_as_tags = make(map[string]bool)
+	for _, k := range s.config.MetaAsTags {
+		s.meta_as_tags[k] = true
 	}
 
 	// Check if all required fields in the config are set
