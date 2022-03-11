@@ -60,6 +60,10 @@ func TestUnitsExact(t *testing.T) {
 		{"secs", NewUnit("seconds")},
 		{"RPM", NewUnit("rpm")},
 		{"rPm", NewUnit("rpm")},
+		{"watt/byte", NewUnit("W/B")},
+		{"watts/bytes", NewUnit("W/B")},
+		{"flop/byte", NewUnit("flops/Bytes")},
+		{"F/B", NewUnit("flops/Bytes")},
 	}
 	compareUnitExact := func(in, out Unit) bool {
 		if in.getMeasure() == out.getMeasure() && in.getDivMeasure() == out.getDivMeasure() && in.getPrefix() == out.getPrefix() {
