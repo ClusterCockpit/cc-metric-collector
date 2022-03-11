@@ -12,6 +12,12 @@
             "proc_total"
         ]
     },
+    "netstat": {
+        "include_devices": [
+            "enp5s0"
+        ],
+        "send_derived_values": true
+    },
     "numastats": {},
     "nvidia": {},
     "tempstat": {

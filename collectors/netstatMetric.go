@@ -26,7 +26,7 @@ type NetstatCollectorMetric struct {
 	index     int
 	tags      map[string]string
 	rate_tags map[string]string
-	lastValue float64
+	lastValue int64
 }
 
 type NetstatCollector struct {
@@ -113,28 +113,28 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 				{
 					name:      "net_bytes_in",
 					index:     fieldReceiveBytes,
-					lastValue: 0,
+					lastValue: -1,
 					tags:      tags_unit_byte,
 					rate_tags: tags_unit_byte_per_sec,
 				},
 				{
 					name:      "net_pkts_in",
 					index:     fieldReceivePackets,
-					lastValue: 0,
+					lastValue: -1,
 					tags:      tags_unit_pkts,
 					rate_tags: tags_unit_pkts_per_sec,
 				},
 				{
 					name:      "net_bytes_out",
 					index:     fieldTransmitBytes,
-					lastValue: 0,
+					lastValue: -1,
 					tags:      tags_unit_byte,
 					rate_tags: tags_unit_byte_per_sec,
 				},
 				{
 					name:      "net_pkts_out",
 					index:     fieldTransmitPackets,
-					lastValue: 0,
+					lastValue: -1,
 					tags:      tags_unit_pkts,
 					rate_tags: tags_unit_pkts_per_sec,
 				},
@@ -186,27 +186,26 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		// Check if device is a included device
 		if devmetrics, ok := m.matches[dev]; ok {
 			for i := range devmetrics {
-				data := &devmetrics[i]
+				metric := &devmetrics[i]
 
 				// Read value
-				v, err := strconv.ParseFloat(f[data.index], 64)
+				v, err := strconv.ParseInt(f[metric.index], 10, 64)
 				if err != nil {
 					continue
 				}
 				if m.config.SendAbsoluteValues {
-					if y, err := lp.New(data.name, data.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+					if y, err := lp.New(metric.name, metric.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
 						output <- y
 					}
 				}
 				if m.config.SendDerivedValues {
-					rate := (v - data.lastValue) / timeDiff
-					if data.lastValue == 0 {
-						rate = 0
+					if metric.lastValue >= 0 {
+						rate := float64(v-metric.lastValue) / timeDiff
+						if y, err := lp.New(metric.name+"_bw", metric.rate_tags, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+							output <- y
+						}
 					}
-					data.lastValue = v
-					if y, err := lp.New(data.name+"_bw", data.rate_tags, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
-						output <- y
-					}
+					metric.lastValue = v
 				}
 			}
 		}
