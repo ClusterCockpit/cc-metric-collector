@@ -104,34 +104,39 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 
 		// Check if device is a included device
 		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
+			tags_unit_byte := map[string]string{"device": dev, "type": "node", "unit": "bytes"}
+			tags_unit_byte_per_sec := map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"}
+			tags_unit_pkts := map[string]string{"device": dev, "type": "node", "unit": "packets"}
+			tags_unit_pkts_per_sec := map[string]string{"device": dev, "type": "node", "unit": "packets/sec"}
+
 			m.matches[dev] = []NetstatCollectorMetric{
 				{
 					name:      "net_bytes_in",
 					index:     fieldReceiveBytes,
 					lastValue: 0,
-					tags:      map[string]string{"device": dev, "type": "node", "unit": "bytes"},
-					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"},
+					tags:      tags_unit_byte,
+					rate_tags: tags_unit_byte_per_sec,
 				},
 				{
 					name:      "net_pkts_in",
 					index:     fieldReceivePackets,
 					lastValue: 0,
-					tags:      map[string]string{"device": dev, "type": "node", "unit": "packets"},
-					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "packets/sec"},
+					tags:      tags_unit_pkts,
+					rate_tags: tags_unit_pkts_per_sec,
 				},
 				{
 					name:      "net_bytes_out",
 					index:     fieldTransmitBytes,
 					lastValue: 0,
-					tags:      map[string]string{"device": dev, "type": "node", "unit": "bytes"},
-					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"},
+					tags:      tags_unit_byte,
+					rate_tags: tags_unit_byte_per_sec,
 				},
 				{
 					name:      "net_pkts_out",
 					index:     fieldTransmitPackets,
 					lastValue: 0,
-					tags:      map[string]string{"device": dev, "type": "node", "unit": "packets"},
-					rate_tags: map[string]string{"device": dev, "type": "node", "unit": "packets/sec"},
+					tags:      tags_unit_pkts,
+					rate_tags: tags_unit_pkts_per_sec,
 				},
 			}
 		}
