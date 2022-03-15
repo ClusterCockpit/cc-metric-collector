@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
@@ -26,15 +27,21 @@ type InfluxAsyncSinkConfig struct {
 	// Maximum number of points sent to server in single request. Default 5000
 	BatchSize uint `json:"batch_size,omitempty"`
 	// Interval, in ms, in which is buffer flushed if it has not been already written (by reaching batch size) . Default 1000ms
-	FlushInterval uint `json:"flush_interval,omitempty"`
+	FlushInterval         uint   `json:"flush_interval,omitempty"`
+	InfluxRetryInterval   string `json:"retry_interval"`
+	InfluxExponentialBase uint   `json:"retry_exponential_base"`
+	InfluxMaxRetries      uint   `json:"max_retries"`
+	InfluxMaxRetryTime    string `json:"max_retry_time"`
 }
 
 type InfluxAsyncSink struct {
 	sink
-	client   influxdb2.Client
-	writeApi influxdb2Api.WriteAPI
-	errors   <-chan error
-	config   InfluxAsyncSinkConfig
+	client              influxdb2.Client
+	writeApi            influxdb2Api.WriteAPI
+	errors              <-chan error
+	config              InfluxAsyncSinkConfig
+	influxRetryInterval uint
+	influxMaxRetryTime  uint
 }
 
 func (s *InfluxAsyncSink) connect() error {
@@ -63,6 +70,11 @@ func (s *InfluxAsyncSink) connect() error {
 			InsecureSkipVerify: true,
 		},
 	)
+	clientOptions.SetMaxRetryInterval(s.influxRetryInterval)
+	clientOptions.SetMaxRetryTime(s.influxMaxRetryTime)
+	clientOptions.SetExponentialBase(s.config.InfluxExponentialBase)
+	clientOptions.SetMaxRetries(s.config.InfluxMaxRetries)
+
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
 	ok, err := s.client.Ping(context.Background())
@@ -77,7 +89,7 @@ func (s *InfluxAsyncSink) connect() error {
 
 func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
 	s.writeApi.WritePoint(
-		m.ToPoint(s.config.MetaAsTags),
+		m.ToPoint(s.meta_as_tags),
 	)
 	return nil
 }
@@ -99,6 +111,33 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 
 	// Set default for maximum number of points sent to server in single request.
 	s.config.BatchSize = 100
+	s.influxRetryInterval = uint(time.Duration(1) * time.Second)
+	s.config.InfluxRetryInterval = "1s"
+	s.influxMaxRetryTime = uint(7 * time.Duration(24) * time.Hour)
+	s.config.InfluxMaxRetryTime = "168h"
+	s.config.InfluxMaxRetries = 20
+	s.config.InfluxExponentialBase = 2
+
+	// Default retry intervals (in seconds)
+	// 1 2
+	// 2 4
+	// 4 8
+	// 8 16
+	// 16 32
+	// 32 64
+	// 64 128
+	// 128 256
+	// 256 512
+	// 512 1024
+	// 1024 2048
+	// 2048 4096
+	// 4096 8192
+	// 8192 16384
+	// 16384 32768
+	// 32768 65536
+	// 65536 131072
+	// 131072 262144
+	// 262144 524288
 
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &s.config)
@@ -113,6 +152,21 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 		len(s.config.Password) == 0 {
 		return nil, errors.New("not all configuration variables set required by InfluxAsyncSink")
 	}
+	// Create lookup map to use meta infos as tags in the output metric
+	s.meta_as_tags = make(map[string]bool)
+	for _, k := range s.config.MetaAsTags {
+		s.meta_as_tags[k] = true
+	}
+
+	toUint := func(duration string, def uint) uint {
+		t, err := time.ParseDuration(duration)
+		if err == nil {
+			return uint(t.Milliseconds())
+		}
+		return def
+	}
+	s.influxRetryInterval = toUint(s.config.InfluxRetryInterval, s.influxRetryInterval)
+	s.influxMaxRetryTime = toUint(s.config.InfluxMaxRetryTime, s.influxMaxRetryTime)
 
 	// Connect to InfluxDB server
 	if err := s.connect(); err != nil {

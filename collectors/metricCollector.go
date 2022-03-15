@@ -125,5 +125,5 @@ func RemoveFromStringList(s []string, r string) ([]string, error) {
 			return append(s[:i], s[i+1:]...), nil
 		}
 	}
-	return s, fmt.Errorf("No such string in list")
+	return s, fmt.Errorf("no such string in list")
 }

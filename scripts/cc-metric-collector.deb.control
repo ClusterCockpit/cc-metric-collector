@@ -1,0 +1,12 @@
+Package: cc-metric-collector
+Version: {VERSION}
+Installed-Size: {INSTALLED_SIZE}
+Architecture: {ARCH}
+Maintainer: thomas.gruber@fau.de
+Depends: libc6 (>= 2.2.1)
+Build-Depends: debhelper-compat (= 13), git, golang-go
+Description: Metric collection daemon from the ClusterCockpit suite
+Homepage: https://github.com/ClusterCockpit/cc-metric-collector
+Source: cc-metric-collector
+Rules-Requires-Root: no
+

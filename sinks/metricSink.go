@@ -5,13 +5,13 @@ import (
 )
 
 type defaultSinkConfig struct {
-	MetaAsTags bool   `json:"meta_as_tags,omitempty"`
-	Type       string `json:"type"`
+	MetaAsTags []string `json:"meta_as_tags,omitempty"`
+	Type       string   `json:"type"`
 }
 
 type sink struct {
-	meta_as_tags bool   // Use meta data tags as tags
-	name         string // Name of the sink
+	meta_as_tags map[string]bool // Use meta data tags as tags
+	name         string          // Name of the sink
 }
 
 type Sink interface {

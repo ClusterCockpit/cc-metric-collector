@@ -63,7 +63,11 @@ func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
 			s.output = f
 		}
 	}
-	s.meta_as_tags = s.config.MetaAsTags
+	// Create lookup map to use meta infos as tags in the output metric
+	s.meta_as_tags = make(map[string]bool)
+	for _, k := range s.config.MetaAsTags {
+		s.meta_as_tags[k] = true
+	}
 
 	return s, nil
 }

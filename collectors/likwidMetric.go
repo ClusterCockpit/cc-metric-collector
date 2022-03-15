@@ -15,7 +15,6 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,48 +27,6 @@ import (
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
-type MetricScope string
-
-const (
-	METRIC_SCOPE_HWTHREAD = iota
-	METRIC_SCOPE_CORE
-	METRIC_SCOPE_LLC
-	METRIC_SCOPE_NUMA
-	METRIC_SCOPE_DIE
-	METRIC_SCOPE_SOCKET
-	METRIC_SCOPE_NODE
-)
-
-func (ms MetricScope) String() string {
-	return string(ms)
-}
-
-func (ms MetricScope) Likwid() string {
-	LikwidDomains := map[string]string{
-		"cpu":        "",
-		"core":       "",
-		"llc":        "C",
-		"numadomain": "M",
-		"die":        "D",
-		"socket":     "S",
-		"node":       "N",
-	}
-	return LikwidDomains[string(ms)]
-}
-
-func (ms MetricScope) Granularity() int {
-	for i, g := range GetAllMetricScopes() {
-		if ms == g {
-			return i
-		}
-	}
-	return -1
-}
-
-func GetAllMetricScopes() []MetricScope {
-	return []MetricScope{"cpu" /*, "core", "llc", "numadomain", "die",*/, "socket", "node"}
-}
-
 const (
 	LIKWID_LIB_NAME       = "liblikwid.so"
 	LIKWID_LIB_DL_FLAGS   = dl.RTLD_LAZY | dl.RTLD_GLOBAL
@@ -77,18 +34,16 @@ const (
 )
 
 type LikwidCollectorMetricConfig struct {
-	Name string `json:"name"` // Name of the metric
-	Calc string `json:"calc"` // Calculation for the metric using
-	//Aggr        string      `json:"aggregation"` // if scope unequal to LIKWID metric scope, the values are combined (sum, min, max, mean or avg, median)
-	Scope       MetricScope `json:"scope"` // scope for calculation. subscopes are aggregated using the 'aggregation' function
-	Publish     bool        `json:"publish"`
-	granulatity MetricScope
+	Name    string `json:"name"` // Name of the metric
+	Calc    string `json:"calc"` // Calculation for the metric using
+	Type    string `json:"type"` // Metric type (aka node, socket, cpu, ...)
+	Publish bool   `json:"publish"`
+	Unit    string `json:"unit"` // Unit of metric if any
 }
 
 type LikwidCollectorEventsetConfig struct {
-	Events      map[string]string `json:"events"`
-	granulatity map[string]MetricScope
-	Metrics     []LikwidCollectorMetricConfig `json:"metrics"`
+	Events  map[string]string             `json:"events"`
+	Metrics []LikwidCollectorMetricConfig `json:"metrics"`
 }
 
 type LikwidCollectorConfig struct {
@@ -98,28 +53,28 @@ type LikwidCollectorConfig struct {
 	InvalidToZero  bool                            `json:"invalid_to_zero,omitempty"`
 	AccessMode     string                          `json:"access_mode,omitempty"`
 	DaemonPath     string                          `json:"accessdaemon_path,omitempty"`
+	LibraryPath    string                          `json:"liblikwid_path,omitempty"`
 }
 
 type LikwidCollector struct {
 	metricCollector
-	cpulist       []C.int
-	cpu2tid       map[int]int
-	sock2tid      map[int]int
-	scopeRespTids map[MetricScope]map[int]int
-	metrics       map[C.int]map[string]int
-	groups        []C.int
-	config        LikwidCollectorConfig
-	results       map[int]map[int]map[string]interface{}
-	mresults      map[int]map[int]map[string]float64
-	gmresults     map[int]map[string]float64
-	basefreq      float64
-	running       bool
+	cpulist   []C.int
+	cpu2tid   map[int]int
+	sock2tid  map[int]int
+	metrics   map[C.int]map[string]int
+	groups    []C.int
+	config    LikwidCollectorConfig
+	results   map[int]map[int]map[string]interface{}
+	mresults  map[int]map[int]map[string]float64
+	gmresults map[int]map[string]float64
+	basefreq  float64
+	running   bool
 }
 
 type LikwidMetric struct {
 	name      string
 	search    string
-	scope     MetricScope
+	scope     string
 	group_idx int
 }
 
@@ -131,152 +86,43 @@ func eventsToEventStr(events map[string]string) string {
 	return strings.Join(elist, ",")
 }
 
-func getGranularity(counter, event string) MetricScope {
-	if strings.HasPrefix(counter, "PMC") || strings.HasPrefix(counter, "FIXC") {
-		return "cpu"
-	} else if strings.Contains(counter, "BOX") || strings.Contains(counter, "DEV") {
-		return "socket"
-	} else if strings.HasPrefix(counter, "PWR") {
-		if event == "RAPL_CORE_ENERGY" {
-			return "cpu"
-		} else {
-			return "socket"
-		}
-	}
-	return "unknown"
-}
-
 func getBaseFreq() float64 {
 	var freq float64 = math.NaN()
 	C.power_init(0)
 	info := C.get_powerInfo()
 	if float64(info.baseFrequency) != 0 {
-		freq = float64(info.baseFrequency) * 1e3
+		freq = float64(info.baseFrequency) * 1e6
 	} else {
 		buffer, err := ioutil.ReadFile("/sys/devices/system/cpu/cpu0/cpufreq/bios_limit")
 		if err == nil {
 			data := strings.Replace(string(buffer), "\n", "", -1)
 			x, err := strconv.ParseInt(data, 0, 64)
 			if err == nil {
-				freq = float64(x) * 1e3
+				freq = float64(x) * 1e6
 			}
 		}
 	}
 	return freq
 }
 
-func (m *LikwidCollector) initGranularity() {
-	splitRegex := regexp.MustCompile("[+-/*()]")
-	for _, evset := range m.config.Eventsets {
-		evset.granulatity = make(map[string]MetricScope)
-		for counter, event := range evset.Events {
-			gran := getGranularity(counter, event)
-			if gran.Granularity() >= 0 {
-				evset.granulatity[counter] = gran
-			}
-		}
-		for i, metric := range evset.Metrics {
-			s := splitRegex.Split(metric.Calc, -1)
-			gran := MetricScope("cpu")
-			evset.Metrics[i].granulatity = gran
-			for _, x := range s {
-				if _, ok := evset.Events[x]; ok {
-					if evset.granulatity[x].Granularity() > gran.Granularity() {
-						gran = evset.granulatity[x]
-					}
-				}
-			}
-			evset.Metrics[i].granulatity = gran
-		}
-	}
-	for i, metric := range m.config.Metrics {
-		s := splitRegex.Split(metric.Calc, -1)
-		gran := MetricScope("cpu")
-		m.config.Metrics[i].granulatity = gran
-		for _, x := range s {
-			for _, evset := range m.config.Eventsets {
-				for _, m := range evset.Metrics {
-					if m.Name == x && m.granulatity.Granularity() > gran.Granularity() {
-						gran = m.granulatity
-					}
-				}
-			}
-		}
-		m.config.Metrics[i].granulatity = gran
-	}
-}
-
-type TopoResolveFunc func(cpuid int) int
-
-func (m *LikwidCollector) getResponsiblities() map[MetricScope]map[int]int {
-	get_cpus := func(scope MetricScope) map[int]int {
-		var slist []int
-		var cpu C.int
-		var input func(index int) string
-		switch scope {
-		case "node":
-			slist = []int{0}
-			input = func(index int) string { return "N:0" }
-		case "socket":
-			input = func(index int) string { return fmt.Sprintf("%s%d:0", scope.Likwid(), index) }
-			slist = topo.SocketList()
-		// case "numadomain":
-		// 	input = func(index int) string { return fmt.Sprintf("%s%d:0", scope.Likwid(), index) }
-		// 	slist = topo.NumaNodeList()
-		// 	cclog.Debug(scope, " ", input(0), " ", slist)
-		// case "die":
-		// 	input = func(index int) string { return fmt.Sprintf("%s%d:0", scope.Likwid(), index) }
-		// 	slist = topo.DieList()
-		// case "llc":
-		// 	input = fmt.Sprintf("%s%d:0", scope.Likwid(), s)
-		// 	slist = topo.LLCacheList()
-		case "cpu":
-			input = func(index int) string { return fmt.Sprintf("%d", index) }
-			slist = topo.CpuList()
-		case "hwthread":
-			input = func(index int) string { return fmt.Sprintf("%d", index) }
-			slist = topo.CpuList()
-		}
-		outmap := make(map[int]int)
-		for _, s := range slist {
-			t := C.CString(input(s))
-			clen := C.cpustr_to_cpulist(t, &cpu, 1)
-			if int(clen) == 1 {
-				outmap[s] = m.cpu2tid[int(cpu)]
-			} else {
-				cclog.Error(fmt.Sprintf("Cannot determine responsible CPU for %s", input(s)))
-				outmap[s] = -1
-			}
-			C.free(unsafe.Pointer(t))
-		}
-		return outmap
-	}
-
-	scopes := GetAllMetricScopes()
-	complete := make(map[MetricScope]map[int]int)
-	for _, s := range scopes {
-		complete[s] = get_cpus(s)
-	}
-	return complete
-}
-
 func (m *LikwidCollector) Init(config json.RawMessage) error {
 	var ret C.int
 	m.name = "LikwidCollector"
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
+	m.config.LibraryPath = LIKWID_LIB_NAME
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			return err
 		}
 	}
-	lib := dl.New(LIKWID_LIB_NAME, LIKWID_LIB_DL_FLAGS)
+	lib := dl.New(m.config.LibraryPath, LIKWID_LIB_DL_FLAGS)
 	if lib == nil {
-		return fmt.Errorf("error instantiating DynamicLibrary for %s", LIKWID_LIB_NAME)
+		return fmt.Errorf("error instantiating DynamicLibrary for %s", m.config.LibraryPath)
 	}
 	err := lib.Open()
 	if err != nil {
-		return fmt.Errorf("error opening %s: %v", LIKWID_LIB_NAME, err)
+		return fmt.Errorf("error opening %s: %v", m.config.LibraryPath, err)
 	}
 
 	if m.config.ForceOverwrite {
@@ -306,10 +152,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		return err
 	}
 
-	// Determine which counter works at which level. PMC*: cpu, *BOX*: socket, ...
-	m.initGranularity()
-	// Generate map for MetricScope -> scope_id (like socket id) -> responsible id (offset in cpulist)
-	m.scopeRespTids = m.getResponsiblities()
 	switch m.config.AccessMode {
 	case "direct":
 		C.HPMmode(0)
@@ -336,29 +178,36 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	globalParams["inverseClock"] = float64(1.0)
 	// While adding the events, we test the metrics whether they can be computed at all
 	for i, evset := range m.config.Eventsets {
-		estr := eventsToEventStr(evset.Events)
-		// Generate parameter list for the metric computing test
-		params := make(map[string]interface{})
-		params["time"] = float64(1.0)
-		params["inverseClock"] = float64(1.0)
-		for counter := range evset.Events {
-			params[counter] = float64(1.0)
-		}
-		for _, metric := range evset.Metrics {
-			// Try to evaluate the metric
-			_, err := agg.EvalFloat64Condition(metric.Calc, params)
-			if err != nil {
-				cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
-				continue
+		var gid C.int
+		var cstr *C.char
+		if len(evset.Events) > 0 {
+			estr := eventsToEventStr(evset.Events)
+			// Generate parameter list for the metric computing test
+			params := make(map[string]interface{})
+			params["time"] = float64(1.0)
+			params["inverseClock"] = float64(1.0)
+			for counter := range evset.Events {
+				params[counter] = float64(1.0)
 			}
-			// If the metric is not in the parameter list for the global metrics, add it
-			if _, ok := globalParams[metric.Name]; !ok {
-				globalParams[metric.Name] = float64(1.0)
+			for _, metric := range evset.Metrics {
+				// Try to evaluate the metric
+				_, err := agg.EvalFloat64Condition(metric.Calc, params)
+				if err != nil {
+					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
+					continue
+				}
+				// If the metric is not in the parameter list for the global metrics, add it
+				if _, ok := globalParams[metric.Name]; !ok {
+					globalParams[metric.Name] = float64(1.0)
+				}
 			}
+			// Now we add the list of events to likwid
+			cstr = C.CString(estr)
+			gid = C.perfmon_addEventSet(cstr)
+		} else {
+			cclog.ComponentError(m.name, "Invalid Likwid eventset config, no events given")
+			continue
 		}
-		// Now we add the list of events to likwid
-		cstr := C.CString(estr)
-		gid := C.perfmon_addEventSet(cstr)
 		if gid >= 0 {
 			m.groups = append(m.groups, gid)
 		}
@@ -434,15 +283,9 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 	// Go over events and get the results
 	for eidx = 0; int(eidx) < len(evset.Events); eidx++ {
 		ctr := C.perfmon_getCounterName(gid, eidx)
-		ev := C.perfmon_getEventName(gid, eidx)
 		gctr := C.GoString(ctr)
-		gev := C.GoString(ev)
-		// MetricScope for the counter (and if needed the event)
-		scope := getGranularity(gctr, gev)
-		// Get the map scope-id -> tids
-		// This way we read less counters like only the responsible hardware thread for a socket
-		scopemap := m.scopeRespTids[scope]
-		for _, tid := range scopemap {
+
+		for _, tid := range m.cpu2tid {
 			if tid >= 0 {
 				m.results[group][tid]["time"] = interval.Seconds()
 				m.results[group][tid]["inverseClock"] = invClock
@@ -456,7 +299,10 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 	for _, metric := range evset.Metrics {
 		// The metric scope is determined in the Init() function
 		// Get the map scope-id -> tids
-		scopemap := m.scopeRespTids[metric.Scope]
+		scopemap := m.cpu2tid
+		if metric.Type == "socket" {
+			scopemap = m.sock2tid
+		}
 		for domain, tid := range scopemap {
 			if tid >= 0 {
 				value, err := agg.EvalFloat64Condition(metric.Calc, m.results[group][tid])
@@ -474,13 +320,15 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
-						tags := map[string]string{"type": metric.Scope.String()}
-						if metric.Scope != "node" {
-							tags["type-id"] = fmt.Sprintf("%d", domain)
-						}
 						fields := map[string]interface{}{"value": value}
-						y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+						y, err := lp.New(metric.Name, map[string]string{"type": metric.Type}, m.meta, fields, time.Now())
 						if err == nil {
+							if metric.Type != "node" {
+								y.AddTag("type-id", fmt.Sprintf("%d", domain))
+							}
+							if len(metric.Unit) > 0 {
+								y.AddMeta("unit", metric.Unit)
+							}
 							output <- y
 						}
 					}
@@ -495,7 +343,10 @@ func (m *LikwidCollector) calcEventsetMetrics(group int, interval time.Duration,
 // Go over the global metrics, derive the value out of the event sets' metric values and send it
 func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan lp.CCMetric) error {
 	for _, metric := range m.config.Metrics {
-		scopemap := m.scopeRespTids[metric.Scope]
+		scopemap := m.cpu2tid
+		if metric.Type == "socket" {
+			scopemap = m.sock2tid
+		}
 		for domain, tid := range scopemap {
 			if tid >= 0 {
 				// Here we generate parameter list
@@ -521,13 +372,16 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
-						tags := map[string]string{"type": metric.Scope.String()}
-						if metric.Scope != "node" {
-							tags["type-id"] = fmt.Sprintf("%d", domain)
-						}
+						tags := map[string]string{"type": metric.Type}
 						fields := map[string]interface{}{"value": value}
 						y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
 						if err == nil {
+							if metric.Type != "node" {
+								y.AddTag("type-id", fmt.Sprintf("%d", domain))
+							}
+							if len(metric.Unit) > 0 {
+								y.AddMeta("unit", metric.Unit)
+							}
 							output <- y
 						}
 					}

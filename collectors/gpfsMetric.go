@@ -17,14 +17,24 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 )
 
+const DEFAULT_GPFS_CMD = "mmpmon"
+
+type GpfsCollectorLastState struct {
+	bytesRead    int64
+	bytesWritten int64
+}
+
 type GpfsCollector struct {
 	metricCollector
 	tags   map[string]string
 	config struct {
 		Mmpmon            string   `json:"mmpmon_path,omitempty"`
 		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
+		SendBandwidths    bool     `json:"send_bandwidths"`
 	}
-	skipFS map[string]struct{}
+	skipFS        map[string]struct{}
+	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
+	lastState     map[string]GpfsCollectorLastState
 }
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
@@ -38,7 +48,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.setup()
 
 	// Set default mmpmon binary
-	m.config.Mmpmon = "/usr/lpp/mmfs/bin/mmpmon"
+	m.config.Mmpmon = DEFAULT_GPFS_CMD
 
 	// Read JSON configuration
 	if len(config) > 0 {
@@ -64,17 +74,18 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
 	user, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("Failed to get current user: %v", err)
+		return fmt.Errorf("failed to get current user: %v", err)
 	}
 	if user.Uid != "0" {
 		return fmt.Errorf("GPFS file system statistics can only be queried by user root")
 	}
 
 	// Check if mmpmon is in executable search path
-	_, err = exec.LookPath(m.config.Mmpmon)
+	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		return fmt.Errorf("Failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+		return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
 	}
+	m.config.Mmpmon = p
 
 	m.init = true
 	return nil
@@ -85,6 +96,13 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
 		return
 	}
+
+	// Current time stamp
+	now := time.Now()
+	// time difference to last time stamp
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	// Save current timestamp
+	m.lastTimestamp = now
 
 	// mmpmon:
 	// -p: generate output that can be parsed
@@ -145,6 +163,12 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 
 		m.tags["filesystem"] = filesystem
+		if _, ok := m.lastState[filesystem]; !ok {
+			m.lastState[filesystem] = GpfsCollectorLastState{
+				bytesRead:    -1,
+				bytesWritten: -1,
+			}
+		}
 
 		// return code
 		rc, err := strconv.Atoi(key_value["_rc_"])
@@ -188,6 +212,14 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		if y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp); err == nil {
 			output <- y
 		}
+		if m.config.SendBandwidths {
+			if lastBytesRead := m.lastState[filesystem].bytesRead; lastBytesRead >= 0 {
+				bwRead := float64(bytesRead-lastBytesRead) / timeDiff
+				if y, err := lp.New("gpfs_bw_read", m.tags, m.meta, map[string]interface{}{"value": bwRead}, timestamp); err == nil {
+					output <- y
+				}
+			}
+		}
 
 		// bytes written
 		bytesWritten, err := strconv.ParseInt(key_value["_bw_"], 10, 64)
@@ -199,6 +231,21 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp); err == nil {
 			output <- y
+		}
+		if m.config.SendBandwidths {
+			if lastBytesWritten := m.lastState[filesystem].bytesRead; lastBytesWritten >= 0 {
+				bwWrite := float64(bytesWritten-lastBytesWritten) / timeDiff
+				if y, err := lp.New("gpfs_bw_write", m.tags, m.meta, map[string]interface{}{"value": bwWrite}, timestamp); err == nil {
+					output <- y
+				}
+			}
+		}
+
+		if m.config.SendBandwidths {
+			m.lastState[filesystem] = GpfsCollectorLastState{
+				bytesRead:    bytesRead,
+				bytesWritten: bytesWritten,
+			}
 		}
 
 		// number of opens

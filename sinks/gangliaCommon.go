@@ -148,10 +148,14 @@ type GangliaMetricConfig struct {
 	Unit  string
 	Group string
 	Value string
+	Name  string
 }
 
 func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 	mname := GangliaMetricRename(point.Name())
+	if oldname, ok := point.GetMeta("oldname"); ok {
+		mname = GangliaMetricRename(oldname)
+	}
 	for _, group := range CommonGangliaMetrics {
 		for _, metric := range group.Metrics {
 			if metric.Name == mname {
@@ -187,6 +191,7 @@ func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 					Tmax:  metric.Tmax,
 					Unit:  metric.Unit,
 					Value: valueStr,
+					Name:  GangliaMetricRename(mname),
 				}
 			}
 		}
@@ -198,10 +203,15 @@ func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 		Tmax:  0,
 		Unit:  "",
 		Value: "",
+		Name:  "",
 	}
 }
 
 func GetGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
+	mname := GangliaMetricRename(point.Name())
+	if oldname, ok := point.GetMeta("oldname"); ok {
+		mname = GangliaMetricRename(oldname)
+	}
 	group := ""
 	if g, ok := point.GetMeta("group"); ok {
 		group = g
@@ -254,5 +264,6 @@ func GetGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 		Tmax:  DEFAULT_GANGLIA_METRIC_TMAX,
 		Unit:  unit,
 		Value: valueStr,
+		Name:  GangliaMetricRename(mname),
 	}
 }
