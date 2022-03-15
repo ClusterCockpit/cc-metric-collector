@@ -5,7 +5,9 @@
   "ibstat": {
     "exclude_devices": [
       "mlx4"
-    ]
+    ],
+    "send_abs_values": true,
+    "send_derived_values": true
   }
 ```
 
@@ -22,5 +24,9 @@ Metrics:
 * `ib_xmit`
 * `ib_recv_pkts`
 * `ib_xmit_pkts`
+* `ib_recv_bw` (if `send_derived_values == true`)
+* `ib_xmit_bw` (if `send_derived_values == true`)
+* `ib_recv_pkts_bw` (if `send_derived_values == true`)
+* `ib_xmit_pkts_bw` (if `send_derived_values == true`)
 
 The collector adds a `device` tag to all metrics

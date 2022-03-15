@@ -4,14 +4,17 @@
 The `likwid` collector is probably the most complicated collector. The LIKWID library is included as static library with *direct* access mode. The *direct* access mode is suitable if the daemon is executed by a root user. The static library does not contain the performance groups, so all information needs to be provided in the configuration.
 
 The `likwid` configuration consists of two parts, the "eventsets" and "globalmetrics":
-- An event set list itself has two parts, the "events" and a set of derivable "metrics". Each of the "events" is a counter:event pair in LIKWID's syntax. The "metrics" are a list of formulas to derive the metric value from the measurements of the "events". Each metric has a name, the formula, a scope and a publish flag. Counter names can be used like variables in the formulas, so `PMC0+PMC1` sums the measurements for the both events configured in the counters `PMC0` and `PMC1`. The scope tells the Collector whether it is a metric for each hardware thread (`cpu`) or each CPU socket (`socket`). The last one is the publishing flag. It tells the collector whether a metric should be sent to the router.
-- The global metrics are metrics which require data from all event set measurements to be derived. The inputs are the metrics in the event sets. Similar to the metrics in the event sets, the global metrics are defined by a name, a formula, a scope and a publish flag. See event set metrics for details. The only difference is that there is no access to the raw event measurements anymore but only to the metrics. So, the idea is to derive a metric in the "eventsets" section and reuse it in the "globalmetrics" part. If you need a metric only for deriving the global metrics, disable forwarding of the event set metrics. **Be aware** that the combination might be misleading because the "behavior" of a metric changes over time and the multiple measurements might count different computing phases.
+- An event set list itself has two parts, the "events" and a set of derivable "metrics". Each of the "events" is a counter:event pair in LIKWID's syntax. The "metrics" are a list of formulas to derive the metric value from the measurements of the "events". Each metric has a name, the formula, a scope and a publish flag. Counter names can be used like variables in the formulas, so `PMC0+PMC1` sums the measurements for the both events configured in the counters `PMC0` and `PMC1`. The scope tells the Collector whether it is a metric for each hardware thread (`cpu`) or each CPU socket (`socket`). You may specify a unit for the metric with `unit`. The last one is the publishing flag. It tells the collector whether a metric should be sent to the router.
+- The global metrics are metrics which require data from all event set measurements to be derived. The inputs are the metrics in the event sets. Similar to the metrics in the event sets, the global metrics are defined by a name, a formula, a scope and a publish flag. See event set metrics for details. The only difference is that there is no access to the raw event measurements anymore but only to the metrics. So, the idea is to derive a metric in the "eventsets" section and reuse it in the "globalmetrics" part. If you need a metric only for deriving the global metrics, disable forwarding of the event set metrics (`publish=false`). **Be aware** that the combination might be misleading because the "behavior" of a metric changes over time and the multiple measurements might count different computing phases. Similar to the metrics in the eventset, you can specify a metric unit with the `unit` field.
 
 Additional options:
 - `access_mode` : Method to use for hardware performance monitoring (`direct` access as root user, `accessdaemon` for the daemon mode)
 - `accessdaemon_path`: Folder with the access daemon `likwid-accessD`, commonly `$LIKWID_INSTALL_LOC/sbin`
 - `force_overwrite`: Same as setting `LIKWID_FORCE=1`. In case counters are already in-use, LIKWID overwrites their configuration to do its measurements
 - `invalid_to_zero`: In some cases, the calculations result in `NaN` or `Inf`. With this option, all `NaN` and `Inf` values are replaces with `0.0`.
+- `access_mode`: Specify LIKWID access mode: `direct` for direct register access as root user or `accessdaemon`
+- `accessdaemon_path`: Folder of the accessDaemon `likwid-accessD`
+- `liblikwid_path`: Location of `liblikwid.so`
 
 ### Available metric scopes
 
@@ -54,7 +57,8 @@ $ scripts/likwid_perfgroup_to_cc_config.py ICX MEM_DP
       "calc": "time",
       "name": "Runtime (RDTSC) [s]",
       "publish": true,
-      "scope": "hwthread"
+      "unit": "seconds"
+      "scope": "cpu"
     },
     {
       "..." : "..."
@@ -104,25 +108,28 @@ $ chwon $CCUSER /var/run/likwid.lock
           {
             "name": "ipc",
             "calc": "PMC0/PMC1",
-            "scope": "cpu",
+            "type": "cpu",
             "publish": true
           },
           {
             "name": "flops_any",
             "calc": "0.000001*PMC2/time",
-            "scope": "cpu",
+            "unit": "MFlops/s",
+            "type": "cpu",
             "publish": true
           },
           {
-            "name": "clock_mhz",
+            "name": "clock",
             "calc": "0.000001*(FIXC1/FIXC2)/inverseClock",
-            "scope": "cpu",
+            "type": "cpu",
+            "unit": "MHz",
             "publish": true
           },
           {
             "name": "mem1",
             "calc": "0.000001*(DFC0+DFC1+DFC2+DFC3)*64.0/time",
-            "scope": "socket",
+            "unit": "Mbyte/s",
+            "type": "socket",
             "publish": false
           }
         ]
@@ -140,19 +147,22 @@ $ chwon $CCUSER /var/run/likwid.lock
           {
             "name": "pwr_core",
             "calc": "PWR0/time",
-            "scope": "socket",
+            "unit": "Watt"
+            "type": "socket",
             "publish": true
           },
           {
             "name": "pwr_pkg",
             "calc": "PWR1/time",
-            "scope": "socket",
+            "type": "socket",
+            "unit": "Watt"
             "publish": true
           },
           {
             "name": "mem2",
             "calc": "0.000001*(DFC0+DFC1+DFC2+DFC3)*64.0/time",
-            "scope": "socket",
+            "unit": "Mbyte/s",
+            "type": "socket",
             "publish": false
           }
         ]
@@ -162,7 +172,8 @@ $ chwon $CCUSER /var/run/likwid.lock
       {
         "name": "mem_bw",
         "calc": "mem1+mem2",
-        "scope": "socket",
+        "type": "socket",
+        "unit": "Mbyte/s",
         "publish": true
       }
     ]
@@ -198,3 +209,4 @@ IPC   PMC0/PMC1                  ->     {
                                  ->   ]
 ```
 
+The script `scripts/likwid_perfgroup_to_cc_config.py` might help you.

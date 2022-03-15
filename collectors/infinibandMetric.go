@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const IB_BASEPATH = `/sys/class/infiniband/`
+const IB_BASEPATH = "/sys/class/infiniband/"
 
 type InfinibandCollectorInfo struct {
 	LID              string            // IB local Identifier (LID)
@@ -24,14 +24,18 @@ type InfinibandCollectorInfo struct {
 	port             string            // IB device port
 	portCounterFiles map[string]string // mapping counter name -> sysfs file
 	tagSet           map[string]string // corresponding tag list
+	lastState        map[string]int64  // State from last measurement
 }
 
 type InfinibandCollector struct {
 	metricCollector
 	config struct {
-		ExcludeDevices []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
+		ExcludeDevices     []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
+		SendAbsoluteValues bool     `json:"send_abs_values"`           // Send absolut values as read from sys filesystem
+		SendDerivedValues  bool     `json:"send_derived_values"`       // Send derived values e.g. rates
 	}
-	info []*InfinibandCollectorInfo
+	info          []*InfinibandCollectorInfo
+	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
 }
 
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
@@ -49,6 +53,11 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		"source": m.name,
 		"group":  "Network",
 	}
+
+	// Set default configuration,
+	m.config.SendAbsoluteValues = true
+	m.config.SendDerivedValues = false
+	// Read configuration file, allow overwriting default config
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -60,10 +69,10 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	globPattern := filepath.Join(IB_BASEPATH, "*", "ports", "*")
 	ibDirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("Unable to glob files with pattern %s: %v", globPattern, err)
+		return fmt.Errorf("unable to glob files with pattern %s: %v", globPattern, err)
 	}
 	if ibDirs == nil {
-		return fmt.Errorf("Unable to find any directories with pattern %s", globPattern)
+		return fmt.Errorf("unable to find any directories with pattern %s", globPattern)
 	}
 
 	for _, path := range ibDirs {
@@ -106,8 +115,14 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		for _, counterFile := range portCounterFiles {
 			err := unix.Access(counterFile, unix.R_OK)
 			if err != nil {
-				return fmt.Errorf("Unable to access %s: %v", counterFile, err)
+				return fmt.Errorf("unable to access %s: %v", counterFile, err)
 			}
+		}
+
+		// Initialize last state
+		lastState := make(map[string]int64)
+		for counter := range portCounterFiles {
+			lastState[counter] = -1
 		}
 
 		m.info = append(m.info,
@@ -122,11 +137,12 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 					"port":   port,
 					"lid":    LID,
 				},
+				lastState: lastState,
 			})
 	}
 
 	if len(m.info) == 0 {
-		return fmt.Errorf("Found no IB devices")
+		return fmt.Errorf("found no IB devices")
 	}
 
 	m.init = true
@@ -141,9 +157,17 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		return
 	}
 
+	// Current time stamp
 	now := time.Now()
+	// time difference to last time stamp
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	// Save current timestamp
+	m.lastTimestamp = now
+
 	for _, info := range m.info {
 		for counterName, counterFile := range info.portCounterFiles {
+
+			// Read counter file
 			line, err := ioutil.ReadFile(counterFile)
 			if err != nil {
 				cclog.ComponentError(
@@ -152,6 +176,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 				continue
 			}
 			data := strings.TrimSpace(string(line))
+
+			// convert counter to int64
 			v, err := strconv.ParseInt(data, 10, 64)
 			if err != nil {
 				cclog.ComponentError(
@@ -159,8 +185,24 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterName, data, err))
 				continue
 			}
-			if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
-				output <- y
+
+			// Send absolut values
+			if m.config.SendAbsoluteValues {
+				if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+					output <- y
+				}
+			}
+
+			// Send derived values
+			if m.config.SendDerivedValues {
+				if info.lastState[counterName] >= 0 {
+					rate := float64((v - info.lastState[counterName])) / timeDiff
+					if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+						output <- y
+					}
+				}
+				// Save current state
+				info.lastState[counterName] = v
 			}
 		}
 

@@ -19,20 +19,23 @@ const LCTL_CMD = `lctl`
 const LCTL_OPTION = `get_param`
 
 type LustreCollectorConfig struct {
-	LCtlCommand    string   `json:"lctl_command"`
-	ExcludeMetrics []string `json:"exclude_metrics"`
-	SendAllMetrics bool     `json:"send_all_metrics"`
-	Sudo           bool     `json:"use_sudo"`
+	LCtlCommand        string   `json:"lctl_command"`
+	ExcludeMetrics     []string `json:"exclude_metrics"`
+	SendAllMetrics     bool     `json:"send_all_metrics"`
+	Sudo               bool     `json:"use_sudo"`
+	SendAbsoluteValues bool     `json:"send_abs_values"`
+	SendDerivedValues  bool     `json:"send_derived_values"`
 }
 
 type LustreCollector struct {
 	metricCollector
-	tags    map[string]string
-	matches map[string]map[string]int
-	stats   map[string]map[string]int64
-	config  LustreCollectorConfig
-	lctl    string
-	sudoCmd string
+	tags          map[string]string
+	matches       map[string]map[string]int
+	stats         map[string]map[string]int64
+	config        LustreCollectorConfig
+	lctl          string
+	sudoCmd       string
+	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
 }
 
 func (m *LustreCollector) getDeviceDataCommand(device string) []string {
@@ -165,6 +168,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 			}
 		}
 	}
+	m.lastTimestamp = time.Now()
 	m.init = true
 	return nil
 }
@@ -173,6 +177,8 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 	if !m.init {
 		return
 	}
+	now := time.Now()
+	tdiff := now.Sub(m.lastTimestamp)
 	for device, devData := range m.stats {
 		stats := m.getDeviceDataCommand(device)
 		processed := []string{}
@@ -183,23 +189,35 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if fields, ok := m.matches[lf[0]]; ok {
 					for name, idx := range fields {
 						x, err := strconv.ParseInt(lf[idx], 0, 64)
-						if err != nil {
-							continue
-						}
-						value := x - devData[name]
-						devData[name] = x
-						if value < 0 {
-							value = 0
-						}
-						y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 						if err == nil {
-							y.AddTag("device", device)
-							if strings.Contains(name, "byte") {
-								y.AddMeta("unit", "Byte")
+							value := x - devData[name]
+							devData[name] = x
+							if value < 0 {
+								value = 0
 							}
-							output <- y
-							if m.config.SendAllMetrics {
-								processed = append(processed, name)
+							if m.config.SendAbsoluteValues {
+								y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+								if err == nil {
+									y.AddTag("device", device)
+									if strings.Contains(name, "byte") {
+										y.AddMeta("unit", "Byte")
+									}
+									output <- y
+									if m.config.SendAllMetrics {
+										processed = append(processed, name)
+									}
+								}
+							}
+							if m.config.SendDerivedValues && strings.Contains(name, "bytes") {
+								y, err := lp.New(name+"_bw", m.tags, m.meta, map[string]interface{}{"value": float64(value) / tdiff.Seconds()}, time.Now())
+								if err == nil {
+									y.AddTag("device", device)
+									y.AddMeta("unit", "Bytes/sec")
+									output <- y
+									if m.config.SendAllMetrics {
+										processed = append(processed, name)
+									}
+								}
 							}
 						}
 					}
@@ -221,6 +239,7 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			}
 		}
 	}
+	m.lastTimestamp = now
 }
 
 func (m *LustreCollector) Close() {

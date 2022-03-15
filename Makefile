@@ -15,6 +15,8 @@ COMPONENT_DIRS   := collectors \
 			internal/ccTopology \
 			internal/multiChanTicker
 
+BINDIR = bin
+
 
 .PHONY: all
 all: $(APP)
@@ -24,15 +26,27 @@ $(APP): $(GOSRC)
 	go get
 	go build -o $(APP) $(GOSRC_APP)
 
+install: $(APP)
+	@WORKSPACE=$(PREFIX)
+	@if [ -z "$${WORKSPACE}" ]; then exit 1; fi
+	@mkdir --parents --verbose $${WORKSPACE}/usr/$(BINDIR)
+	@install -Dpm 755 $(APP) $${WORKSPACE}/usr/$(BINDIR)/$(APP)
+	@mkdir --parents --verbose $${WORKSPACE}/etc/cc-metric-collector $${WORKSPACE}/etc/default $${WORKSPACE}/etc/systemd/system $${WORKSPACE}/etc/init.d
+	@install -Dpm 600 config.json $${WORKSPACE}/etc/cc-metric-collector/cc-metric-collector.json
+	@sed -i -e s+"\"./"+"\"/etc/cc-metric-collector/"+g $${WORKSPACE}/etc/cc-metric-collector/cc-metric-collector.json
+	@install -Dpm 600 sinks.json $${WORKSPACE}/etc/cc-metric-collector/sinks.json
+	@install -Dpm 600 collectors.json $${WORKSPACE}/etc/cc-metric-collector/collectors.json
+	@install -Dpm 600 router.json $${WORKSPACE}/etc/cc-metric-collector/router.json
+	@install -Dpm 600 receivers.json $${WORKSPACE}/etc/cc-metric-collector/receivers.json
+	@install -Dpm 600 scripts/cc-metric-collector.config $${WORKSPACE}/etc/default/cc-metric-collector
+	@install -Dpm 644 scripts/cc-metric-collector.service $${WORKSPACE}/etc/systemd/system/cc-metric-collector.service
+	@install -Dpm 644 scripts/cc-metric-collector.init $${WORKSPACE}/etc/init.d/cc-metric-collector
+
+
 .PHONY: clean
 .ONESHELL:
 clean:
-	@for COMP in $(COMPONENT_DIRS)
-	do
-	    if [[ -e $$COMP/Makefile ]]; then
-	        make -C $$COMP clean
-	    fi
-	done
+	@for COMP in $(COMPONENT_DIRS); do if [ -e $$COMP/Makefile ]; then make -C $$COMP clean;  fi; done
 	rm -f $(APP)
 
 .PHONY: fmt
@@ -69,7 +83,7 @@ RPM: scripts/cc-metric-collector.spec
 	@COMMITISH="HEAD"
 	@VERS=$$(git describe --tags $${COMMITISH})
 	@VERS=$${VERS#v}
-	@VERS=$${VERS//-/_}
+	@VERS=$$(echo $$VERS | sed -e s+'-'+'_'+g)
 	@eval $$(rpmspec --query --queryformat "NAME='%{name}' VERSION='%{version}' RELEASE='%{release}' NVR='%{NVR}' NVRA='%{NVRA}'" --define="VERS $${VERS}" "$${SPECFILE}")
 	@PREFIX="$${NAME}-$${VERSION}"
 	@FORMAT="tar.gz"
@@ -86,3 +100,28 @@ RPM: scripts/cc-metric-collector.spec
 	@     echo "::set-output name=SRPM::$${SRPMFILE}"
 	@     echo "::set-output name=RPM::$${RPMFILE}"
 	@fi
+
+.PHONY: DEB
+DEB: scripts/cc-metric-collector.deb.control $(APP)
+	@BASEDIR=$${PWD}
+	@WORKSPACE=$${PWD}/.dpkgbuild
+	@DEBIANDIR=$${WORKSPACE}/debian
+	@DEBIANBINDIR=$${WORKSPACE}/DEBIAN
+	@mkdir --parents --verbose $$WORKSPACE $$DEBIANBINDIR
+	#@mkdir --parents --verbose $$DEBIANDIR
+	@CONTROLFILE="$${BASEDIR}/scripts/cc-metric-collector.deb.control"
+	@COMMITISH="HEAD"
+	@VERS=$$(git describe --tags --abbrev=0 $${COMMITISH})
+	@VERS=$${VERS#v}
+	@VERS=$$(echo $$VERS | sed -e s+'-'+'_'+g)
+	@ARCH=$$(uname -m)
+	@ARCH=$$(echo $$ARCH | sed -e s+'_'+'-'+g)
+	@PREFIX="$${NAME}-$${VERSION}_$${ARCH}"
+	@SIZE_BYTES=$$(du -bcs --exclude=.dpkgbuild "$$WORKSPACE"/ | awk '{print $$1}' | head -1 | sed -e 's/^0\+//')
+	@SIZE="$$(awk -v size="$$SIZE_BYTES" 'BEGIN {print (size/1024)+1}' | awk '{print int($$0)}')"
+	#@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANDIR}/control
+	@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANBINDIR}/control
+	@make PREFIX=$${WORKSPACE} install
+	@DEB_FILE="cc-metric-collector_$${VERS}_$${ARCH}.deb"
+	@dpkg-deb -b $${WORKSPACE} "$$DEB_FILE"
+	@rm -r "$${WORKSPACE}"
