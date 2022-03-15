@@ -53,7 +53,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 		})
 	}
 
-	p := m.ToPoint(s.config.MetaAsTags)
+	p := m.ToPoint(s.meta_as_tags)
 
 	s.lock.Lock()
 	_, err := s.encoder.Encode(p)
@@ -158,6 +158,11 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 		if err == nil {
 			s.flushDelay = t
 		}
+	}
+	// Create lookup map to use meta infos as tags in the output metric
+	s.meta_as_tags = make(map[string]bool)
+	for _, k := range s.config.MetaAsTags {
+		s.meta_as_tags[k] = true
 	}
 	tr := &http.Transport{
 		MaxIdleConns:    s.maxIdleConns,

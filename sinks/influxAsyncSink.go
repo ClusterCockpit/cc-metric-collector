@@ -89,7 +89,7 @@ func (s *InfluxAsyncSink) connect() error {
 
 func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
 	s.writeApi.WritePoint(
-		m.ToPoint(s.config.MetaAsTags),
+		m.ToPoint(s.meta_as_tags),
 	)
 	return nil
 }
@@ -151,6 +151,11 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 		len(s.config.Organization) == 0 ||
 		len(s.config.Password) == 0 {
 		return nil, errors.New("not all configuration variables set required by InfluxAsyncSink")
+	}
+	// Create lookup map to use meta infos as tags in the output metric
+	s.meta_as_tags = make(map[string]bool)
+	for _, k := range s.config.MetaAsTags {
+		s.meta_as_tags[k] = true
 	}
 
 	toUint := func(duration string, def uint) uint {
