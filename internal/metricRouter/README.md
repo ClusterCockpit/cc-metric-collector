@@ -8,6 +8,7 @@ The CCMetric router sits in between the collectors and the sinks and can be used
 {
     "num_cache_intervals" : 1,
     "interval_timestamp" : true,
+    "normalize_units": true,
     "add_tags" : [
         {
             "key" : "cluster",
