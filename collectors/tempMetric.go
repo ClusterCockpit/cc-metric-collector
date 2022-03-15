@@ -70,10 +70,10 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 	globPattern := filepath.Join("/sys/class/hwmon", "*", "temp*_input")
 	inputFiles, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("Unable to glob files with pattern '%s': %v", globPattern, err)
+		return fmt.Errorf("unable to glob files with pattern '%s': %v", globPattern, err)
 	}
 	if inputFiles == nil {
-		return fmt.Errorf("Unable to find any files with pattern '%s'", globPattern)
+		return fmt.Errorf("unable to find any files with pattern '%s'", globPattern)
 	}
 
 	// Get sensor name for each temperature sensor file
@@ -158,7 +158,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 
 	// Empty sensors map
 	if len(m.sensors) == 0 {
-		return fmt.Errorf("No temperature sensors found")
+		return fmt.Errorf("no temperature sensors found")
 	}
 
 	// Finished initialization

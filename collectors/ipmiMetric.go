@@ -54,7 +54,7 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 		m.ipmisensors = p
 	}
 	if len(m.ipmitool) == 0 && len(m.ipmisensors) == 0 {
-		return errors.New("No IPMI reader found")
+		return errors.New("no IPMI reader found")
 	}
 	m.init = true
 	return nil

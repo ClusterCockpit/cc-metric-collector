@@ -70,10 +70,10 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	globPattern := filepath.Join(baseDir, "cpu[0-9]*")
 	cpuDirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("Unable to glob files with pattern '%s': %v", globPattern, err)
+		return fmt.Errorf("unable to glob files with pattern '%s': %v", globPattern, err)
 	}
 	if cpuDirs == nil {
-		return fmt.Errorf("Unable to find any files with pattern '%s'", globPattern)
+		return fmt.Errorf("unable to find any files with pattern '%s'", globPattern)
 	}
 
 	// Initialize CPU topology
@@ -82,38 +82,38 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		processor := strings.TrimPrefix(cpuDir, "/sys/devices/system/cpu/cpu")
 		processor_int, err := strconv.ParseInt(processor, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Unable to convert cpuID '%s' to int64: %v", processor, err)
+			return fmt.Errorf("unable to convert cpuID '%s' to int64: %v", processor, err)
 		}
 
 		// Read package ID
 		physicalPackageIDFile := filepath.Join(cpuDir, "topology", "physical_package_id")
 		line, err := ioutil.ReadFile(physicalPackageIDFile)
 		if err != nil {
-			return fmt.Errorf("Unable to read physical package ID from file '%s': %v", physicalPackageIDFile, err)
+			return fmt.Errorf("unable to read physical package ID from file '%s': %v", physicalPackageIDFile, err)
 		}
 		physicalPackageID := strings.TrimSpace(string(line))
 		physicalPackageID_int, err := strconv.ParseInt(physicalPackageID, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Unable to convert packageID '%s' to int64: %v", physicalPackageID, err)
+			return fmt.Errorf("unable to convert packageID '%s' to int64: %v", physicalPackageID, err)
 		}
 
 		// Read core ID
 		coreIDFile := filepath.Join(cpuDir, "topology", "core_id")
 		line, err = ioutil.ReadFile(coreIDFile)
 		if err != nil {
-			return fmt.Errorf("Unable to read core ID from file '%s': %v", coreIDFile, err)
+			return fmt.Errorf("unable to read core ID from file '%s': %v", coreIDFile, err)
 		}
 		coreID := strings.TrimSpace(string(line))
 		coreID_int, err := strconv.ParseInt(coreID, 10, 64)
 		if err != nil {
-			return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
+			return fmt.Errorf("unable to convert coreID '%s' to int64: %v", coreID, err)
 		}
 
 		// Check access to current frequency file
 		scalingCurFreqFile := filepath.Join(cpuDir, "cpufreq", "scaling_cur_freq")
 		err = unix.Access(scalingCurFreqFile, unix.R_OK)
 		if err != nil {
-			return fmt.Errorf("Unable to access file '%s': %v", scalingCurFreqFile, err)
+			return fmt.Errorf("unable to access file '%s': %v", scalingCurFreqFile, err)
 		}
 
 		t := &m.topology[processor_int]
