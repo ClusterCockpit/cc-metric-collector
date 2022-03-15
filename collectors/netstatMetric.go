@@ -22,11 +22,12 @@ type NetstatCollectorConfig struct {
 }
 
 type NetstatCollectorMetric struct {
-	name      string
-	index     int
-	tags      map[string]string
-	rate_tags map[string]string
-	lastValue int64
+	name       string
+	index      int
+	tags       map[string]string
+	meta       map[string]string
+	meta_rates map[string]string
+	lastValue  int64
 }
 
 type NetstatCollector struct {
@@ -40,29 +41,25 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.setup()
 	m.lastTimestamp = time.Now()
-	m.meta = map[string]string{
-		"source": m.name,
-		"group":  "Network",
-	}
 
 	const (
-		fieldInterface          = iota
-		fieldReceiveBytes       = iota
-		fieldReceivePackets     = iota
-		fieldReceiveErrs        = iota
-		fieldReceiveDrop        = iota
-		fieldReceiveFifo        = iota
-		fieldReceiveFrame       = iota
-		fieldReceiveCompressed  = iota
-		fieldReceiveMulticast   = iota
-		fieldTransmitBytes      = iota
-		fieldTransmitPackets    = iota
-		fieldTransmitErrs       = iota
-		fieldTransmitDrop       = iota
-		fieldTransmitFifo       = iota
-		fieldTransmitColls      = iota
-		fieldTransmitCarrier    = iota
-		fieldTransmitCompressed = iota
+		fieldInterface = iota
+		fieldReceiveBytes
+		fieldReceivePackets
+		fieldReceiveErrs
+		fieldReceiveDrop
+		fieldReceiveFifo
+		fieldReceiveFrame
+		fieldReceiveCompressed
+		fieldReceiveMulticast
+		fieldTransmitBytes
+		fieldTransmitPackets
+		fieldTransmitErrs
+		fieldTransmitDrop
+		fieldTransmitFifo
+		fieldTransmitColls
+		fieldTransmitCarrier
+		fieldTransmitCompressed
 	)
 
 	m.matches = make(map[string][]NetstatCollectorMetric)
@@ -104,39 +101,44 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 
 		// Check if device is a included device
 		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
-			tags_unit_byte := map[string]string{"device": dev, "type": "node", "unit": "bytes"}
-			tags_unit_byte_per_sec := map[string]string{"device": dev, "type": "node", "unit": "bytes/sec"}
-			tags_unit_pkts := map[string]string{"device": dev, "type": "node", "unit": "packets"}
-			tags_unit_pkts_per_sec := map[string]string{"device": dev, "type": "node", "unit": "packets/sec"}
+			tags := map[string]string{"device": dev, "type": "node"}
+			meta_unit_byte := map[string]string{"source": m.name, "group": "Network", "unit": "bytes"}
+			meta_unit_byte_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "bytes/sec"}
+			meta_unit_pkts := map[string]string{"source": m.name, "group": "Network", "unit": "packets"}
+			meta_unit_pkts_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "packets/sec"}
 
 			m.matches[dev] = []NetstatCollectorMetric{
 				{
-					name:      "net_bytes_in",
-					index:     fieldReceiveBytes,
-					lastValue: -1,
-					tags:      tags_unit_byte,
-					rate_tags: tags_unit_byte_per_sec,
+					name:       "net_bytes_in",
+					index:      fieldReceiveBytes,
+					lastValue:  -1,
+					tags:       tags,
+					meta:       meta_unit_byte,
+					meta_rates: meta_unit_byte_per_sec,
 				},
 				{
-					name:      "net_pkts_in",
-					index:     fieldReceivePackets,
-					lastValue: -1,
-					tags:      tags_unit_pkts,
-					rate_tags: tags_unit_pkts_per_sec,
+					name:       "net_pkts_in",
+					index:      fieldReceivePackets,
+					lastValue:  -1,
+					tags:       tags,
+					meta:       meta_unit_pkts,
+					meta_rates: meta_unit_pkts_per_sec,
 				},
 				{
-					name:      "net_bytes_out",
-					index:     fieldTransmitBytes,
-					lastValue: -1,
-					tags:      tags_unit_byte,
-					rate_tags: tags_unit_byte_per_sec,
+					name:       "net_bytes_out",
+					index:      fieldTransmitBytes,
+					lastValue:  -1,
+					tags:       tags,
+					meta:       meta_unit_byte,
+					meta_rates: meta_unit_byte_per_sec,
 				},
 				{
-					name:      "net_pkts_out",
-					index:     fieldTransmitPackets,
-					lastValue: -1,
-					tags:      tags_unit_pkts,
-					rate_tags: tags_unit_pkts_per_sec,
+					name:       "net_pkts_out",
+					index:      fieldTransmitPackets,
+					lastValue:  -1,
+					tags:       tags,
+					meta:       meta_unit_pkts,
+					meta_rates: meta_unit_pkts_per_sec,
 				},
 			}
 		}
@@ -194,14 +196,14 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 					continue
 				}
 				if m.config.SendAbsoluteValues {
-					if y, err := lp.New(metric.name, metric.tags, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+					if y, err := lp.New(metric.name, metric.tags, metric.meta, map[string]interface{}{"value": v}, now); err == nil {
 						output <- y
 					}
 				}
 				if m.config.SendDerivedValues {
 					if metric.lastValue >= 0 {
 						rate := float64(v-metric.lastValue) / timeDiff
-						if y, err := lp.New(metric.name+"_bw", metric.rate_tags, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+						if y, err := lp.New(metric.name+"_bw", metric.tags, metric.meta_rates, map[string]interface{}{"value": rate}, now); err == nil {
 							output <- y
 						}
 					}
