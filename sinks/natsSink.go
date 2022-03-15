@@ -55,7 +55,7 @@ func (s *NatsSink) connect() error {
 
 func (s *NatsSink) Write(m lp.CCMetric) error {
 	if s.client != nil {
-		_, err := s.encoder.Encode(m.ToPoint(s.config.MetaAsTags))
+		_, err := s.encoder.Encode(m.ToPoint(s.meta_as_tags))
 		if err != nil {
 			cclog.ComponentError(s.name, "Write:", err.Error())
 			return err
@@ -97,6 +97,11 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 		len(s.config.Database) == 0 {
 		return nil, errors.New("not all configuration variables set required by NatsSink")
 	}
+	// Create lookup map to use meta infos as tags in the output metric
+	s.meta_as_tags = make(map[string]bool)
+	for _, k := range s.config.MetaAsTags {
+		s.meta_as_tags[k] = true
+	}
 	// Setup Influx line protocol
 	s.buffer = &bytes.Buffer{}
 	s.buffer.Grow(1025)
@@ -105,7 +110,7 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 	s.encoder.SetMaxLineBytes(1024)
 	// Setup infos for connection
 	if err := s.connect(); err != nil {
-		return nil, fmt.Errorf("Unable to connect: %v", err)
+		return nil, fmt.Errorf("unable to connect: %v", err)
 	}
 	return s, nil
 }
