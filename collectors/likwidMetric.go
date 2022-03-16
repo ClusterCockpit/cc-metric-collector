@@ -139,7 +139,16 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	for i, c := range cpulist {
 		m.cpulist[i] = C.int(c)
 		m.cpu2tid[c] = i
-
+	}
+	m.sock2tid = make(map[int]int)
+	tmp := make([]C.int, 1)
+	for _, sid := range topo.SocketList() {
+		cstr := C.CString(fmt.Sprintf("S%d:0", sid))
+		ret = C.cpustr_to_cpulist(cstr, &tmp[0], 1)
+		if ret > 0 {
+			m.sock2tid[sid] = m.cpu2tid[int(tmp[0])]
+		}
+		C.free(unsafe.Pointer(cstr))
 	}
 	m.results = make(map[int]map[int]map[string]interface{})
 	m.mresults = make(map[int]map[int]map[string]float64)
