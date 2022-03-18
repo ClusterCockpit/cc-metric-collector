@@ -8,6 +8,8 @@ The CCMetric router sits in between the collectors and the sinks and can be used
 {
     "num_cache_intervals" : 1,
     "interval_timestamp" : true,
+    "hostname_tag" : "hostname",
+    "max_forward" : 50,
     "add_tags" : [
         {
             "key" : "cluster",
@@ -55,6 +57,20 @@ The CCMetric router sits in between the collectors and the sinks and can be used
 ```
 
 There are three main options `add_tags`, `delete_tags` and `interval_timestamp`. `add_tags` and `delete_tags` are lists consisting of dicts with `key`, `value` and `if`. The `value` can be omitted in the `delete_tags` part as it only uses the `key` for removal. The `interval_timestamp` setting means that a unique timestamp is applied to all metrics traversing the router during an interval.
+
+# Processing order in the router
+
+- Add the `hostname_tag` tag (if sent by collectors or cache)
+- If `interval_timestamp == true`, change time of metrics
+- Check if metric should be dropped (`drop_metrics` and `drop_metrics_if`)
+- Add tags from `add_tags`
+- Delete tags from `del_tags`
+- Rename metric based on `rename_metrics` and store old name as `oldname` in meta information
+- Add tags from `add_tags` (if you used the new name in the `if` condition)
+- Delete tags from `del_tags` (if you used the new name in the `if` condition)
+- Send to sinks
+- Move to cache (if `num_cache_intervals > 0`)
+
 # The `interval_timestamp` option
 
 The collectors' `Read()` functions are not called simultaneously and therefore the metrics gathered in an interval can have different timestamps. If you want to avoid that and have a common timestamp (the beginning of the interval), set this option to `true` and the MetricRouter sets the time.
@@ -64,6 +80,14 @@ The collectors' `Read()` functions are not called simultaneously and therefore t
 If the MetricRouter should buffer metrics of intervals in a MetricCache, this option specifies the number of past intervals that should be kept. If `num_cache_intervals = 0`, the cache is disabled. With `num_cache_intervals = 1`, only the metrics of the last interval are buffered.
 
 A `num_cache_intervals > 0` is required to use the `interval_aggregates` option.
+
+# The `hostname_tag` option
+
+By default, the router tags metrics with the hostname for all locally created metrics. The default tag name is `hostname`, but it can be changed if your organization wants anything else
+
+# The `max_forward` option
+
+Every time the router receives a metric through any of the channels, it tries to directly read up to `max_forward` metrics from the same channel. This was done as the router thread would go to sleep and wake up with every arriving metric. The default are `50` metrics at once and `max_forward` needs to greater than `1`.
 
 # The `rename_metrics` option
 
