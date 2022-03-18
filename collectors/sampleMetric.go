@@ -42,7 +42,12 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	// The 'type' tag is always needed, it defines the granulatity of the metric
 	// node -> whole system
 	// socket -> CPU socket (requires socket ID as 'type-id' tag)
-	// cpu -> single CPU hardware thread (requires cpu ID as 'type-id' tag)
+	// die -> CPU die (requires CPU die ID as 'type-id' tag)
+	// memoryDomain -> NUMA domain (requires NUMA domain ID as 'type-id' tag)
+	// llc -> Last level cache (requires last level cache ID as 'type-id' tag)
+	// core -> single CPU core that may consist of multiple hardware threads (SMT) (requires core ID as 'type-id' tag)
+	// hwthtread -> single CPU hardware thread (requires hardware thread ID as 'type-id' tag)
+	// accelerator -> A accelerator device like GPU or FPGA (requires an accelerator ID as 'type-id' tag)
 	m.tags = map[string]string{"type": "node"}
 	// Read in the JSON configuration
 	if len(config) > 0 {
