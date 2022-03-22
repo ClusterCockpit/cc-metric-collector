@@ -39,14 +39,14 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 		m.config.Num_procs = int(DEFAULT_NUM_PROCS)
 	}
 	if m.config.Num_procs <= 0 || m.config.Num_procs > MAX_NUM_PROCS {
-		return errors.New(fmt.Sprintf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS))
+		return fmt.Errorf("num_procs option must be set in 'topprocs' config (range: 1-%d)", MAX_NUM_PROCS)
 	}
 	m.setup()
 	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
 	command.Wait()
 	_, err = command.Output()
 	if err != nil {
-		return errors.New("Failed to execute command")
+		return errors.New("failed to execute command")
 	}
 	m.init = true
 	return nil
