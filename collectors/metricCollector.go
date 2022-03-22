@@ -3,10 +3,6 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"strconv"
-	"strings"
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
@@ -63,58 +59,6 @@ func stringArrayContains(array []string, str string) (int, bool) {
 		}
 	}
 	return -1, false
-}
-
-// SocketList returns the list of physical sockets as read from /proc/cpuinfo
-func SocketList() []int {
-	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	ll := strings.Split(string(buffer), "\n")
-	var packs []int
-	for _, line := range ll {
-		if strings.HasPrefix(line, "physical id") {
-			lv := strings.Fields(line)
-			id, err := strconv.ParseInt(lv[3], 10, 32)
-			if err != nil {
-				log.Print(err)
-				return packs
-			}
-			_, found := intArrayContains(packs, int(id))
-			if !found {
-				packs = append(packs, int(id))
-			}
-		}
-	}
-	return packs
-}
-
-// CpuList returns the list of physical CPUs (in contrast to logical CPUs) as read from /proc/cpuinfo
-func CpuList() []int {
-	buffer, err := ioutil.ReadFile("/proc/cpuinfo")
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	ll := strings.Split(string(buffer), "\n")
-	var cpulist []int
-	for _, line := range ll {
-		if strings.HasPrefix(line, "processor") {
-			lv := strings.Fields(line)
-			id, err := strconv.ParseInt(lv[2], 10, 32)
-			if err != nil {
-				log.Print(err)
-				return cpulist
-			}
-			_, found := intArrayContains(cpulist, int(id))
-			if !found {
-				cpulist = append(cpulist, int(id))
-			}
-		}
-	}
-	return cpulist
 }
 
 // RemoveFromStringList removes the string r from the array of strings s
