@@ -139,13 +139,13 @@ func testLikwidMetricFormula(formula string, params []string) bool {
 }
 
 func getBaseFreq() float64 {
+	files := []string{
+		"/sys/devices/system/cpu/cpu0/cpufreq/bios_limit",
+		"/sys/devices/system/cpu/cpu0/cpufreq/base_frequency",
+	}
 	var freq float64 = math.NaN()
-	C.power_init(0)
-	info := C.get_powerInfo()
-	if float64(info.baseFrequency) != 0 {
-		freq = float64(info.baseFrequency) * 1e6
-	} else {
-		buffer, err := ioutil.ReadFile("/sys/devices/system/cpu/cpu0/cpufreq/bios_limit")
+	for _, f := range files {
+		buffer, err := ioutil.ReadFile(f)
 		if err == nil {
 			data := strings.Replace(string(buffer), "\n", "", -1)
 			x, err := strconv.ParseInt(data, 0, 64)
@@ -154,11 +154,19 @@ func getBaseFreq() float64 {
 			}
 		}
 	}
+
+	if math.IsNaN(freq) {
+		C.power_init(0)
+		info := C.get_powerInfo()
+		if float64(info.baseFrequency) != 0 {
+			freq = float64(info.baseFrequency) * 1e6
+		}
+		C.power_finalize()
+	}
 	return freq
 }
 
 func (m *LikwidCollector) Init(config json.RawMessage) error {
-	var ret C.int
 	m.name = "LikwidCollector"
 	m.initialized = false
 	m.running = false
@@ -195,24 +203,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		m.cpu2tid[c] = i
 	}
 
-	cclog.ComponentDebug(m.name, "initialize LIKWID topology")
-	ret = C.topology_init()
-	if ret != 0 {
-		err := errors.New("failed to initialize LIKWID topology")
-		cclog.ComponentError(m.name, err.Error())
-		return err
-	}
-
-	m.sock2tid = make(map[int]int)
-	tmp := make([]C.int, 1)
-	for _, sid := range topo.SocketList() {
-		cstr := C.CString(fmt.Sprintf("S%d:0", sid))
-		ret = C.cpustr_to_cpulist(cstr, &tmp[0], 1)
-		if ret > 0 {
-			m.sock2tid[sid] = m.cpu2tid[int(tmp[0])]
-		}
-		C.free(unsafe.Pointer(cstr))
-	}
 	m.likwidGroups = make(map[C.int]LikwidEventsetConfig)
 
 	// m.results = make(map[int]map[int]map[string]interface{})
@@ -220,17 +210,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.gmresults = make(map[int]map[string]float64)
 	for _, tid := range m.cpu2tid {
 		m.gmresults[tid] = make(map[string]float64)
-	}
-
-	switch m.config.AccessMode {
-	case "direct":
-		C.HPMmode(0)
-	case "accessdaemon":
-		if len(m.config.DaemonPath) > 0 {
-			p := os.Getenv("PATH")
-			os.Setenv("PATH", m.config.DaemonPath+":"+p)
-		}
-		C.HPMmode(1)
 	}
 
 	// This is for the global metrics computation test
@@ -275,13 +254,10 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	// If no event set could be added, shut down LikwidCollector
 	if totalMetrics == 0 {
-		C.topology_finalize()
 		err := errors.New("no LIKWID eventset or metric usable")
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
-	m.basefreq = getBaseFreq()
-	cclog.ComponentDebug(m.name, "BaseFreq", m.basefreq)
 	m.init = true
 	return nil
 }
@@ -449,6 +425,38 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 
 func (m *LikwidCollector) LateInit() error {
 	var ret C.int
+	switch m.config.AccessMode {
+	case "direct":
+		C.HPMmode(0)
+	case "accessdaemon":
+		if len(m.config.DaemonPath) > 0 {
+			p := os.Getenv("PATH")
+			os.Setenv("PATH", m.config.DaemonPath+":"+p)
+		}
+		C.HPMmode(1)
+	}
+	cclog.ComponentDebug(m.name, "initialize LIKWID topology")
+	ret = C.topology_init()
+	if ret != 0 {
+		err := errors.New("failed to initialize LIKWID topology")
+		cclog.ComponentError(m.name, err.Error())
+		return err
+	}
+
+	m.sock2tid = make(map[int]int)
+	tmp := make([]C.int, 1)
+	for _, sid := range topo.SocketList() {
+		cstr := C.CString(fmt.Sprintf("S%d:0", sid))
+		ret = C.cpustr_to_cpulist(cstr, &tmp[0], 1)
+		if ret > 0 {
+			m.sock2tid[sid] = m.cpu2tid[int(tmp[0])]
+		}
+		C.free(unsafe.Pointer(cstr))
+	}
+
+	m.basefreq = getBaseFreq()
+	cclog.ComponentDebug(m.name, "BaseFreq", m.basefreq)
+
 	cclog.ComponentDebug(m.name, "initialize LIKWID perfmon module")
 	ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
 	if ret != 0 {
