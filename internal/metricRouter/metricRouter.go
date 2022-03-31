@@ -103,7 +103,10 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 		cclog.ComponentError("MetricRouter", err.Error())
 		return err
 	}
-	r.maxForward = r.config.MaxForward
+	r.maxForward = 1
+	if r.config.MaxForward > r.maxForward {
+		r.maxForward = r.config.MaxForward
+	}
 	if r.config.NumCacheIntervals > 0 {
 		r.cache, err = NewCache(r.cache_input, r.ticker, &r.cachewg, r.config.NumCacheIntervals)
 		if err != nil {
