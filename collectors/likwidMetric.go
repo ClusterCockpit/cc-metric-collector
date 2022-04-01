@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +55,7 @@ type LikwidEventsetConfig struct {
 	gid      C.int
 	eorder   []*C.char
 	estr     *C.char
+	go_estr  string
 	results  map[int]map[string]interface{}
 	metrics  map[int]map[string]float64
 }
@@ -101,8 +103,14 @@ func eventsToEventStr(events map[string]string) string {
 
 func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig {
 	tmplist := make([]string, 0)
+	clist := make([]string, 0)
+	for k := range input.Events {
+		clist = append(clist, k)
+	}
+	sort.Strings(clist)
 	elist := make([]*C.char, 0)
-	for k, v := range input.Events {
+	for _, k := range clist {
+		v := input.Events[k]
 		tmplist = append(tmplist, fmt.Sprintf("%s:%s", v, k))
 		c_counter := C.CString(k)
 		elist = append(elist, c_counter)
@@ -124,6 +132,7 @@ func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig
 		gid:     -1,
 		eorder:  elist,
 		estr:    C.CString(estr),
+		go_estr: estr,
 		results: res,
 		metrics: met,
 	}
@@ -193,7 +202,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 	m.setup()
 
-	m.meta = map[string]string{"source": m.name, "group": "PerfCounter"}
+	m.meta = map[string]string{"group": "PerfCounter"}
 	cclog.ComponentDebug(m.name, "Get cpulist and init maps and lists")
 	cpulist := topo.CpuList()
 	m.cpulist = make([]C.int, len(cpulist))
@@ -425,6 +434,9 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 
 func (m *LikwidCollector) LateInit() error {
 	var ret C.int
+	if m.initialized {
+		return nil
+	}
 	switch m.config.AccessMode {
 	case "direct":
 		C.HPMmode(0)
@@ -475,7 +487,17 @@ func (m *LikwidCollector) LateInit() error {
 	for i, evset := range m.config.Eventsets {
 		var gid C.int
 		if len(evset.Events) > 0 {
+			skip := false
 			likwidGroup := genLikwidEventSet(evset)
+			for _, g := range m.likwidGroups {
+				if likwidGroup.go_estr == g.go_estr {
+					skip = true
+					break
+				}
+			}
+			if skip {
+				continue
+			}
 			// Now we add the list of events to likwid
 			gid = C.perfmon_addEventSet(likwidGroup.estr)
 			if gid >= 0 {
@@ -520,9 +542,14 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 	}
 
 	if !m.initialized {
-		if m.LateInit() != nil {
+		m.lock.Lock()
+		err = m.LateInit()
+		if err != nil {
+			m.lock.Unlock()
 			return
 		}
+		m.initialized = true
+		m.lock.Unlock()
 	}
 
 	if m.initialized && !skip {
