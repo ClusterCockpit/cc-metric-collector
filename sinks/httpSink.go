@@ -42,13 +42,13 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	if s.buffer.Len() == 0 && s.flushDelay != 0 {
 		// This is the first write since the last flush, start the flushTimer!
 		if s.flushTimer != nil && s.flushTimer.Stop() {
-			cclog.ComponentDebug("HttpSink", "unexpected: the flushTimer was already running?")
+			cclog.ComponentDebug(s.name, "unexpected: the flushTimer was already running?")
 		}
 
 		// Run a batched flush for all lines that have arrived in the last second
 		s.flushTimer = time.AfterFunc(s.flushDelay, func() {
 			if err := s.Flush(); err != nil {
-				cclog.ComponentError("HttpSink", "flush failed:", err.Error())
+				cclog.ComponentError(s.name, "flush failed:", err.Error())
 			}
 		})
 	}
@@ -60,6 +60,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	s.lock.Unlock() // defer does not work here as Flush() takes the lock as well
 
 	if err != nil {
+		cclog.ComponentError(s.name, "encoding failed:", err.Error())
 		return err
 	}
 
@@ -84,6 +85,7 @@ func (s *HttpSink) Flush() error {
 	// Create new request to send buffer
 	req, err := http.NewRequest(http.MethodPost, s.config.URL, s.buffer)
 	if err != nil {
+		cclog.ComponentError(s.name, "failed to create request:", err.Error())
 		return err
 	}
 
@@ -100,12 +102,15 @@ func (s *HttpSink) Flush() error {
 
 	// Handle transport/tcp errors
 	if err != nil {
+		cclog.ComponentError(s.name, "transport/tcp error:", err.Error())
 		return err
 	}
 
 	// Handle application errors
 	if res.StatusCode != http.StatusOK {
-		return errors.New(res.Status)
+		err = errors.New(res.Status)
+		cclog.ComponentError(s.name, "application error:", err.Error())
+		return err
 	}
 
 	return nil
@@ -114,7 +119,7 @@ func (s *HttpSink) Flush() error {
 func (s *HttpSink) Close() {
 	s.flushTimer.Stop()
 	if err := s.Flush(); err != nil {
-		cclog.ComponentError("HttpSink", "flush failed:", err.Error())
+		cclog.ComponentError(s.name, "flush failed:", err.Error())
 	}
 	s.client.CloseIdleConnections()
 }
