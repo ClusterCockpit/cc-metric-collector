@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 // See: https://www.kernel.org/doc/html/latest/hwmon/sysfs-interface.html
@@ -40,7 +41,8 @@ type TempCollector struct {
 		ReportMaxTemp      bool                         `json:"report_max_temperature"`
 		ReportCriticalTemp bool                         `json:"report_critical_temperature"`
 	}
-	sensors []*TempCollectorSensor
+	sensors               []*TempCollectorSensor
+	statsProcessedMetrics int64
 }
 
 func (m *TempCollector) Init(config json.RawMessage) error {
@@ -162,6 +164,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 	}
 
 	// Finished initialization
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -194,6 +197,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		)
 		if err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 
 		// max temperature
@@ -207,6 +211,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			)
 			if err == nil {
 				output <- y
+				m.statsProcessedMetrics++
 			}
 		}
 
@@ -221,10 +226,11 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			)
 			if err == nil {
 				output <- y
+				m.statsProcessedMetrics++
 			}
 		}
 	}
-
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *TempCollector) Close() {

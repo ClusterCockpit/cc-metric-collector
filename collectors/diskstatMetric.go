@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 //	"log"
@@ -23,9 +24,8 @@ type DiskstatCollectorConfig struct {
 
 type DiskstatCollector struct {
 	metricCollector
-	//matches map[string]int
-	config IOstatCollectorConfig
-	//devices map[string]IOstatCollectorEntry
+	config                DiskstatCollectorConfig
+	statsProcessedMetrics int64
 }
 
 func (m *DiskstatCollector) Init(config json.RawMessage) error {
@@ -44,6 +44,7 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 		return err
 	}
 	defer file.Close()
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -89,12 +90,16 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 		y, err := lp.New("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
 		if err == nil {
 			y.AddMeta("unit", "GBytes")
+			m.statsProcessedMetrics++
+			stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 			output <- y
 		}
 		free := (stat.Bfree * uint64(stat.Bsize)) / uint64(1000000000)
 		y, err = lp.New("disk_free", tags, m.meta, map[string]interface{}{"value": free}, time.Now())
 		if err == nil {
 			y.AddMeta("unit", "GBytes")
+			m.statsProcessedMetrics++
+			stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 			output <- y
 		}
 		perc := (100 * (total - free)) / total
@@ -105,6 +110,8 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 	y, err := lp.New("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())
 	if err == nil {
 		y.AddMeta("unit", "percent")
+		m.statsProcessedMetrics++
+		stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 		output <- y
 	}
 }

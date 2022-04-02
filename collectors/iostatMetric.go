@@ -6,6 +6,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 
 	//	"log"
 	"encoding/json"
@@ -29,9 +30,10 @@ type IOstatCollectorEntry struct {
 
 type IOstatCollector struct {
 	metricCollector
-	matches map[string]int
-	config  IOstatCollectorConfig
-	devices map[string]IOstatCollectorEntry
+	matches               map[string]int
+	config                IOstatCollectorConfig
+	devices               map[string]IOstatCollectorEntry
+	statsProcessedMetrics int64
 }
 
 func (m *IOstatCollector) Init(config json.RawMessage) error {
@@ -102,6 +104,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 			lastValues: values,
 		}
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return err
 }
@@ -141,6 +144,7 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					y, err := lp.New(name, entry.tags, m.meta, map[string]interface{}{"value": int(diff)}, time.Now())
 					if err == nil {
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 				entry.lastValues[name] = x
@@ -148,6 +152,7 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 		}
 		m.devices[device] = entry
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *IOstatCollector) Close() {

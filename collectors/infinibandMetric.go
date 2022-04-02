@@ -7,6 +7,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	"golang.org/x/sys/unix"
 
 	"encoding/json"
@@ -39,8 +40,9 @@ type InfinibandCollector struct {
 		SendAbsoluteValues bool     `json:"send_abs_values"`           // Send absolut values as read from sys filesystem
 		SendDerivedValues  bool     `json:"send_derived_values"`       // Send derived values e.g. rates
 	}
-	info          []*InfinibandCollectorInfo
-	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
+	info                  []*InfinibandCollectorInfo
+	lastTimestamp         time.Time // Store time stamp of last tick to derive bandwidths
+	statsProcessedMetrics int64
 }
 
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
@@ -149,7 +151,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	if len(m.info) == 0 {
 		return fmt.Errorf("found no IB devices")
 	}
-
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -196,6 +198,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 				if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 
@@ -206,6 +209,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 					if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
 						y.AddMeta("unit", counterDef.unit+"/sec")
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 				// Save current state
@@ -214,6 +218,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		}
 
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *InfinibandCollector) Close() {

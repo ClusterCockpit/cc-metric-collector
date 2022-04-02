@@ -10,6 +10,7 @@ import (
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	influx "github.com/influxdata/line-protocol"
 )
 
@@ -23,11 +24,14 @@ type CustomCmdCollectorConfig struct {
 
 type CustomCmdCollector struct {
 	metricCollector
-	handler  *influx.MetricHandler
-	parser   *influx.Parser
-	config   CustomCmdCollectorConfig
-	commands []string
-	files    []string
+	handler                *influx.MetricHandler
+	parser                 *influx.Parser
+	config                 CustomCmdCollectorConfig
+	commands               []string
+	files                  []string
+	statsProcessedMetrics  int64
+	statsProcessedCommands int64
+	statsProcessedFiles    int64
 }
 
 func (m *CustomCmdCollector) Init(config json.RawMessage) error {
@@ -66,6 +70,9 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	m.handler = influx.NewMetricHandler()
 	m.parser = influx.NewParser(m.handler)
 	m.parser.SetTimeFunc(DefaultTime)
+	m.statsProcessedMetrics = 0
+	m.statsProcessedFiles = 0
+	m.statsProcessedCommands = 0
 	m.init = true
 	return nil
 }
@@ -100,9 +107,13 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 
 			y := lp.FromInfluxMetric(c)
 			if err == nil {
+				m.statsProcessedMetrics++
+				stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 				output <- y
 			}
 		}
+		m.statsProcessedCommands++
+		stats.ComponentStatInt(m.name, "processed_commands", m.statsProcessedCommands)
 	}
 	for _, file := range m.files {
 		buffer, err := ioutil.ReadFile(file)
@@ -122,9 +133,13 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			}
 			y := lp.FromInfluxMetric(f)
 			if err == nil {
+				m.statsProcessedMetrics++
+				stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 				output <- y
 			}
 		}
+		m.statsProcessedFiles++
+		stats.ComponentStatInt(m.name, "processed_files", m.statsProcessedFiles)
 	}
 }
 

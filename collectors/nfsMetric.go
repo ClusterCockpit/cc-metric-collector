@@ -12,6 +12,7 @@ import (
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 // First part contains the code for the general NfsCollector.
@@ -32,7 +33,8 @@ type nfsCollector struct {
 		Nfsstats       string   `json:"nfsstat"`
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 	}
-	data map[string]NfsCollectorData
+	data                  map[string]NfsCollectorData
+	statsProcessedMetrics int64
 }
 
 func (m *nfsCollector) initStats() error {
@@ -113,6 +115,7 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 	}
 	m.data = make(map[string]NfsCollectorData)
 	m.initStats()
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -143,8 +146,10 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		if err == nil {
 			y.AddMeta("version", m.version)
 			output <- y
+			m.statsProcessedMetrics++
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *nfsCollector) Close() {

@@ -15,6 +15,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const DEFAULT_GPFS_CMD = "mmpmon"
@@ -32,9 +33,10 @@ type GpfsCollector struct {
 		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
 		SendBandwidths    bool     `json:"send_bandwidths"`
 	}
-	skipFS        map[string]struct{}
-	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
-	lastState     map[string]GpfsCollectorLastState
+	skipFS                map[string]struct{}
+	lastTimestamp         time.Time // Store time stamp of last tick to derive bandwidths
+	lastState             map[string]GpfsCollectorLastState
+	statsProcessedMetrics int64
 }
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
@@ -86,7 +88,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
 	}
 	m.config.Mmpmon = p
-
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -211,12 +213,14 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 		if m.config.SendBandwidths {
 			if lastBytesRead := m.lastState[filesystem].bytesRead; lastBytesRead >= 0 {
 				bwRead := float64(bytesRead-lastBytesRead) / timeDiff
 				if y, err := lp.New("gpfs_bw_read", m.tags, m.meta, map[string]interface{}{"value": bwRead}, timestamp); err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -231,12 +235,14 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 		if m.config.SendBandwidths {
 			if lastBytesWritten := m.lastState[filesystem].bytesRead; lastBytesWritten >= 0 {
 				bwWrite := float64(bytesWritten-lastBytesWritten) / timeDiff
 				if y, err := lp.New("gpfs_bw_write", m.tags, m.meta, map[string]interface{}{"value": bwWrite}, timestamp); err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -258,6 +264,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 
 		// number of closes
@@ -270,6 +277,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 
 		// number of reads
@@ -282,6 +290,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 
 		// number of writes
@@ -294,6 +303,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 
 		// number of read directories
@@ -306,6 +316,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp); err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 
 		// Number of inode updates
@@ -317,9 +328,11 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			continue
 		}
 		if y, err := lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
+			m.statsProcessedMetrics++
 			output <- y
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *GpfsCollector) Close() {

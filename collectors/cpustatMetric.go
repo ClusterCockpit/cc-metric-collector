@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const CPUSTATFILE = `/proc/stat`
@@ -21,10 +22,11 @@ type CpustatCollectorConfig struct {
 
 type CpustatCollector struct {
 	metricCollector
-	config   CpustatCollectorConfig
-	matches  map[string]int
-	cputags  map[string]map[string]string
-	nodetags map[string]string
+	config                CpustatCollectorConfig
+	matches               map[string]int
+	cputags               map[string]map[string]string
+	nodetags              map[string]string
+	statsProcessedMetrics int64
 }
 
 func (m *CpustatCollector) Init(config json.RawMessage) error {
@@ -86,6 +88,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			num_cpus++
 		}
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -106,6 +109,7 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 	for name, value := range values {
 		y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": (value * 100.0) / total}, t)
 		if err == nil {
+			m.statsProcessedMetrics++
 			output <- y
 		}
 	}
@@ -141,8 +145,10 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		time.Now(),
 	)
 	if err == nil {
+		m.statsProcessedMetrics++
 		output <- num_cpus_metric
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *CpustatCollector) Close() {

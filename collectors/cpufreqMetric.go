@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	"golang.org/x/sys/unix"
 )
 
@@ -39,8 +40,9 @@ type CPUFreqCollectorTopology struct {
 //
 type CPUFreqCollector struct {
 	metricCollector
-	topology []CPUFreqCollectorTopology
-	config   struct {
+	topology              []CPUFreqCollectorTopology
+	statsProcessedMetrics int64
+	config                struct {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 	}
 }
@@ -166,7 +168,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 			"package_id": t.physicalPackageID,
 		}
 	}
-
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -203,9 +205,11 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		}
 
 		if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now); err == nil {
+			m.statsProcessedMetrics++
 			output <- y
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *CPUFreqCollector) Close() {

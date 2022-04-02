@@ -14,6 +14,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const MEMSTATFILE = "/proc/meminfo"
@@ -32,12 +33,13 @@ type MemstatCollectorNode struct {
 
 type MemstatCollector struct {
 	metricCollector
-	stats       map[string]int64
-	tags        map[string]string
-	matches     map[string]string
-	config      MemstatCollectorConfig
-	nodefiles   map[int]MemstatCollectorNode
-	sendMemUsed bool
+	stats                 map[string]int64
+	tags                  map[string]string
+	matches               map[string]string
+	config                MemstatCollectorConfig
+	nodefiles             map[int]MemstatCollectorNode
+	sendMemUsed           bool
+	statsProcessedMetrics int64
 }
 
 type MemstatStats struct {
@@ -153,6 +155,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 			}
 		}
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return err
 }
@@ -178,6 +181,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				if len(unit) > 0 {
 					y.AddMeta("unit", unit)
 				}
+				m.statsProcessedMetrics++
 				output <- y
 			}
 		}
@@ -207,6 +211,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				if len(unit) > 0 {
 					y.AddMeta("unit", unit)
 				}
+				m.statsProcessedMetrics++
 				output <- y
 			}
 		}
@@ -223,6 +228,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			sendStats(stats, nodeConf.tags)
 		}
 	}
+	stats.ComponentStatInt(m.name, "collected_metrics", m.statsProcessedMetrics)
 }
 
 func (m *MemstatCollector) Close() {

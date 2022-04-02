@@ -12,6 +12,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const LUSTRE_SYSFS = `/sys/fs/lustre`
@@ -37,13 +38,14 @@ type LustreMetricDefinition struct {
 
 type LustreCollector struct {
 	metricCollector
-	tags          map[string]string
-	config        LustreCollectorConfig
-	lctl          string
-	sudoCmd       string
-	lastTimestamp time.Time                   // Store time stamp of last tick to derive bandwidths
-	definitions   []LustreMetricDefinition    // Combined list without excluded metrics
-	stats         map[string]map[string]int64 // Data for last value per device and metric
+	tags                  map[string]string
+	config                LustreCollectorConfig
+	lctl                  string
+	sudoCmd               string
+	lastTimestamp         time.Time                   // Store time stamp of last tick to derive bandwidths
+	definitions           []LustreMetricDefinition    // Combined list without excluded metrics
+	stats                 map[string]map[string]int64 // Data for last value per device and metric
+	statsProcessedMetrics int64
 }
 
 func (m *LustreCollector) getDeviceDataCommand(device string) []string {
@@ -372,6 +374,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		}
 	}
 	m.lastTimestamp = time.Now()
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -418,11 +421,13 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					y.AddMeta("unit", def.unit)
 				}
 				output <- y
+				m.statsProcessedMetrics++
 			}
 			devData[def.name] = use_x
 		}
 	}
 	m.lastTimestamp = now
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *LustreCollector) Close() {
