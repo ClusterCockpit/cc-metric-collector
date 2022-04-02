@@ -73,6 +73,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
@@ -102,11 +103,12 @@ type LibgangliaSinkConfig struct {
 
 type LibgangliaSink struct {
 	sink
-	config         LibgangliaSinkConfig
-	global_context C.Ganglia_pool
-	gmond_config   C.Ganglia_gmond_config
-	send_channels  C.Ganglia_udp_send_channels
-	cstrCache      map[string]*C.char
+	config           LibgangliaSinkConfig
+	global_context   C.Ganglia_pool
+	gmond_config     C.Ganglia_gmond_config
+	send_channels    C.Ganglia_udp_send_channels
+	cstrCache        map[string]*C.char
+	statsSentMetrics int64
 }
 
 func (s *LibgangliaSink) Write(point lp.CCMetric) error {
@@ -202,6 +204,8 @@ func (s *LibgangliaSink) Write(point lp.CCMetric) error {
 	C.Ganglia_metric_destroy(gmetric)
 	// Free the value C string, the only one not stored in the cache
 	C.free(unsafe.Pointer(c_value))
+	s.statsSentMetrics++
+	stats.ComponentStatInt(s.name, "sent_metrics", s.statsSentMetrics)
 	return err
 }
 
@@ -247,7 +251,7 @@ func NewLibgangliaSink(name string, config json.RawMessage) (Sink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening %s: %v", s.config.GangliaLib, err)
 	}
-
+	s.statsSentMetrics = 0
 	// Set up cache for the C strings
 	s.cstrCache = make(map[string]*C.char)
 	// s.cstrCache["globals"] = C.CString("globals")

@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
@@ -37,15 +38,17 @@ type InfluxSinkConfig struct {
 
 type InfluxSink struct {
 	sink
-	client              influxdb2.Client
-	writeApi            influxdb2Api.WriteAPIBlocking
-	config              InfluxSinkConfig
-	influxRetryInterval uint
-	influxMaxRetryTime  uint
-	batch               []*write.Point
-	flushTimer          *time.Timer
-	flushDelay          time.Duration
-	lock                sync.Mutex // Flush() runs in another goroutine, so this lock has to protect the buffer
+	client                influxdb2.Client
+	writeApi              influxdb2Api.WriteAPIBlocking
+	config                InfluxSinkConfig
+	influxRetryInterval   uint
+	influxMaxRetryTime    uint
+	batch                 []*write.Point
+	flushTimer            *time.Timer
+	flushDelay            time.Duration
+	lock                  sync.Mutex // Flush() runs in another goroutine, so this lock has to protect the buffer
+	statsSentMetrics      int64
+	statsProcessedMetrics int64
 	//influxMaxRetryDelay uint
 }
 
@@ -123,8 +126,10 @@ func (s *InfluxSink) Write(m lp.CCMetric) error {
 	}
 	p := m.ToPoint(s.meta_as_tags)
 	s.lock.Lock()
+	s.statsProcessedMetrics++
 	s.batch = append(s.batch, p)
 	s.lock.Unlock()
+	stats.ComponentStatInt(s.name, "processed_metrics", s.statsProcessedMetrics)
 
 	// Flush synchronously if "flush_delay" is zero
 	if s.flushDelay == 0 {
@@ -145,6 +150,8 @@ func (s *InfluxSink) Flush() error {
 		cclog.ComponentError(s.name, "flush failed:", err.Error())
 		return err
 	}
+	s.statsSentMetrics += int64(len(s.batch))
+	stats.ComponentStatInt(s.name, "sent_metrics", s.statsSentMetrics)
 	s.batch = s.batch[:0]
 	return nil
 }
@@ -211,5 +218,7 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	if err := s.connect(); err != nil {
 		return nil, fmt.Errorf("unable to connect: %v", err)
 	}
+	s.statsSentMetrics = 0
+	s.statsProcessedMetrics = 0
 	return s, nil
 }

@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,11 +30,12 @@ type PrometheusSinkConfig struct {
 
 type PrometheusSink struct {
 	sink
-	config       PrometheusSinkConfig
-	labelMetrics map[string]*prometheus.GaugeVec
-	nodeMetrics  map[string]prometheus.Gauge
-	promWg       sync.WaitGroup
-	promServer   *http.Server
+	config           PrometheusSinkConfig
+	labelMetrics     map[string]*prometheus.GaugeVec
+	nodeMetrics      map[string]prometheus.Gauge
+	promWg           sync.WaitGroup
+	promServer       *http.Server
+	statsSentMetrics int64
 }
 
 func intToFloat64(input interface{}) (float64, error) {
@@ -113,6 +115,8 @@ func (s *PrometheusSink) newMetric(metric lp.CCMetric) error {
 		s.nodeMetrics[name] = new
 		prometheus.Register(new)
 	}
+	s.statsSentMetrics++
+	stats.ComponentStatInt(s.name, "sent_metrics", s.statsSentMetrics)
 	return nil
 }
 
@@ -146,6 +150,8 @@ func (s *PrometheusSink) updateMetric(metric lp.CCMetric) error {
 		}
 		s.nodeMetrics[name].Set(value)
 	}
+	s.statsSentMetrics++
+	stats.ComponentStatInt(s.name, "sent_metrics", s.statsSentMetrics)
 	return nil
 }
 

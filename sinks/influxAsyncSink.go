@@ -10,6 +10,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 )
@@ -42,6 +43,9 @@ type InfluxAsyncSink struct {
 	config              InfluxAsyncSinkConfig
 	influxRetryInterval uint
 	influxMaxRetryTime  uint
+	sentMetrics         int64
+	statsFlushes        int64
+	statsErrors         int64
 }
 
 func (s *InfluxAsyncSink) connect() error {
@@ -105,11 +109,15 @@ func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
 	s.writeApi.WritePoint(
 		m.ToPoint(s.meta_as_tags),
 	)
+	s.sentMetrics++
+	stats.ComponentStatInt(s.name, "send_metrics", s.sentMetrics)
 	return nil
 }
 
 func (s *InfluxAsyncSink) Flush() error {
 	s.writeApi.Flush()
+	s.statsFlushes++
+	stats.ComponentStatInt(s.name, "flushes", s.statsFlushes)
 	return nil
 }
 
@@ -189,12 +197,17 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 	}
 
 	// Start background: Read from error channel
+	s.statsErrors = 0
 	s.errors = s.writeApi.Errors()
 	go func() {
 		for err := range s.errors {
+			s.statsErrors++
+			stats.ComponentStatInt(s.name, "errors", s.statsErrors)
 			cclog.ComponentError(s.name, err.Error())
 		}
 	}()
 
+	s.sentMetrics = 0
+	s.statsFlushes = 0
 	return s, nil
 }
