@@ -16,6 +16,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const DEFAULT_BEEGFS_CMD = "beegfs-ctl"
@@ -29,10 +30,11 @@ type BeegfsMetaCollectorConfig struct {
 
 type BeegfsMetaCollector struct {
 	metricCollector
-	tags    map[string]string
-	matches map[string]string
-	config  BeegfsMetaCollectorConfig
-	skipFS  map[string]struct{}
+	tags                  map[string]string
+	matches               map[string]string
+	config                BeegfsMetaCollectorConfig
+	skipFS                map[string]struct{}
+	statsProcessedMetrics int64
 }
 
 func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
@@ -105,6 +107,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 	if err != nil {
 		return fmt.Errorf("BeegfsMetaCollector.Init(): Failed to find beegfs-ctl binary '%s': %v", m.config.Beegfs, err)
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -218,10 +221,12 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetr
 				y, err := lp.New(key, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 				if err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *BeegfsMetaCollector) Close() {

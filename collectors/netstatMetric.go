@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const NETSTATFILE = "/proc/net/dev"
@@ -32,9 +33,10 @@ type NetstatCollectorMetric struct {
 
 type NetstatCollector struct {
 	metricCollector
-	config        NetstatCollectorConfig
-	matches       map[string][]NetstatCollectorMetric
-	lastTimestamp time.Time
+	config                NetstatCollectorConfig
+	matches               map[string][]NetstatCollectorMetric
+	lastTimestamp         time.Time
+	statsProcessedMetrics int64
 }
 
 func (m *NetstatCollector) Init(config json.RawMessage) error {
@@ -148,6 +150,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	if len(m.matches) == 0 {
 		return errors.New("no devices to collector metrics found")
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -198,6 +201,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				if m.config.SendAbsoluteValues {
 					if y, err := lp.New(metric.name, metric.tags, metric.meta, map[string]interface{}{"value": v}, now); err == nil {
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 				if m.config.SendDerivedValues {
@@ -205,6 +209,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 						rate := float64(v-metric.lastValue) / timeDiff
 						if y, err := lp.New(metric.name+"_bw", metric.tags, metric.meta_rates, map[string]interface{}{"value": rate}, now); err == nil {
 							output <- y
+							m.statsProcessedMetrics++
 						}
 					}
 					metric.lastValue = v
@@ -212,6 +217,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			}
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *NetstatCollector) Close() {

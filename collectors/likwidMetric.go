@@ -28,6 +28,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
@@ -72,18 +73,21 @@ type LikwidCollectorConfig struct {
 
 type LikwidCollector struct {
 	metricCollector
-	cpulist      []C.int
-	cpu2tid      map[int]int
-	sock2tid     map[int]int
-	metrics      map[C.int]map[string]int
-	groups       []C.int
-	config       LikwidCollectorConfig
-	gmresults    map[int]map[string]float64
-	basefreq     float64
-	running      bool
-	initialized  bool
-	likwidGroups map[C.int]LikwidEventsetConfig
-	lock         sync.Mutex
+	cpulist               []C.int
+	cpu2tid               map[int]int
+	sock2tid              map[int]int
+	metrics               map[C.int]map[string]int
+	groups                []C.int
+	config                LikwidCollectorConfig
+	gmresults             map[int]map[string]float64
+	basefreq              float64
+	running               bool
+	initialized           bool
+	likwidGroups          map[C.int]LikwidEventsetConfig
+	lock                  sync.Mutex
+	statsMeasurements     int64
+	statsProcessedMetrics int64
+	statsPublishedMetrics int64
 }
 
 type LikwidMetric struct {
@@ -267,6 +271,9 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
+	m.statsMeasurements = 0
+	m.statsProcessedMetrics = 0
+	m.statsPublishedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -274,6 +281,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 // take a measurement for 'interval' seconds of event set index 'group'
 func (m *LikwidCollector) takeMeasurement(evset LikwidEventsetConfig, interval time.Duration) (bool, error) {
 	var ret C.int
+
 	m.lock.Lock()
 	if m.initialized {
 		ret = C.perfmon_setupCounters(evset.gid)
@@ -317,6 +325,8 @@ func (m *LikwidCollector) takeMeasurement(evset LikwidEventsetConfig, interval t
 		}
 	}
 	m.lock.Unlock()
+	m.statsMeasurements++
+	stats.ComponentStatInt(m.name, "measurements", m.statsMeasurements)
 	return false, nil
 }
 
@@ -357,6 +367,8 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				if m.config.InvalidToZero && math.IsInf(value, 0) {
 					value = 0.0
 				}
+				m.statsProcessedMetrics++
+				stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
@@ -369,6 +381,8 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 							if len(metric.Unit) > 0 {
 								y.AddMeta("unit", metric.Unit)
 							}
+							m.statsPublishedMetrics++
+							stats.ComponentStatInt(m.name, "published_metrics", m.statsPublishedMetrics)
 							output <- y
 						}
 					}
@@ -409,6 +423,8 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 				if m.config.InvalidToZero && math.IsInf(value, 0) {
 					value = 0.0
 				}
+				m.statsProcessedMetrics++
+				stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
@@ -422,6 +438,8 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 							if len(metric.Unit) > 0 {
 								y.AddMeta("unit", metric.Unit)
 							}
+							m.statsPublishedMetrics++
+							stats.ComponentStatInt(m.name, "published_metrics", m.statsPublishedMetrics)
 							output <- y
 						}
 					}

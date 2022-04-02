@@ -9,6 +9,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
@@ -26,9 +27,10 @@ type NvidiaCollectorDevice struct {
 
 type NvidiaCollector struct {
 	metricCollector
-	num_gpus int
-	config   NvidiaCollectorConfig
-	gpus     []NvidiaCollectorDevice
+	num_gpus              int
+	config                NvidiaCollectorConfig
+	gpus                  []NvidiaCollectorDevice
+	statsProcessedMetrics int64
 }
 
 func (m *NvidiaCollector) CatchPanic() {
@@ -120,7 +122,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 				pciInfo.Device)
 		}
 	}
-
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -151,6 +153,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					if err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 				if !device.excludeMetrics["nv_mem_util"] {
@@ -158,6 +161,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					if err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 			}
@@ -186,6 +190,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					if err == nil {
 						y.AddMeta("unit", "MByte")
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 
@@ -195,6 +200,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					if err == nil {
 						y.AddMeta("unit", "MByte")
 						output <- y
+						m.statsProcessedMetrics++
 					}
 				}
 			}
@@ -212,6 +218,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "degC")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -232,6 +239,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -258,11 +266,13 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				}
 				if err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			} else if ret == nvml.ERROR_NOT_SUPPORTED {
 				y, err := lp.New("nv_ecc_mode", device.tags, m.meta, map[string]interface{}{"value": "N/A"}, time.Now())
 				if err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -280,6 +290,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				y, err := lp.New("nv_perf_state", device.tags, m.meta, map[string]interface{}{"value": fmt.Sprintf("P%d", int(pState))}, time.Now())
 				if err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -296,6 +307,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "watts")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -313,6 +325,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "MHz")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -324,6 +337,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "MHz")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -335,6 +349,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "MHz")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -357,6 +372,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "MHz")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -368,6 +384,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "MHz")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -379,6 +396,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "MHz")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -398,6 +416,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				y, err := lp.New("nv_ecc_db_error", device.tags, m.meta, map[string]interface{}{"value": float64(ecc_db)}, time.Now())
 				if err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -408,6 +427,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				y, err := lp.New("nv_ecc_sb_error", device.tags, m.meta, map[string]interface{}{"value": float64(ecc_sb)}, time.Now())
 				if err == nil {
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -425,6 +445,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "watts")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -441,6 +462,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -457,11 +479,12 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				if err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
 	}
-
+	stats.ComponentStatInt(m.name, "collected_metrics", m.statsProcessedMetrics)
 }
 
 func (m *NvidiaCollector) Close() {

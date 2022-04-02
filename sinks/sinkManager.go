@@ -102,13 +102,19 @@ func (sm *sinkManager) Start() {
 		}
 
 		toTheSinks := func(p lp.CCMetric) {
+			var wg sync.WaitGroup
 			// Send received metric to all outputs
 			cclog.ComponentDebug("SinkManager", "WRITE", p)
 			for _, s := range sm.sinks {
-				if err := s.Write(p); err != nil {
-					cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
-				}
+				wg.Add(1)
+				go func(s Sink) {
+					if err := s.Write(p); err != nil {
+						cclog.ComponentError("SinkManager", "WRITE", s.Name(), "write failed:", err.Error())
+					}
+					wg.Done()
+				}(s)
 			}
+			wg.Wait()
 		}
 
 		for {

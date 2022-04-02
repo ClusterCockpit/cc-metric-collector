@@ -10,6 +10,7 @@ import (
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const MAX_NUM_PROCS = 10
@@ -21,8 +22,9 @@ type TopProcsCollectorConfig struct {
 
 type TopProcsCollector struct {
 	metricCollector
-	tags   map[string]string
-	config TopProcsCollectorConfig
+	tags                  map[string]string
+	config                TopProcsCollectorConfig
+	statsProcessedMetrics int64
 }
 
 func (m *TopProcsCollector) Init(config json.RawMessage) error {
@@ -48,6 +50,7 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	if err != nil {
 		return errors.New("failed to execute command")
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -70,8 +73,10 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric
 		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": string(lines[i])}, time.Now())
 		if err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *TopProcsCollector) Close() {

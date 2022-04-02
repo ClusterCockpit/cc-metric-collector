@@ -8,6 +8,7 @@ import (
 
 	//	"time"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 type StdoutSink struct {
@@ -17,6 +18,7 @@ type StdoutSink struct {
 		defaultSinkConfig
 		Output string `json:"output_file,omitempty"`
 	}
+	sentMetrics int64
 }
 
 func (s *StdoutSink) Write(m lp.CCMetric) error {
@@ -24,6 +26,8 @@ func (s *StdoutSink) Write(m lp.CCMetric) error {
 		s.output,
 		m.ToLineProtocol(s.meta_as_tags),
 	)
+	s.sentMetrics++
+	stats.ComponentStatInt(s.name, "sent_metrics", s.sentMetrics)
 	return nil
 }
 
@@ -68,6 +72,7 @@ func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
 	for _, k := range s.config.MetaAsTags {
 		s.meta_as_tags[k] = true
 	}
+	s.sentMetrics = 0
 
 	return s, nil
 }

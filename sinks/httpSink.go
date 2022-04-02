@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	influx "github.com/influxdata/line-protocol"
 )
 
@@ -36,6 +37,8 @@ type HttpSink struct {
 	idleConnTimeout time.Duration
 	timeout         time.Duration
 	flushDelay      time.Duration
+	statsProcessed  int64
+	statsFlushes    int64
 }
 
 func (s *HttpSink) Write(m lp.CCMetric) error {
@@ -63,6 +66,8 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 		cclog.ComponentError(s.name, "encoding failed:", err.Error())
 		return err
 	}
+	s.statsProcessed++
+	stats.ComponentStatInt(s.name, "processed_metrics", s.statsProcessed)
 
 	// Flush synchronously if "flush_delay" is zero
 	if s.flushDelay == 0 {
@@ -112,6 +117,8 @@ func (s *HttpSink) Flush() error {
 		cclog.ComponentError(s.name, "application error:", err.Error())
 		return err
 	}
+	s.statsFlushes++
+	stats.ComponentStatInt(s.name, "flushes", s.statsFlushes)
 
 	return nil
 }
@@ -177,5 +184,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s.buffer = &bytes.Buffer{}
 	s.encoder = influx.NewEncoder(s.buffer)
 	s.encoder.SetPrecision(time.Second)
+	s.statsFlushes = 0
+	s.statsProcessed = 0
 	return s, nil
 }

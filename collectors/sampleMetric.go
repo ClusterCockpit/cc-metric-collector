@@ -6,6 +6,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 // These are the fields we read from the JSON configuration
@@ -17,9 +18,10 @@ type SampleCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type SampleCollector struct {
 	metricCollector
-	config SampleTimerCollectorConfig // the configuration structure
-	meta   map[string]string          // default meta information
-	tags   map[string]string          // default tags
+	config     SampleTimerCollectorConfig // the configuration structure
+	meta       map[string]string          // default meta information
+	tags       map[string]string          // default tags
+	statsCount int64
 }
 
 // Functions to implement MetricCollector interface
@@ -58,6 +60,9 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	// for all topological entities (sockets, NUMA domains, ...)
 	// Return some useful error message in case of any failures
 
+	// Initialize counts for statistics
+	m.statsCount = 0
+
 	// Set this flag only if everything is initialized properly, all required files exist, ...
 	m.init = true
 	return err
@@ -80,8 +85,11 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 	if err == nil {
 		// Send it to output channel
 		output <- y
+		// increment count for each sent metric or any other operation
+		m.statsCount++
 	}
-
+	// Set stats for the component
+	stats.ComponentStatInt(m.name, "count", m.statsCount)
 }
 
 // Close metric collector: close network connection, close files, close libraries, ...

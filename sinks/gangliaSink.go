@@ -11,6 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const GMETRIC_EXEC = `gmetric`
@@ -29,9 +30,10 @@ type GangliaSinkConfig struct {
 
 type GangliaSink struct {
 	sink
-	gmetric_path   string
-	gmetric_config string
-	config         GangliaSinkConfig
+	gmetric_path     string
+	gmetric_config   string
+	config           GangliaSinkConfig
+	statsSentMetrics int64
 }
 
 func (s *GangliaSink) Write(point lp.CCMetric) error {
@@ -78,6 +80,8 @@ func (s *GangliaSink) Write(point lp.CCMetric) error {
 	command := exec.Command(s.gmetric_path, argstr...)
 	command.Wait()
 	_, err = command.Output()
+	s.statsSentMetrics++
+	stats.ComponentStatInt(s.name, "sent_metrics", s.statsSentMetrics)
 	return err
 }
 
@@ -120,5 +124,6 @@ func NewGangliaSink(name string, config json.RawMessage) (Sink, error) {
 	if len(s.config.GmetricConfig) > 0 {
 		s.gmetric_config = s.config.GmetricConfig
 	}
+	s.statsSentMetrics = 0
 	return s, nil
 }

@@ -10,6 +10,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 //
@@ -32,6 +33,7 @@ type LoadavgCollector struct {
 	config       struct {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 	}
+	statsProcessedMetrics int64
 }
 
 func (m *LoadavgCollector) Init(config json.RawMessage) error {
@@ -63,6 +65,7 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	for i, name := range m.proc_matches {
 		_, m.proc_skips[i] = stringArrayContains(m.config.ExcludeMetrics, name)
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -98,6 +101,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
 		if err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
 	}
 
@@ -117,9 +121,10 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
 		if err == nil {
 			output <- y
+			m.statsProcessedMetrics++
 		}
-
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *LoadavgCollector) Close() {

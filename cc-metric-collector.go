@@ -28,6 +28,7 @@ type CentralConfigFile struct {
 	RouterConfigFile    string `json:"router"`
 	SinkConfigFile      string `json:"sinks"`
 	ReceiverConfigFile  string `json:"receivers,omitempty"`
+	StatsApiConfigFile  string `json:"stats_api,omitempty"`
 }
 
 func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
@@ -52,6 +53,7 @@ type RuntimeConfig struct {
 	CollectManager  collectors.CollectorManager
 	SinkManager     sinks.SinkManager
 	ReceiveManager  receivers.ReceiveManager
+	StatsApi        mr.StatsApi
 	MultiChanTicker mct.MultiChanTicker
 
 	Channels []chan lp.CCMetric
@@ -152,11 +154,16 @@ func shutdownHandler(config *RuntimeConfig, shutdownSignal chan os.Signal) {
 		cclog.Debug("Shutdown SinkManager...")
 		config.SinkManager.Close()
 	}
+	if config.StatsApi != nil {
+		cclog.Debug("Shutdown StatsApi...")
+		config.StatsApi.Close()
+	}
 }
 
 func mainFunc() int {
 	var err error
 	use_recv := false
+	use_api := false
 
 	// Initialize runtime configuration
 	rcfg := RuntimeConfig{
@@ -164,6 +171,7 @@ func mainFunc() int {
 		CollectManager: nil,
 		SinkManager:    nil,
 		ReceiveManager: nil,
+		StatsApi:       nil,
 		CliArgs:        ReadCli(),
 	}
 
@@ -253,12 +261,27 @@ func mainFunc() int {
 		use_recv = true
 	}
 
+	// Create new statistics API manager
+	if len(rcfg.ConfigFile.StatsApiConfigFile) > 0 {
+		rcfg.StatsApi, err = mr.NewStatsApi(rcfg.MultiChanTicker, &rcfg.Sync, rcfg.ConfigFile.StatsApiConfigFile)
+		if err != nil {
+			cclog.Error(err.Error())
+			return 1
+		}
+		use_api = true
+	}
+
 	// Create shutdown handler
 	shutdownSignal := make(chan os.Signal, 1)
 	signal.Notify(shutdownSignal, os.Interrupt)
 	signal.Notify(shutdownSignal, syscall.SIGTERM)
 	rcfg.Sync.Add(1)
 	go shutdownHandler(&rcfg, shutdownSignal)
+
+	// Start the stats api early to be prepared for init settings
+	if use_api {
+		rcfg.StatsApi.Start()
+	}
 
 	// Start the managers
 	rcfg.MetricRouter.Start()

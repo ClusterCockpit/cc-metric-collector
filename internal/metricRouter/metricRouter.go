@@ -40,20 +40,26 @@ type metricRouterConfig struct {
 
 // Metric router data structure
 type metricRouter struct {
-	hostname    string              // Hostname used in tags
-	coll_input  chan lp.CCMetric    // Input channel from CollectorManager
-	recv_input  chan lp.CCMetric    // Input channel from ReceiveManager
-	cache_input chan lp.CCMetric    // Input channel from MetricCache
-	outputs     []chan lp.CCMetric  // List of all output channels
-	done        chan bool           // channel to finish / stop metric router
-	wg          *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
-	timestamp   time.Time           // timestamp periodically updated by ticker each interval
-	timerdone   chan bool           // channel to finish / stop timestamp updater
-	ticker      mct.MultiChanTicker // periodically ticking once each interval
-	config      metricRouterConfig  // json encoded config for metric router
-	cache       MetricCache         // pointer to MetricCache
-	cachewg     sync.WaitGroup      // wait group for MetricCache
-	maxForward  int                 // number of metrics to forward maximally in one iteration
+	hostname          string              // Hostname used in tags
+	coll_input        chan lp.CCMetric    // Input channel from CollectorManager
+	recv_input        chan lp.CCMetric    // Input channel from ReceiveManager
+	cache_input       chan lp.CCMetric    // Input channel from MetricCache
+	outputs           []chan lp.CCMetric  // List of all output channels
+	done              chan bool           // channel to finish / stop metric router
+	wg                *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
+	timestamp         time.Time           // timestamp periodically updated by ticker each interval
+	timerdone         chan bool           // channel to finish / stop timestamp updater
+	ticker            mct.MultiChanTicker // periodically ticking once each interval
+	config            metricRouterConfig  // json encoded config for metric router
+	cache             MetricCache         // pointer to MetricCache
+	cachewg           sync.WaitGroup      // wait group for MetricCache
+	maxForward        int                 // number of metrics to forward maximally in one iteration
+	statsCollForward  int64
+	statsRecvForward  int64
+	statsCacheForward int64
+	statsTotalForward int64
+	statsDropped      int64
+	statsRenamed      int64
 }
 
 // MetricRouter access functions
@@ -121,6 +127,12 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	for _, mname := range r.config.DropMetrics {
 		r.config.dropMetrics[mname] = true
 	}
+	r.statsCollForward = 0
+	r.statsRecvForward = 0
+	r.statsCacheForward = 0
+	r.statsTotalForward = 0
+	r.statsDropped = 0
+	r.statsRenamed = 0
 	return nil
 }
 
@@ -140,6 +152,7 @@ func (r *metricRouter) StartTimer() {
 				cclog.ComponentDebug("MetricRouter", "TIMER DONE")
 				return
 			case t := <-m:
+				cclog.ComponentDebug("MetricRouter", "INTERVAL_TICK", t.Unix())
 				r.timestamp = t
 			}
 		}
@@ -253,6 +266,8 @@ func (r *metricRouter) Start() {
 		r.DoDelTags(point)
 		name := point.Name()
 		if new, ok := r.config.RenameMetrics[name]; ok {
+			r.statsRenamed++
+			ComponentStatInt("MetricRouter", "renamed", r.statsRenamed)
 			point.SetName(new)
 			point.AddMeta("oldname", name)
 		}
@@ -272,7 +287,14 @@ func (r *metricRouter) Start() {
 			p.SetTime(r.timestamp)
 		}
 		if !r.dropMetric(p) {
+			r.statsCollForward++
+			r.statsTotalForward++
+			ComponentStatInt("MetricRouter", "collector_forward", r.statsCollForward)
+			ComponentStatInt("MetricRouter", "total_forward", r.statsTotalForward)
 			forward(p)
+		} else {
+			r.statsDropped++
+			ComponentStatInt("MetricRouter", "dropped", r.statsDropped)
 		}
 		// even if the metric is dropped, it is stored in the cache for
 		// aggregations
@@ -288,7 +310,14 @@ func (r *metricRouter) Start() {
 			p.SetTime(r.timestamp)
 		}
 		if !r.dropMetric(p) {
+			r.statsRecvForward++
+			r.statsTotalForward++
+			ComponentStatInt("MetricRouter", "receiver_forward", r.statsRecvForward)
+			ComponentStatInt("MetricRouter", "total_forward", r.statsTotalForward)
 			forward(p)
+		} else {
+			r.statsDropped++
+			ComponentStatInt("MetricRouter", "dropped", r.statsDropped)
 		}
 	}
 
@@ -297,7 +326,14 @@ func (r *metricRouter) Start() {
 		// receive from metric collector
 		if !r.dropMetric(p) {
 			p.AddTag(r.config.HostnameTagName, r.hostname)
+			r.statsCacheForward++
+			r.statsTotalForward++
+			ComponentStatInt("MetricRouter", "cache_forward", r.statsCacheForward)
+			ComponentStatInt("MetricRouter", "total_forward", r.statsTotalForward)
 			forward(p)
+		} else {
+			r.statsDropped++
+			ComponentStatInt("MetricRouter", "dropped", r.statsDropped)
 		}
 	}
 

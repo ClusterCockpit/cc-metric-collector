@@ -12,6 +12,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 //
@@ -36,7 +37,8 @@ type CPUFreqCpuInfoCollectorTopology struct {
 
 type CPUFreqCpuInfoCollector struct {
 	metricCollector
-	topology []*CPUFreqCpuInfoCollectorTopology
+	topology              []*CPUFreqCpuInfoCollectorTopology
+	statsProcessedMetrics int64
 }
 
 func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
@@ -155,7 +157,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			"package_id": t.physicalPackageID,
 		}
 	}
-
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -196,6 +198,7 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 						return
 					}
 					if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now); err == nil {
+						m.statsProcessedMetrics++
 						output <- y
 					}
 				}
@@ -203,6 +206,7 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 			}
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *CPUFreqCpuInfoCollector) Close() {

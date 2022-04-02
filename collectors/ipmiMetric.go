@@ -11,6 +11,7 @@ import (
 	"time"
 
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 const IPMITOOL_PATH = `ipmitool`
@@ -26,9 +27,10 @@ type IpmiCollector struct {
 	metricCollector
 	//tags        map[string]string
 	//matches     map[string]string
-	config      IpmiCollectorConfig
-	ipmitool    string
-	ipmisensors string
+	config                IpmiCollectorConfig
+	ipmitool              string
+	ipmisensors           string
+	statsProcessedMetrics int64
 }
 
 func (m *IpmiCollector) Init(config json.RawMessage) error {
@@ -56,6 +58,7 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 	if len(m.ipmitool) == 0 && len(m.ipmisensors) == 0 {
 		return errors.New("no IPMI reader found")
 	}
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -94,6 +97,7 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 			if err == nil {
 				y.AddMeta("unit", unit)
 				output <- y
+				m.statsProcessedMetrics++
 			}
 		}
 	}
@@ -123,6 +127,7 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
 						y.AddMeta("unit", lv[4])
 					}
 					output <- y
+					m.statsProcessedMetrics++
 				}
 			}
 		}
@@ -141,6 +146,7 @@ func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			m.readIpmiSensors(m.config.IpmisensorsPath, output)
 		}
 	}
+	stats.ComponentStatInt(m.name, "processed_metrics", m.statsProcessedMetrics)
 }
 
 func (m *IpmiCollector) Close() {

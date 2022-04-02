@@ -12,6 +12,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 //
@@ -44,7 +45,8 @@ type NUMAStatsCollectorTopolgy struct {
 
 type NUMAStatsCollector struct {
 	metricCollector
-	topology []NUMAStatsCollectorTopolgy
+	topology              []NUMAStatsCollectorTopolgy
+	statsProcessedMetrics int64
 }
 
 func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
@@ -80,7 +82,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 				tagSet: map[string]string{"memoryDomain": node},
 			})
 	}
-
+	m.statsProcessedMetrics = 0
 	m.init = true
 	return nil
 }
@@ -127,11 +129,13 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetri
 			)
 			if err == nil {
 				output <- y
+				m.statsProcessedMetrics++
 			}
 		}
 
 		file.Close()
 	}
+	stats.ComponentStatInt(m.name, "collected_metrics", m.statsProcessedMetrics)
 }
 
 func (m *NUMAStatsCollector) Close() {

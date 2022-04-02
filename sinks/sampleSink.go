@@ -7,6 +7,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	stats "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 )
 
 type SampleSinkConfig struct {
@@ -14,12 +15,15 @@ type SampleSinkConfig struct {
 	// See: metricSink.go
 	defaultSinkConfig
 	// Additional config options, for SampleSink
+
 }
 
 type SampleSink struct {
 	// declares elements 	'name' and 'meta_as_tags' (string to bool map!)
 	sink
 	config SampleSinkConfig // entry point to the SampleSinkConfig
+	// Stats counters
+	statsSentMetrics int64
 }
 
 // Implement functions required for Sink interface
@@ -30,6 +34,8 @@ type SampleSink struct {
 func (s *SampleSink) Write(point lp.CCMetric) error {
 	// based on s.meta_as_tags use meta infos as tags
 	log.Print(point)
+	s.statsSentMetrics++
+	stats.ComponentStatInt(s.name, "sent_metrics", s.statsSentMetrics)
 	return nil
 }
 
@@ -62,6 +68,9 @@ func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
 			return nil, err
 		}
 	}
+
+	// Initalize stats counters
+	s.statsSentMetrics = 0
 
 	// Create lookup map to use meta infos as tags in the output metric
 	s.meta_as_tags = make(map[string]bool)
