@@ -20,6 +20,7 @@ There is a main configuration file with basic settings that point to the other c
   "collectors" : "collectors.json",
   "receivers" : "receivers.json",
   "router" : "router.json",
+  "stats_api" : "api.json",
   "interval": 10,
   "duration": 1
 }
@@ -32,6 +33,7 @@ See the component READMEs for their configuration:
 * [`sinks`](./sinks/README.md)
 * [`receivers`](./receivers/README.md)
 * [`router`](./internal/metricRouter/README.md)
+* [`stats_api`](./internal/metricRouter/StatsApi.md)
 
 
 # Installation
