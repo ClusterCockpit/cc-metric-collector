@@ -18,13 +18,18 @@ import (
 
 const IB_BASEPATH = "/sys/class/infiniband/"
 
+type InfinibandCollectorMetric struct {
+	path string
+	unit string
+}
+
 type InfinibandCollectorInfo struct {
-	LID              string            // IB local Identifier (LID)
-	device           string            // IB device
-	port             string            // IB device port
-	portCounterFiles map[string]string // mapping counter name -> sysfs file
-	tagSet           map[string]string // corresponding tag list
-	lastState        map[string]int64  // State from last measurement
+	LID              string                               // IB local Identifier (LID)
+	device           string                               // IB device
+	port             string                               // IB device port
+	portCounterFiles map[string]InfinibandCollectorMetric // mapping counter name -> InfinibandCollectorMetric
+	tagSet           map[string]string                    // corresponding tag list
+	lastState        map[string]int64                     // State from last measurement
 }
 
 type InfinibandCollector struct {
@@ -106,16 +111,16 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 
 		// Check access to counter files
 		countersDir := filepath.Join(path, "counters")
-		portCounterFiles := map[string]string{
-			"ib_recv":      filepath.Join(countersDir, "port_rcv_data"),
-			"ib_xmit":      filepath.Join(countersDir, "port_xmit_data"),
-			"ib_recv_pkts": filepath.Join(countersDir, "port_rcv_packets"),
-			"ib_xmit_pkts": filepath.Join(countersDir, "port_xmit_packets"),
+		portCounterFiles := map[string]InfinibandCollectorMetric{
+			"ib_recv":      {path: filepath.Join(countersDir, "port_rcv_data"), unit: "bytes"},
+			"ib_xmit":      {path: filepath.Join(countersDir, "port_xmit_data"), unit: "bytes"},
+			"ib_recv_pkts": {path: filepath.Join(countersDir, "port_rcv_packets"), unit: "packets"},
+			"ib_xmit_pkts": {path: filepath.Join(countersDir, "port_xmit_packets"), unit: "packets"},
 		}
-		for _, counterFile := range portCounterFiles {
-			err := unix.Access(counterFile, unix.R_OK)
+		for _, counter := range portCounterFiles {
+			err := unix.Access(counter.path, unix.R_OK)
 			if err != nil {
-				return fmt.Errorf("unable to access %s: %v", counterFile, err)
+				return fmt.Errorf("unable to access %s: %v", counter.path, err)
 			}
 		}
 
@@ -165,14 +170,14 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 	m.lastTimestamp = now
 
 	for _, info := range m.info {
-		for counterName, counterFile := range info.portCounterFiles {
+		for counterName, counterDef := range info.portCounterFiles {
 
 			// Read counter file
-			line, err := ioutil.ReadFile(counterFile)
+			line, err := ioutil.ReadFile(counterDef.path)
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to read from file '%s': %v", counterFile, err))
+					fmt.Sprintf("Read(): Failed to read from file '%s': %v", counterDef.path, err))
 				continue
 			}
 			data := strings.TrimSpace(string(line))
@@ -189,6 +194,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
 				if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+					y.AddMeta("unit", counterDef.unit)
 					output <- y
 				}
 			}
@@ -198,6 +204,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 				if info.lastState[counterName] >= 0 {
 					rate := float64((v - info.lastState[counterName])) / timeDiff
 					if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+						y.AddMeta("unit", counterDef.unit+"/sec")
 						output <- y
 					}
 				}
