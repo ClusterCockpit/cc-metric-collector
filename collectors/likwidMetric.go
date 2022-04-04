@@ -329,7 +329,11 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 		gctr := C.GoString(counter)
 		for _, tid := range m.cpu2tid {
 			res := C.perfmon_getLastResult(evset.gid, C.int(eidx), C.int(tid))
-			evset.results[tid][gctr] = float64(res)
+			fres := float64(res)
+			if m.config.InvalidToZero && (math.IsNaN(fres) || math.IsInf(fres, 0)) {
+				fres = 0.0
+			}
+			evset.results[tid][gctr] = fres
 			evset.results[tid]["time"] = interval.Seconds()
 			evset.results[tid]["inverseClock"] = invClock
 		}
@@ -348,15 +352,12 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				value, err := agg.EvalFloat64Condition(metric.Calc, evset.results[tid])
 				if err != nil {
 					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
-					continue
+					value = 0.0
+				}
+				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {
+					value = 0.0
 				}
 				evset.metrics[tid][metric.Name] = value
-				if m.config.InvalidToZero && math.IsNaN(value) {
-					value = 0.0
-				}
-				if m.config.InvalidToZero && math.IsInf(value, 0) {
-					value = 0.0
-				}
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
@@ -400,15 +401,12 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 				value, err := agg.EvalFloat64Condition(metric.Calc, params)
 				if err != nil {
 					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
-					continue
+					value = 0.0
+				}
+				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {
+					value = 0.0
 				}
 				m.gmresults[tid][metric.Name] = value
-				if m.config.InvalidToZero && math.IsNaN(value) {
-					value = 0.0
-				}
-				if m.config.InvalidToZero && math.IsInf(value, 0) {
-					value = 0.0
-				}
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
