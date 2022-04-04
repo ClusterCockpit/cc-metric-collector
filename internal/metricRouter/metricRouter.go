@@ -295,6 +295,7 @@ func (r *metricRouter) Start() {
 
 			case timestamp := <-timeChan:
 				r.timestamp = timestamp
+				cclog.ComponentDebug("MetricRouter", "Update timestamp", r.timestamp.UnixNano())
 
 			case p := <-r.coll_input:
 				coll_forward(p)
