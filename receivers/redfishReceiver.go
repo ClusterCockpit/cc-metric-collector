@@ -186,7 +186,7 @@ func (r *RedfishReceiver) Close() {
 	cclog.ComponentDebug(r.name, "CLOSE")
 
 	// Send the signal and wait
-	r.done <- true
+	close(r.done)
 	r.wg.Wait()
 
 	cclog.ComponentDebug(r.name, "DONE")
