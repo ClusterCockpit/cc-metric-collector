@@ -50,7 +50,18 @@ func (r *RedfishReceiver) Start() {
 		// Connect to redfish service
 		c, err := gofish.Connect(clientConfig.gofish)
 		if err != nil {
-			return fmt.Errorf("readPowerMetric: gofish.Connect(...) failed: %v", err)
+			c := struct {
+				Username  string
+				Endpoint  string
+				BasicAuth bool
+				Insecure  bool
+			}{
+				Username:  clientConfig.gofish.Username,
+				Endpoint:  clientConfig.gofish.Endpoint,
+				BasicAuth: clientConfig.gofish.BasicAuth,
+				Insecure:  clientConfig.gofish.Insecure,
+			}
+			return fmt.Errorf("readPowerMetric: gofish.Connect(%+v) failed: %v", c, err)
 		}
 		defer c.Logout()
 
@@ -146,18 +157,19 @@ func (r *RedfishReceiver) Start() {
 		}
 
 		// Distribute client configs to workers
-	clientConfigLoop:
 		for i := range r.config.ClientConfigs {
 			// Check done channel status
 			select {
-			case _, ok := <-r.done:
-				if !ok {
-					break clientConfigLoop
+			case workerInput <- i:
+			case <-r.done:
+				// process done event
+				// Stop workers, clear channel and wait for all workers to finish
+				close(workerInput)
+				for range workerInput {
 				}
-			default:
+				workerWaitGroup.Wait()
+				return
 			}
-
-			workerInput <- i
 		}
 
 		// Stop workers and wait for all workers to finish
