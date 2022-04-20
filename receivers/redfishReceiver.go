@@ -146,7 +146,17 @@ func (r *RedfishReceiver) Start() {
 		}
 
 		// Distribute client configs to workers
+	clientConfigLoop:
 		for i := range r.config.ClientConfigs {
+			// Check done channel status
+			select {
+			case _, ok := <-r.done:
+				if !ok {
+					break clientConfigLoop
+				}
+			default:
+			}
+
 			workerInput <- i
 		}
 
