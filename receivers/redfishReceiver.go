@@ -111,45 +111,46 @@ func (r *RedfishReceiver) Start() {
 					delete(metrics, key)
 				}
 
+				// Set tags
+				tags := map[string]string{
+					"hostname": *clientConfig.Hostname,
+					"type":     "node",
+					// ID uniquely identifies the resource
+					"id": pc.ID,
+					// MemberID shall uniquely identify the member within the collection. For
+					// services supporting Redfish v1.6 or higher, this value shall be the
+					// zero-based array index.
+					"member_id": pc.MemberID,
+					// PhysicalContext shall be a description of the affected device(s) or region
+					// within the chassis to which this power control applies.
+					"physical_context": string(pc.PhysicalContext),
+					// Name
+					"power_control_name": pc.Name,
+				}
+
+				// Delete empty tags
+				for key, value := range tags {
+					if value == "" {
+						delete(tags, key)
+					}
+				}
+
+				// Set meta data tags
+				meta := map[string]string{
+					"source":              r.name,
+					"group":               "Energy",
+					"interval_in_minutes": intervalInMin,
+					"unit":                "watts",
+				}
+
+				// Delete empty meta data tags
+				for key, value := range meta {
+					if value == "" {
+						delete(meta, key)
+					}
+				}
+
 				for name, value := range metrics {
-					// Set tags
-					tags := map[string]string{
-						"hostname": *clientConfig.Hostname,
-						"type":     "node",
-						// ID uniquely identifies the resource
-						"id": pc.ID,
-						// MemberID shall uniquely identify the member within the collection. For
-						// services supporting Redfish v1.6 or higher, this value shall be the
-						// zero-based array index.
-						"member_id": pc.MemberID,
-						// PhysicalContext shall be a description of the affected device(s) or region
-						// within the chassis to which this power control applies.
-						"physical_context": string(pc.PhysicalContext),
-						// Name
-						"power_control_name": pc.Name,
-					}
-
-					// Delete empty tags
-					for key, value := range tags {
-						if value == "" {
-							delete(tags, key)
-						}
-					}
-
-					// Set meta data tags
-					meta := map[string]string{
-						"source":              r.name,
-						"group":               "Energy",
-						"interval_in_minutes": intervalInMin,
-						"unit":                "watts",
-					}
-
-					// Delete empty tags
-					for key, value := range meta {
-						if value == "" {
-							delete(meta, key)
-						}
-					}
 
 					y, err := lp.New(name, tags, meta,
 						map[string]interface{}{
