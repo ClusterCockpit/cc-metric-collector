@@ -287,10 +287,10 @@ func (r *metricRouter) Start() {
 		if new, ok := r.config.RenameMetrics[name]; ok {
 			point.SetName(new)
 			point.AddMeta("oldname", name)
+			r.DoAddTags(point)
+			r.DoDelTags(point)
 		}
 
-		r.DoAddTags(point)
-		r.DoDelTags(point)
 		r.prepareUnit(point)
 
 		for _, o := range r.outputs {
