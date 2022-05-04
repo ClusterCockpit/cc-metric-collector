@@ -37,7 +37,7 @@ type metricRouterConfig struct {
 	NumCacheIntervals int                                  `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
 	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
 	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
-	ChangeUnitPrefix  string                               `json:"change_unit_prefix"`  // Add prefix that should be applied to all metrics where possible
+	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
 	dropMetrics       map[string]bool                      // Internal map for O(1) lookup
 }
 
@@ -231,6 +231,38 @@ func (r *metricRouter) dropMetric(point lp.CCMetric) bool {
 	return false
 }
 
+func (r *metricRouter) prepareUnit(point lp.CCMetric) bool {
+	if r.config.NormalizeUnits {
+		if in_unit, ok := point.GetMeta("unit"); ok {
+			u := units.NewUnit(in_unit)
+			if u.Valid() {
+				point.AddMeta("unit", u.Short())
+			}
+		}
+	}
+	if newP, ok := r.config.ChangeUnitPrefix[point.Name()]; ok {
+
+		newPrefix := units.NewPrefix(newP)
+
+		if in_unit, ok := point.GetMeta("unit"); ok && newPrefix != units.InvalidPrefix {
+			u := units.NewUnit(in_unit)
+			if u.Valid() {
+				cclog.ComponentDebug("MetricRouter", "Change prefix to", newP, "for metric", point.Name())
+				conv, out_unit := units.GetUnitPrefixFactor(u, newPrefix)
+				if conv != nil && out_unit.Valid() {
+					if val, ok := point.GetField("value"); ok {
+						point.AddField("value", conv(val))
+						point.AddMeta("unit", out_unit.Short())
+					}
+				}
+			}
+
+		}
+	}
+
+	return true
+}
+
 // Start starts the metric router
 func (r *metricRouter) Start() {
 	// start timer if configured
@@ -256,65 +288,10 @@ func (r *metricRouter) Start() {
 			point.SetName(new)
 			point.AddMeta("oldname", name)
 		}
-		if r.config.NormalizeUnits {
-			if in_unit, ok := point.GetMeta("unit"); ok {
-				u := units.NewUnit(in_unit)
-				if u.Valid() {
-					point.AddMeta("unit", u.Short())
-				}
-			}
-		}
-		if len(r.config.ChangeUnitPrefix) > 0 {
-			prefix := units.NewPrefix(r.config.ChangeUnitPrefix)
-			if prefix != units.InvalidPrefix {
-				if in_unit, ok := point.GetMeta("unit"); ok {
-					u := units.NewUnit(in_unit)
-					if u.Valid() {
-						conv, out_unit := units.GetUnitPrefixFactor(u, prefix)
-						if conv != nil && out_unit.Valid() {
-							if val, ok := point.GetField("value"); ok {
-								newval := 0.0
-								skip := false
-								switch v := val.(type) {
-								case float64:
-									newval = v
-								case float32:
-									newval = float64(v)
-								case int64:
-									newval = float64(v)
-								case int32:
-									newval = float64(v)
-								case int:
-									newval = float64(v)
-								case string:
-									skip = true
-								}
-								if !skip {
-									newval = conv(newval)
-									var x interface{}
-									switch val.(type) {
-									case float64:
-										x = newval
-									case float32:
-										x = float32(newval)
-									case int64:
-										x = int64(newval)
-									case int32:
-										x = int32(newval)
-									case int:
-										x = int(newval)
-									}
-									point.AddField("value", x)
-									point.AddMeta("unit", out_unit.Short())
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+
 		r.DoAddTags(point)
 		r.DoDelTags(point)
+		r.prepareUnit(point)
 
 		for _, o := range r.outputs {
 			o <- point
