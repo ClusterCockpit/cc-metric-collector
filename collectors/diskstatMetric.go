@@ -3,7 +3,6 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -81,8 +80,7 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 		stat := syscall.Statfs_t{}
 		err := syscall.Statfs(path, &stat)
 		if err != nil {
-			fmt.Println(err.Error())
-			return
+			continue
 		}
 		tags := map[string]string{"type": "node", "device": linefields[0]}
 		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
