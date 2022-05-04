@@ -21,11 +21,10 @@ type CpustatCollectorConfig struct {
 
 type CpustatCollector struct {
 	metricCollector
-	config          CpustatCollectorConfig
-	matches         map[string]int
-	cputags         map[string]map[string]string
-	nodetags        map[string]string
-	num_cpus_metric lp.CCMetric
+	config   CpustatCollectorConfig
+	matches  map[string]int
+	cputags  map[string]map[string]string
+	nodetags map[string]string
 }
 
 func (m *CpustatCollector) Init(config json.RawMessage) error {

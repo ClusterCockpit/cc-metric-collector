@@ -10,14 +10,13 @@ import (
 )
 
 var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
-	"nats": NewNatsReceiver,
+	"nats":    NewNatsReceiver,
+	"redfish": NewRedfishReceiver,
 }
 
 type receiveManager struct {
 	inputs []Receiver
 	output chan lp.CCMetric
-	done   chan bool
-	wg     *sync.WaitGroup
 	config []json.RawMessage
 }
 
@@ -33,8 +32,6 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 	// Initialize struct fields
 	rm.inputs = make([]Receiver, 0)
 	rm.output = nil
-	rm.done = make(chan bool)
-	rm.wg = wg
 	rm.config = make([]json.RawMessage, 0)
 
 	configFile, err := os.Open(receiverConfigFile)
@@ -58,7 +55,7 @@ func (rm *receiveManager) Init(wg *sync.WaitGroup, receiverConfigFile string) er
 }
 
 func (rm *receiveManager) Start() {
-	rm.wg.Add(1)
+	cclog.ComponentDebug("ReceiveManager", "START")
 
 	for _, r := range rm.inputs {
 		cclog.ComponentDebug("ReceiveManager", "START", r.Name())
@@ -97,16 +94,19 @@ func (rm *receiveManager) AddOutput(output chan lp.CCMetric) {
 }
 
 func (rm *receiveManager) Close() {
+	cclog.ComponentDebug("ReceiveManager", "CLOSE")
+
+	// Close all receivers
 	for _, r := range rm.inputs {
 		cclog.ComponentDebug("ReceiveManager", "CLOSE", r.Name())
 		r.Close()
 	}
-	rm.wg.Done()
-	cclog.ComponentDebug("ReceiveManager", "CLOSE")
+
+	cclog.ComponentDebug("ReceiveManager", "DONE")
 }
 
 func New(wg *sync.WaitGroup, receiverConfigFile string) (ReceiveManager, error) {
-	r := &receiveManager{}
+	r := new(receiveManager)
 	err := r.Init(wg, receiverConfigFile)
 	if err != nil {
 		return nil, err

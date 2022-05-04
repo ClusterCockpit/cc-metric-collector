@@ -1,6 +1,8 @@
 {
-  "mystdout" : {
-    "type" : "stdout",
-    "meta_as_tags" : true
+  "mystdout": {
+    "type": "stdout",
+    "meta_as_tags": [
+      "unit"
+    ]
   }
 }

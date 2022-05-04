@@ -40,8 +40,13 @@ type MemstatCollector struct {
 	sendMemUsed bool
 }
 
-func getStats(filename string) map[string]float64 {
-	stats := make(map[string]float64)
+type MemstatStats struct {
+	value float64
+	unit  string
+}
+
+func getStats(filename string) map[string]MemstatStats {
+	stats := make(map[string]MemstatStats)
 	file, err := os.Open(filename)
 	if err != nil {
 		cclog.Error(err.Error())
@@ -55,12 +60,18 @@ func getStats(filename string) map[string]float64 {
 		if len(linefields) == 3 {
 			v, err := strconv.ParseFloat(linefields[1], 64)
 			if err == nil {
-				stats[strings.Trim(linefields[0], ":")] = v
+				stats[strings.Trim(linefields[0], ":")] = MemstatStats{
+					value: v,
+					unit:  linefields[2],
+				}
 			}
 		} else if len(linefields) == 5 {
 			v, err := strconv.ParseFloat(linefields[3], 64)
 			if err == nil {
-				stats[strings.Trim(linefields[0], ":")] = v
+				stats[strings.Trim(linefields[0], ":")] = MemstatStats{
+					value: v,
+					unit:  linefields[4],
+				}
 			}
 		}
 	}
@@ -78,7 +89,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.meta = map[string]string{"source": m.name, "group": "Memory", "unit": "GByte"}
+	m.meta = map[string]string{"source": m.name, "group": "Memory"}
 	m.stats = make(map[string]int64)
 	m.matches = make(map[string]string)
 	m.tags = map[string]string{"type": "node"}
@@ -151,30 +162,51 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		return
 	}
 
-	sendStats := func(stats map[string]float64, tags map[string]string) {
+	sendStats := func(stats map[string]MemstatStats, tags map[string]string) {
 		for match, name := range m.matches {
 			var value float64 = 0
+			var unit string = ""
 			if v, ok := stats[match]; ok {
-				value = v
+				value = v.value
+				if len(v.unit) > 0 {
+					unit = v.unit
+				}
 			}
-			y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": value * 1e-6}, time.Now())
+
+			y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 			if err == nil {
+				if len(unit) > 0 {
+					y.AddMeta("unit", unit)
+				}
 				output <- y
 			}
 		}
 		if m.sendMemUsed {
 			memUsed := 0.0
+			unit := ""
 			if totalVal, total := stats["MemTotal"]; total {
 				if freeVal, free := stats["MemFree"]; free {
 					if bufVal, buffers := stats["Buffers"]; buffers {
 						if cacheVal, cached := stats["Cached"]; cached {
-							memUsed = totalVal - (freeVal + bufVal + cacheVal)
+							memUsed = totalVal.value - (freeVal.value + bufVal.value + cacheVal.value)
+							if len(totalVal.unit) > 0 {
+								unit = totalVal.unit
+							} else if len(freeVal.unit) > 0 {
+								unit = freeVal.unit
+							} else if len(bufVal.unit) > 0 {
+								unit = bufVal.unit
+							} else if len(cacheVal.unit) > 0 {
+								unit = cacheVal.unit
+							}
 						}
 					}
 				}
 			}
-			y, err := lp.New("mem_used", tags, m.meta, map[string]interface{}{"value": memUsed * 1e-6}, time.Now())
+			y, err := lp.New("mem_used", tags, m.meta, map[string]interface{}{"value": memUsed}, time.Now())
 			if err == nil {
+				if len(unit) > 0 {
+					y.AddMeta("unit", unit)
+				}
 				output <- y
 			}
 		}

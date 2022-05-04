@@ -169,7 +169,10 @@ func DieList() []int {
 			}
 		}
 	}
-	return dielist
+	if len(dielist) > 0 {
+		return dielist
+	}
+	return SocketList()
 }
 
 type CpuEntry struct {
@@ -261,7 +264,7 @@ func CpuData() []CpuEntry {
 	for _, c := range CpuList() {
 		clist = append(clist, CpuEntry{Cpuid: c})
 	}
-	for _, centry := range clist {
+	for i, centry := range clist {
 		centry.Socket = -1
 		centry.Numadomain = -1
 		centry.Die = -1
@@ -289,6 +292,8 @@ func CpuData() []CpuEntry {
 		// Lookup NUMA domain id
 		centry.Numadomain = getNumaDomain(base)
 
+		// Update values in output list
+		clist[i] = centry
 	}
 	return clist
 }
