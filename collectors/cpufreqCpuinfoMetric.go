@@ -57,7 +57,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		return fmt.Errorf("Failed to open file '%s': %v", cpuInfoFile, err)
+		return fmt.Errorf("failed to open file '%s': %v", cpuInfoFile, err)
 	}
 	defer file.Close()
 
@@ -106,14 +106,14 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			topology.coreID = coreID
 			topology.coreID_int, err = strconv.ParseInt(coreID, 10, 64)
 			if err != nil {
-				return fmt.Errorf("Unable to convert coreID '%s' to int64: %v", coreID, err)
+				return fmt.Errorf("unable to convert coreID '%s' to int64: %v", coreID, err)
 			}
 
 			// Physical package ID
 			topology.physicalPackageID = physicalPackageID
 			topology.physicalPackageID_int, err = strconv.ParseInt(physicalPackageID, 10, 64)
 			if err != nil {
-				return fmt.Errorf("Unable to convert physicalPackageID '%s' to int64: %v", physicalPackageID, err)
+				return fmt.Errorf("unable to convert physicalPackageID '%s' to int64: %v", physicalPackageID, err)
 			}
 
 			// increase maximun socket / package ID, when required

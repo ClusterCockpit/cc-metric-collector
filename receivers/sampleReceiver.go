@@ -36,16 +36,26 @@ func (r *SampleReceiver) Start() {
 
 	// or use own go routine but always make sure it exits
 	// as soon as it gets the signal of the r.done channel
+	//
+	// r.done = make(chan bool)
 	// r.wg.Add(1)
 	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-r.done:
-	// 			r.wg.Done()
-	// 			return
-	// 		}
-	// 	}
-	// 	r.wg.Done()
+	//      defer r.wg.Done()
+	//
+	//      // Create ticker
+	//      ticker := time.NewTicker(30 * time.Second)
+	//      defer ticker.Stop()
+	//
+	//      for {
+	//          readMetric()
+	//          select {
+	//          case <-ticker.C:
+	//              // process ticker event -> continue
+	//              continue
+	//          case <-r.done:
+	//              return
+	//          }
+	//      }
 	// }()
 }
 

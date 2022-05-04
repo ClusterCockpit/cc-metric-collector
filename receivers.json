@@ -4,5 +4,22 @@
         "address": "nats://my-url",
         "port" : "4222",
         "database": "testcluster"
+    },
+    "redfish_recv": {
+        "type": "redfish",
+        "client_config": [
+            {
+                "hostname": "my-host-1",
+                "username": "username-1",
+                "password": "password-1",
+                "endpoint": "https://my-endpoint-1"
+            },
+            {
+                "hostname": "my-host-2",
+                "username": "username-2",
+                "password": "password-2",
+                "endpoint": "https://my-endpoint-2"
+            }
+        ]
     }
 }

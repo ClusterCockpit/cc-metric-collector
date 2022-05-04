@@ -36,7 +36,7 @@ type nfsCollector struct {
 }
 
 func (m *nfsCollector) initStats() error {
-	cmd := exec.Command(m.config.Nfsstats, `-l`)
+	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
 	cmd.Wait()
 	buffer, err := cmd.Output()
 	if err == nil {
@@ -52,7 +52,7 @@ func (m *nfsCollector) initStats() error {
 					if err == nil {
 						x := m.data[name]
 						x.current = value
-						x.last = 0
+						x.last = value
 						m.data[name] = x
 					}
 				}
@@ -63,7 +63,7 @@ func (m *nfsCollector) initStats() error {
 }
 
 func (m *nfsCollector) updateStats() error {
-	cmd := exec.Command(m.config.Nfsstats, `-l`)
+	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
 	cmd.Wait()
 	buffer, err := cmd.Output()
 	if err == nil {
