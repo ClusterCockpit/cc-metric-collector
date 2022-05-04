@@ -22,6 +22,7 @@ type HttpSinkConfig struct {
 	MaxIdleConns    int    `json:"max_idle_connections,omitempty"`
 	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
 	FlushDelay      string `json:"flush_delay,omitempty"`
+	BatchSize       int    `json:"batch_size,omitempty"`
 }
 
 type HttpSink struct {
@@ -36,6 +37,7 @@ type HttpSink struct {
 	idleConnTimeout time.Duration
 	timeout         time.Duration
 	flushDelay      time.Duration
+	batchSize       int
 }
 
 func (s *HttpSink) Write(m lp.CCMetric) error {
@@ -57,6 +59,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 
 	s.lock.Lock()
 	_, err := s.encoder.Encode(p)
+	s.batchSize++
 	s.lock.Unlock() // defer does not work here as Flush() takes the lock as well
 
 	if err != nil {
@@ -66,6 +69,9 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 
 	// Flush synchronously if "flush_delay" is zero
 	if s.flushDelay == 0 {
+		return s.Flush()
+	}
+	if s.batchSize == s.config.BatchSize {
 		return s.Flush()
 	}
 
@@ -99,6 +105,7 @@ func (s *HttpSink) Flush() error {
 
 	// Clear buffer
 	s.buffer.Reset()
+	s.batchSize = 0
 
 	// Handle transport/tcp errors
 	if err != nil {
@@ -132,6 +139,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.IdleConnTimeout = "5s"
 	s.config.Timeout = "5s"
 	s.config.FlushDelay = "1s"
+	s.config.BatchSize = 100
 
 	// Read config
 	if len(config) > 0 {
