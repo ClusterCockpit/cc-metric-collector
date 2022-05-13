@@ -116,6 +116,10 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		}
 
 		// Sensor file
+		_, err = ioutil.ReadFile(file)
+		if err != nil {
+			continue
+		}
 		sensor.file = file
 
 		// Sensor tags
