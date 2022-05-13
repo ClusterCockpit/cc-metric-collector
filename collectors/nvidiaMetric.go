@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
@@ -13,15 +14,16 @@ import (
 )
 
 type NvidiaCollectorConfig struct {
-	ExcludeMetrics       []string `json:"exclude_metrics,omitempty"`
-	ExcludeDevices       []string `json:"exclude_devices,omitempty"`
-	AddPciInfoTag        bool     `json:"add_pci_info_tag,omitempty"`
-	UsePciInfoAsTypeId   bool     `json:"use_pci_info_as_type_id,omitempty"`
-	AddUuidMeta          bool     `json:"add_uuid_meta,omitempty"`
-	AddBoardNumberMeta   bool     `json:"add_board_number_meta,omitempty"`
-	AddSerialMeta        bool     `json:"add_serial_meta,omitempty"`
-	ProcessMigDevices    bool     `json:"process_mig_devices,omitempty"`
-	UseUuidForMigDevices bool     `json:"use_uuid_for_mig_device,omitempty"`
+	ExcludeMetrics        []string `json:"exclude_metrics,omitempty"`
+	ExcludeDevices        []string `json:"exclude_devices,omitempty"`
+	AddPciInfoTag         bool     `json:"add_pci_info_tag,omitempty"`
+	UsePciInfoAsTypeId    bool     `json:"use_pci_info_as_type_id,omitempty"`
+	AddUuidMeta           bool     `json:"add_uuid_meta,omitempty"`
+	AddBoardNumberMeta    bool     `json:"add_board_number_meta,omitempty"`
+	AddSerialMeta         bool     `json:"add_serial_meta,omitempty"`
+	ProcessMigDevices     bool     `json:"process_mig_devices,omitempty"`
+	UseUuidForMigDevices  bool     `json:"use_uuid_for_mig_device,omitempty"`
+	UseSliceForMigDevices bool     `json:"use_slice_for_mig_device,omitempty"`
 }
 
 type NvidiaCollectorDevice struct {
@@ -52,6 +54,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	m.config.UsePciInfoAsTypeId = false
 	m.config.ProcessMigDevices = false
 	m.config.UseUuidForMigDevices = false
+	m.config.UseSliceForMigDevices = false
 	m.setup()
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
@@ -1147,15 +1150,27 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 					migDevice.tags[k] = v
 				}
 				migDevice.tags["stype"] = "mig"
-				if !m.config.UseUuidForMigDevices {
-					migDevice.tags["stype-id"] = fmt.Sprintf("%d", j)
-				} else {
+				if m.config.UseUuidForMigDevices {
 					uuid, ret := nvml.DeviceGetUUID(mdev)
 					if ret != nvml.SUCCESS {
 						cclog.ComponentError(m.name, "Unable to get UUID for mig device at index", j, ":", err.Error())
 					} else {
 						migDevice.tags["stype-id"] = uuid
 					}
+				} else if m.config.UseSliceForMigDevices {
+					name, ret := nvml.DeviceGetName(m.gpus[i].device)
+					if ret == nvml.SUCCESS {
+						mname, ret := nvml.DeviceGetName(mdev)
+						if ret == nvml.SUCCESS {
+							x := strings.Replace(mname, name, "", -1)
+							x = strings.Replace(x, "MIG", "", -1)
+							x = strings.TrimSpace(x)
+							migDevice.tags["stype-id"] = x
+						}
+					}
+				}
+				if _, ok := migDevice.tags["stype-id"]; !ok {
+					migDevice.tags["stype-id"] = fmt.Sprintf("%d", j)
 				}
 				for k, v := range m.gpus[i].meta {
 					migDevice.meta[k] = v
