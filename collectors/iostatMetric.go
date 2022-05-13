@@ -37,6 +37,7 @@ type IOstatCollector struct {
 func (m *IOstatCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "IOstatCollector"
+	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	m.setup()
 	if len(config) > 0 {

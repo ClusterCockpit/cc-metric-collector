@@ -35,6 +35,10 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	m.name = "InternalCollector"
 	// This is for later use, also call it early
 	m.setup()
+	// Tell whether the collector should be run in parallel with others (reading files, ...)
+	// or it should be run serially, mostly for collectors acutally doing measurements
+	// because they should not measure the execution of the other collectors
+	m.parallel = true
 	// Define meta information sent with each metric
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
 	m.meta = map[string]string{"source": m.name, "group": "SAMPLE"}

@@ -81,6 +81,7 @@ func getStats(filename string) map[string]MemstatStats {
 func (m *MemstatCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "MemstatCollector"
+	m.parallel = true
 	m.config.NodeStats = true
 	m.config.NumaStats = false
 	if len(config) > 0 {
@@ -159,8 +160,10 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 
 func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
+		cclog.ComponentPrint(m.name, "Here")
 		return
 	}
+	cclog.ComponentPrint(m.name, time.Now())
 
 	sendStats := func(stats map[string]MemstatStats, tags map[string]string) {
 		for match, name := range m.matches {

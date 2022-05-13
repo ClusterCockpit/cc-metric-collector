@@ -50,6 +50,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 	}
 
 	m.name = "TempCollector"
+	m.parallel = true
 	m.setup()
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
@@ -116,6 +117,10 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		}
 
 		// Sensor file
+		_, err = ioutil.ReadFile(file)
+		if err != nil {
+			continue
+		}
 		sensor.file = file
 
 		// Sensor tags

@@ -28,6 +28,7 @@ type TopProcsCollector struct {
 func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "TopProcsCollector"
+	m.parallel = true
 	m.tags = map[string]string{"type": "node"}
 	m.meta = map[string]string{"source": m.name, "group": "TopProcs"}
 	if len(config) > 0 {

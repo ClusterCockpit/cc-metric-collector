@@ -33,6 +33,7 @@ type CustomCmdCollector struct {
 func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "CustomCmdCollector"
+	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Custom"}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)

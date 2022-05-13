@@ -177,6 +177,7 @@ func getBaseFreq() float64 {
 
 func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.name = "LikwidCollector"
+	m.parallel = false
 	m.initialized = false
 	m.running = false
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE

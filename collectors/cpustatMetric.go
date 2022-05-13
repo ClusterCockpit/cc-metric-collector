@@ -30,6 +30,7 @@ type CpustatCollector struct {
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
+	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "CPU", "unit": "Percent"}
 	m.nodetags = map[string]string{"type": "node"}
 	if len(config) > 0 {

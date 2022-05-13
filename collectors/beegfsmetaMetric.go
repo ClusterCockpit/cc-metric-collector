@@ -55,6 +55,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 
 	m.name = "BeegfsMetaCollector"
 	m.setup()
+	m.parallel = true
 	// Set default beegfs-ctl binary
 
 	m.config.Beegfs = DEFAULT_BEEGFS_CMD
