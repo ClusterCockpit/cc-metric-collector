@@ -52,6 +52,11 @@ The CCMetric router sits in between the collectors and the sinks and can be used
     ],
     "rename_metrics" : {
         "metric_12345" : "mymetric"
+    },
+    "normalize_units" : true,
+    "change_unit_prefix" {
+      "mem_used" : "G",
+      "mem_total" : "G"
     }
 }
 ```
@@ -192,6 +197,14 @@ This option takes a list of evaluable conditions and performs them one after the
 ```
 The first line is comparable with the example in `drop_metrics`, it drops all metrics starting with `drop_metric_` and ending with a number. The second line drops all metrics of the first hardware thread (**not** recommended)
 
+# Manipulating the metric units
+
+## The `normalize_units` option
+The cc-metric-collector tries to read the data from the system as it is reported. If available, it tries to read the metric unit from the system as well (e.g. from `/proc/meminfo`). The problem is that, depending on the source, the metric units are named differently. Just think about `byte`, `Byte`, `B`, `bytes`, ...
+The [cc-units](https://github.com/ClusterCockpit/cc-units) package provides us a normalization option to use the same metric unit name for all metrics. It this option is set to true, all `unit` meta tags are normalized.
+
+## The `change_unit_prefix` section
+It is often the case that metrics are reported by the system using a rather outdated unit prefix (like `/proc/meminfo` still uses kByte despite current memory sizes are in the GByte range). If you want to change the prefix of a unit, you can do that with the help of [cc-units](https://github.com/ClusterCockpit/cc-units). The setting works on the metric name and requires the new prefix for the metric. The cc-units package determines the scaling factor.
 
 # Aggregate metric values of the current interval with the `interval_aggregates` option
 
@@ -239,3 +252,22 @@ Use cases for `interval_aggregates`:
     }
   }
 ```
+
+# Order of operations
+
+The router performs the above mentioned options in a specific order. In order to get the logic you want for a specific metric, it is crucial to know the processing order:
+
+- Add the `hostname` tag (c)
+- Manipulate the timestamp to the interval timestamp (c,r)
+- Drop metrics based on `drop_metrics` and `drop_metrics_if` (c,r)
+- Add tags based on `add_tags` (c,r)
+- Delete tags based on `del_tags` (c,r)
+- Rename metric based on `rename_metric` (c,r)
+  - Add tags based on `add_tags` to still work if the configuration uses the new name (c,r) 
+  - Delete tags based on `del_tags` to still work if the configuration uses the new name (c,r)
+- Normalize units when `normalize_units` is set (c,r)
+- Convert unit prefix based on `change_unit_prefix` (c,r)
+
+Legend:
+- 'c' if metric is coming from a collector
+- 'r' if metric is coming from a receiver
