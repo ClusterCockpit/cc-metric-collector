@@ -82,6 +82,9 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 		if err != nil {
 			continue
 		}
+		if stat.Blocks == 0 || stat.Bsize == 0 {
+			continue
+		}
 		tags := map[string]string{"type": "node", "device": linefields[0]}
 		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
 		y, err := lp.New("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
