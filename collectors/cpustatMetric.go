@@ -82,7 +82,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		if strings.HasPrefix(linefields[0], "cpu") && strings.Compare(linefields[0], "cpu") != 0 {
 			cpustr := strings.TrimLeft(linefields[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
-			m.cputags[linefields[0]] = map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", cpu)}
+			m.cputags[linefields[0]] = map[string]string{"type": "hwthread", "type-id": fmt.Sprintf("%d", cpu)}
 			num_cpus++
 		}
 	}

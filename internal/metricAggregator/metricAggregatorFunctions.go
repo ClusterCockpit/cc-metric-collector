@@ -355,7 +355,7 @@ func getCpuListOfType(args ...interface{}) (interface{}, error) {
 			return getCpuListOfNumaDomainFunc(args[1])
 		case "core":
 			return getCpuListOfCoreFunc(args[1])
-		case "cpu":
+		case "hwthread":
 			var cpu int
 
 			switch id := args[1].(type) {
