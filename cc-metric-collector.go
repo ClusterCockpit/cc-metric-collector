@@ -22,8 +22,8 @@ import (
 )
 
 type CentralConfigFile struct {
-	Interval            int    `json:"interval"`
-	Duration            int    `json:"duration"`
+	Interval            string `json:"interval"`
+	Duration            string `json:"duration"`
 	CollectorConfigFile string `json:"collectors"`
 	RouterConfigFile    string `json:"router"`
 	SinkConfigFile      string `json:"sinks"`
@@ -173,16 +173,36 @@ func mainFunc() int {
 		cclog.Error("Error reading configuration file ", rcfg.CliArgs["configfile"], ": ", err.Error())
 		return 1
 	}
-	if rcfg.ConfigFile.Interval <= 0 || time.Duration(rcfg.ConfigFile.Interval)*time.Second <= 0 {
-		cclog.Error("Configuration value 'interval' must be greater than zero")
+
+	// Properly use duration parser with inputs like '60s', '5m' or similar
+	if len(rcfg.ConfigFile.Interval) > 0 {
+		t, err := time.ParseDuration(rcfg.ConfigFile.Interval)
+		if err != nil {
+			cclog.Error("Configuration value 'interval' no valid duration")
+		}
+		rcfg.Interval = t
+		if rcfg.Interval == 0 {
+			cclog.Error("Configuration value 'interval' must be greater than zero")
+			return 1
+		}
+	}
+
+	// Properly use duration parser with inputs like '60s', '5m' or similar
+	if len(rcfg.ConfigFile.Duration) > 0 {
+		t, err := time.ParseDuration(rcfg.ConfigFile.Duration)
+		if err != nil {
+			cclog.Error("Configuration value 'duration' no valid duration")
+		}
+		rcfg.Duration = t
+		if rcfg.Duration == 0 {
+			cclog.Error("Configuration value 'duration' must be greater than zero")
+			return 1
+		}
+	}
+	if rcfg.Duration > rcfg.Interval {
+		cclog.Error("The interval should be greater than duration")
 		return 1
 	}
-	rcfg.Interval = time.Duration(rcfg.ConfigFile.Interval) * time.Second
-	if rcfg.ConfigFile.Duration <= 0 || time.Duration(rcfg.ConfigFile.Duration)*time.Second <= 0 {
-		cclog.Error("Configuration value 'duration' must be greater than zero")
-		return 1
-	}
-	rcfg.Duration = time.Duration(rcfg.ConfigFile.Duration) * time.Second
 
 	if len(rcfg.ConfigFile.RouterConfigFile) == 0 {
 		cclog.Error("Metric router configuration file must be set")
@@ -271,7 +291,7 @@ func mainFunc() int {
 
 	// Wait until one tick has passed. This is a workaround
 	if rcfg.CliArgs["once"] == "true" {
-		x := 1.2 * float64(rcfg.ConfigFile.Interval)
+		x := 1.2 * float64(rcfg.Interval)
 		time.Sleep(time.Duration(int(x)) * time.Second)
 		shutdownSignal <- os.Interrupt
 	}
