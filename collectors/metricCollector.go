@@ -13,22 +13,29 @@ import (
 )
 
 type MetricCollector interface {
-	Name() string                                         // Name of the metric collector
-	Init(config json.RawMessage) error                    // Initialize metric collector
-	Initialized() bool                                    // Is metric collector initialized?
+	Name() string                      // Name of the metric collector
+	Init(config json.RawMessage) error // Initialize metric collector
+	Initialized() bool                 // Is metric collector initialized?
+	Parallel() bool
 	Read(duration time.Duration, output chan lp.CCMetric) // Read metrics from metric collector
 	Close()                                               // Close / finish metric collector
 }
 
 type metricCollector struct {
-	name string            // name of the metric
-	init bool              // is metric collector initialized?
-	meta map[string]string // static meta data tags
+	name     string            // name of the metric
+	init     bool              // is metric collector initialized?
+	parallel bool              // can the metric collector be executed in parallel with others
+	meta     map[string]string // static meta data tags
 }
 
 // Name returns the name of the metric collector
 func (c *metricCollector) Name() string {
 	return c.name
+}
+
+// Name returns the name of the metric collector
+func (c *metricCollector) Parallel() bool {
+	return c.parallel
 }
 
 // Setup is for future use
