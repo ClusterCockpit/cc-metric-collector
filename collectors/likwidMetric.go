@@ -205,7 +205,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	m.meta = map[string]string{"group": "PerfCounter"}
 	cclog.ComponentDebug(m.name, "Get cpulist and init maps and lists")
-	cpulist := topo.CpuList()
+	cpulist := topo.HwthreadList()
 	m.cpulist = make([]C.int, len(cpulist))
 	m.cpu2tid = make(map[int]int)
 	for i, c := range cpulist {
