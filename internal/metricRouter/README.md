@@ -54,7 +54,7 @@ The CCMetric router sits in between the collectors and the sinks and can be used
         "metric_12345" : "mymetric"
     },
     "normalize_units" : true,
-    "change_unit_prefix" {
+    "change_unit_prefix" : {
       "mem_used" : "G",
       "mem_total" : "G"
     }
