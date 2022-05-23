@@ -21,6 +21,7 @@ type RocmSmiCollectorConfig struct {
 
 type RocmSmiCollectorDevice struct {
 	device         rocm_smi.DeviceHandle
+	index          int
 	tags           map[string]string // default tags
 	meta           map[string]string // default meta information
 	excludeMetrics map[string]bool   // copy of exclude metrics from config
@@ -150,6 +151,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		for _, e := range m.config.ExcludeMetrics {
 			dev.excludeMetrics[e] = true
 		}
+		dev.index = i
 		m.devices = append(m.devices, dev)
 	}
 
@@ -167,7 +169,7 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	for _, dev := range m.devices {
 		metrics, ret := rocm_smi.DeviceGetMetrics(dev.device)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			cclog.ComponentError(m.name, "Unable to get metrics for device at index", dev.device.Index, ":", rocm_smi.StatusStringNoError(ret))
+			cclog.ComponentError(m.name, "Unable to get metrics for device at index", dev.index, ":", rocm_smi.StatusStringNoError(ret))
 			continue
 		}
 
