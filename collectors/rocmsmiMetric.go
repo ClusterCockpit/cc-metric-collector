@@ -6,7 +6,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	"github.com/ClusterCockpit/go-rocm-smi/rocm_smi"
+	"github.com/ClusterCockpit/go-rocm-smi/pkg/rocm_smi"
 )
 
 type RocmSmiCollectorConfig struct {
