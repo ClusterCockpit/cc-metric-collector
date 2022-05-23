@@ -3,6 +3,8 @@ package collectors
 import (
 	"encoding/json"
 	"time"
+	"errors"
+	"fmt"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
@@ -61,7 +63,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		}
 	}
 
-	ret = rocm_smi.Init()
+	ret := rocm_smi.Init()
 	if ret != rocm_smi.STATUS_SUCCESS {
 		err = errors.New("Failed to initialize ROCm SMI library")
 		cclog.ComponentError(m.name, err.Error())
@@ -86,7 +88,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		return skip_device
 	}
 
-	devices = make([]RocmSmiCollectorDevice, 0)
+	m.devices = make([]RocmSmiCollectorDevice, 0)
 
 	for i := 0; i < numDevs; i++ {
 		str_i := fmt.Sprintf("%d", i)
