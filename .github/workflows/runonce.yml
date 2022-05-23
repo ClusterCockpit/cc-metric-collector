@@ -23,9 +23,9 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
-        go-version: '^1.17.7'
+        go-version: '1.17.7'
 
     # Install libganglia
     - name: Setup Ganglia
@@ -53,9 +53,9 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
-        go-version: '^1.16.7' # The version AlmaLinux 8.5 uses
+        go-version: '1.16.7' # The version AlmaLinux 8.5 uses
 
     # Install libganglia
     - name: Setup Ganglia
