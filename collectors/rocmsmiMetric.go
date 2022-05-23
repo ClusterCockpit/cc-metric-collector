@@ -2,9 +2,9 @@ package collectors
 
 import (
 	"encoding/json"
-	"time"
 	"errors"
 	"fmt"
+	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
@@ -16,14 +16,14 @@ type RocmSmiCollectorConfig struct {
 	ExcludeDevices     []string `json:"exclude_devices,omitempty"`
 	AddPciInfoTag      bool     `json:"add_pci_info_tag,omitempty"`
 	UsePciInfoAsTypeId bool     `json:"use_pci_info_as_type_id,omitempty"`
-	AddBoardNumberMeta bool     `json:"add_board_number_meta,omitempty"`
 	AddSerialMeta      bool     `json:"add_serial_meta,omitempty"`
 }
 
 type RocmSmiCollectorDevice struct {
-	device rocm_smi.DeviceHandle
-	tags   map[string]string // default tags
-	meta   map[string]string // default meta information
+	device         rocm_smi.DeviceHandle
+	tags           map[string]string // default tags
+	meta           map[string]string // default meta information
+	excludeMetrics map[string]bool   // copy of exclude metrics from config
 }
 
 type RocmSmiCollector struct {
@@ -137,14 +137,6 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 			dev.tags["pci_identifier"] = pciId
 		}
 
-		if m.config.AddBoardNumberMeta {
-			board, ret := rocm_smi.DeviceGetBoardPartNumber(device)
-			if ret != rocm_smi.STATUS_SUCCESS {
-				cclog.ComponentError(m.name, "Unable to get boart part number for device at index", i, ":", rocm_smi.StatusStringNoError(ret))
-			} else {
-				dev.meta["board_number"] = board
-			}
-		}
 		if m.config.AddSerialMeta {
 			serial, ret := rocm_smi.DeviceGetSerial(device)
 			if ret != rocm_smi.STATUS_SUCCESS {
@@ -158,7 +150,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		for _, e := range m.config.ExcludeMetrics {
 			dev.excludeMetrics[e] = true
 		}
-		devices = append(devices, dev)
+		m.devices = append(m.devices, dev)
 	}
 
 	// Set this flag only if everything is initialized properly, all required files exist, ...
@@ -172,133 +164,133 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	// Create a sample metric
 	timestamp := time.Now()
 
-	for _, device := range m.devices {
-		metrics, ret := rocm_smi.DeviceGetMetrics(device.device)
+	for _, dev := range m.devices {
+		metrics, ret := rocm_smi.DeviceGetMetrics(dev.device)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			cclog.ComponentError(m.name, "Unable to get metrics for device at index", device.device.Index, ":", rocm_smi.StatusStringNoError(ret))
+			cclog.ComponentError(m.name, "Unable to get metrics for device at index", dev.device.Index, ":", rocm_smi.StatusStringNoError(ret))
 			continue
 		}
 
-		if !device.excludeMetrics["rocm_gfx_util"] {
+		if !dev.excludeMetrics["rocm_gfx_util"] {
 			value := metrics.Average_gfx_activity
 			y, err := lp.New("rocm_gfx_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_umc_util"] {
+		if !dev.excludeMetrics["rocm_umc_util"] {
 			value := metrics.Average_umc_activity
 			y, err := lp.New("rocm_umc_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_mm_util"] {
+		if !dev.excludeMetrics["rocm_mm_util"] {
 			value := metrics.Average_mm_activity
 			y, err := lp.New("rocm_mm_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_avg_power"] {
+		if !dev.excludeMetrics["rocm_avg_power"] {
 			value := metrics.Average_socket_power
 			y, err := lp.New("rocm_avg_power", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_mem"] {
+		if !dev.excludeMetrics["rocm_temp_mem"] {
 			value := metrics.Temperature_mem
 			y, err := lp.New("rocm_temp_mem", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_hotspot"] {
+		if !dev.excludeMetrics["rocm_temp_hotspot"] {
 			value := metrics.Temperature_hotspot
 			y, err := lp.New("rocm_temp_hotspot", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_edge"] {
+		if !dev.excludeMetrics["rocm_temp_edge"] {
 			value := metrics.Temperature_edge
 			y, err := lp.New("rocm_temp_edge", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_vrgfx"] {
+		if !dev.excludeMetrics["rocm_temp_vrgfx"] {
 			value := metrics.Temperature_vrgfx
 			y, err := lp.New("rocm_temp_vrgfx", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_vrsoc"] {
+		if !dev.excludeMetrics["rocm_temp_vrsoc"] {
 			value := metrics.Temperature_vrsoc
 			y, err := lp.New("rocm_temp_vrsoc", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_vrmem"] {
+		if !dev.excludeMetrics["rocm_temp_vrmem"] {
 			value := metrics.Temperature_vrmem
 			y, err := lp.New("rocm_temp_vrmem", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_gfx_clock"] {
+		if !dev.excludeMetrics["rocm_gfx_clock"] {
 			value := metrics.Average_gfxclk_frequency
 			y, err := lp.New("rocm_gfx_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_soc_clock"] {
+		if !dev.excludeMetrics["rocm_soc_clock"] {
 			value := metrics.Average_socclk_frequency
 			y, err := lp.New("rocm_soc_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_u_clock"] {
+		if !dev.excludeMetrics["rocm_u_clock"] {
 			value := metrics.Average_uclk_frequency
 			y, err := lp.New("rocm_u_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_v0_clock"] {
+		if !dev.excludeMetrics["rocm_v0_clock"] {
 			value := metrics.Average_vclk0_frequency
 			y, err := lp.New("rocm_v0_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_v1_clock"] {
+		if !dev.excludeMetrics["rocm_v1_clock"] {
 			value := metrics.Average_vclk1_frequency
 			y, err := lp.New("rocm_v1_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_d0_clock"] {
+		if !dev.excludeMetrics["rocm_d0_clock"] {
 			value := metrics.Average_dclk0_frequency
 			y, err := lp.New("rocm_d0_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_d1_clock"] {
+		if !dev.excludeMetrics["rocm_d1_clock"] {
 			value := metrics.Average_dclk1_frequency
 			y, err := lp.New("rocm_d1_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
-		if !device.excludeMetrics["rocm_temp_hbm"] {
+		if !dev.excludeMetrics["rocm_temp_hbm"] {
 			for i := 0; i < rocm_smi.NUM_HBM_INSTANCES; i++ {
 				value := metrics.Temperature_hbm[i]
 				y, err := lp.New("rocm_temp_hbm", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
@@ -317,7 +309,7 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMetric)
 // Called once by the collector manager
 func (m *RocmSmiCollector) Close() {
 	// Unset flag
-	ret = rocm_smi.Shutdown()
+	ret := rocm_smi.Shutdown()
 	if ret != rocm_smi.STATUS_SUCCESS {
 		cclog.ComponentError(m.name, "Failed to shutdown ROCm SMI library")
 	}
