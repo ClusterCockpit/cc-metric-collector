@@ -12,7 +12,6 @@
     ],
     "use_pci_info_as_type_id": true,
     "add_pci_info_tag": false,
-    "add_board_number_meta": false,
     "add_serial_meta": false,
   }
 ```
@@ -21,7 +20,7 @@ The `rocm_smi` collector can be configured to leave out specific devices with th
 
 The metrics sent by the `rocm_smi` collector use `accelerator` as `type` tag. For the `type-id`, it uses the device handle index by default. With the `use_pci_info_as_type_id` option, the PCI ID is used instead. If both values should be added as tags, activate the `add_pci_info_tag` option. It uses the device handle index as `type-id` and adds the PCI ID as separate `pci_identifier` tag.
 
-Optionally, it is possible to add the board part number and the serial to the meta informations. They are not sent to the sinks (if not configured otherwise).
+Optionally, it is possible to add the serial to the meta informations. They are not sent to the sinks (if not configured otherwise).
 
 
 Metrics:
