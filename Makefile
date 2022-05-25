@@ -23,6 +23,11 @@ all: $(APP)
 
 $(APP): $(GOSRC)
 	make -C collectors
+	if [ "$(shell go version | cut -d' ' -f 3 | cut -d '.' -f1-2)" == "go1.16" ]; then \
+		cp go.mod.1.16 go.mod; \
+	else \
+		cp go.mod.1.17+ go.mod; \
+	fi
 	go get
 	go build -o $(APP) $(GOSRC_APP)
 
