@@ -75,7 +75,7 @@ case "$1" in
 	fi
 
 	# Start Daemon
-	start-stop-daemon --start -b --chdir "$WORK_DIR" --user "$CC_USER" -c "$CC_USER" --pidfile "$PID_FILE" --exec $DAEMON -- $DAEMON_OPTS
+	start-stop-daemon --start -b --chdir "$WORK_DIR" --user "$CC_USER" -c "$CC_USER" --pidfile "$PID_FILE" --exec $DAEMON -- $CC_OPTS
 	return=$?
 	if [ $return -eq 0 ]
 	then
