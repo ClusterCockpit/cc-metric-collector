@@ -19,7 +19,6 @@ type HttpSinkConfig struct {
 	URL             string `json:"url,omitempty"`
 	JWT             string `json:"jwt,omitempty"`
 	Timeout         string `json:"timeout,omitempty"`
-	MaxIdleConns    int    `json:"max_idle_connections,omitempty"`
 	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
 	FlushDelay      string `json:"flush_delay,omitempty"`
 }
@@ -32,7 +31,6 @@ type HttpSink struct {
 	buffer          *bytes.Buffer
 	flushTimer      *time.Timer
 	config          HttpSinkConfig
-	maxIdleConns    int
 	idleConnTimeout time.Duration
 	timeout         time.Duration
 	flushDelay      time.Duration
@@ -128,10 +126,9 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(HttpSink)
 	// Set default values
 	s.name = fmt.Sprintf("HttpSink(%s)", name)
-	s.config.MaxIdleConns = 10
-	s.config.IdleConnTimeout = "5s"
+	s.config.IdleConnTimeout = "120s" // should be larger than the measurement interval.
 	s.config.Timeout = "5s"
-	s.config.FlushDelay = "1s"
+	s.config.FlushDelay = "5s"
 
 	// Read config
 	if len(config) > 0 {
@@ -142,9 +139,6 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	}
 	if len(s.config.URL) == 0 {
 		return nil, errors.New("`url` config option is required for HTTP sink")
-	}
-	if s.config.MaxIdleConns > 0 {
-		s.maxIdleConns = s.config.MaxIdleConns
 	}
 	if len(s.config.IdleConnTimeout) > 0 {
 		t, err := time.ParseDuration(s.config.IdleConnTimeout)
@@ -170,7 +164,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 		s.meta_as_tags[k] = true
 	}
 	tr := &http.Transport{
-		MaxIdleConns:    s.maxIdleConns,
+		MaxIdleConns:    1, // We will only ever talk to one host.
 		IdleConnTimeout: s.idleConnTimeout,
 	}
 	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
