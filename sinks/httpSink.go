@@ -97,11 +97,15 @@ func (s *HttpSink) Flush() error {
 		if err != nil {
 			cclog.ComponentError(s.name, "transport/tcp error:", err.Error())
 			// Wait between retries
-			time.Sleep(time.Duration(i+1) * time.Second)
+			time.Sleep(time.Duration(i+1) * (time.Second / 2))
 			continue
 		}
 
 		break
+	}
+
+	if res == nil {
+		return errors.New("flush failed due to repeated errors")
 	}
 
 	// Handle application errors
