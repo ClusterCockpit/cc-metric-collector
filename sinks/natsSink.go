@@ -21,7 +21,7 @@ type NatsSinkConfig struct {
 	Subject    string `json:"subject,omitempty"`
 	User       string `json:"user,omitempty"`
 	Password   string `json:"password,omitempty"`
-	FlushDelay string `json:"flush-delay,omitempty"`
+	FlushDelay string `json:"flush_delay,omitempty"`
 }
 
 type NatsSink struct {
@@ -86,6 +86,10 @@ func (s *NatsSink) Flush() error {
 	buf := append([]byte{}, s.buffer.Bytes()...) // copy bytes
 	s.buffer.Reset()
 	s.lock.Unlock()
+
+	if len(buf) == 0 {
+		return nil
+	}
 
 	if err := s.client.Publish(s.config.Subject, buf); err != nil {
 		cclog.ComponentError(s.name, "Flush:", err.Error())
