@@ -17,7 +17,7 @@ $(LIKWID_FOLDER)/likwid.h:
 		BUILD_FOLDER="$${PWD}/likwidbuild"; \
 		if [ -d $(LIKWID_FOLDER) ]; then rm -r $(LIKWID_FOLDER); fi; \
 		mkdir --parents --verbose  $(LIKWID_FOLDER) $${BUILD_FOLDER}; \
-		wget -P "$${BUILD_FOLDER}" ftp://ftp.rrze.uni-erlangen.de/mirrors/likwid/likwid-$(LIKWID_VERSION).tar.gz; \
+		wget -P "$${BUILD_FOLDER}" http://ftp.rrze.uni-erlangen.de/mirrors/likwid/likwid-$(LIKWID_VERSION).tar.gz; \
 		tar -C $${BUILD_FOLDER} -xf $${BUILD_FOLDER}/likwid-$(LIKWID_VERSION).tar.gz; \
 		install -Dpm 0644 $${BUILD_FOLDER}/likwid-$(LIKWID_VERSION)/src/includes/likwid*.h $(LIKWID_FOLDER)/; \
 		install -Dpm 0644 $${BUILD_FOLDER}/likwid-$(LIKWID_VERSION)/src/includes/bstrlib.h $(LIKWID_FOLDER)/; \
