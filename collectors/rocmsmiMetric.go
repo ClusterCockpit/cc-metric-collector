@@ -139,7 +139,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		}
 
 		if m.config.AddSerialMeta {
-			serial, ret := rocm_smi.DeviceGetSerial(device)
+			serial, ret := rocm_smi.DeviceGetSerialNumber(device)
 			if ret != rocm_smi.STATUS_SUCCESS {
 				cclog.ComponentError(m.name, "Unable to get serial number for device at index", i, ":", rocm_smi.StatusStringNoError(ret))
 			} else {
