@@ -19,7 +19,7 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
             "calc": "COUNTER0 + COUNTER1",
             "publish": false,
             "unit": "myunit",
-            "type": "cpu"
+            "type": "hwthread"
           }
         ]
       }
@@ -30,7 +30,7 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
         "calc": "sum_01",
         "publish": true,
         "unit": "myunit",
-        "type": "cpu"
+        "type": "hwthread"
       }
     ]
   }
@@ -51,15 +51,15 @@ Additional options:
 
 Hardware performance counters are scattered all over the system nowadays. A counter coveres a specific part of the system. While there are hardware thread specific counter for CPU cycles, instructions and so on, some others are specific for a whole CPU socket/package. To address that, the LikwidCollector provides the specification of a `type` for each metric.
 
-- `cpu` : One metric per CPU hardware thread with the tags `"type" : "cpu"` and `"type-id" : "$cpu_id"`
+- `hwthread` : One metric per CPU hardware thread with the tags `"type" : "hwthread"` and `"type-id" : "$hwthread_id"`
 - `socket` : One metric per CPU socket/package with the tags `"type" : "socket"` and `"type-id" : "$socket_id"`
 
-**Note:** You should not specify the `socket` type for a metric that is measured at `cpu` scope and vice versa, so some kind of expert knowledge or lookup work in the [Likwid Wiki](https://github.com/RRZE-HPC/likwid/wiki) is required. Get the scope of each counter from the *Architecture* pages and as soon as one counter in a metric is socket-specific, the whole metric is socket-specific.
+**Note:** You cannot specify `socket` scope for a metric that is measured at `hwthread` scope, so some kind of expert knowledge or lookup work in the [Likwid Wiki](https://github.com/RRZE-HPC/likwid/wiki) is required. Get the scope of each counter from the *Architecture* pages and as soon as one counter in a metric is socket-specific, the whole metric is socket-specific.
 
 As a guideline:
-- All counters `FIXCx`, `PMCy` and `TMAz` have the scope `cpu`
+- All counters `FIXCx`, `PMCy` and `TMAz` have the scope `hwthread`
 - All counters names containing `BOX` have the scope `socket`
-- All `PWRx` counters have scope `socket`, except `"PWR1" : "RAPL_CORE_ENERGY"` has `cpu` scope (AMD Zen)
+- All `PWRx` counters have scope `socket`, except `"PWR1" : "RAPL_CORE_ENERGY"` has `hwthread` scope
 - All `DFCx` counters have scope `socket`
 
 ### Help with the configuration
@@ -90,7 +90,7 @@ $ scripts/likwid_perfgroup_to_cc_config.py ICX MEM_DP
       "name": "Runtime (RDTSC) [s]",
       "publish": true,
       "unit": "seconds"
-      "scope": "cpu"
+      "scope": "hwthread"
     },
     {
       "..." : "..."
@@ -147,20 +147,20 @@ One might think this does not happen often but often used metrics in the world o
           {
             "name": "ipc",
             "calc": "PMC0/PMC1",
-            "type": "cpu",
+            "type": "hwthread",
             "publish": true
           },
           {
             "name": "flops_any",
             "calc": "0.000001*PMC2/time",
             "unit": "MFlops/s",
-            "type": "cpu",
+            "type": "hwthread",
             "publish": true
           },
           {
             "name": "clock",
             "calc": "0.000001*(FIXC1/FIXC2)/inverseClock",
-            "type": "cpu",
+            "type": "hwthread",
             "unit": "MHz",
             "publish": true
           },
@@ -219,3 +219,33 @@ One might think this does not happen often but often used metrics in the world o
   }
 ```
 
+### How to get the eventsets and metrics from LIKWID
+
+The `likwid` collector reads hardware performance counters at a **hwthread** and **socket** level. The configuration looks quite complicated but it is basically copy&paste from [LIKWID's performance groups](https://github.com/RRZE-HPC/likwid/tree/master/groups). The collector made multiple iterations and tried to use the performance groups but it lacked flexibility. The current way of configuration provides most flexibility.
+
+The logic is as following: There are multiple eventsets, each consisting of a list of counters+events and a list of metrics. If you compare a common performance group with the example setting above, there is not much difference:
+```
+EVENTSET                         ->   "events": {
+FIXC1 ACTUAL_CPU_CLOCK           ->     "FIXC1": "ACTUAL_CPU_CLOCK",
+FIXC2 MAX_CPU_CLOCK              ->     "FIXC2": "MAX_CPU_CLOCK",
+PMC0  RETIRED_INSTRUCTIONS       ->     "PMC0" : "RETIRED_INSTRUCTIONS",
+PMC1  CPU_CLOCKS_UNHALTED        ->     "PMC1" : "CPU_CLOCKS_UNHALTED",
+PMC2  RETIRED_SSE_AVX_FLOPS_ALL  ->     "PMC2": "RETIRED_SSE_AVX_FLOPS_ALL",
+PMC3  MERGE                      ->     "PMC3": "MERGE",
+                                 ->   }
+```
+
+The metrics are following the same procedure:
+
+```
+METRICS                          ->   "metrics": [
+IPC   PMC0/PMC1                  ->     {
+                                 ->       "name" : "IPC",
+                                 ->       "calc" : "PMC0/PMC1",
+                                 ->       "scope": "hwthread",
+                                 ->       "publish": true
+                                 ->     }
+                                 ->   ]
+```
+
+The script `scripts/likwid_perfgroup_to_cc_config.py` might help you.

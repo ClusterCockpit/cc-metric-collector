@@ -54,6 +54,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "InfinibandCollector"
 	m.setup()
+	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,
 		"group":  "Network",

@@ -46,6 +46,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "GpfsCollector"
 	m.setup()
+	m.parallel = true
 
 	// Set default mmpmon binary
 	m.config.Mmpmon = DEFAULT_GPFS_CMD

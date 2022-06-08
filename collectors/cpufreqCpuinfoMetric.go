@@ -48,6 +48,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	m.setup()
 
 	m.name = "CPUFreqCpuInfoCollector"
+	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,
 		"group":  "CPU",
@@ -150,7 +151,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 		t.numNonHT = numNonHT
 		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
-			"type":       "cpu",
+			"type":       "hwthread",
 			"type-id":    t.processor,
 			"package_id": t.physicalPackageID,
 		}

@@ -114,6 +114,7 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 	m.data = make(map[string]NfsCollectorData)
 	m.initStats()
 	m.init = true
+	m.parallel = true
 	return nil
 }
 

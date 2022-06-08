@@ -29,6 +29,7 @@ func intArrayContains(array []int, str int) (int, bool) {
 	return -1, false
 }
 
+// Used internally for sysfs file reads
 func fileToInt(path string) int {
 	buffer, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -47,6 +48,7 @@ func fileToInt(path string) int {
 	return int(id)
 }
 
+// Get list of CPU socket IDs
 func SocketList() []int {
 	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
@@ -54,7 +56,7 @@ func SocketList() []int {
 		return nil
 	}
 	ll := strings.Split(string(buffer), "\n")
-	var packs []int
+	packs := make([]int, 0)
 	for _, line := range ll {
 		if strings.HasPrefix(line, "physical id") {
 			lv := strings.Fields(line)
@@ -72,7 +74,8 @@ func SocketList() []int {
 	return packs
 }
 
-func CpuList() []int {
+// Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
+func HwthreadList() []int {
 	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
@@ -97,6 +100,13 @@ func CpuList() []int {
 	return cpulist
 }
 
+// Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
+// Deprecated! Use HwthreadList()
+func CpuList() []int {
+	return HwthreadList()
+}
+
+// Get list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
 	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
@@ -122,6 +132,7 @@ func CoreList() []int {
 	return corelist
 }
 
+// Get list of NUMA node IDs
 func NumaNodeList() []int {
 	numaList := make([]int, 0)
 	globPath := filepath.Join(string(SYSFS_NUMABASE), "node*")
@@ -156,8 +167,9 @@ func NumaNodeList() []int {
 	return numaList
 }
 
+// Get list of CPU die IDs
 func DieList() []int {
-	cpulist := CpuList()
+	cpulist := HwthreadList()
 	dielist := make([]int, 0)
 	for _, c := range cpulist {
 		diepath := filepath.Join(string(SYSFS_CPUBASE), fmt.Sprintf("cpu%d", c), "topology/die_id")
@@ -175,7 +187,27 @@ func DieList() []int {
 	return SocketList()
 }
 
-type CpuEntry struct {
+// Get list of specified type using the naming format inside ClusterCockpit
+func GetTypeList(topology_type string) []int {
+	switch topology_type {
+	case "node":
+		return []int{0}
+	case "socket":
+		return SocketList()
+	case "die":
+		return DieList()
+	case "memoryDomain":
+		return NumaNodeList()
+	case "core":
+		return CoreList()
+	case "hwthread":
+		return HwthreadList()
+	}
+	return []int{}
+}
+
+// Structure holding all information about a hardware thread
+type HwthreadEntry struct {
 	Cpuid      int
 	SMT        int
 	Core       int
@@ -184,25 +216,25 @@ type CpuEntry struct {
 	Die        int
 }
 
-func CpuData() []CpuEntry {
+func CpuData() []HwthreadEntry {
 
-	fileToInt := func(path string) int {
-		buffer, err := ioutil.ReadFile(path)
-		if err != nil {
-			log.Print(err)
-			//cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
-			return -1
-		}
-		sbuffer := strings.Replace(string(buffer), "\n", "", -1)
-		var id int64
-		//_, err = fmt.Scanf("%d", sbuffer, &id)
-		id, err = strconv.ParseInt(sbuffer, 10, 32)
-		if err != nil {
-			cclogger.ComponentError("ccTopology", "Parsing", path, ":", sbuffer, err.Error())
-			return -1
-		}
-		return int(id)
-	}
+	// fileToInt := func(path string) int {
+	// 	buffer, err := ioutil.ReadFile(path)
+	// 	if err != nil {
+	// 		log.Print(err)
+	// 		//cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
+	// 		return -1
+	// 	}
+	// 	sbuffer := strings.Replace(string(buffer), "\n", "", -1)
+	// 	var id int64
+	// 	//_, err = fmt.Scanf("%d", sbuffer, &id)
+	// 	id, err = strconv.ParseInt(sbuffer, 10, 32)
+	// 	if err != nil {
+	// 		cclogger.ComponentError("ccTopology", "Parsing", path, ":", sbuffer, err.Error())
+	// 		return -1
+	// 	}
+	// 	return int(id)
+	// }
 	getCore := func(basepath string) int {
 		return fileToInt(fmt.Sprintf("%s/core_id", basepath))
 	}
@@ -260,9 +292,9 @@ func CpuData() []CpuEntry {
 		return 0
 	}
 
-	clist := make([]CpuEntry, 0)
-	for _, c := range CpuList() {
-		clist = append(clist, CpuEntry{Cpuid: c})
+	clist := make([]HwthreadEntry, 0)
+	for _, c := range HwthreadList() {
+		clist = append(clist, HwthreadEntry{Cpuid: c})
 	}
 	for i, centry := range clist {
 		centry.Socket = -1
@@ -298,6 +330,7 @@ func CpuData() []CpuEntry {
 	return clist
 }
 
+// Structure holding basic information about a CPU
 type CpuInformation struct {
 	NumHWthreads   int
 	SMTWidth       int
@@ -307,6 +340,7 @@ type CpuInformation struct {
 	NumNumaDomains int
 }
 
+// Get basic information about the CPU
 func CpuInfo() CpuInformation {
 	var c CpuInformation
 
@@ -342,7 +376,8 @@ func CpuInfo() CpuInformation {
 	return c
 }
 
-func GetCpuSocket(cpuid int) int {
+// Get the CPU socket ID for a given hardware thread ID
+func GetHwthreadSocket(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
 		if d.Cpuid == cpuid {
@@ -352,7 +387,8 @@ func GetCpuSocket(cpuid int) int {
 	return -1
 }
 
-func GetCpuNumaDomain(cpuid int) int {
+// Get the NUMA node ID for a given hardware thread ID
+func GetHwthreadNumaDomain(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
 		if d.Cpuid == cpuid {
@@ -362,7 +398,8 @@ func GetCpuNumaDomain(cpuid int) int {
 	return -1
 }
 
-func GetCpuDie(cpuid int) int {
+// Get the CPU die ID for a given hardware thread ID
+func GetHwthreadDie(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
 		if d.Cpuid == cpuid {
@@ -372,7 +409,8 @@ func GetCpuDie(cpuid int) int {
 	return -1
 }
 
-func GetCpuCore(cpuid int) int {
+// Get the CPU core ID for a given hardware thread ID
+func GetHwthreadCore(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
 		if d.Cpuid == cpuid {
@@ -382,7 +420,8 @@ func GetCpuCore(cpuid int) int {
 	return -1
 }
 
-func GetSocketCpus(socket int) []int {
+// Get the all hardware thread ID associated with a CPU socket
+func GetSocketHwthreads(socket int) []int {
 	all := CpuData()
 	cpulist := make([]int, 0)
 	for _, d := range all {
@@ -393,7 +432,8 @@ func GetSocketCpus(socket int) []int {
 	return cpulist
 }
 
-func GetNumaDomainCpus(domain int) []int {
+// Get the all hardware thread ID associated with a NUMA node
+func GetNumaDomainHwthreads(domain int) []int {
 	all := CpuData()
 	cpulist := make([]int, 0)
 	for _, d := range all {
@@ -404,7 +444,8 @@ func GetNumaDomainCpus(domain int) []int {
 	return cpulist
 }
 
-func GetDieCpus(die int) []int {
+// Get the all hardware thread ID associated with a CPU die
+func GetDieHwthreads(die int) []int {
 	all := CpuData()
 	cpulist := make([]int, 0)
 	for _, d := range all {
@@ -415,7 +456,8 @@ func GetDieCpus(die int) []int {
 	return cpulist
 }
 
-func GetCoreCpus(core int) []int {
+// Get the all hardware thread ID associated with a CPU core
+func GetCoreHwthreads(core int) []int {
 	all := CpuData()
 	cpulist := make([]int, 0)
 	for _, d := range all {

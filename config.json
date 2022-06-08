@@ -1,8 +1,8 @@
 {
-  "sinks": "sinks.json",
-  "collectors" : "collectors.json",
-  "receivers" : "receivers.json",
-  "router" : "router.json",
-  "interval": 10,
-  "duration": 1
+  "sinks": "./sinks.json",
+  "collectors" : "./collectors.json",
+  "receivers" : "./receivers.json",
+  "router" : "./router.json",
+  "interval": "10s",
+  "duration": "1s"
 }

@@ -25,7 +25,6 @@ type InfluxAsyncSinkConfig struct {
 	Password     string `json:"password,omitempty"`
 	Organization string `json:"organization,omitempty"`
 	SSL          bool   `json:"ssl,omitempty"`
-	RetentionPol string `json:"retention_policy,omitempty"`
 	// Maximum number of points sent to server in single request. Default 5000
 	BatchSize uint `json:"batch_size,omitempty"`
 	// Interval, in ms, in which is buffer flushed if it has not been already written (by reaching batch size) . Default 1000ms
@@ -186,12 +185,17 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 			return nil, err
 		}
 	}
-	if len(s.config.Host) == 0 ||
-		len(s.config.Port) == 0 ||
-		len(s.config.Database) == 0 ||
-		len(s.config.Organization) == 0 ||
-		len(s.config.Password) == 0 {
-		return nil, errors.New("not all configuration variables set required by InfluxAsyncSink")
+	if len(s.config.Port) == 0 {
+		return nil, errors.New("Missing port configuration required by InfluxSink")
+	}
+	if len(s.config.Database) == 0 {
+		return nil, errors.New("Missing database configuration required by InfluxSink")
+	}
+	if len(s.config.Organization) == 0 {
+		return nil, errors.New("Missing organization configuration required by InfluxSink")
+	}
+	if len(s.config.Password) == 0 {
+		return nil, errors.New("Missing password configuration required by InfluxSink")
 	}
 	// Create lookup map to use meta infos as tags in the output metric
 	s.meta_as_tags = make(map[string]bool)

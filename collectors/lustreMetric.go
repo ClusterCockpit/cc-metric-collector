@@ -288,6 +288,7 @@ var LustreDeriveMetrics = []LustreMetricDefinition{
 func (m *LustreCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "LustreCollector"
+	m.parallel = true
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {

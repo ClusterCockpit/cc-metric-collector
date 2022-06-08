@@ -30,6 +30,7 @@ type CpustatCollector struct {
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
+	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "CPU", "unit": "Percent"}
 	m.nodetags = map[string]string{"type": "node"}
 	if len(config) > 0 {
@@ -82,7 +83,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		if strings.HasPrefix(linefields[0], "cpu") && strings.Compare(linefields[0], "cpu") != 0 {
 			cpustr := strings.TrimLeft(linefields[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
-			m.cputags[linefields[0]] = map[string]string{"type": "cpu", "type-id": fmt.Sprintf("%d", cpu)}
+			m.cputags[linefields[0]] = map[string]string{"type": "hwthread", "type-id": fmt.Sprintf("%d", cpu)}
 			num_cpus++
 		}
 	}
