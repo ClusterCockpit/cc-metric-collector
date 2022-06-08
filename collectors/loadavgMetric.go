@@ -36,6 +36,7 @@ type LoadavgCollector struct {
 
 func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	m.name = "LoadavgCollector"
+	m.parallel = true
 	m.setup()
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)

@@ -3,7 +3,6 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -30,6 +29,7 @@ type DiskstatCollector struct {
 
 func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	m.name = "DiskstatCollector"
+	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	m.setup()
 	if len(config) > 0 {
@@ -78,11 +78,17 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 			continue
 		}
 		path := strings.Replace(linefields[1], `\040`, " ", -1)
-		stat := syscall.Statfs_t{}
+		stat := syscall.Statfs_t{
+			Blocks: 0,
+			Bsize:  0,
+			Bfree:  0,
+		}
 		err := syscall.Statfs(path, &stat)
 		if err != nil {
-			fmt.Println(err.Error())
-			return
+			continue
+		}
+		if stat.Blocks == 0 || stat.Bsize == 0 {
+			continue
 		}
 		tags := map[string]string{"type": "node", "device": linefields[0]}
 		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
@@ -97,9 +103,11 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 			y.AddMeta("unit", "GBytes")
 			output <- y
 		}
-		perc := (100 * (total - free)) / total
-		if perc > part_max_used {
-			part_max_used = perc
+		if total > 0 {
+			perc := (100 * (total - free)) / total
+			if perc > part_max_used {
+				part_max_used = perc
+			}
 		}
 	}
 	y, err := lp.New("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())

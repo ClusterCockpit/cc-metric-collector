@@ -48,6 +48,7 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 
 	m.name = "BeegfsStorageCollector"
 	m.setup()
+	m.parallel = true
 	// Set default beegfs-ctl binary
 
 	m.config.Beegfs = DEFAULT_BEEGFS_CMD

@@ -34,6 +34,7 @@ type IpmiCollector struct {
 func (m *IpmiCollector) Init(config json.RawMessage) error {
 	m.name = "IpmiCollector"
 	m.setup()
+	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "IPMI"}
 	m.config.IpmitoolPath = string(IPMITOOL_PATH)
 	m.config.IpmisensorsPath = string(IPMISENSORS_PATH)

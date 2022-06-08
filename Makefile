@@ -16,15 +16,23 @@ COMPONENT_DIRS   := collectors \
 			internal/multiChanTicker
 
 BINDIR = bin
+GOBIN = $(shell which go)
 
 
 .PHONY: all
 all: $(APP)
 
 $(APP): $(GOSRC)
+	if [ "$(shell $(GOBIN) version | cut -d' ' -f 3 | cut -d '.' -f1-2)" = "go1.16" ]; then \
+		echo "1.16"; \
+		cp go.mod.1.16 go.mod; \
+	else \
+		echo "1.17+"; \
+		cp go.mod.1.17+ go.mod; \
+	fi
 	make -C collectors
-	go get
-	go build -o $(APP) $(GOSRC_APP)
+	$(GOBIN) get
+	$(GOBIN) build -o $(APP) $(GOSRC_APP)
 
 install: $(APP)
 	@WORKSPACE=$(PREFIX)
@@ -51,25 +59,25 @@ clean:
 
 .PHONY: fmt
 fmt:
-	go fmt $(GOSRC_COLLECTORS)
-	go fmt $(GOSRC_SINKS)
-	go fmt $(GOSRC_RECEIVERS)
-	go fmt $(GOSRC_APP)
-	@for F in $(GOSRC_INTERNAL); do go fmt $$F; done
+	$(GOBIN) fmt $(GOSRC_COLLECTORS)
+	$(GOBIN) fmt $(GOSRC_SINKS)
+	$(GOBIN) fmt $(GOSRC_RECEIVERS)
+	$(GOBIN) fmt $(GOSRC_APP)
+	@for F in $(GOSRC_INTERNAL); do $(GOBIN) fmt $$F; done
 
 
 # Examine Go source code and reports suspicious constructs
 .PHONY: vet
 vet:
-	go vet ./...
+	$(GOBIN) vet ./...
 
 
 # Run linter for the Go programming language.
 # Using static analysis, it finds bugs and performance issues, offers simplifications, and enforces style rules
 .PHONY: staticcheck
 staticcheck:
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	$$(go env GOPATH)/bin/staticcheck ./...
+	$(GOBIN) install honnef.co/go/tools/cmd/staticcheck@latest
+	$$($(GOBIN) env GOPATH)/bin/staticcheck ./...
 
 .ONESHELL:
 .PHONY: RPM

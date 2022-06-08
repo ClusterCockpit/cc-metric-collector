@@ -53,6 +53,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 
 	m.name = "CPUFreqCollector"
 	m.setup()
+	m.parallel = true
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -161,7 +162,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		t.numNonHT = numNonHT
 		t.numNonHT_int = numNonHT_int
 		t.tagSet = map[string]string{
-			"type":       "cpu",
+			"type":       "hwthread",
 			"type-id":    t.processor,
 			"package_id": t.physicalPackageID,
 		}

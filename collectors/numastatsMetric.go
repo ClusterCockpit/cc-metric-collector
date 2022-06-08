@@ -54,6 +54,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	}
 
 	m.name = "NUMAStatsCollector"
+	m.parallel = true
 	m.setup()
 	m.meta = map[string]string{
 		"source": m.name,

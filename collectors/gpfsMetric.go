@@ -46,6 +46,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "GpfsCollector"
 	m.setup()
+	m.parallel = true
 
 	// Set default mmpmon binary
 	m.config.Mmpmon = DEFAULT_GPFS_CMD
@@ -70,6 +71,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	for _, fs := range m.config.ExcludeFilesystem {
 		m.skipFS[fs] = struct{}{}
 	}
+	m.lastState = make(map[string]GpfsCollectorLastState)
 
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
 	user, err := user.Current()
@@ -162,11 +164,16 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			continue
 		}
 
+		// Add filesystem tag
 		m.tags["filesystem"] = filesystem
-		if _, ok := m.lastState[filesystem]; !ok {
-			m.lastState[filesystem] = GpfsCollectorLastState{
-				bytesRead:    -1,
-				bytesWritten: -1,
+
+		// Create initial last state
+		if m.config.SendBandwidths {
+			if _, ok := m.lastState[filesystem]; !ok {
+				m.lastState[filesystem] = GpfsCollectorLastState{
+					bytesRead:    -1,
+					bytesWritten: -1,
+				}
 			}
 		}
 

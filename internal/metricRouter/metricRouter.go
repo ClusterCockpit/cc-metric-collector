@@ -12,6 +12,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
+	units "github.com/ClusterCockpit/cc-units"
 )
 
 const ROUTER_MAX_FORWARD = 50
@@ -35,6 +36,8 @@ type metricRouterConfig struct {
 	IntervalStamp     bool                                 `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
 	NumCacheIntervals int                                  `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
 	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
+	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
+	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
 	dropMetrics       map[string]bool                      // Internal map for O(1) lookup
 }
 
@@ -207,6 +210,38 @@ func (r *metricRouter) dropMetric(point lp.CCMetric) bool {
 	return false
 }
 
+func (r *metricRouter) prepareUnit(point lp.CCMetric) bool {
+	if r.config.NormalizeUnits {
+		if in_unit, ok := point.GetMeta("unit"); ok {
+			u := units.NewUnit(in_unit)
+			if u.Valid() {
+				point.AddMeta("unit", u.Short())
+			}
+		}
+	}
+	if newP, ok := r.config.ChangeUnitPrefix[point.Name()]; ok {
+
+		newPrefix := units.NewPrefix(newP)
+
+		if in_unit, ok := point.GetMeta("unit"); ok && newPrefix != units.InvalidPrefix {
+			u := units.NewUnit(in_unit)
+			if u.Valid() {
+				cclog.ComponentDebug("MetricRouter", "Change prefix to", newP, "for metric", point.Name())
+				conv, out_unit := units.GetUnitPrefixFactor(u, newPrefix)
+				if conv != nil && out_unit.Valid() {
+					if val, ok := point.GetField("value"); ok {
+						point.AddField("value", conv(val))
+						point.AddMeta("unit", out_unit.Short())
+					}
+				}
+			}
+
+		}
+	}
+
+	return true
+}
+
 // Start starts the metric router
 func (r *metricRouter) Start() {
 	// start timer if configured
@@ -232,9 +267,11 @@ func (r *metricRouter) Start() {
 		if new, ok := r.config.RenameMetrics[name]; ok {
 			point.SetName(new)
 			point.AddMeta("oldname", name)
+			r.DoAddTags(point)
+			r.DoDelTags(point)
 		}
-		r.DoAddTags(point)
-		r.DoDelTags(point)
+
+		r.prepareUnit(point)
 
 		for _, o := range r.outputs {
 			o <- point

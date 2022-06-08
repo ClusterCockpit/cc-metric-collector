@@ -177,6 +177,7 @@ func getBaseFreq() float64 {
 
 func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.name = "LikwidCollector"
+	m.parallel = false
 	m.initialized = false
 	m.running = false
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
@@ -204,7 +205,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	m.meta = map[string]string{"group": "PerfCounter"}
 	cclog.ComponentDebug(m.name, "Get cpulist and init maps and lists")
-	cpulist := topo.CpuList()
+	cpulist := topo.HwthreadList()
 	m.cpulist = make([]C.int, len(cpulist))
 	m.cpu2tid = make(map[int]int)
 	for i, c := range cpulist {

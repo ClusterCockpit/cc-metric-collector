@@ -39,6 +39,7 @@ type NetstatCollector struct {
 
 func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
+	m.parallel = true
 	m.setup()
 	m.lastTimestamp = time.Now()
 

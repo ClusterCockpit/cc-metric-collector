@@ -39,6 +39,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`gpfs`](./gpfsMetric.md)
 * [`beegfs_meta`](./beegfsmetaMetric.md)
 * [`beegfs_storage`](./beegfsstorageMetric.md)
+* [`rocm_smi`](./rocmsmiMetric.md)
 
 ## Todos
 

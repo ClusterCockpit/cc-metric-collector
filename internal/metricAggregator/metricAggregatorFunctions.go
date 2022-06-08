@@ -246,7 +246,7 @@ func matchfunc(args ...interface{}) (interface{}, error) {
 func getCpuCoreFunc(args ...interface{}) (interface{}, error) {
 	switch cpuid := args[0].(type) {
 	case int:
-		return topo.GetCpuCore(cpuid), nil
+		return topo.GetHwthreadCore(cpuid), nil
 	}
 	return -1, errors.New("function 'getCpuCore' accepts only an 'int' cpuid")
 }
@@ -255,7 +255,7 @@ func getCpuCoreFunc(args ...interface{}) (interface{}, error) {
 func getCpuSocketFunc(args ...interface{}) (interface{}, error) {
 	switch cpuid := args[0].(type) {
 	case int:
-		return topo.GetCpuSocket(cpuid), nil
+		return topo.GetHwthreadSocket(cpuid), nil
 	}
 	return -1, errors.New("function 'getCpuCore' accepts only an 'int' cpuid")
 }
@@ -264,7 +264,7 @@ func getCpuSocketFunc(args ...interface{}) (interface{}, error) {
 func getCpuNumaDomainFunc(args ...interface{}) (interface{}, error) {
 	switch cpuid := args[0].(type) {
 	case int:
-		return topo.GetCpuNumaDomain(cpuid), nil
+		return topo.GetHwthreadNumaDomain(cpuid), nil
 	}
 	return -1, errors.New("function 'getCpuNuma' accepts only an 'int' cpuid")
 }
@@ -273,7 +273,7 @@ func getCpuNumaDomainFunc(args ...interface{}) (interface{}, error) {
 func getCpuDieFunc(args ...interface{}) (interface{}, error) {
 	switch cpuid := args[0].(type) {
 	case int:
-		return topo.GetCpuDie(cpuid), nil
+		return topo.GetHwthreadDie(cpuid), nil
 	}
 	return -1, errors.New("function 'getCpuDie' accepts only an 'int' cpuid")
 }
@@ -336,7 +336,7 @@ func getCpuListOfDieFunc(args ...interface{}) (interface{}, error) {
 
 // wrapper function to get a list of all cpuids of the node
 func getCpuListOfNode(args ...interface{}) (interface{}, error) {
-	return topo.CpuList(), nil
+	return topo.HwthreadList(), nil
 }
 
 // helper function to get the cpuid list for a CCMetric type tag set (type and type-id)
@@ -348,14 +348,14 @@ func getCpuListOfType(args ...interface{}) (interface{}, error) {
 	case string:
 		switch typ {
 		case "node":
-			return topo.CpuList(), nil
+			return topo.HwthreadList(), nil
 		case "socket":
 			return getCpuListOfSocketFunc(args[1])
 		case "numadomain":
 			return getCpuListOfNumaDomainFunc(args[1])
 		case "core":
 			return getCpuListOfCoreFunc(args[1])
-		case "cpu":
+		case "hwthread":
 			var cpu int
 
 			switch id := args[1].(type) {
