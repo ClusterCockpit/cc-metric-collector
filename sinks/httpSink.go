@@ -19,9 +19,9 @@ type HttpSinkConfig struct {
 	URL             string `json:"url,omitempty"`
 	JWT             string `json:"jwt,omitempty"`
 	Timeout         string `json:"timeout,omitempty"`
-	MaxIdleConns    int    `json:"max_idle_connections,omitempty"`
 	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
 	FlushDelay      string `json:"flush_delay,omitempty"`
+	MaxRetries      int    `json:"max_retries,omitempty"`
 }
 
 type HttpSink struct {
@@ -32,83 +32,85 @@ type HttpSink struct {
 	buffer          *bytes.Buffer
 	flushTimer      *time.Timer
 	config          HttpSinkConfig
-	maxIdleConns    int
 	idleConnTimeout time.Duration
 	timeout         time.Duration
 	flushDelay      time.Duration
 }
 
 func (s *HttpSink) Write(m lp.CCMetric) error {
-	if s.buffer.Len() == 0 && s.flushDelay != 0 {
-		// This is the first write since the last flush, start the flushTimer!
-		if s.flushTimer != nil && s.flushTimer.Stop() {
-			cclog.ComponentDebug(s.name, "unexpected: the flushTimer was already running?")
-		}
-
-		// Run a batched flush for all lines that have arrived in the last second
-		s.flushTimer = time.AfterFunc(s.flushDelay, func() {
-			if err := s.Flush(); err != nil {
-				cclog.ComponentError(s.name, "flush failed:", err.Error())
-			}
-		})
-	}
-
 	p := m.ToPoint(s.meta_as_tags)
-
 	s.lock.Lock()
+	firstWriteOfBatch := s.buffer.Len() == 0
 	_, err := s.encoder.Encode(p)
-	s.lock.Unlock() // defer does not work here as Flush() takes the lock as well
-
+	s.lock.Unlock()
 	if err != nil {
 		cclog.ComponentError(s.name, "encoding failed:", err.Error())
 		return err
 	}
 
-	// Flush synchronously if "flush_delay" is zero
 	if s.flushDelay == 0 {
 		return s.Flush()
 	}
 
-	return err
+	if firstWriteOfBatch {
+		if s.flushTimer == nil {
+			s.flushTimer = time.AfterFunc(s.flushDelay, func() {
+				if err := s.Flush(); err != nil {
+					cclog.ComponentError(s.name, "flush failed:", err.Error())
+				}
+			})
+		} else {
+			s.flushTimer.Reset(s.flushDelay)
+		}
+	}
+
+	return nil
 }
 
 func (s *HttpSink) Flush() error {
-	// buffer is read by client.Do, prevent concurrent modifications
+	// Own lock for as short as possible: the time it takes to copy the buffer.
 	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// Do not flush empty buffer
-	if s.buffer.Len() == 0 {
+	buf := make([]byte, s.buffer.Len())
+	copy(buf, s.buffer.Bytes())
+	s.buffer.Reset()
+	s.lock.Unlock()
+	if len(buf) == 0 {
 		return nil
 	}
 
-	// Create new request to send buffer
-	req, err := http.NewRequest(http.MethodPost, s.config.URL, s.buffer)
-	if err != nil {
-		cclog.ComponentError(s.name, "failed to create request:", err.Error())
-		return err
+	var res *http.Response
+	for i := 0; i < s.config.MaxRetries; i++ {
+		// Create new request to send buffer
+		req, err := http.NewRequest(http.MethodPost, s.config.URL, bytes.NewReader(buf))
+		if err != nil {
+			cclog.ComponentError(s.name, "failed to create request:", err.Error())
+			return err
+		}
+
+		// Set authorization header
+		if len(s.config.JWT) != 0 {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.config.JWT))
+		}
+
+		// Do request
+		res, err = s.client.Do(req)
+		if err != nil {
+			cclog.ComponentError(s.name, "transport/tcp error:", err.Error())
+			// Wait between retries
+			time.Sleep(time.Duration(i+1) * (time.Second / 2))
+			continue
+		}
+
+		break
 	}
 
-	// Set authorization header
-	if len(s.config.JWT) != 0 {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.config.JWT))
-	}
-
-	// Send
-	res, err := s.client.Do(req)
-
-	// Clear buffer
-	s.buffer.Reset()
-
-	// Handle transport/tcp errors
-	if err != nil {
-		cclog.ComponentError(s.name, "transport/tcp error:", err.Error())
-		return err
+	if res == nil {
+		return errors.New("flush failed due to repeated errors")
 	}
 
 	// Handle application errors
 	if res.StatusCode != http.StatusOK {
-		err = errors.New(res.Status)
+		err := errors.New(res.Status)
 		cclog.ComponentError(s.name, "application error:", err.Error())
 		return err
 	}
@@ -128,10 +130,10 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(HttpSink)
 	// Set default values
 	s.name = fmt.Sprintf("HttpSink(%s)", name)
-	s.config.MaxIdleConns = 10
-	s.config.IdleConnTimeout = "5s"
+	s.config.IdleConnTimeout = "120s" // should be larger than the measurement interval.
 	s.config.Timeout = "5s"
-	s.config.FlushDelay = "1s"
+	s.config.FlushDelay = "5s"
+	s.config.MaxRetries = 3
 
 	// Read config
 	if len(config) > 0 {
@@ -142,9 +144,6 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	}
 	if len(s.config.URL) == 0 {
 		return nil, errors.New("`url` config option is required for HTTP sink")
-	}
-	if s.config.MaxIdleConns > 0 {
-		s.maxIdleConns = s.config.MaxIdleConns
 	}
 	if len(s.config.IdleConnTimeout) > 0 {
 		t, err := time.ParseDuration(s.config.IdleConnTimeout)
@@ -170,7 +169,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 		s.meta_as_tags[k] = true
 	}
 	tr := &http.Transport{
-		MaxIdleConns:    s.maxIdleConns,
+		MaxIdleConns:    1, // We will only ever talk to one host.
 		IdleConnTimeout: s.idleConnTimeout,
 	}
 	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
