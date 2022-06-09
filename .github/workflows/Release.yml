@@ -40,7 +40,9 @@ jobs:
 
     # Use dnf to install build dependencies
     - name: Install build dependencies
-      run: dnf --assumeyes builddep scripts/cc-metric-collector.spec
+      run: |
+        dnf --assumeyes install 'dnf-command(builddep)'
+        dnf --assumeyes builddep scripts/cc-metric-collector.spec
 
     - name: RPM build MetricCollector
       id: rpmbuild
