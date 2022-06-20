@@ -142,16 +142,19 @@ func (s *InfluxSink) Flush() error {
 
 	// Send metrics from batch slice
 	err := s.writeApi.WritePoint(context.Background(), s.batch...)
-	if err != nil {
-		cclog.ComponentError(s.name, "flush failed:", err.Error())
-		return err
-	}
 
 	// Clear batch slice
+	// (when sending the metrics failed, metrics get dropped and are lost)
 	for i := range s.batch {
 		s.batch[i] = nil
 	}
 	s.batch = s.batch[:0]
+
+	// Report errors for sending metrics
+	if err != nil {
+		cclog.ComponentError(s.name, "flush failed:", err.Error())
+		return err
+	}
 
 	return nil
 }
