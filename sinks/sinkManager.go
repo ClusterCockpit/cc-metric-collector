@@ -76,9 +76,15 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 	for name, raw := range rawConfigs {
 		err = sm.AddOutput(name, raw)
 		if err != nil {
-			cclog.ComponentError("SinkManager", err.Error())
+			cclog.ComponentError("SinkManager", err)
 			continue
 		}
+	}
+
+	// Check that at least one sink is running
+	if !(len(sm.sinks) > 0) {
+		cclog.ComponentError("SinkManager", "Found no usable sinks")
+		return fmt.Errorf("Found no usable sinks")
 	}
 
 	return nil
