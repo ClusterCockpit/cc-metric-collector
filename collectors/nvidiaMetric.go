@@ -275,7 +275,7 @@ func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 		err := errors.New(nvml.ErrorString(ret))
 		return err
 	}
-	if !isMig {
+	if isMig {
 		return nil
 	}
 
@@ -620,7 +620,7 @@ func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		err := errors.New(nvml.ErrorString(ret))
 		return err
 	}
-	if !isMig {
+	if isMig {
 		return nil
 	}
 	if !device.excludeMetrics["nv_encoder_util"] {
@@ -647,7 +647,7 @@ func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		err := errors.New(nvml.ErrorString(ret))
 		return err
 	}
-	if !isMig {
+	if isMig {
 		return nil
 	}
 	if !device.excludeMetrics["nv_decoder_util"] {
