@@ -52,7 +52,7 @@ jobs:
     - name: RPM build MetricCollector
       id: rpmbuild
       run: make RPM
-    
+
     # AlmaLinux 8.5 is a derivate of RedHat Enterprise Linux 8 (UBI8),
     # so the created RPM both contain the substring 'el8' in the RPM file names
     # This step replaces the substring 'el8' to 'alma85'. It uses the move operation
