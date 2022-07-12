@@ -43,10 +43,10 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          wget http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-               http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-               http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.18.2-1.module_el8.7.0+1173+5d37c0fd.noarch.rpm \
-               http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm
+          wget -q http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
+                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
+                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.18.2-1.module_el8.7.0+1173+5d37c0fd.noarch.rpm \
+                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm
           rpm -i go*.rpm
 
     - name: RPM build MetricCollector
@@ -111,10 +111,10 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          wget http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-               http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-               http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.18.2-1.module_el8.7.0+1173+5d37c0fd.noarch.rpm \
-               http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm
+          wget -q http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
+                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
+                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.18.2-1.module_el8.7.0+1173+5d37c0fd.noarch.rpm \
+                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm
           rpm -i go*.rpm
 
     - name: RPM build MetricCollector
