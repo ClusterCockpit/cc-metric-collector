@@ -63,7 +63,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	m.meta = map[string]string{
 		"source": m.name,
 		"group":  "CPU",
-		"unit":   "MHz",
+		"unit":   "Hz",
 	}
 
 	// Loop for all CPU directories

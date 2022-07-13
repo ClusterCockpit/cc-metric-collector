@@ -12,6 +12,7 @@
             "proc_total"
         ]
     },
+    "memstat": {},
     "netstat": {
         "include_devices": [
             "enp5s0"
@@ -33,5 +34,8 @@
                 "type-id": "1"
             }
         }
+    },
+    "topprocs": {
+        "num_procs": 5
     }
 }
