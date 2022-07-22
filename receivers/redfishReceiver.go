@@ -1,8 +1,10 @@
 package receivers
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -18,9 +20,17 @@ import (
 type RedfishReceiver struct {
 	receiver
 	config struct {
-		Type     string `json:"type"`
-		Fanout   int    `json:"fanout,omitempty"`   // Default fanout: 64
-		Interval int    `json:"interval,omitempty"` // Default interval: 30s
+		Type string `json:"type"`
+
+		// Maximum number of simultaneous redfish connections (default: 64)
+		Fanout int `json:"fanout,omitempty"`
+		// How often the redfish power metrics should be read and send to the sink (default: 30 s)
+		Interval int `json:"interval,omitempty"`
+
+		// Control whether a client verifies the server's certificate (default: true)
+		HttpInsecure bool `json:"http_insecure,omitempty"`
+		// Time limit for requests made by this HTTP client (default: 10 s)
+		HttpTimeout time.Duration `json:"http_timeout,omitempty"`
 
 		// Client config for each redfish service
 		ClientConfigs []struct {
@@ -28,7 +38,6 @@ type RedfishReceiver struct {
 			Username       *string  `json:"username"`
 			Password       *string  `json:"password"`
 			Endpoint       *string  `json:"endpoint"`
-			Insecure       *bool    `json:"insecure,omitempty"`
 			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 			gofish         gofish.ClientConfig
 		} `json:"client_config"`
@@ -42,7 +51,7 @@ type RedfishReceiver struct {
 func (r *RedfishReceiver) Start() {
 	cclog.ComponentDebug(r.name, "START")
 
-	// readPowerMetric reads readfish power metric from the endpoint configured in conf
+	// readPowerMetric reads redfish power metric from the endpoint configured in conf
 	readPowerMetric := func(clientConfigIndex int) error {
 
 		clientConfig := &r.config.ClientConfigs[clientConfigIndex]
@@ -50,18 +59,14 @@ func (r *RedfishReceiver) Start() {
 		// Connect to redfish service
 		c, err := gofish.Connect(clientConfig.gofish)
 		if err != nil {
-			c := struct {
-				Username  string
-				Endpoint  string
-				BasicAuth bool
-				Insecure  bool
-			}{
-				Username:  clientConfig.gofish.Username,
-				Endpoint:  clientConfig.gofish.Endpoint,
-				BasicAuth: clientConfig.gofish.BasicAuth,
-				Insecure:  clientConfig.gofish.Insecure,
-			}
-			return fmt.Errorf("readPowerMetric: gofish.Connect(%+v) failed: %v", c, err)
+			return fmt.Errorf(
+				"readPowerMetric: gofish.Connect({Username: %v, Endpoint: %v, BasicAuth: %v, HttpTimeout: %v, HttpInsecure: %v}) failed: %v",
+				clientConfig.gofish.Username,
+				clientConfig.gofish.Endpoint,
+				clientConfig.gofish.BasicAuth,
+				clientConfig.gofish.HTTPClient.Timeout,
+				clientConfig.gofish.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify,
+				err)
 		}
 		defer c.Logout()
 
@@ -272,6 +277,8 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 	// Allow overwriting these defaults by reading config JSON
 	r.config.Fanout = 64
 	r.config.Interval = 30
+	r.config.HttpTimeout = 10 * time.Second
+	r.config.HttpInsecure = true
 
 	// Read the redfish receiver specific JSON config
 	if len(config) > 0 {
@@ -280,6 +287,16 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			cclog.ComponentError(r.name, "Error reading config:", err.Error())
 			return nil, err
 		}
+	}
+
+	// Create new http client
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: r.config.HttpInsecure,
+	}
+	httpClient := &http.Client{
+		Timeout:   r.config.HttpTimeout,
+		Transport: customTransport,
 	}
 
 	// Create gofish client config
@@ -314,10 +331,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		}
 		gofishConfig.Password = *clientConfig.Password
 
-		gofishConfig.Insecure = true
-		if clientConfig.Insecure != nil {
-			gofishConfig.Insecure = *clientConfig.Insecure
-		}
+		gofishConfig.HTTPClient = httpClient
 	}
 
 	return r, nil
