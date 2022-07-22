@@ -25,12 +25,14 @@ type RedfishReceiver struct {
 		// Maximum number of simultaneous redfish connections (default: 64)
 		Fanout int `json:"fanout,omitempty"`
 		// How often the redfish power metrics should be read and send to the sink (default: 30 s)
-		Interval int `json:"interval,omitempty"`
+		IntervalString string `json:"interval,omitempty"`
+		Interval       time.Duration
 
 		// Control whether a client verifies the server's certificate (default: true)
 		HttpInsecure bool `json:"http_insecure,omitempty"`
 		// Time limit for requests made by this HTTP client (default: 10 s)
-		HttpTimeout time.Duration `json:"http_timeout,omitempty"`
+		HttpTimeoutString string `json:"http_timeout,omitempty"`
+		HttpTimeout       time.Duration
 
 		// Client config for each redfish service
 		ClientConfigs []struct {
@@ -120,15 +122,19 @@ func (r *RedfishReceiver) Start() {
 				tags := map[string]string{
 					"hostname": *clientConfig.Hostname,
 					"type":     "node",
+					// ChassisType shall indicate the physical form factor for the type of chassis
+					"chassis_typ": string(chassis.ChassisType),
+					// Chassis name
+					"chassis_name": chassis.Name,
 					// ID uniquely identifies the resource
-					"id": pc.ID,
+					"power_control_id": pc.ID,
 					// MemberID shall uniquely identify the member within the collection. For
 					// services supporting Redfish v1.6 or higher, this value shall be the
 					// zero-based array index.
-					"member_id": pc.MemberID,
+					"power_control_member_id": pc.MemberID,
 					// PhysicalContext shall be a description of the affected device(s) or region
 					// within the chassis to which this power control applies.
-					"physical_context": string(pc.PhysicalContext),
+					"power_control_physical_context": string(pc.PhysicalContext),
 					// Name
 					"power_control_name": pc.Name,
 				}
@@ -231,7 +237,7 @@ func (r *RedfishReceiver) Start() {
 		defer r.wg.Done()
 
 		// Create ticker
-		ticker := time.NewTicker(time.Duration(r.config.Interval) * time.Second)
+		ticker := time.NewTicker(r.config.Interval)
 		defer ticker.Stop()
 
 		for {
@@ -276,8 +282,8 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 	// Set defaults in r.config
 	// Allow overwriting these defaults by reading config JSON
 	r.config.Fanout = 64
-	r.config.Interval = 30
-	r.config.HttpTimeout = 10 * time.Second
+	r.config.IntervalString = "30s"
+	r.config.HttpTimeoutString = "10s"
 	r.config.HttpInsecure = true
 
 	// Read the redfish receiver specific JSON config
@@ -287,6 +293,31 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			cclog.ComponentError(r.name, "Error reading config:", err.Error())
 			return nil, err
 		}
+	}
+
+	// interval duration
+	var err error
+	r.config.Interval, err = time.ParseDuration(r.config.IntervalString)
+	if err != nil {
+		err := fmt.Errorf(
+			"Failed to parse duration string interval='%s': %w",
+			r.config.IntervalString,
+			err,
+		)
+		cclog.Error(r.name, err)
+		return nil, err
+	}
+
+	// HTTP timeout duration
+	r.config.HttpTimeout, err = time.ParseDuration(r.config.HttpTimeoutString)
+	if err != nil {
+		err := fmt.Errorf(
+			"Failed to parse duration string http_timeout='%s': %w",
+			r.config.HttpTimeoutString,
+			err,
+		)
+		cclog.Error(r.name, err)
+		return nil, err
 	}
 
 	// Create new http client
