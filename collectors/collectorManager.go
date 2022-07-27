@@ -49,6 +49,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"schedstat":       new(SchedstatCollector),
 	"nfsiostat":       new(NfsIOStatCollector),
 	"slurm_cgroup":    new(SlurmCgroupCollector),
+	"smartmon":        new(SmartMonCollector),
 }
 
 // Metric collector manager data structure
