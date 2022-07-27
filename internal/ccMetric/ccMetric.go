@@ -50,6 +50,7 @@ type CCMetric interface {
 	GetField(key string) (value interface{}, ok bool) // Get a field addressed by its key
 	HasField(key string) (ok bool)                    // Check if a field key is present
 	RemoveField(key string)                           // Remove a field addressed by its key
+	String() string                                   // Return line-protocol like string
 }
 
 // String implements the stringer interface for data type ccMetric
@@ -217,23 +218,26 @@ func New(
 }
 
 // FromMetric copies the metric <other>
-func FromMetric(other ccMetric) CCMetric {
+func FromMetric(other CCMetric) CCMetric {
+	otags := other.Tags()
+	ometa := other.Meta()
+	ofields := other.Fields()
 	m := &ccMetric{
 		name:   other.Name(),
-		tags:   make(map[string]string, len(other.tags)),
-		meta:   make(map[string]string, len(other.meta)),
-		fields: make(map[string]interface{}, len(other.fields)),
+		tags:   make(map[string]string, len(otags)),
+		meta:   make(map[string]string, len(ometa)),
+		fields: make(map[string]interface{}, len(ofields)),
 		tm:     other.Time(),
 	}
 
 	// deep copy tags, meta data tags and fields
-	for key, value := range other.tags {
+	for key, value := range otags {
 		m.tags[key] = value
 	}
-	for key, value := range other.meta {
+	for key, value := range ometa {
 		m.meta[key] = value
 	}
-	for key, value := range other.fields {
+	for key, value := range ofields {
 		m.fields[key] = value
 	}
 	return m
