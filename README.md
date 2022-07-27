@@ -11,7 +11,7 @@ The receiver runs as a go routine side-by-side with the timer loop and asynchron
 # Configuration
 
 Configuration is implemented using a single json document that is distributed over network and may be persisted as file.
-Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol_alternative.md).
+Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/interfaces/lineprotocol/README.md).
 
 There is a main configuration file with basic settings that point to the other configuration files for the different components.
 
