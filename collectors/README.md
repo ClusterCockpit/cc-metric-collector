@@ -35,7 +35,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`nfs4stat`](./nfs4Metric.md)
 * [`cpufreq`](./cpufreqMetric.md)
 * [`cpufreq_cpuinfo`](./cpufreqCpuinfoMetric.md)
-* [`numastat`](./numastatMetric.md)
+* [`numastats`](./numastatsMetric.md)
 * [`gpfs`](./gpfsMetric.md)
 * [`beegfs_meta`](./beegfsmetaMetric.md)
 * [`beegfs_storage`](./beegfsstorageMetric.md)
