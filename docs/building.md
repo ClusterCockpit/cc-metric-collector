@@ -6,7 +6,7 @@ In most cases, a simple `make` in the main folder is enough to get a `cc-metric-
 
 The main configuration settings for system integration are pre-defined in `scripts/cc-metric-collector.config`. The file contains the UNIX user and group used for execution, the PID file location and other settings. Adjust it accordingly and copy it to `/etc/default/cc-metric-collector`
 
-```
+```bash
 $ install --mode 644 \
           --owner $CC_USER \
           --group $CC_GROUP \
@@ -18,7 +18,7 @@ $ edit /etc/default/cc-metric-collector
 
 If you are using a init system based in `/etc/init.d` daemons, you can use the sample `scripts/cc-metric-collector.init`. It reads the basic configuration from `/etc/default/cc-metric-collector`
 
-```
+```bash
 $ install --mode 755 \
           --owner $CC_USER \
           --group $CC_GROUP \
@@ -29,7 +29,7 @@ $ install --mode 755 \
 
 If you are using `systemd` as init system, you can use the sample systemd service file `scripts/cc-metric-collector.service`, the configuration file `scripts/cc-metric-collector.config`.
 
-```
+```bash
 $ install --mode 644  \
           --owner $CC_USER \
           --group $CC_GROUP \
@@ -41,7 +41,7 @@ $ systemctl enable cc-metric-collector
 
 In order to get a RPM packages for cc-metric-collector, just use:
 
-```
+```bash
 $ make RPM
 ```
 
@@ -51,7 +51,7 @@ It uses the RPM SPEC file `scripts/cc-metric-collector.spec` and requires the RP
 
 In order to get very simple Debian packages for cc-metric-collector, just use:
 
-```
+```bash
 $ make DEB
 ```
 
