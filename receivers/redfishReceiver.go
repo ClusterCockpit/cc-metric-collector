@@ -14,6 +14,8 @@ import (
 
 	// See: https://pkg.go.dev/github.com/stmcginnis/gofish
 	"github.com/stmcginnis/gofish"
+	"github.com/stmcginnis/gofish/common"
+	"github.com/stmcginnis/gofish/redfish"
 )
 
 // RedfishReceiver configuration:
@@ -34,14 +36,21 @@ type RedfishReceiver struct {
 		HttpTimeoutString string `json:"http_timeout,omitempty"`
 		HttpTimeout       time.Duration
 
+		// Globally disable collection of power or thermal metrics
+		DisablePowerMetrics   bool `json:"disable_power_metrics"`
+		DisableThermalMetrics bool `json:"disable_thermal_metrics"`
+
 		// Client config for each redfish service
 		ClientConfigs []struct {
-			Hostname       *string  `json:"hostname"`
-			Username       *string  `json:"username"`
-			Password       *string  `json:"password"`
-			Endpoint       *string  `json:"endpoint"`
-			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
-			gofish         gofish.ClientConfig
+			Hostname *string `json:"hostname"`
+			Username *string `json:"username"`
+			Password *string `json:"password"`
+			Endpoint *string `json:"endpoint"`
+			// Per client disable collection of power or thermal metrics
+			DisablePowerMetrics   bool     `json:"disable_power_metrics"`
+			DisableThermalMetrics bool     `json:"disable_thermal_metrics"`
+			ExcludeMetrics        []string `json:"exclude_metrics,omitempty"`
+			gofish                gofish.ClientConfig
 		} `json:"client_config"`
 	}
 
@@ -53,16 +62,205 @@ type RedfishReceiver struct {
 func (r *RedfishReceiver) Start() {
 	cclog.ComponentDebug(r.name, "START")
 
-	// readPowerMetric reads redfish power metric from the endpoint configured in conf
-	readPowerMetric := func(clientConfigIndex int) error {
+	// Read redfish thermal metrics
+	readThermalMetrics := func(clientConfigIndex int, chassis *redfish.Chassis) error {
+		clientConfig := &r.config.ClientConfigs[clientConfigIndex]
 
+		// Skip collection off thermal metrics when disabled by config
+		if r.config.DisableThermalMetrics || clientConfig.DisableThermalMetrics {
+			return nil
+		}
+
+		// Get thermal information for each chassis
+		thermal, err := chassis.Thermal()
+		if err != nil {
+			return fmt.Errorf("readMetrics: chassis.Thermal() failed: %v", err)
+		}
+
+		// Skip empty thermal information
+		if thermal == nil {
+			return nil
+		}
+
+		timestamp := time.Now()
+
+		for _, temperature := range thermal.Temperatures {
+
+			// Skip all temperatures which ar not in enabled state
+			if temperature.Status.State != common.EnabledState {
+				continue
+			}
+
+			tags := map[string]string{
+				"hostname": *clientConfig.Hostname,
+				"type":     "node",
+				// ChassisType shall indicate the physical form factor for the type of chassis
+				"chassis_typ": string(chassis.ChassisType),
+				// Chassis name
+				"chassis_name": chassis.Name,
+				// ID uniquely identifies the resource
+				"temperature_id": temperature.ID,
+				// MemberID shall uniquely identify the member within the collection. For
+				// services supporting Redfish v1.6 or higher, this value shall be the
+				// zero-based array index.
+				"temperature_member_id": temperature.MemberID,
+				// PhysicalContext shall be a description of the affected device(s) or region
+				// within the chassis to which this power control applies.
+				"temperature_physical_context": string(temperature.PhysicalContext),
+				// Name
+				"temperature_name": temperature.Name,
+			}
+
+			// Delete empty tags
+			for key, value := range tags {
+				if value == "" {
+					delete(tags, key)
+				}
+			}
+
+			// Set meta data tags
+			meta := map[string]string{
+				"source": r.name,
+				"group":  "Temperature",
+				"unit":   "degC",
+			}
+
+			// ReadingCelsius shall be the current value of the temperature sensor's reading.
+			value := temperature.ReadingCelsius
+
+			y, err := lp.New("temperature", tags, meta,
+				map[string]interface{}{
+					"value": value,
+				},
+				timestamp)
+			if err == nil {
+				r.sink <- y
+			}
+		}
+
+		return nil
+	}
+
+	// Read redfish power metrics
+	readPowerMetrics := func(clientConfigIndex int, chassis *redfish.Chassis) error {
+		clientConfig := &r.config.ClientConfigs[clientConfigIndex]
+
+		// Skip collection off thermal metrics when disabled by config
+		if r.config.DisablePowerMetrics || clientConfig.DisablePowerMetrics {
+			return nil
+		}
+
+		// Get power information for each chassis
+		power, err := chassis.Power()
+		if err != nil {
+			return fmt.Errorf("readMetrics: chassis.Power() failed: %v", err)
+		}
+
+		// Skip empty power information
+		if power == nil {
+			return nil
+		}
+
+		timestamp := time.Now()
+
+		// Read min, max and average consumed watts for each power control
+		for _, pc := range power.PowerControl {
+
+			// Map of collected metrics
+			metrics := map[string]float32{
+				// PowerConsumedWatts shall represent the actual power being consumed (in
+				// Watts) by the chassis
+				"consumed_watts": pc.PowerConsumedWatts,
+				// AverageConsumedWatts shall represent the
+				// average power level that occurred averaged over the last IntervalInMin
+				// minutes.
+				"average_consumed_watts": pc.PowerMetrics.AverageConsumedWatts,
+				// MinConsumedWatts shall represent the
+				// minimum power level in watts that occurred within the last
+				// IntervalInMin minutes.
+				"min_consumed_watts": pc.PowerMetrics.MinConsumedWatts,
+				// MaxConsumedWatts shall represent the
+				// maximum power level in watts that occurred within the last
+				// IntervalInMin minutes
+				"max_consumed_watts": pc.PowerMetrics.MaxConsumedWatts,
+			}
+			intervalInMin := strconv.FormatFloat(float64(pc.PowerMetrics.IntervalInMin), 'f', -1, 32)
+
+			// Metrics to exclude
+			for _, key := range clientConfig.ExcludeMetrics {
+				delete(metrics, key)
+			}
+
+			// Set tags
+			tags := map[string]string{
+				"hostname": *clientConfig.Hostname,
+				"type":     "node",
+				// ChassisType shall indicate the physical form factor for the type of chassis
+				"chassis_typ": string(chassis.ChassisType),
+				// Chassis name
+				"chassis_name": chassis.Name,
+				// ID uniquely identifies the resource
+				"power_control_id": pc.ID,
+				// MemberID shall uniquely identify the member within the collection. For
+				// services supporting Redfish v1.6 or higher, this value shall be the
+				// zero-based array index.
+				"power_control_member_id": pc.MemberID,
+				// PhysicalContext shall be a description of the affected device(s) or region
+				// within the chassis to which this power control applies.
+				"power_control_physical_context": string(pc.PhysicalContext),
+				// Name
+				"power_control_name": pc.Name,
+			}
+
+			// Delete empty tags
+			for key, value := range tags {
+				if value == "" {
+					delete(tags, key)
+				}
+			}
+
+			// Set meta data tags
+			meta := map[string]string{
+				"source":              r.name,
+				"group":               "Energy",
+				"interval_in_minutes": intervalInMin,
+				"unit":                "watts",
+			}
+
+			// Delete empty meta data tags
+			for key, value := range meta {
+				if value == "" {
+					delete(meta, key)
+				}
+			}
+
+			for name, value := range metrics {
+
+				y, err := lp.New(name, tags, meta,
+					map[string]interface{}{
+						"value": value,
+					},
+					timestamp)
+				if err == nil {
+					r.sink <- y
+				}
+			}
+		}
+
+		return nil
+	}
+
+	// readMetrics reads redfish temperature and power metrics from the endpoint configured in conf
+	readMetrics := func(clientConfigIndex int) error {
+
+		// access client config
 		clientConfig := &r.config.ClientConfigs[clientConfigIndex]
 
 		// Connect to redfish service
 		c, err := gofish.Connect(clientConfig.gofish)
 		if err != nil {
 			return fmt.Errorf(
-				"readPowerMetric: gofish.Connect({Username: %v, Endpoint: %v, BasicAuth: %v, HttpTimeout: %v, HttpInsecure: %v}) failed: %v",
+				"readMetrics: gofish.Connect({Username: %v, Endpoint: %v, BasicAuth: %v, HttpTimeout: %v, HttpInsecure: %v}) failed: %v",
 				clientConfig.gofish.Username,
 				clientConfig.gofish.Endpoint,
 				clientConfig.gofish.BasicAuth,
@@ -75,112 +273,28 @@ func (r *RedfishReceiver) Start() {
 		// Get all chassis managed by this service
 		chassis_list, err := c.Service.Chassis()
 		if err != nil {
-			return fmt.Errorf("readPowerMetric: c.Service.Chassis() failed: %v", err)
+			return fmt.Errorf("readMetrics: c.Service.Chassis() failed: %v", err)
 		}
 
 		for _, chassis := range chassis_list {
-			timestamp := time.Now()
 
-			// Get power information for each chassis
-			power, err := chassis.Power()
+			err := readThermalMetrics(clientConfigIndex, chassis)
 			if err != nil {
-				return fmt.Errorf("readPowerMetric: chassis.Power() failed: %v", err)
-			}
-			if power == nil {
-				continue
+				return err
 			}
 
-			// Read min, max and average consumed watts for each power control
-			for _, pc := range power.PowerControl {
-
-				// Map of collected metrics
-				metrics := map[string]float32{
-					// PowerConsumedWatts shall represent the actual power being consumed (in
-					// Watts) by the chassis
-					"consumed_watts": pc.PowerConsumedWatts,
-					// AverageConsumedWatts shall represent the
-					// average power level that occurred averaged over the last IntervalInMin
-					// minutes.
-					"average_consumed_watts": pc.PowerMetrics.AverageConsumedWatts,
-					// MinConsumedWatts shall represent the
-					// minimum power level in watts that occurred within the last
-					// IntervalInMin minutes.
-					"min_consumed_watts": pc.PowerMetrics.MinConsumedWatts,
-					// MaxConsumedWatts shall represent the
-					// maximum power level in watts that occurred within the last
-					// IntervalInMin minutes
-					"max_consumed_watts": pc.PowerMetrics.MaxConsumedWatts,
-				}
-				intervalInMin := strconv.FormatFloat(float64(pc.PowerMetrics.IntervalInMin), 'f', -1, 32)
-
-				// Metrics to exclude
-				for _, key := range clientConfig.ExcludeMetrics {
-					delete(metrics, key)
-				}
-
-				// Set tags
-				tags := map[string]string{
-					"hostname": *clientConfig.Hostname,
-					"type":     "node",
-					// ChassisType shall indicate the physical form factor for the type of chassis
-					"chassis_typ": string(chassis.ChassisType),
-					// Chassis name
-					"chassis_name": chassis.Name,
-					// ID uniquely identifies the resource
-					"power_control_id": pc.ID,
-					// MemberID shall uniquely identify the member within the collection. For
-					// services supporting Redfish v1.6 or higher, this value shall be the
-					// zero-based array index.
-					"power_control_member_id": pc.MemberID,
-					// PhysicalContext shall be a description of the affected device(s) or region
-					// within the chassis to which this power control applies.
-					"power_control_physical_context": string(pc.PhysicalContext),
-					// Name
-					"power_control_name": pc.Name,
-				}
-
-				// Delete empty tags
-				for key, value := range tags {
-					if value == "" {
-						delete(tags, key)
-					}
-				}
-
-				// Set meta data tags
-				meta := map[string]string{
-					"source":              r.name,
-					"group":               "Energy",
-					"interval_in_minutes": intervalInMin,
-					"unit":                "watts",
-				}
-
-				// Delete empty meta data tags
-				for key, value := range meta {
-					if value == "" {
-						delete(meta, key)
-					}
-				}
-
-				for name, value := range metrics {
-
-					y, err := lp.New(name, tags, meta,
-						map[string]interface{}{
-							"value": value,
-						},
-						timestamp)
-					if err == nil {
-						r.sink <- y
-					}
-				}
+			err = readPowerMetrics(clientConfigIndex, chassis)
+			if err != nil {
+				return err
 			}
 		}
 
 		return nil
 	}
 
-	// doReadPowerMetric read power metrics for all configure redfish services.
+	// doReadMetrics read power and temperature metrics for all configure redfish services.
 	// To compensate latencies of the Redfish services a fanout is used.
-	doReadPowerMetric := func() {
+	doReadMetric := func() {
 
 		// Compute fanout to use
 		realFanout := r.config.Fanout
@@ -202,7 +316,7 @@ func (r *RedfishReceiver) Start() {
 
 				// Read power metrics for each client config
 				for clientConfigIndex := range workerInput {
-					err := readPowerMetric(clientConfigIndex)
+					err := readMetrics(clientConfigIndex)
 					if err != nil {
 						cclog.ComponentError(r.name, err)
 					}
@@ -241,7 +355,7 @@ func (r *RedfishReceiver) Start() {
 		defer ticker.Stop()
 
 		for {
-			doReadPowerMetric()
+			doReadMetric()
 
 			select {
 			case <-ticker.C:
