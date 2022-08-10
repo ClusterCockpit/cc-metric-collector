@@ -101,7 +101,7 @@ func (r *RedfishReceiver) Start() {
 				break
 			}
 
-			// Skip all temperatures which ar not in enabled state
+			// Skip all temperatures which are not in enabled state
 			if temperature.Status.State != common.EnabledState {
 				continue
 			}
@@ -119,8 +119,8 @@ func (r *RedfishReceiver) Start() {
 				// services supporting Redfish v1.6 or higher, this value shall be the
 				// zero-based array index.
 				"temperature_member_id": temperature.MemberID,
-				// PhysicalContext shall be a description of the affected device(s) or region
-				// within the chassis to which this power control applies.
+				// PhysicalContext shall be a description of the affected device or region
+				// within the chassis to which this temperature measurement applies
 				"temperature_physical_context": string(temperature.PhysicalContext),
 				// Name
 				"temperature_name": temperature.Name,
@@ -159,7 +159,7 @@ func (r *RedfishReceiver) Start() {
 				break
 			}
 
-			// Skip all fans which ar not in enabled state
+			// Skip all fans which are not in enabled state
 			if fan.Status.State != common.EnabledState {
 				continue
 			}
@@ -177,8 +177,8 @@ func (r *RedfishReceiver) Start() {
 				// services supporting Redfish v1.6 or higher, this value shall be the
 				// zero-based array index.
 				"fan_member_id": fan.MemberID,
-				// PhysicalContext shall be a description of the affected device(s) or region
-				// within the chassis to which this power control applies.
+				// PhysicalContext shall be a description of the affected device or region
+				// within the chassis to which this fan is associated
 				"fan_physical_context": string(fan.PhysicalContext),
 				// Name
 				"fan_name": fan.Name,
@@ -198,7 +198,7 @@ func (r *RedfishReceiver) Start() {
 				"unit":   string(fan.ReadingUnits),
 			}
 
-			// ReadingCelsius shall be the current value of the temperature sensor's reading.
+			// Reading shall be the current value of the fan sensor's reading
 			value := fan.Reading
 
 			y, err := lp.New("fan_speed", tags, meta,
@@ -238,6 +238,11 @@ func (r *RedfishReceiver) Start() {
 
 		// Read min, max and average consumed watts for each power control
 		for _, pc := range power.PowerControl {
+
+			// Skip all power controls which are not in enabled state
+			if pc.Status.State != common.EnabledState {
+				continue
+			}
 
 			// Map of collected metrics
 			metrics := make(map[string]float32)
