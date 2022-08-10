@@ -40,17 +40,27 @@ type RedfishReceiver struct {
 		DisablePowerMetrics   bool `json:"disable_power_metrics"`
 		DisableThermalMetrics bool `json:"disable_thermal_metrics"`
 
+		// Globally excluded metrics
+		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+
 		// Client config for each redfish service
 		ClientConfigs []struct {
 			Hostname *string `json:"hostname"`
 			Username *string `json:"username"`
 			Password *string `json:"password"`
 			Endpoint *string `json:"endpoint"`
+
 			// Per client disable collection of power or thermal metrics
-			DisablePowerMetrics   bool     `json:"disable_power_metrics"`
-			DisableThermalMetrics bool     `json:"disable_thermal_metrics"`
-			ExcludeMetrics        []string `json:"exclude_metrics,omitempty"`
-			gofish                gofish.ClientConfig
+			DisablePowerMetrics   bool `json:"disable_power_metrics"`
+			DisableThermalMetrics bool `json:"disable_thermal_metrics"`
+
+			// Per client excluded metrics
+			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+
+			// is metric excluded globally or per client
+			isExcluded map[string](bool)
+
+			gofish gofish.ClientConfig
 		} `json:"client_config"`
 	}
 
@@ -85,6 +95,11 @@ func (r *RedfishReceiver) Start() {
 		timestamp := time.Now()
 
 		for _, temperature := range thermal.Temperatures {
+
+			// Skip, when temperature metric is excluded
+			if clientConfig.isExcluded["temperature"] {
+				break
+			}
 
 			// Skip all temperatures which ar not in enabled state
 			if temperature.Status.State != common.EnabledState {
@@ -138,6 +153,64 @@ func (r *RedfishReceiver) Start() {
 			}
 		}
 
+		for _, fan := range thermal.Fans {
+			// Skip, when fan_speed metric is excluded
+			if clientConfig.isExcluded["fan_speed"] {
+				break
+			}
+
+			// Skip all fans which ar not in enabled state
+			if fan.Status.State != common.EnabledState {
+				continue
+			}
+
+			tags := map[string]string{
+				"hostname": *clientConfig.Hostname,
+				"type":     "node",
+				// ChassisType shall indicate the physical form factor for the type of chassis
+				"chassis_typ": string(chassis.ChassisType),
+				// Chassis name
+				"chassis_name": chassis.Name,
+				// ID uniquely identifies the resource
+				"fan_id": fan.ID,
+				// MemberID shall uniquely identify the member within the collection. For
+				// services supporting Redfish v1.6 or higher, this value shall be the
+				// zero-based array index.
+				"fan_member_id": fan.MemberID,
+				// PhysicalContext shall be a description of the affected device(s) or region
+				// within the chassis to which this power control applies.
+				"fan_physical_context": string(fan.PhysicalContext),
+				// Name
+				"fan_name": fan.Name,
+			}
+
+			// Delete empty tags
+			for key, value := range tags {
+				if value == "" {
+					delete(tags, key)
+				}
+			}
+
+			// Set meta data tags
+			meta := map[string]string{
+				"source": r.name,
+				"group":  "FanSpeed",
+				"unit":   string(fan.ReadingUnits),
+			}
+
+			// ReadingCelsius shall be the current value of the temperature sensor's reading.
+			value := fan.Reading
+
+			y, err := lp.New("fan_speed", tags, meta,
+				map[string]interface{}{
+					"value": value,
+				},
+				timestamp)
+			if err == nil {
+				r.sink <- y
+			}
+		}
+
 		return nil
 	}
 
@@ -167,29 +240,37 @@ func (r *RedfishReceiver) Start() {
 		for _, pc := range power.PowerControl {
 
 			// Map of collected metrics
-			metrics := map[string]float32{
-				// PowerConsumedWatts shall represent the actual power being consumed (in
-				// Watts) by the chassis
-				"consumed_watts": pc.PowerConsumedWatts,
-				// AverageConsumedWatts shall represent the
-				// average power level that occurred averaged over the last IntervalInMin
-				// minutes.
-				"average_consumed_watts": pc.PowerMetrics.AverageConsumedWatts,
-				// MinConsumedWatts shall represent the
-				// minimum power level in watts that occurred within the last
-				// IntervalInMin minutes.
-				"min_consumed_watts": pc.PowerMetrics.MinConsumedWatts,
-				// MaxConsumedWatts shall represent the
-				// maximum power level in watts that occurred within the last
-				// IntervalInMin minutes
-				"max_consumed_watts": pc.PowerMetrics.MaxConsumedWatts,
-			}
-			intervalInMin := strconv.FormatFloat(float64(pc.PowerMetrics.IntervalInMin), 'f', -1, 32)
+			metrics := make(map[string]float32)
 
-			// Metrics to exclude
-			for _, key := range clientConfig.ExcludeMetrics {
-				delete(metrics, key)
+			// PowerConsumedWatts shall represent the actual power being consumed (in
+			// Watts) by the chassis
+			if !clientConfig.isExcluded["consumed_watts"] {
+				metrics["consumed_watts"] = pc.PowerConsumedWatts
 			}
+			// AverageConsumedWatts shall represent the
+			// average power level that occurred averaged over the last IntervalInMin
+			// minutes.
+			if !clientConfig.isExcluded["average_consumed_watts"] {
+				metrics["average_consumed_watts"] = pc.PowerMetrics.AverageConsumedWatts
+			}
+			// MinConsumedWatts shall represent the
+			// minimum power level in watts that occurred within the last
+			// IntervalInMin minutes.
+			if !clientConfig.isExcluded["min_consumed_watts"] {
+				metrics["min_consumed_watts"] = pc.PowerMetrics.MinConsumedWatts
+			}
+			// MaxConsumedWatts shall represent the
+			// maximum power level in watts that occurred within the last
+			// IntervalInMin minutes
+			if !clientConfig.isExcluded["max_consumed_watts"] {
+				metrics["max_consumed_watts"] = pc.PowerMetrics.MaxConsumedWatts
+			}
+			// IntervalInMin shall represent the time interval (or window), in minutes,
+			// in which the PowerMetrics properties are measured over.
+			// Should be an integer, but some Dell implementations return as a float
+			intervalInMin :=
+				strconv.FormatFloat(
+					float64(pc.PowerMetrics.IntervalInMin), 'f', -1, 32)
 
 			// Set tags
 			tags := map[string]string{
@@ -269,6 +350,14 @@ func (r *RedfishReceiver) Start() {
 				err)
 		}
 		defer c.Logout()
+
+		// Create a session, when required
+		if _, err = c.GetSession(); err != nil {
+			c, err = c.CloneWithSession()
+			if err != nil {
+				return fmt.Errorf("readMetrics: Failed to create a session: %+w", err)
+			}
+		}
 
 		// Get all chassis managed by this service
 		chassis_list, err := c.Service.Chassis()
@@ -476,7 +565,17 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		}
 		gofishConfig.Password = *clientConfig.Password
 
+		// Reuse existing http client
 		gofishConfig.HTTPClient = httpClient
+
+		// Is metrics excluded globally or per client
+		clientConfig.isExcluded = make(map[string]bool)
+		for _, key := range clientConfig.ExcludeMetrics {
+			clientConfig.isExcluded[key] = true
+		}
+		for _, key := range r.config.ExcludeMetrics {
+			clientConfig.isExcluded[key] = true
+		}
 	}
 
 	return r, nil
