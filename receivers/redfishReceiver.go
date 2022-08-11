@@ -30,7 +30,8 @@ type RedfishReceiver struct {
 		IntervalString string `json:"interval,omitempty"`
 		Interval       time.Duration
 
-		// Control whether a client verifies the server's certificate (default: true)
+		// Control whether a client verifies the server's certificate
+		// (default: true == do not verify server's certificate)
 		HttpInsecure bool `json:"http_insecure,omitempty"`
 		// Time limit for requests made by this HTTP client (default: 10 s)
 		HttpTimeoutString string `json:"http_timeout,omitempty"`
@@ -45,10 +46,10 @@ type RedfishReceiver struct {
 
 		// Client config for each redfish service
 		ClientConfigs []struct {
-			Hostname *string `json:"hostname"`
-			Username *string `json:"username"`
-			Password *string `json:"password"`
-			Endpoint *string `json:"endpoint"`
+			Hostname *string `json:"hostname"` // Hostname the redfish service belongs to
+			Username *string `json:"username"` // User name to authenticate with
+			Password *string `json:"password"` // Password to use for authentication
+			Endpoint *string `json:"endpoint"` // URL of the redfish service
 
 			// Per client disable collection of power or thermal metrics
 			DisablePowerMetrics   bool `json:"disable_power_metrics"`
