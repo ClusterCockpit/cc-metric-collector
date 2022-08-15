@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -352,7 +351,8 @@ func (r *RedfishReceiver) Start() {
 
 		timestamp := time.Now()
 
-		URL, _ := url.JoinPath(processor.ODataID, "ProcessorMetrics")
+		// Golang 1.19: URL, _ := url.JoinPath(processor.ODataID, "ProcessorMetrics")
+		URL := processor.ODataID + "/ProcessorMetrics"
 		resp, err := processor.Client.Get(URL)
 		if err != nil {
 			// Skip non existing URLs
