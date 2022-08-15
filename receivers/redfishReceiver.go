@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -37,9 +38,10 @@ type RedfishReceiver struct {
 		HttpTimeoutString string `json:"http_timeout,omitempty"`
 		HttpTimeout       time.Duration
 
-		// Globally disable collection of power or thermal metrics
-		DisablePowerMetrics   bool `json:"disable_power_metrics"`
-		DisableThermalMetrics bool `json:"disable_thermal_metrics"`
+		// Globally disable collection of power, processor or thermal metrics
+		DisablePowerMetrics     bool `json:"disable_power_metrics"`
+		DisableProcessorMetrics bool `json:"disable_processor_metrics"`
+		DisableThermalMetrics   bool `json:"disable_thermal_metrics"`
 
 		// Globally excluded metrics
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
@@ -51,9 +53,10 @@ type RedfishReceiver struct {
 			Password *string `json:"password"` // Password to use for authentication
 			Endpoint *string `json:"endpoint"` // URL of the redfish service
 
-			// Per client disable collection of power or thermal metrics
-			DisablePowerMetrics   bool `json:"disable_power_metrics"`
-			DisableThermalMetrics bool `json:"disable_thermal_metrics"`
+			// Per client disable collection of power,processor or thermal metrics
+			DisablePowerMetrics     bool `json:"disable_power_metrics"`
+			DisableProcessorMetrics bool `json:"disable_processor_metrics"`
+			DisableThermalMetrics   bool `json:"disable_thermal_metrics"`
 
 			// Per client excluded metrics
 			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
@@ -337,6 +340,101 @@ func (r *RedfishReceiver) Start() {
 		return nil
 	}
 
+	// Read redfish processor metrics
+	// See: https://redfish.dmtf.org/schemas/v1/ProcessorMetrics.json
+	readProcessorMetrics := func(clientConfigIndex int, processor *redfish.Processor) error {
+		clientConfig := &r.config.ClientConfigs[clientConfigIndex]
+
+		// Skip collection off processor metrics when disabled by config
+		if r.config.DisableProcessorMetrics || clientConfig.DisableProcessorMetrics {
+			return nil
+		}
+
+		timestamp := time.Now()
+
+		URL, _ := url.JoinPath(processor.ODataID, "ProcessorMetrics")
+		resp, err := processor.Client.Get(URL)
+		if err != nil {
+			// Skip non existing URLs
+			return nil
+		}
+
+		var processorMetrics struct {
+			common.Entity
+			ODataType   string `json:"@odata.type"`
+			ODataEtag   string `json:"@odata.etag"`
+			Description string `json:"Description"`
+			// This property shall contain the power, in watts, that the processor has consumed.
+			ConsumedPowerWatt float32 `json:"ConsumedPowerWatt"`
+			// This property shall contain the temperature, in Celsius, of the processor.
+			TemperatureCelsius float32 `json:"TemperatureCelsius"`
+		}
+		err = json.NewDecoder(resp.Body).Decode(&processorMetrics)
+		if err != nil {
+			return fmt.Errorf("unable to decode JSON for processor metrics: %+w", err)
+		}
+		processorMetrics.SetClient(processor.Client)
+
+		// Set tags
+		tags := map[string]string{
+			"hostname": *clientConfig.Hostname,
+			"type":     "socket",
+			// ProcessorType shall contain the string which identifies the type of processor contained in this Socket
+			"processor_typ": string(processor.ProcessorType),
+			// Processor name
+			"processor_name": processor.Name,
+			// ID uniquely identifies the resource
+			"processor_id": processor.ID,
+		}
+
+		// Delete empty tags
+		for key, value := range tags {
+			if value == "" {
+				delete(tags, key)
+			}
+		}
+
+		// Set meta data tags
+		metaPower := map[string]string{
+			"source": r.name,
+			"group":  "Energy",
+			"unit":   "watts",
+		}
+
+		namePower := "consumed_power"
+
+		if !clientConfig.isExcluded[namePower] {
+			y, err := lp.New(namePower, tags, metaPower,
+				map[string]interface{}{
+					"value": processorMetrics.ConsumedPowerWatt,
+				},
+				timestamp)
+			if err == nil {
+				r.sink <- y
+			}
+		}
+		// Set meta data tags
+		metaThermal := map[string]string{
+			"source": r.name,
+			"group":  "Temperature",
+			"unit":   "degC",
+		}
+
+		nameThermal := "temperature"
+
+		if !clientConfig.isExcluded[nameThermal] {
+			y, err := lp.New(nameThermal, tags, metaThermal,
+				map[string]interface{}{
+					"value": processorMetrics.TemperatureCelsius,
+				},
+				timestamp)
+			if err == nil {
+				r.sink <- y
+			}
+		}
+		return nil
+	}
+
 	// readMetrics reads redfish temperature and power metrics from the endpoint configured in conf
 	readMetrics := func(clientConfigIndex int) error {
 
@@ -381,6 +479,26 @@ func (r *RedfishReceiver) Start() {
 			err = readPowerMetrics(clientConfigIndex, chassis)
 			if err != nil {
 				return err
+			}
+		}
+
+		// loop for all computer systems
+		systems, err := c.Service.Systems()
+		if err != nil {
+			return fmt.Errorf("readMetrics: c.Service.Systems() failed: %v", err)
+		}
+		for _, system := range systems {
+
+			// loop for all processors
+			processors, err := system.Processors()
+			if err != nil {
+				return fmt.Errorf("readMetrics: system.Processors() failed: %v", err)
+			}
+			for _, processor := range processors {
+				err := readProcessorMetrics(clientConfigIndex, processor)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
