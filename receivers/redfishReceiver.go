@@ -78,7 +78,7 @@ func (r *RedfishReceiver) readThermalMetrics(
 		}
 
 		// Skip all temperatures which are not in enabled state
-		if temperature.Status.State != common.EnabledState {
+		if temperature.Status.State != "" && temperature.Status.State != common.EnabledState {
 			continue
 		}
 
@@ -212,7 +212,7 @@ func (r *RedfishReceiver) readPowerMetrics(
 	for _, pc := range power.PowerControl {
 
 		// Skip all power controls which are not in enabled state
-		if pc.Status.State != common.EnabledState {
+		if pc.Status.State != "" && pc.Status.State != common.EnabledState {
 			continue
 		}
 
