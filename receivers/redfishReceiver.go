@@ -30,6 +30,8 @@ type RedfishReceiverClientConfig struct {
 	doProcessorMetrics bool
 	doThermalMetrics   bool
 
+	skipProcessorMetricsURL map[string]bool
+
 	gofish gofish.ClientConfig
 }
 
@@ -314,12 +316,23 @@ func (r *RedfishReceiver) readProcessorMetrics(
 
 	timestamp := time.Now()
 
-	// Golang 1.19: URL, _ := url.JoinPath(processor.ODataID, "ProcessorMetrics")
+	// URL to processor metrics
 	URL := processor.ODataID + "/ProcessorMetrics"
+
+	// Skip previously detected non existing URLs
+	if clientConfig.skipProcessorMetricsURL[URL] {
+		return nil
+	}
+
 	resp, err := processor.Client.Get(URL)
 	if err != nil {
 		// Skip non existing URLs
-		return nil
+		if statusCode := err.(*common.Error).HTTPReturnedStatusCode; statusCode == http.StatusNotFound {
+			clientConfig.skipProcessorMetricsURL[URL] = true
+			return nil
+		}
+
+		return fmt.Errorf("processor.Client.Get(%v) failed: %+w", URL, err)
 	}
 
 	var processorMetrics struct {
@@ -740,6 +753,8 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		clientConfig.doThermalMetrics =
 			!(configJSON.DisableThermalMetrics ||
 				clientConfigJSON.DisableThermalMetrics)
+
+		clientConfig.skipProcessorMetricsURL = make(map[string]bool)
 
 		// Is metrics excluded globally or per client
 		clientConfig.isExcluded = make(map[string]bool)
