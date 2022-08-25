@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -615,6 +616,11 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		// Time limit for requests made by this HTTP client (default: 10 s)
 		HttpTimeoutString string `json:"http_timeout,omitempty"`
 
+		// Default client username, password and endpoint
+		Username *string `json:"username"` // User name to authenticate with
+		Password *string `json:"password"` // Password to use for authentication
+		Endpoint *string `json:"endpoint"` // URL of the redfish service
+
 		// Globally disable collection of power, processor or thermal metrics
 		DisablePowerMetrics     bool `json:"disable_power_metrics"`
 		DisableProcessorMetrics bool `json:"disable_processor_metrics"`
@@ -719,26 +725,37 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		}
 		clientConfig.Hostname = *clientConfigJSON.Hostname
 
-		if clientConfigJSON.Endpoint == nil {
+		var endpoint string
+		if clientConfigJSON.Endpoint != nil {
+			endpoint = *clientConfigJSON.Endpoint
+		} else if configJSON.Endpoint != nil {
+			endpoint = *configJSON.Endpoint
+		} else {
 			err := fmt.Errorf("client config number %v requires endpoint", i)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}
-		gofishConfig.Endpoint = *clientConfigJSON.Endpoint
+		gofishConfig.Endpoint = strings.Replace(endpoint, "%h", clientConfig.Hostname, -1)
 
-		if clientConfigJSON.Username == nil {
+		if clientConfigJSON.Username != nil {
+			gofishConfig.Username = *clientConfigJSON.Username
+		} else if configJSON.Username != nil {
+			gofishConfig.Username = *configJSON.Username
+		} else {
 			err := fmt.Errorf("client config number %v requires username", i)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}
-		gofishConfig.Username = *clientConfigJSON.Username
 
-		if clientConfigJSON.Password == nil {
+		if clientConfigJSON.Password != nil {
+			gofishConfig.Password = *clientConfigJSON.Password
+		} else if configJSON.Password != nil {
+			gofishConfig.Password = *configJSON.Password
+		} else {
 			err := fmt.Errorf("client config number %v requires password", i)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}
-		gofishConfig.Password = *clientConfigJSON.Password
 
 		// Reuse existing http client
 		gofishConfig.HTTPClient = httpClient

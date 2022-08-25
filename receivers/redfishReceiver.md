@@ -8,26 +8,23 @@ The Redfish receiver uses the [Redfish (specification)](https://www.dmtf.org/sta
 {
     "<redfish receiver name>": {
         "type": "redfish",
+        "username": "<user A>",
+        "password": "<password A>",
+        "endpoint": "https://%h-bmc",
         "exclude_metrics": [ "min_consumed_watts" ],
         "client_config": [
             {
-                "hostname": "<host 1>",
-                "username": "<user 1>",
-                "password": "<password 1>",
-                "endpoint": "https://<endpoint 1>"
+                "hostname": "<host 1>"
             },
             {
                 "hostname": "<host 2>",
-                "username": "<user 2>",
-                "password": "<password 2>",
-                "endpoint": "https://<endpoint 2>",
                 "disable_power_metrics": true
             },
             {
                 "hostname": "<host 3>",
-                "username": "<user 3>",
-                "password": "<password 3>",
-                "endpoint": "https://<endpoint 3>",
+                "username": "<user B>",
+                "password": "<password B>",
+                "endpoint": "https://%h-BMC",
                 "disable_thermal_metrics": true
             }
         ]
@@ -42,15 +39,15 @@ Global settings:
 - `http_insecure`: Control whether a client verifies the server's certificate (default: true == do not verify server's certificate)
 - `http_timeout`: Time limit for requests made by this HTTP client (default: 10 s)
 
-Global and per redfish device settings:
+Global and per redfish device settings (per redfish device settings overwrite the global settings):
 
 - `disable_power_metrics`: disable collection of power metrics
 - `disable_thermal_metrics`: disable collection of thermal metrics
 - `exclude_metrics`: list of excluded metrics
+- `username`: User name to authenticate with
+- `password`: Password to use for authentication
+- `endpoint`: URL of the redfish service (placeholder `%h` gets replaced by the hostname)
 
 Per redfish device settings:
 
 - `hostname`: hostname the redfish service belongs to
-- `username`: User name to authenticate with
-- `password`: Password to use for authentication
-- `endpoint`: URL of the redfish service
