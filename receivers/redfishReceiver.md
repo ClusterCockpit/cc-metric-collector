@@ -14,14 +14,14 @@ The Redfish receiver uses the [Redfish (specification)](https://www.dmtf.org/sta
         "exclude_metrics": [ "min_consumed_watts" ],
         "client_config": [
             {
-                "hostname": "<host 1>"
+                "host_list": [ "<host 1>", "<host 2>" ]
             },
             {
-                "hostname": "<host 2>",
+                "host_list": [ "<host 3>", "<host 4>" ]
                 "disable_power_metrics": true
             },
             {
-                "hostname": "<host 3>",
+                "host_list": [ "<host 5>" ],
                 "username": "<user B>",
                 "password": "<password B>",
                 "endpoint": "https://%h-BMC",
@@ -42,6 +42,7 @@ Global settings:
 Global and per redfish device settings (per redfish device settings overwrite the global settings):
 
 - `disable_power_metrics`: disable collection of power metrics
+- `disable_processor_metrics`: disable collection of processor metrics
 - `disable_thermal_metrics`: disable collection of thermal metrics
 - `exclude_metrics`: list of excluded metrics
 - `username`: User name to authenticate with
@@ -50,4 +51,4 @@ Global and per redfish device settings (per redfish device settings overwrite th
 
 Per redfish device settings:
 
-- `hostname`: hostname the redfish service belongs to
+- `host_list`: List of hosts with the same client configuration

@@ -630,10 +630,10 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 
 		ClientConfigs []struct {
-			Hostname *string `json:"hostname"` // Hostname the redfish service belongs to
-			Username *string `json:"username"` // User name to authenticate with
-			Password *string `json:"password"` // Password to use for authentication
-			Endpoint *string `json:"endpoint"` // URL of the redfish service
+			HostList []string `json:"host_list"` // List of hosts with the same client configuration
+			Username *string  `json:"username"`  // User name to authenticate with
+			Password *string  `json:"password"`  // Password to use for authentication
+			Endpoint *string  `json:"endpoint"`  // URL of the redfish service
 
 			// Per client disable collection of power,processor or thermal metrics
 			DisablePowerMetrics     bool `json:"disable_power_metrics"`
@@ -667,7 +667,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		}
 	}
 
-	// interval duration
+	// Convert interval string representation to duration
 	var err error
 	r.config.Interval, err = time.ParseDuration(configJSON.IntervalString)
 	if err != nil {
@@ -702,86 +702,121 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		Transport: customTransport,
 	}
 
-	// Compute fanout to use
-	numClients := len(configJSON.ClientConfigs)
-	r.config.fanout = configJSON.Fanout
-	if numClients < r.config.fanout {
-		r.config.fanout = numClients
-	}
+	// Initialize client configurations
+	r.config.ClientConfigs = make([]RedfishReceiverClientConfig, 0)
 
-	// Initialize derived configuration
-	r.config.ClientConfigs = make([]RedfishReceiverClientConfig, numClients)
+	// Create client config from JSON config
+	for i := range configJSON.ClientConfigs {
 
-	// Create gofish client config
-	for i := 0; i < numClients; i++ {
-		clientConfig := &r.config.ClientConfigs[i]
 		clientConfigJSON := &configJSON.ClientConfigs[i]
-		gofishConfig := &clientConfig.gofish
 
-		if clientConfigJSON.Hostname == nil {
-			err := fmt.Errorf("client config number %v requires hostname", i)
-			cclog.ComponentError(r.name, err)
-			return nil, err
-		}
-		clientConfig.Hostname = *clientConfigJSON.Hostname
-
-		var endpoint string
+		var endpoint_pattern string
 		if clientConfigJSON.Endpoint != nil {
-			endpoint = *clientConfigJSON.Endpoint
+			endpoint_pattern = *clientConfigJSON.Endpoint
 		} else if configJSON.Endpoint != nil {
-			endpoint = *configJSON.Endpoint
+			endpoint_pattern = *configJSON.Endpoint
 		} else {
 			err := fmt.Errorf("client config number %v requires endpoint", i)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}
-		gofishConfig.Endpoint = strings.Replace(endpoint, "%h", clientConfig.Hostname, -1)
 
+		var username string
 		if clientConfigJSON.Username != nil {
-			gofishConfig.Username = *clientConfigJSON.Username
+			username = *clientConfigJSON.Username
 		} else if configJSON.Username != nil {
-			gofishConfig.Username = *configJSON.Username
+			username = *configJSON.Username
 		} else {
 			err := fmt.Errorf("client config number %v requires username", i)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}
 
+		var password string
 		if clientConfigJSON.Password != nil {
-			gofishConfig.Password = *clientConfigJSON.Password
+			password = *clientConfigJSON.Password
 		} else if configJSON.Password != nil {
-			gofishConfig.Password = *configJSON.Password
+			password = *configJSON.Password
 		} else {
 			err := fmt.Errorf("client config number %v requires password", i)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}
 
-		// Reuse existing http client
-		gofishConfig.HTTPClient = httpClient
-
 		// Which metrics should be collected
-		clientConfig.doPowerMetric =
+		doPowerMetric :=
 			!(configJSON.DisablePowerMetrics ||
 				clientConfigJSON.DisablePowerMetrics)
-		clientConfig.doProcessorMetrics =
+		doProcessorMetrics :=
 			!(configJSON.DisableProcessorMetrics ||
 				clientConfigJSON.DisableProcessorMetrics)
-		clientConfig.doThermalMetrics =
+		doThermalMetrics :=
 			!(configJSON.DisableThermalMetrics ||
 				clientConfigJSON.DisableThermalMetrics)
 
-		clientConfig.skipProcessorMetricsURL = make(map[string]bool)
-
 		// Is metrics excluded globally or per client
-		clientConfig.isExcluded = make(map[string]bool)
+		isExcluded := make(map[string]bool)
 		for _, key := range clientConfigJSON.ExcludeMetrics {
-			clientConfig.isExcluded[key] = true
+			isExcluded[key] = true
 		}
 		for _, key := range configJSON.ExcludeMetrics {
-			clientConfig.isExcluded[key] = true
+			isExcluded[key] = true
 		}
+
+		for _, host := range clientConfigJSON.HostList {
+
+			// Endpoint of the redfish service
+			endpoint := strings.Replace(endpoint_pattern, "%h", host, -1)
+
+			r.config.ClientConfigs = append(
+				r.config.ClientConfigs,
+				RedfishReceiverClientConfig{
+					Hostname:                host,
+					isExcluded:              isExcluded,
+					doPowerMetric:           doPowerMetric,
+					doProcessorMetrics:      doProcessorMetrics,
+					doThermalMetrics:        doThermalMetrics,
+					skipProcessorMetricsURL: make(map[string]bool),
+					gofish: gofish.ClientConfig{
+						Username:   username,
+						Password:   password,
+						Endpoint:   endpoint,
+						HTTPClient: httpClient,
+					},
+				})
+		}
+
 	}
+
+	// Compute parallel fanout to use
+	numClients := len(r.config.ClientConfigs)
+	r.config.fanout = configJSON.Fanout
+	if numClients < r.config.fanout {
+		r.config.fanout = numClients
+	}
+
+	if numClients == 0 {
+		err := fmt.Errorf("at least one client config is required")
+		cclog.ComponentError(r.name, err)
+		return nil, err
+	}
+
+	// Check for duplicate client configurations
+	isDuplicate := make(map[string]bool)
+	for i := range r.config.ClientConfigs {
+		host := r.config.ClientConfigs[i].Hostname
+		if isDuplicate[host] {
+			err := fmt.Errorf("Found duplicate client config for host %s", host)
+			cclog.ComponentError(r.name, err)
+			return nil, err
+		}
+		isDuplicate[host] = true
+	}
+
+	// Give some basic info about redfish receiver status
+	cclog.ComponentInfo(r.name, "Monitoring", numClients, "clients")
+	cclog.ComponentInfo(r.name, "Monitoring interval:", r.config.Interval)
+	cclog.ComponentInfo(r.name, "Monitoring parallel fanout:", r.config.fanout)
 
 	return r, nil
 }
