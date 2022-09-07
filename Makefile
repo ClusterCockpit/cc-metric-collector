@@ -23,13 +23,6 @@ GOBIN = $(shell which go)
 all: $(APP)
 
 $(APP): $(GOSRC)
-	if [ "$(shell $(GOBIN) version | cut -d' ' -f 3 | cut -d '.' -f1-2)" = "go1.16" ]; then \
-		echo "1.16"; \
-		cp go.mod.1.16 go.mod; \
-	else \
-		echo "1.17+"; \
-		cp go.mod.1.17+ go.mod; \
-	fi
 	make -C collectors
 	$(GOBIN) get
 	$(GOBIN) build -o $(APP) $(GOSRC_APP)
