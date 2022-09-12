@@ -159,7 +159,8 @@ func getBaseFreq() float64 {
 			data := strings.Replace(string(buffer), "\n", "", -1)
 			x, err := strconv.ParseInt(data, 0, 64)
 			if err == nil {
-				freq = float64(x) * 1e6
+				freq = float64(x)
+				break
 			}
 		}
 	}
@@ -168,11 +169,11 @@ func getBaseFreq() float64 {
 		C.power_init(0)
 		info := C.get_powerInfo()
 		if float64(info.baseFrequency) != 0 {
-			freq = float64(info.baseFrequency) * 1e6
+			freq = float64(info.baseFrequency)
 		}
 		C.power_finalize()
 	}
-	return freq
+	return freq * 1e3
 }
 
 func (m *LikwidCollector) Init(config json.RawMessage) error {
