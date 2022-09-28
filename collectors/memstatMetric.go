@@ -68,7 +68,8 @@ func getStats(filename string) map[string]MemstatStats {
 		} else if len(linefields) == 5 {
 			v, err := strconv.ParseFloat(linefields[3], 64)
 			if err == nil {
-				stats[strings.Trim(linefields[0], ":")] = MemstatStats{
+				cclog.ComponentDebug("getStats", strings.Trim(linefields[2], ":"), v, linefields[4])
+				stats[strings.Trim(linefields[2], ":")] = MemstatStats{
 					value: v,
 					unit:  linefields[4],
 				}
@@ -188,16 +189,20 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			unit := ""
 			if totalVal, total := stats["MemTotal"]; total {
 				if freeVal, free := stats["MemFree"]; free {
+					memUsed = totalVal.value - freeVal.value
+					if len(totalVal.unit) > 0 {
+						unit = totalVal.unit
+					} else if len(freeVal.unit) > 0 {
+						unit = freeVal.unit
+					}
 					if bufVal, buffers := stats["Buffers"]; buffers {
+						memUsed -= bufVal.value
+						if len(bufVal.unit) > 0 && len(unit) == 0 {
+							unit = bufVal.unit
+						}
 						if cacheVal, cached := stats["Cached"]; cached {
-							memUsed = totalVal.value - (freeVal.value + bufVal.value + cacheVal.value)
-							if len(totalVal.unit) > 0 {
-								unit = totalVal.unit
-							} else if len(freeVal.unit) > 0 {
-								unit = freeVal.unit
-							} else if len(bufVal.unit) > 0 {
-								unit = bufVal.unit
-							} else if len(cacheVal.unit) > 0 {
+							memUsed -= cacheVal.value
+							if len(cacheVal.unit) > 0 && len(unit) == 0 {
 								unit = cacheVal.unit
 							}
 						}
@@ -215,12 +220,14 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	}
 
 	if m.config.NodeStats {
+		cclog.ComponentInfo(m.name, MEMSTATFILE)
 		nodestats := getStats(MEMSTATFILE)
 		sendStats(nodestats, m.tags)
 	}
 
 	if m.config.NumaStats {
 		for _, nodeConf := range m.nodefiles {
+			cclog.ComponentInfo(m.name, nodeConf.file)
 			stats := getStats(nodeConf.file)
 			sendStats(stats, nodeConf.tags)
 		}
