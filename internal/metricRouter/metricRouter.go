@@ -281,7 +281,9 @@ func (r *metricRouter) Start() {
 	// Foward message received from collector channel
 	coll_forward := func(p lp.CCMetric) {
 		// receive from metric collector
-		p.AddTag(r.config.HostnameTagName, r.hostname)
+		if !p.HasTag(r.config.HostnameTagName) {
+			p.AddTag(r.config.HostnameTagName, r.hostname)
+		}
 		if r.config.IntervalStamp {
 			p.SetTime(r.timestamp)
 		}
@@ -310,7 +312,9 @@ func (r *metricRouter) Start() {
 	cache_forward := func(p lp.CCMetric) {
 		// receive from metric collector
 		if !r.dropMetric(p) {
-			p.AddTag(r.config.HostnameTagName, r.hostname)
+			if !p.HasTag(r.config.HostnameTagName) {
+				p.AddTag(r.config.HostnameTagName, r.hostname)
+			}
 			forward(p)
 		}
 	}
