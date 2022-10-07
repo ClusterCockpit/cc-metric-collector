@@ -20,6 +20,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"netstat":         new(NetstatCollector),
 	"ibstat":          new(InfinibandCollector),
 	"lustrestat":      new(LustreCollector),
+	"lustre_jobstat":  new(LustreJobstatCollector),
 	"cpustat":         new(CpustatCollector),
 	"topprocs":        new(TopProcsCollector),
 	"nvidia":          new(NvidiaCollector),
@@ -37,7 +38,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"beegfs_meta":     new(BeegfsMetaCollector),
 	"beegfs_storage":  new(BeegfsStorageCollector),
 	"rocm_smi":        new(RocmSmiCollector),
-	"schedstat":	   new(SchedstatCollector),
+	"schedstat":       new(SchedstatCollector),
 }
 
 // Metric collector manager data structure
