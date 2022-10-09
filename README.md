@@ -1,6 +1,6 @@
 # cc-metric-collector
 
-A node agent for measuring, processing and forwarding node level metrics. It is part of the ClusterCockpit ecosystem.
+A node agent for measuring, processing and forwarding node level metrics. It is part of the [ClusterCockpit ecosystem](./docs/introduction.md).
 
 The metric collector sends (and receives) metric in the [InfluxDB line protocol](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) as it provides flexibility while providing a separation between tags (like index columns in relational databases) and fields (like data columns).
 
@@ -11,7 +11,7 @@ The receiver runs as a go routine side-by-side with the timer loop and asynchron
 # Configuration
 
 Configuration is implemented using a single json document that is distributed over network and may be persisted as file.
-Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol_alternative.md).
+Supported metrics are documented [here](https://github.com/ClusterCockpit/cc-specifications/blob/master/interfaces/lineprotocol/README.md).
 
 There is a main configuration file with basic settings that point to the other configuration files for the different components.
 
@@ -26,7 +26,7 @@ There is a main configuration file with basic settings that point to the other c
 }
 ```
 
-The `interval` defines how often the metrics should be read and send to the sink. The `duration` tells collectors how long one measurement has to take. This is important for some collectors, like the `likwid` collector.
+The `interval` defines how often the metrics should be read and send to the sink. The `duration` tells collectors how long one measurement has to take. This is important for some collectors, like the `likwid` collector. For more information, see [here](./docs/configuration.md).
 
 See the component READMEs for their configuration:
 
@@ -43,6 +43,8 @@ $ make (downloads LIKWID, builds it as static library with 'direct' accessmode a
 $ go get (requires at least golang 1.16)
 $ make
 ```
+
+For more information, see [here](./docs/building.md).
 
 # Running
 

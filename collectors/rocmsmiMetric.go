@@ -66,14 +66,14 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 
 	ret := rocm_smi.Init()
 	if ret != rocm_smi.STATUS_SUCCESS {
-		err = errors.New("Failed to initialize ROCm SMI library")
+		err = errors.New("failed to initialize ROCm SMI library")
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
 
 	numDevs, ret := rocm_smi.NumMonitorDevices()
 	if ret != rocm_smi.STATUS_SUCCESS {
-		err = errors.New("Failed to get number of GPUs from ROCm SMI library")
+		err = errors.New("failed to get number of GPUs from ROCm SMI library")
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
@@ -98,14 +98,14 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		}
 		device, ret := rocm_smi.DeviceGetHandleByIndex(i)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			err = fmt.Errorf("Failed to get handle for GPU %d", i)
+			err = fmt.Errorf("failed to get handle for GPU %d", i)
 			cclog.ComponentError(m.name, err.Error())
 			return err
 		}
 
 		pciInfo, ret := rocm_smi.DeviceGetPciInfo(device)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			err = fmt.Errorf("Failed to get PCI information for GPU %d", i)
+			err = fmt.Errorf("failed to get PCI information for GPU %d", i)
 			cclog.ComponentError(m.name, err.Error())
 			return err
 		}

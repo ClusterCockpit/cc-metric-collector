@@ -38,6 +38,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"beegfs_storage":  new(BeegfsStorageCollector),
 	"rocm_smi":        new(RocmSmiCollector),
 	"smartmon":        new(SmartMonCollector),
+	"schedstat":	   new(SchedstatCollector),
 }
 
 // Metric collector manager data structure
