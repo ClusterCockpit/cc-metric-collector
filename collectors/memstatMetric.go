@@ -161,7 +161,6 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 
 func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
-		cclog.ComponentPrint(m.name, "Here")
 		return
 	}
 
@@ -220,14 +219,12 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	}
 
 	if m.config.NodeStats {
-		cclog.ComponentInfo(m.name, MEMSTATFILE)
 		nodestats := getStats(MEMSTATFILE)
 		sendStats(nodestats, m.tags)
 	}
 
 	if m.config.NumaStats {
 		for _, nodeConf := range m.nodefiles {
-			cclog.ComponentInfo(m.name, nodeConf.file)
 			stats := getStats(nodeConf.file)
 			sendStats(stats, nodeConf.tags)
 		}
