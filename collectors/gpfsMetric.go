@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os/exec"
 	"os/user"
@@ -118,8 +118,8 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	cmd.Stderr = cmdStderr
 	err := cmd.Run()
 	if err != nil {
-		dataStdErr, _ := ioutil.ReadAll(cmdStderr)
-		dataStdOut, _ := ioutil.ReadAll(cmdStdout)
+		dataStdErr, _ := io.ReadAll(cmdStderr)
+		dataStdOut, _ := io.ReadAll(cmdStdout)
 		cclog.ComponentError(
 			m.name,
 			fmt.Sprintf("Read(): Failed to execute command \"%s\": %v\n", cmd.String(), err),

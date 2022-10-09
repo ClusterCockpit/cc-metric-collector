@@ -3,7 +3,7 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -72,7 +72,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	if !m.init {
 		return
 	}
-	buffer, err := ioutil.ReadFile(LOADAVGFILE)
+	buffer, err := os.ReadFile(LOADAVGFILE)
 	if err != nil {
 		if err != nil {
 			cclog.ComponentError(

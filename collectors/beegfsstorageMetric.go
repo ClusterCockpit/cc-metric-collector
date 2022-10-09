@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -108,7 +108,7 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 		return
 	}
 	//get mounpoint
-	buffer, _ := ioutil.ReadFile(string("/proc/mounts"))
+	buffer, _ := os.ReadFile(string("/proc/mounts"))
 	mounts := strings.Split(string(buffer), "\n")
 	var mountpoints []string
 	for _, line := range mounts {
@@ -149,9 +149,9 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "BeegfsStorageCollector.Read(): Failed to execute command \"%s\": %s\n", cmd.String(), err.Error())
 			fmt.Fprintf(os.Stderr, "BeegfsStorageCollector.Read(): command exit code: \"%d\"\n", cmd.ProcessState.ExitCode())
-			data, _ := ioutil.ReadAll(cmdStderr)
+			data, _ := io.ReadAll(cmdStderr)
 			fmt.Fprintf(os.Stderr, "BeegfsStorageCollector.Read(): command stderr: \"%s\"\n", string(data))
-			data, _ = ioutil.ReadAll(cmdStdout)
+			data, _ = io.ReadAll(cmdStdout)
 			fmt.Fprintf(os.Stderr, "BeegfsStorageCollector.Read(): command stdout: \"%s\"\n", string(data))
 			return
 		}
