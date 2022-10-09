@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	influxdb2ApiHttp "github.com/influxdata/influxdb-client-go/v2/api/http"

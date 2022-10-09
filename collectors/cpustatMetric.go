@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	sysconf "github.com/tklauser/go-sysconf"
 )
 
@@ -22,12 +22,12 @@ type CpustatCollectorConfig struct {
 
 type CpustatCollector struct {
 	metricCollector
-	config   CpustatCollectorConfig
-	lastTimestamp time.Time                   // Store time stamp of last tick to derive values
-	matches  map[string]int
-	cputags  map[string]map[string]string
-	nodetags map[string]string
-	olddata  map[string]map[string]int64
+	config        CpustatCollectorConfig
+	lastTimestamp time.Time // Store time stamp of last tick to derive values
+	matches       map[string]int
+	cputags       map[string]map[string]string
+	nodetags      map[string]string
+	olddata       map[string]map[string]int64
 }
 
 func (m *CpustatCollector) Init(config json.RawMessage) error {
@@ -118,7 +118,7 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 			}
 		}
 	}
-	
+
 	for name, value := range values {
 		y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
 		if err == nil {

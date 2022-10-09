@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 )
 
 /*

@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 
 	"github.com/PaesslerAG/gval"
 )

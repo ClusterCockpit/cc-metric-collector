@@ -23,10 +23,10 @@ import (
 	"time"
 	"unsafe"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
