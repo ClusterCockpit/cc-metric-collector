@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/signal"
@@ -154,7 +153,7 @@ func getBaseFreq() float64 {
 	}
 	var freq float64 = math.NaN()
 	for _, f := range files {
-		buffer, err := ioutil.ReadFile(f)
+		buffer, err := os.ReadFile(f)
 		if err == nil {
 			data := strings.Replace(string(buffer), "\n", "", -1)
 			x, err := strconv.ParseInt(data, 0, 64)
