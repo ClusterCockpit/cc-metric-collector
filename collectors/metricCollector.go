@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 type MetricCollector interface {

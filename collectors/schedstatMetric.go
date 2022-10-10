@@ -1,17 +1,17 @@
 package collectors
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"bufio"
-	"time"
-	"os"
-	"strings"
-	"strconv"
 	"math"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 const SCHEDSTATFILE = `/proc/schedstat`
@@ -25,11 +25,11 @@ type SchedstatCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type SchedstatCollector struct {
 	metricCollector
-	config SchedstatCollectorConfig // the configuration structure
-	lastTimestamp time.Time                   // Store time stamp of last tick to derive values
-	meta   map[string]string          // default meta information
-	cputags   map[string]map[string]string          // default tags
-	olddata   map[string]map[string]int64          // default tags
+	config        SchedstatCollectorConfig     // the configuration structure
+	lastTimestamp time.Time                    // Store time stamp of last tick to derive values
+	meta          map[string]string            // default meta information
+	cputags       map[string]map[string]string // default tags
+	olddata       map[string]map[string]int64  // default tags
 }
 
 // Functions to implement MetricCollector interface
@@ -52,7 +52,7 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 	// Define meta information sent with each metric
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
 	m.meta = map[string]string{"source": m.name, "group": "SCHEDSTAT"}
-	
+
 	// Read in the JSON configuration
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
@@ -83,11 +83,10 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 			running, _ := strconv.ParseInt(linefields[7], 10, 64)
 			waiting, _ := strconv.ParseInt(linefields[8], 10, 64)
 			m.cputags[linefields[0]] = map[string]string{"type": "hwthread", "type-id": fmt.Sprintf("%d", cpu)}
-			m.olddata[linefields[0]] = map[string]int64{"running" : running, "waiting" : waiting}
+			m.olddata[linefields[0]] = map[string]int64{"running": running, "waiting": waiting}
 			num_cpus++
 		}
 	}
-
 
 	// Save current timestamp
 	m.lastTimestamp = time.Now()
@@ -102,7 +101,7 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 	waiting, _ := strconv.ParseInt(linefields[8], 10, 64)
 	diff_running := running - m.olddata[linefields[0]]["running"]
 	diff_waiting := waiting - m.olddata[linefields[0]]["waiting"]
-	
+
 	var l_running float64 = float64(diff_running) / tsdelta.Seconds() / (math.Pow(1000, 3))
 	var l_waiting float64 = float64(diff_waiting) / tsdelta.Seconds() / (math.Pow(1000, 3))
 
@@ -110,11 +109,11 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 	m.olddata[linefields[0]]["waiting"] = waiting
 	value := l_running + l_waiting
 
- 	y, err := lp.New("cpu_load_core", tags, m.meta, map[string]interface{}{"value": value}, now)
+	y, err := lp.New("cpu_load_core", tags, m.meta, map[string]interface{}{"value": value}, now)
 	if err == nil {
 		// Send it to output channel
 		output <- y
-	} 
+	}
 }
 
 // Read collects all metrics belonging to the sample collector
