@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 const IPMITOOL_PATH = `ipmitool`

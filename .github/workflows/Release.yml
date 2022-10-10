@@ -134,12 +134,62 @@ jobs:
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
   #
+  # Build on Ubuntu 20.04 using official go package
+  #
+  Ubuntu-focal-build:
+    runs-on: ubuntu-latest
+    container: ubuntu:20.04
+    # The job outputs link to the outputs of the 'debrename' step
+    # Only job outputs can be used in child jobs
+    outputs:
+      deb : ${{steps.debrename.outputs.DEB}}
+    steps:
+    # Use apt to install development packages
+    - name: Install development packages
+      run: |
+          apt update && apt --assume-yes upgrade
+          apt --assume-yes install build-essential sed git wget bash
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        fetch-depth: 0
+    # Use official golang package
+    - name: Install Golang
+      run: |
+          wget -q https://go.dev/dl/go1.19.1.linux-amd64.tar.gz
+          tar -C /usr/local -xzf go1.19.1.linux-amd64.tar.gz
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
+          go version
+    - name: DEB build MetricCollector
+      id: dpkg-build
+      run: |
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
+          make DEB
+    - name: Rename DEB (add '_ubuntu20.04')
+      id: debrename
+      run: |
+        OLD_DEB_NAME=$(echo "${{steps.dpkg-build.outputs.DEB}}" | rev | cut -d '.' -f 2- | rev)
+        NEW_DEB_FILE="${OLD_DEB_NAME}_ubuntu20.04.deb"
+        mv "${{steps.dpkg-build.outputs.DEB}}" "${NEW_DEB_FILE}"
+        echo "::set-output name=DEB::${NEW_DEB_FILE}"
+    # See: https://github.com/actions/upload-artifact
+    - name: Save DEB as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: cc-metric-collector DEB for Ubuntu 20.04
+        path: ${{ steps.debrename.outputs.DEB }}
+
+  #
   # Create release with fresh RPMs
   #
   Release:
     runs-on: ubuntu-latest
     # We need the RPMs, so add dependency
-    needs: [AlmaLinux-RPM-build, UBI-8-RPM-build]
+    needs: [AlmaLinux-RPM-build, UBI-8-RPM-build, Ubuntu-focal-build]
 
     steps:
     # See: https://github.com/actions/download-artifact
@@ -161,6 +211,11 @@ jobs:
       with:
         name: cc-metric-collector SRPM for UBI 8
 
+    - name: Download Ubuntu 20.04 DEB
+      uses: actions/download-artifact@v2
+      with:
+        name: cc-metric-collector DEB for Ubuntu 20.04
+
     # The download actions do not publish the name of the downloaded file,
     # so we re-use the job outputs of the parent jobs. The files are all
     # downloaded to the current folder.
@@ -174,14 +229,17 @@ jobs:
         ALMA_85_SRPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.srpm}}")
         UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
         UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
+        U_2004_DEB=$(basename "${{ needs.Ubuntu-focal-build.outputs.deb}}")
         echo "ALMA_85_RPM::${ALMA_85_RPM}"
         echo "ALMA_85_SRPM::${ALMA_85_SRPM}"
         echo "UBI_8_RPM::${UBI_8_RPM}"
         echo "UBI_8_SRPM::${UBI_8_SRPM}"
+        echo "U_2004_DEB::${U_2004_DEB}"
         echo "::set-output name=ALMA_85_RPM::${ALMA_85_RPM}"
         echo "::set-output name=ALMA_85_SRPM::${ALMA_85_SRPM}"
         echo "::set-output name=UBI_8_RPM::${UBI_8_RPM}"
         echo "::set-output name=UBI_8_SRPM::${UBI_8_SRPM}"
+        echo "::set-output name=U_2004_DEB::${U_2004_DEB}"
 
     # See: https://github.com/softprops/action-gh-release
     - name: Release
@@ -194,3 +252,4 @@ jobs:
          ${{ steps.files.outputs.ALMA_85_SRPM }}
          ${{ steps.files.outputs.UBI_8_RPM }}
          ${{ steps.files.outputs.UBI_8_SRPM }}
+         ${{ steps.files.outputs.U_2004_DEB }}

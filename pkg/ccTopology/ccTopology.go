@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	cclogger "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	cclogger "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 
 const SYSFS_NUMABASE = `/sys/devices/system/node`

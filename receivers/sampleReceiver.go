@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 
 // SampleReceiver configuration: receiver type, listen address, port

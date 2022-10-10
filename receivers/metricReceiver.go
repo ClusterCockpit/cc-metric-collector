@@ -1,7 +1,7 @@
 package receivers
 
 import (
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 type defaultReceiverConfig struct {

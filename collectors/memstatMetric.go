@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 const MEMSTATFILE = "/proc/meminfo"
@@ -68,7 +68,8 @@ func getStats(filename string) map[string]MemstatStats {
 		} else if len(linefields) == 5 {
 			v, err := strconv.ParseFloat(linefields[3], 64)
 			if err == nil {
-				stats[strings.Trim(linefields[0], ":")] = MemstatStats{
+				cclog.ComponentDebug("getStats", strings.Trim(linefields[2], ":"), v, linefields[4])
+				stats[strings.Trim(linefields[2], ":")] = MemstatStats{
 					value: v,
 					unit:  linefields[4],
 				}
@@ -160,7 +161,6 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 
 func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	if !m.init {
-		cclog.ComponentPrint(m.name, "Here")
 		return
 	}
 
@@ -188,16 +188,20 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			unit := ""
 			if totalVal, total := stats["MemTotal"]; total {
 				if freeVal, free := stats["MemFree"]; free {
+					memUsed = totalVal.value - freeVal.value
+					if len(totalVal.unit) > 0 {
+						unit = totalVal.unit
+					} else if len(freeVal.unit) > 0 {
+						unit = freeVal.unit
+					}
 					if bufVal, buffers := stats["Buffers"]; buffers {
+						memUsed -= bufVal.value
+						if len(bufVal.unit) > 0 && len(unit) == 0 {
+							unit = bufVal.unit
+						}
 						if cacheVal, cached := stats["Cached"]; cached {
-							memUsed = totalVal.value - (freeVal.value + bufVal.value + cacheVal.value)
-							if len(totalVal.unit) > 0 {
-								unit = totalVal.unit
-							} else if len(freeVal.unit) > 0 {
-								unit = freeVal.unit
-							} else if len(bufVal.unit) > 0 {
-								unit = bufVal.unit
-							} else if len(cacheVal.unit) > 0 {
+							memUsed -= cacheVal.value
+							if len(cacheVal.unit) > 0 && len(unit) == 0 {
 								unit = cacheVal.unit
 							}
 						}

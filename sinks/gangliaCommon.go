@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 func GangliaMetricName(point lp.CCMetric) string {

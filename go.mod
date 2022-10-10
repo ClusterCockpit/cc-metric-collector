@@ -14,6 +14,7 @@ require (
 	github.com/nats-io/nats.go v1.16.0
 	github.com/prometheus/client_golang v1.12.2
 	github.com/stmcginnis/gofish v0.13.0
+	github.com/tklauser/go-sysconf v0.3.10
 	golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e
 )
 
@@ -33,6 +34,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/tklauser/numcpus v0.4.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
