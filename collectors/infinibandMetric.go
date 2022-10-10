@@ -2,11 +2,10 @@ package collectors
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	"golang.org/x/sys/unix"
 
 	"encoding/json"
@@ -85,7 +84,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	for _, path := range ibDirs {
 
 		// Skip, when no LID is assigned
-		line, err := ioutil.ReadFile(filepath.Join(path, "lid"))
+		line, err := os.ReadFile(filepath.Join(path, "lid"))
 		if err != nil {
 			continue
 		}
@@ -175,7 +174,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		for counterName, counterDef := range info.portCounterFiles {
 
 			// Read counter file
-			line, err := ioutil.ReadFile(counterDef.path)
+			line, err := os.ReadFile(counterDef.path)
 			if err != nil {
 				cclog.ComponentError(
 					m.name,

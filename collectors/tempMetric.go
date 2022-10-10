@@ -3,14 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 // See: https://www.kernel.org/doc/html/latest/hwmon/sysfs-interface.html
@@ -83,14 +83,14 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 
 		// sensor name
 		nameFile := filepath.Join(filepath.Dir(file), "name")
-		name, err := ioutil.ReadFile(nameFile)
+		name, err := os.ReadFile(nameFile)
 		if err == nil {
 			sensor.name = strings.TrimSpace(string(name))
 		}
 
 		// sensor label
 		labelFile := strings.TrimSuffix(file, "_input") + "_label"
-		label, err := ioutil.ReadFile(labelFile)
+		label, err := os.ReadFile(labelFile)
 		if err == nil {
 			sensor.label = strings.TrimSpace(string(label))
 		}
@@ -117,7 +117,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		}
 
 		// Sensor file
-		_, err = ioutil.ReadFile(file)
+		_, err = os.ReadFile(file)
 		if err != nil {
 			continue
 		}
@@ -139,7 +139,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		// max temperature
 		if m.config.ReportMaxTemp {
 			maxTempFile := strings.TrimSuffix(file, "_input") + "_max"
-			if buffer, err := ioutil.ReadFile(maxTempFile); err == nil {
+			if buffer, err := os.ReadFile(maxTempFile); err == nil {
 				if x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64); err == nil {
 					sensor.maxTempName = strings.Replace(sensor.metricName, "temp", "max_temp", 1)
 					sensor.maxTemp = x / 1000
@@ -150,7 +150,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		// critical temperature
 		if m.config.ReportCriticalTemp {
 			criticalTempFile := strings.TrimSuffix(file, "_input") + "_crit"
-			if buffer, err := ioutil.ReadFile(criticalTempFile); err == nil {
+			if buffer, err := os.ReadFile(criticalTempFile); err == nil {
 				if x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64); err == nil {
 					sensor.critTempName = strings.Replace(sensor.metricName, "temp", "crit_temp", 1)
 					sensor.critTemp = x / 1000
@@ -175,7 +175,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 	for _, sensor := range m.sensors {
 		// Read sensor file
-		buffer, err := ioutil.ReadFile(sensor.file)
+		buffer, err := os.ReadFile(sensor.file)
 		if err != nil {
 			cclog.ComponentError(
 				m.name,

@@ -3,14 +3,14 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	"golang.org/x/sys/unix"
 )
 
@@ -88,7 +88,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 
 		// Read package ID
 		physicalPackageIDFile := filepath.Join(cpuDir, "topology", "physical_package_id")
-		line, err := ioutil.ReadFile(physicalPackageIDFile)
+		line, err := os.ReadFile(physicalPackageIDFile)
 		if err != nil {
 			return fmt.Errorf("unable to read physical package ID from file '%s': %v", physicalPackageIDFile, err)
 		}
@@ -100,7 +100,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 
 		// Read core ID
 		coreIDFile := filepath.Join(cpuDir, "topology", "core_id")
-		line, err = ioutil.ReadFile(coreIDFile)
+		line, err = os.ReadFile(coreIDFile)
 		if err != nil {
 			return fmt.Errorf("unable to read core ID from file '%s': %v", coreIDFile, err)
 		}
@@ -188,7 +188,7 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		}
 
 		// Read current frequency
-		line, err := ioutil.ReadFile(t.scalingCurFreqFile)
+		line, err := os.ReadFile(t.scalingCurFreqFile)
 		if err != nil {
 			cclog.ComponentError(
 				m.name,

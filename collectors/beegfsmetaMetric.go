@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 const DEFAULT_BEEGFS_CMD = "beegfs-ctl"
@@ -115,7 +115,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetr
 		return
 	}
 	//get mounpoint
-	buffer, _ := ioutil.ReadFile(string("/proc/mounts"))
+	buffer, _ := os.ReadFile(string("/proc/mounts"))
 	mounts := strings.Split(string(buffer), "\n")
 	var mountpoints []string
 	for _, line := range mounts {
@@ -157,9 +157,9 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetr
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): Failed to execute command \"%s\": %s\n", cmd.String(), err.Error())
 			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): command exit code: \"%d\"\n", cmd.ProcessState.ExitCode())
-			data, _ := ioutil.ReadAll(cmdStderr)
+			data, _ := io.ReadAll(cmdStderr)
 			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): command stderr: \"%s\"\n", string(data))
-			data, _ = ioutil.ReadAll(cmdStdout)
+			data, _ = io.ReadAll(cmdStdout)
 			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): command stdout: \"%s\"\n", string(data))
 			return
 		}

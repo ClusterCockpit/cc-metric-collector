@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	mct "github.com/ClusterCockpit/cc-metric-collector/internal/multiChanTicker"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
 // Map of all available metric collectors
