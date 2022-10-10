@@ -3,13 +3,13 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	influx "github.com/influxdata/line-protocol"
 )
 
@@ -53,7 +53,7 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 		}
 	}
 	for _, f := range m.config.Files {
-		_, err = ioutil.ReadFile(f)
+		_, err = os.ReadFile(f)
 		if err == nil {
 			m.files = append(m.files, f)
 		} else {
@@ -106,7 +106,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 		}
 	}
 	for _, file := range m.files {
-		buffer, err := ioutil.ReadFile(file)
+		buffer, err := os.ReadFile(file)
 		if err != nil {
 			log.Print(err)
 			return

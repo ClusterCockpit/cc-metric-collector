@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/signal"
@@ -24,10 +23,10 @@ import (
 	"time"
 	"unsafe"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
-	topo "github.com/ClusterCockpit/cc-metric-collector/internal/ccTopology"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
@@ -154,12 +153,13 @@ func getBaseFreq() float64 {
 	}
 	var freq float64 = math.NaN()
 	for _, f := range files {
-		buffer, err := ioutil.ReadFile(f)
+		buffer, err := os.ReadFile(f)
 		if err == nil {
 			data := strings.Replace(string(buffer), "\n", "", -1)
 			x, err := strconv.ParseInt(data, 0, 64)
 			if err == nil {
-				freq = float64(x) * 1e6
+				freq = float64(x)
+				break
 			}
 		}
 	}
@@ -168,11 +168,11 @@ func getBaseFreq() float64 {
 		C.power_init(0)
 		info := C.get_powerInfo()
 		if float64(info.baseFrequency) != 0 {
-			freq = float64(info.baseFrequency) * 1e6
+			freq = float64(info.baseFrequency)
 		}
 		C.power_finalize()
 	}
-	return freq
+	return freq * 1e3
 }
 
 func (m *LikwidCollector) Init(config json.RawMessage) error {

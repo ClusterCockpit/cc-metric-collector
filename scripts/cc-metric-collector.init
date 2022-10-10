@@ -19,7 +19,7 @@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 NAME=cc-metric-collector
 DESC="ClusterCockpit metric collector"
-DEFAULT=/etc/default/${NAME}.json
+DEFAULT=/etc/default/${NAME}
 
 CC_USER=clustercockpit
 CC_GROUP=clustercockpit

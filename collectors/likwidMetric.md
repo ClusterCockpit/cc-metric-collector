@@ -7,6 +7,9 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
   "likwid": {
     "force_overwrite" : false,
     "invalid_to_zero" : false,
+    "liblikwid_path" : "/path/to/liblikwid.so",
+    "accessdaemon_path" : "/folder/that/contains/likwid-accessD",
+    "access_mode" : "direct or accessdaemon or perf_event",
     "eventsets": [
       {
         "events" : {

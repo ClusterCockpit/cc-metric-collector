@@ -2,11 +2,10 @@ package collectors
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	"golang.org/x/sys/unix"
 
 	"encoding/json"
@@ -19,8 +18,9 @@ import (
 const IB_BASEPATH = "/sys/class/infiniband/"
 
 type InfinibandCollectorMetric struct {
-	path string
-	unit string
+	path  string
+	unit  string
+	scale int64
 }
 
 type InfinibandCollectorInfo struct {
@@ -84,7 +84,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	for _, path := range ibDirs {
 
 		// Skip, when no LID is assigned
-		line, err := ioutil.ReadFile(filepath.Join(path, "lid"))
+		line, err := os.ReadFile(filepath.Join(path, "lid"))
 		if err != nil {
 			continue
 		}
@@ -113,10 +113,10 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		// Check access to counter files
 		countersDir := filepath.Join(path, "counters")
 		portCounterFiles := map[string]InfinibandCollectorMetric{
-			"ib_recv":      {path: filepath.Join(countersDir, "port_rcv_data"), unit: "bytes"},
-			"ib_xmit":      {path: filepath.Join(countersDir, "port_xmit_data"), unit: "bytes"},
-			"ib_recv_pkts": {path: filepath.Join(countersDir, "port_rcv_packets"), unit: "packets"},
-			"ib_xmit_pkts": {path: filepath.Join(countersDir, "port_xmit_packets"), unit: "packets"},
+			"ib_recv":      {path: filepath.Join(countersDir, "port_rcv_data"), unit: "bytes", scale: 4},
+			"ib_xmit":      {path: filepath.Join(countersDir, "port_xmit_data"), unit: "bytes", scale: 4},
+			"ib_recv_pkts": {path: filepath.Join(countersDir, "port_rcv_packets"), unit: "packets", scale: 1},
+			"ib_xmit_pkts": {path: filepath.Join(countersDir, "port_xmit_packets"), unit: "packets", scale: 1},
 		}
 		for _, counter := range portCounterFiles {
 			err := unix.Access(counter.path, unix.R_OK)
@@ -174,7 +174,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		for counterName, counterDef := range info.portCounterFiles {
 
 			// Read counter file
-			line, err := ioutil.ReadFile(counterDef.path)
+			line, err := os.ReadFile(counterDef.path)
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
@@ -191,6 +191,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterName, data, err))
 				continue
 			}
+			// Scale raw value
+			v *= counterDef.scale
 
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
