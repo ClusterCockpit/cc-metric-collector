@@ -130,7 +130,7 @@ DEB: scripts/cc-metric-collector.deb.control $(APP)
 	@make PREFIX=$${WORKSPACE} install
 	@DEB_FILE="cc-metric-collector_$${VERS}_$${ARCH}.deb"
 	@dpkg-deb -b $${WORKSPACE} "$$DEB_FILE"
-	@if [[ "$${GITHUB_ACTIONS}" == true ]]; then
+	@if [ "$${GITHUB_ACTIONS}" = "true" ]; then
 	@     echo "::set-output name=DEB::$${DEB_FILE}"
 	@fi
 	@rm -r "$${WORKSPACE}"
