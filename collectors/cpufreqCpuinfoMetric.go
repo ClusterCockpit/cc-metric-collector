@@ -142,6 +142,11 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 		}
 	}
 
+        // Check if at least one CPU with frequency information was detected
+        if len(m.topology) == 0 {
+                return fmt.Errorf("No CPU frequency info found in %s", cpuInfoFile)
+        }
+
 	numPhysicalPackageID_int := maxPhysicalPackageID + 1
 	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
 	numNonHT := fmt.Sprint(numNonHT_int)
