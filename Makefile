@@ -112,7 +112,9 @@ DEB: scripts/cc-metric-collector.deb.control $(APP)
 	#@mkdir --parents --verbose $$DEBIANDIR
 	@CONTROLFILE="$${BASEDIR}/scripts/cc-metric-collector.deb.control"
 	@COMMITISH="HEAD"
+	@git describe --tags --abbrev=0 $${COMMITISH}
 	@VERS=$$(git describe --tags --abbrev=0 $${COMMITISH})
+	@if [ -z "$$VERS" ]; then VERS=${GITHUB_REF_NAME}; fi
 	@VERS=$${VERS#v}
 	@VERS=$$(echo $$VERS | sed -e s+'-'+'_'+g)
 	@ARCH=$$(uname -m)
