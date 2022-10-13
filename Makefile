@@ -121,8 +121,14 @@ DEB: scripts/cc-metric-collector.deb.control $(APP)
 	@SIZE_BYTES=$$(du -bcs --exclude=.dpkgbuild "$$WORKSPACE"/ | awk '{print $$1}' | head -1 | sed -e 's/^0\+//')
 	@SIZE="$$(awk -v size="$$SIZE_BYTES" 'BEGIN {print (size/1024)+1}' | awk '{print int($$0)}')"
 	#@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANDIR}/control
+	@echo "Version: $$VERS"
+	@echo "Size: $$SIZE"
+	@echo "Arch: $$ARCH"
 	@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANBINDIR}/control
 	@make PREFIX=$${WORKSPACE} install
 	@DEB_FILE="cc-metric-collector_$${VERS}_$${ARCH}.deb"
 	@dpkg-deb -b $${WORKSPACE} "$$DEB_FILE"
+	@if [[ "$${GITHUB_ACTIONS}" == true ]]; then
+	@     echo "::set-output name=DEB::$${DEB_FILE}"
+	@fi
 	@rm -r "$${WORKSPACE}"
