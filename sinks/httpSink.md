@@ -8,7 +8,9 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
 {
   "<name>": {
     "type": "http",
-    "meta_as_tags" : true,
+    "meta_as_tags" : [
+      "meta-key"
+    ],
     "url" : "https://my-monitoring.example.com:1234/api/write",
     "jwt" : "blabla.blabla.blabla",
     "timeout": "5s",
@@ -20,7 +22,7 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
 ```
 
 - `type`: makes the sink an `http` sink
-- `meta_as_tags`: print all meta information as tags in the output (optional)
+- `meta_as_tags`: Move specific meta information to the tags in the output (optional)
 - `url`: The full URL of the endpoint
 - `jwt`: JSON web tokens for authentification (Using the *Bearer* scheme)
 - `timeout`: General timeout for the HTTP client (default '5s')
