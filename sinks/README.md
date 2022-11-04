@@ -20,7 +20,9 @@ The configuration file for the sinks is a list of configurations. The `type` fie
 [
   "mystdout" : {
     "type" : "stdout",
-    "meta_as_tags" : false
+    "meta_as_tags" : [
+    	"unit"
+    ]
   },
   "metricstore" : {
     "type" : "http",
