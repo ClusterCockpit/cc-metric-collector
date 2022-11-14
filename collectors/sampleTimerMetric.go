@@ -38,7 +38,7 @@ func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
 	m.meta = map[string]string{"source": m.name, "group": "SAMPLE"}
 	// Define tags sent with each metric
-	// The 'type' tag is always needed, it defines the granulatity of the metric
+	// The 'type' tag is always needed, it defines the granularity of the metric
 	// node -> whole system
 	// socket -> CPU socket (requires socket ID as 'type-id' tag)
 	// cpu -> single CPU hardware thread (requires cpu ID as 'type-id' tag)
@@ -60,7 +60,7 @@ func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
 
 	// Storage for output channel
 	m.output = nil
-	// Mangement channel for the timer function.
+	// Management channel for the timer function.
 	m.done = make(chan bool)
 	// Create the own ticker
 	m.ticker = time.NewTicker(m.interval)
@@ -94,7 +94,7 @@ func (m *SampleTimerCollector) ReadMetrics(timestamp time.Time) {
 
 	value := 1.0
 
-	// If you want to measure something for a specific amout of time, use interval
+	// If you want to measure something for a specific amount of time, use interval
 	// start := readState()
 	// time.Sleep(interval)
 	// stop := readState()

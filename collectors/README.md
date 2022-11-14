@@ -51,7 +51,7 @@ A collector reads data from any source, parses it to metrics and submits these m
 * `Name() string`: Return the name of the collector
 * `Init(config json.RawMessage) error`: Initializes the collector using the given collector-specific config in JSON. Check if needed files/commands exists, ...
 * `Initialized() bool`: Check if a collector is successfully initialized
-* `Read(duration time.Duration, output chan ccMetric.CCMetric)`: Read, parse and submit data to the `output` channel as [`CCMetric`](../internal/ccMetric/README.md). If the collector has to measure anything for some duration, use the provided function argument `duration`. 
+* `Read(duration time.Duration, output chan ccMetric.CCMetric)`: Read, parse and submit data to the `output` channel as [`CCMetric`](../internal/ccMetric/README.md). If the collector has to measure anything for some duration, use the provided function argument `duration`.
 * `Close()`: Closes down the collector.
 
 It is recommanded to call `setup()` in the `Init()` function.
