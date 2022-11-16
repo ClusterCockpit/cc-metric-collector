@@ -31,11 +31,9 @@ type RAPLCollector struct {
 		// Exclude IDs for RAPL zones, e.g.
 		// * 0 for zone 0
 		// * 0:1 for zone 0 subzone 1
-		ExcludeByID  []string `json:"exclude_device_by_id,omitempty"`
-		isIDExcluded map[string]bool
+		ExcludeByID []string `json:"exclude_device_by_id,omitempty"`
 		// Exclude names for RAPL zones, e.g. psys, dram, core, uncore, package-0
-		ExcludeByName  []string `json:"exclude_device_by_name,omitempty"`
-		isNameExcluded map[string]bool
+		ExcludeByName []string `json:"exclude_device_by_name,omitempty"`
 	}
 	RAPLZoneInfo []RAPLZoneInfo
 	meta         map[string]string // default meta information
@@ -43,14 +41,6 @@ type RAPLCollector struct {
 
 // Init initializes the running average power limit (RAPL) collector
 func (m *RAPLCollector) Init(config json.RawMessage) error {
-
-	// Release resources only needed in Init()
-	defer func() {
-		m.config.ExcludeByID = nil
-		m.config.isIDExcluded = nil
-		m.config.ExcludeByName = nil
-		m.config.isNameExcluded = nil
-	}()
 
 	// Check if already initialized
 	if m.init {
@@ -77,16 +67,16 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 	}
 
 	// Configure excluded RAPL zones
-	m.config.isIDExcluded = make(map[string]bool)
+	isIDExcluded := make(map[string]bool)
 	if m.config.ExcludeByID != nil {
 		for _, ID := range m.config.ExcludeByID {
-			m.config.isIDExcluded[ID] = true
+			isIDExcluded[ID] = true
 		}
 	}
-	m.config.isNameExcluded = make(map[string]bool)
+	isNameExcluded := make(map[string]bool)
 	if m.config.ExcludeByName != nil {
 		for _, name := range m.config.ExcludeByName {
-			m.config.isNameExcluded[name] = true
+			isNameExcluded[name] = true
 		}
 	}
 
@@ -155,8 +145,8 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 		zoneID := strings.TrimPrefix(zonePath, zonePrefix)
 		z := readZoneInfo(zonePath)
 		if z.ok &&
-			!m.config.isIDExcluded[zoneID] &&
-			!m.config.isNameExcluded[z.name] {
+			!isIDExcluded[zoneID] &&
+			!isNameExcluded[z.name] {
 
 			// Add RAPL monitoring attributes for a zone
 			m.RAPLZoneInfo =
@@ -186,8 +176,8 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 			sz := readZoneInfo(subZonePath)
 			if len(zoneID) > 0 && len(z.name) > 0 &&
 				sz.ok &&
-				!m.config.isIDExcluded[zoneID+":"+subZoneID] &&
-				!m.config.isNameExcluded[sz.name] {
+				!isIDExcluded[zoneID+":"+subZoneID] &&
+				!isNameExcluded[sz.name] {
 				m.RAPLZoneInfo =
 					append(
 						m.RAPLZoneInfo,
