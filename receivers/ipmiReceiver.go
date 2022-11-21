@@ -19,16 +19,16 @@ import (
 type IPMIReceiverClientConfig struct {
 
 	// Hostname the IPMI service belongs to
-	Protocol         string
-	DriverType       string
-	Fanout           int
-	NumHosts         int
-	IPMIHosts        string
-	IPMI2HostMapping map[string]string
-	Username         string
-	Password         string
-	CLIOptions       []string
-	isExcluded       map[string]bool
+	Protocol         string            // Protocol / tool to use for IPMI sensor reading
+	DriverType       string            // Out of band IPMI driver
+	Fanout           int               // Maximum number of simultaneous IPMI connections
+	NumHosts         int               // Number of remote IPMI devices with the same configuration
+	IPMIHosts        string            // List of remote IPMI devices to communicate with
+	IPMI2HostMapping map[string]string // Mapping between IPMI device name and host name
+	Username         string            // User name to authenticate with
+	Password         string            // Password to use for authentication
+	CLIOptions       []string          // Additional command line options for ipmi-sensors
+	isExcluded       map[string]bool   // is metric excluded
 }
 
 type IPMIReceiver struct {
@@ -178,7 +178,6 @@ func (r *IPMIReceiver) doReadMetric() {
 				if err == nil {
 					r.sink <- y
 				}
-
 			}
 
 			// Wait for command end
@@ -249,29 +248,30 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 	configJSON := struct {
 		Type string `json:"type"`
 
-		// Maximum number of simultaneous IPMI connections (default: 64)
-		Fanout int `json:"fanout,omitempty"`
-		// Out of band IPMI driver (default: LAN_2_0)
-		DriverType string `json:"driver_type,omitempty"`
-
 		// How often the IPMI sensor metrics should be read and send to the sink (default: 30 s)
 		IntervalString string `json:"interval,omitempty"`
+
+		// Maximum number of simultaneous IPMI connections (default: 64)
+		Fanout int `json:"fanout,omitempty"`
+
+		// Out of band IPMI driver (default: LAN_2_0)
+		DriverType string `json:"driver_type,omitempty"`
 
 		// Default client username, password and endpoint
 		Username *string `json:"username"` // User name to authenticate with
 		Password *string `json:"password"` // Password to use for authentication
-		Endpoint *string `json:"endpoint"` // URL of the IPMI service
+		Endpoint *string `json:"endpoint"` // URL of the IPMI device
 
 		// Globally excluded metrics
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 
 		ClientConfigs []struct {
-			Endpoint   *string  `json:"endpoint"`              // URL of the IPMI service
 			Fanout     int      `json:"fanout,omitempty"`      // Maximum number of simultaneous IPMI connections (default: 64)
 			DriverType string   `json:"driver_type,omitempty"` // Out of band IPMI driver (default: LAN_2_0)
 			HostList   []string `json:"host_list"`             // List of hosts with the same client configuration
 			Username   *string  `json:"username"`              // User name to authenticate with
 			Password   *string  `json:"password"`              // Password to use for authentication
+			Endpoint   *string  `json:"endpoint"`              // URL of the IPMI service
 
 			// Per client excluded metrics
 			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
