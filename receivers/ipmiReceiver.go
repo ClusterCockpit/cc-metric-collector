@@ -27,6 +27,7 @@ type IPMIReceiverClientConfig struct {
 	IPMI2HostMapping map[string]string
 	Username         string
 	Password         string
+	CLIOptions       []string
 	isExcluded       map[string]bool
 }
 
@@ -70,10 +71,11 @@ func (r *IPMIReceiver) doReadMetric() {
 				"--non-abbreviated-units",
 				"--fanout", fmt.Sprint(clientConfig.Fanout),
 				"--driver-type", clientConfig.DriverType,
-				"--host", clientConfig.IPMIHosts,
-				"--user", clientConfig.Username,
+				"--hostname", clientConfig.IPMIHosts,
+				"--username", clientConfig.Username,
 				"--password", clientConfig.Password,
 			)
+			cmd_options := append(cmd_options, clientConfig.CLIOptions...)
 
 			command := exec.Command("ipmi-sensors", cmd_options...)
 			stdout, _ := command.StdoutPipe()
@@ -273,6 +275,9 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 
 			// Per client excluded metrics
 			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+
+			// Additional command line options for ipmi-sensors
+			CLIOptions []string `json:"cli_options,omitempty"`
 		} `json:"client_config"`
 	}{
 		// Set defaults values
@@ -392,6 +397,45 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 			ipmiHostList = append(ipmiHostList, ipmiHost)
 		}
 
+		// Additional command line options
+		for _, v := range clientConfigJSON.CLIOptions {
+			switch {
+			case v == "-u" || strings.HasPrefix(v, "--username"):
+				err := fmt.Errorf("client config number %v: do not set username in cli_options. Use json config username instead", i)
+				cclog.ComponentError(r.name, err)
+				return nil, err
+			case v == "-p" || strings.HasPrefix(v, "--password"):
+				err := fmt.Errorf("client config number %v: do not set password in cli_options. Use json config password instead", i)
+				cclog.ComponentError(r.name, err)
+				return nil, err
+			case v == "-h" || strings.HasPrefix(v, "--hostname"):
+				err := fmt.Errorf("client config number %v: do not set hostname in cli_options. Use json config host_list instead", i)
+				cclog.ComponentError(r.name, err)
+				return nil, err
+			case v == "-D" || strings.HasPrefix(v, "--driver-type"):
+				err := fmt.Errorf("client config number %v: do not set driver type in cli_options. Use json config driver_type instead", i)
+				cclog.ComponentError(r.name, err)
+				return nil, err
+			case v == "-F" || strings.HasPrefix(v, " --fanout"):
+				err := fmt.Errorf("client config number %v: do not set fanout in cli_options. Use json config fanout instead", i)
+				cclog.ComponentError(r.name, err)
+				return nil, err
+			case v == "--always-prefix" ||
+				v == "--sdr-cache-recreate" ||
+				v == "--interpret-oem-data" ||
+				v == "--ignore-not-available-sensors" ||
+				v == "--ignore-unrecognized-events" ||
+				v == "--comma-separated-output" ||
+				v == "--no-header-output" ||
+				v == "--non-abbreviated-units":
+				err := fmt.Errorf("client config number %v: Do not use option %s in cli_options, it is used internally", i, v)
+				cclog.ComponentError(r.name, err)
+				return nil, err
+			}
+		}
+		cliOptions := make([]string, 0)
+		cliOptions = append(cliOptions, clientConfigJSON.CLIOptions...)
+
 		// Is metrics excluded globally or per client
 		isExcluded := make(map[string]bool)
 		for _, key := range clientConfigJSON.ExcludeMetrics {
@@ -412,6 +456,7 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 				IPMI2HostMapping: ipmi2HostMapping,
 				Username:         username,
 				Password:         password,
+				CLIOptions:       cliOptions,
 				isExcluded:       isExcluded,
 			})
 	}
