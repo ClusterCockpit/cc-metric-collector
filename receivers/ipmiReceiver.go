@@ -138,6 +138,11 @@ func (r *IPMIReceiver) doReadMetric() {
 
 					// Voltage
 					name = strings.TrimPrefix(name, "volt_")
+				} else if metric == "current" &&
+					unit == "Amps" {
+
+					// Current
+					unit = "Ampere"
 				} else if metric == "temperature" &&
 					unit == "degrees C" {
 
