@@ -122,29 +122,69 @@ func (r *IPMIReceiver) doReadMetric() {
 					continue
 				}
 
+				metric := strings.ToLower(v2[idxType])
 				name := strings.ToLower(
 					strings.Replace(v2[idxName], " ", "_", -1))
-				metric := strings.ToLower(v2[idxType])
 				unit := v2[idxUnits]
 				if unit == "Watts" {
+
+					// Power
 					metric = "power"
-				} else if metric == "voltage" && unit == "Volts" {
-				} else if metric == "temperature" && unit == "degrees C" {
+					name = strings.TrimSuffix(name, "_power")
+					name = strings.TrimSuffix(name, "_pwr")
+					name = strings.TrimPrefix(name, "pwr_")
+				} else if metric == "voltage" &&
+					unit == "Volts" {
+
+					// Voltage
+					name = strings.TrimPrefix(name, "volt_")
+				} else if metric == "temperature" &&
+					unit == "degrees C" {
+
+					// Temperature
+					name = strings.TrimSuffix(name, "_temp")
 					unit = "degC"
-				} else if metric == "temperature" && unit == "degrees F" {
+				} else if metric == "temperature" &&
+					unit == "degrees F" {
+
+					// Temperature
+					name = strings.TrimSuffix(name, "_temp")
 					unit = "degF"
 				} else if metric == "fan" && unit == "RPM" {
+
+					// Fan speed
 					metric = "fan_speed"
-				} else if metric == "other units based sensor" &&
-					(unit == "unspecified" ||
-						unit == "%") &&
+					name = strings.TrimSuffix(name, "_tach")
+					name = strings.TrimPrefix(name, "spd_")
+				} else if (metric == "cooling device" ||
+					metric == "other units based sensor") &&
+					name == "system_air_flow" &&
+					unit == "CFM" {
+
+					// Air flow
+					metric = "air_flow"
+					name = strings.TrimSuffix(name, "_air_flow")
+					unit = "CubicFeetPerMinute"
+				} else if (metric == "processor" ||
+					metric == "other units based sensor") &&
 					(name == "cpu_utilization" ||
 						name == "io_utilization" ||
 						name == "mem_utilization" ||
-						name == "sys_utilization") {
+						name == "sys_utilization") &&
+					(unit == "unspecified" ||
+						unit == "%") {
+
+					// Utilization
 					metric = "utilization"
+					name = strings.TrimSuffix(name, "_utilization")
 					unit = "percent"
 				} else {
+					if false {
+						// Debug output for unprocessed metrics
+						fmt.Printf(
+							"host: '%s', metric: '%s', name: '%s', unit: '%s'\n",
+							host, metric, name, unit)
+					}
 					continue
 				}
 
