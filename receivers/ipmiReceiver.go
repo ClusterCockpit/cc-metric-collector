@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -100,6 +101,7 @@ func (r *IPMIReceiver) doReadMetric() {
 				idxUnits
 				idxEvent
 			)
+			numPrefixRegex := regexp.MustCompile("^[[:digit:]][[:digit:]]-(.*)$")
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
 				// Read host
@@ -124,7 +126,13 @@ func (r *IPMIReceiver) doReadMetric() {
 
 				metric := strings.ToLower(v2[idxType])
 				name := strings.ToLower(
-					strings.Replace(v2[idxName], " ", "_", -1))
+					strings.Replace(
+						strings.TrimSpace(
+							v2[idxName]), " ", "_", -1))
+				// remove prefix enumeration like 01-...
+				if v := numPrefixRegex.FindStringSubmatch(name); v != nil {
+					name = v[1]
+				}
 				unit := v2[idxUnits]
 				if unit == "Watts" {
 
