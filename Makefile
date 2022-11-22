@@ -22,7 +22,7 @@ GOBIN = $(shell which go)
 .PHONY: all
 all: $(APP)
 
-$(APP): $(GOSRC)
+$(APP): $(GOSRC) go.mod
 	make -C collectors
 	$(GOBIN) get
 	$(GOBIN) build -o $(APP) $(GOSRC_APP)
