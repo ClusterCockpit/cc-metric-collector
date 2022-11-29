@@ -24,10 +24,11 @@ type NfsIOStatCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type NfsIOStatCollector struct {
 	metricCollector
-	config NfsIOStatCollectorConfig // the configuration structure
-	meta   map[string]string        // default meta information
-	tags   map[string]string        // default tags
-	data   map[string]map[string]int64
+	config NfsIOStatCollectorConfig    // the configuration structure
+	meta   map[string]string           // default meta information
+	tags   map[string]string           // default tags
+	data   map[string]map[string]int64 // data storage for difference calculation
+	key    string                      // which device info should be used as subtype ID? 'server' or 'mntpoint', see NfsIOStatCollectorConfig.UseServerAddressAsSType
 }
 
 var deviceRegex = regexp.MustCompile(`device (?P<server>[^ ]+) mounted on (?P<mntpoint>[^ ]+) with fstype nfs(?P<version>\d*) statvers=[\d\.]+`)
@@ -48,48 +49,42 @@ func resolve_regex_fields(s string, regex *regexp.Regexp) map[string]string {
 
 func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 	data := make(map[string]map[string]int64)
-	filename := "mountstats.txt"
-	// filename := "/proc/self/mountstats"
-	cclog.ComponentDebug(m.name, "Reading", filename)
+	filename := "/proc/self/mountstats"
 	stats, err := os.ReadFile(filename)
 	if err != nil {
-		cclog.ComponentError(m.name, "Failed reading", filename)
 		return data
-	}
-	key := "mntpoint"
-	if m.config.UseServerAddressAsSType {
-		key = "server"
 	}
 
 	lines := strings.Split(string(stats), "\n")
 	var current map[string]string = nil
 	for _, l := range lines {
-		// fmt.Println(l)
+		// Is this a device line with mount point, remote target and NFS version?
 		dev := resolve_regex_fields(l, deviceRegex)
-		if current == nil && len(dev) > 0 {
-			if _, ok := stringArrayContains(m.config.ExcludeFilesystem, dev[key]); !ok {
+		if len(dev) > 0 {
+			if _, ok := stringArrayContains(m.config.ExcludeFilesystem, dev[m.key]); !ok {
 				current = dev
-				cclog.ComponentDebug(m.name, "Found device", current[key])
 				if len(current["version"]) == 0 {
 					current["version"] = "3"
-					cclog.ComponentDebug(m.name, "Sanitize version to ", current["version"])
 				}
 			}
 		}
-		bytes := resolve_regex_fields(l, bytesRegex)
-		if len(bytes) > 0 && len(current) > 0 {
-			cclog.ComponentDebug(m.name, "Found bytes for", current[key])
-			data[current[key]] = make(map[string]int64)
-			for name, sval := range bytes {
-				if _, ok := stringArrayContains(m.config.ExcludeMetrics, name); !ok {
-					val, err := strconv.ParseInt(sval, 10, 64)
-					if err == nil {
-						data[current[key]][name] = val
-					}
-				}
 
+		if len(current) > 0 {
+			// Byte line parsing (if found the device for it)
+			bytes := resolve_regex_fields(l, bytesRegex)
+			if len(bytes) > 0 {
+				data[current[m.key]] = make(map[string]int64)
+				for name, sval := range bytes {
+					if _, ok := stringArrayContains(m.config.ExcludeMetrics, name); !ok {
+						val, err := strconv.ParseInt(sval, 10, 64)
+						if err == nil {
+							data[current[m.key]][name] = val
+						}
+					}
+
+				}
+				current = nil
 			}
-			current = nil
 		}
 	}
 	return data
@@ -102,12 +97,17 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "NFS", "unit": "bytes"}
 	m.tags = map[string]string{"type": "node"}
+	m.config.UseServerAddressAsSType = false
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
 			cclog.ComponentError(m.name, "Error reading config:", err.Error())
 			return err
 		}
+	}
+	m.key = "mntpoint"
+	if m.config.UseServerAddressAsSType {
+		m.key = "server"
 	}
 	m.data = m.readNfsiostats()
 	m.init = true
@@ -117,9 +117,13 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 	timestamp := time.Now()
 
+	// Get the current values for all mountpoints
 	newdata := m.readNfsiostats()
+
 	for mntpoint, values := range newdata {
+		// Was the mount point already present in the last iteration
 		if old, ok := m.data[mntpoint]; ok {
+			// Calculate the difference of old and new values
 			for i := range values {
 				x := values[i] - old[i]
 				y, err := lp.New(fmt.Sprintf("nfsio_%s", i), m.tags, m.meta, map[string]interface{}{"value": x}, timestamp)
@@ -132,10 +136,25 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMetri
 					// Send it to output channel
 					output <- y
 				}
+				// Update old to the new value for the next iteration
 				old[i] = values[i]
 			}
 		} else {
+			// First time we see this mount point, store all values
 			m.data[mntpoint] = values
+		}
+	}
+	// Reset entries that do not exist anymore
+	for mntpoint := range m.data {
+		found := false
+		for new := range newdata {
+			if new == mntpoint {
+				found = true
+				break
+			}
+		}
+		if !found {
+			m.data[mntpoint] = nil
 		}
 	}
 
