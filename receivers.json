@@ -7,23 +7,23 @@
     },
     "redfish_recv": {
         "type": "redfish",
+        "endpoint": "https://%h-bmc",
         "client_config": [
             {
-                "hostname": "my-host-1",
+                "host_list": "my-host-1-[1-2]",
                 "username": "username-1",
-                "password": "password-1",
-                "endpoint": "https://my-endpoint-1"
+                "password": "password-1"
             },
             {
-                "hostname": "my-host-2",
+                "host_list": "my-host-2-[1,2]",
                 "username": "username-2",
-                "password": "password-2",
-                "endpoint": "https://my-endpoint-2"
+                "password": "password-2"
             }
         ]
     },
     "ipmi_recv": {
         "type": "ipmi",
+        "endpoint": "ipmi-sensors://%h-ipmi",
         "exclude_metrics": [
             "fan_speed",
             "voltage"
@@ -32,13 +32,11 @@
             {
                 "username": "username-1",
                 "password": "password-1",
-                "endpoint": "ipmi-sensors://%h-ipmi",
                 "host_list": "my-host-1-[1-2]"
             },
             {
                 "username": "username-2",
                 "password": "password-2",
-                "endpoint": "ipmi-sensors://%h-ipmi",
                 "host_list": "my-host-2-[1,2]"
             }
         ]

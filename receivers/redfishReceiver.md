@@ -8,22 +8,22 @@ The Redfish receiver uses the [Redfish (specification)](https://www.dmtf.org/sta
 {
     "<redfish receiver name>": {
         "type": "redfish",
-        "username": "<user A>",
-        "password": "<password A>",
+        "username": "<Username>",
+        "password": "<Password>",
         "endpoint": "https://%h-bmc",
         "exclude_metrics": [ "min_consumed_watts" ],
         "client_config": [
             {
-                "host_list": [ "<host 1>", "<host 2>" ]
+                "host_list": "n[1,2-4]"
             },
             {
-                "host_list": [ "<host 3>", "<host 4>" ]
+                "host_list": "n5"
                 "disable_power_metrics": true
             },
             {
-                "host_list": [ "<host 5>" ],
-                "username": "<user B>",
-                "password": "<password B>",
+                "host_list": "n6" ],
+                "username": "<Username 2>",
+                "password": "<Password 2>",
                 "endpoint": "https://%h-BMC",
                 "disable_thermal_metrics": true
             }

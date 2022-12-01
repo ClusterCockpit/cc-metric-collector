@@ -12,6 +12,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
 
 	// See: https://pkg.go.dev/github.com/stmcginnis/gofish
 	"github.com/stmcginnis/gofish"
@@ -630,10 +631,10 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 
 		ClientConfigs []struct {
-			HostList []string `json:"host_list"` // List of hosts with the same client configuration
-			Username *string  `json:"username"`  // User name to authenticate with
-			Password *string  `json:"password"`  // Password to use for authentication
-			Endpoint *string  `json:"endpoint"`  // URL of the redfish service
+			HostList string  `json:"host_list"` // List of hosts with the same client configuration
+			Username *string `json:"username"`  // User name to authenticate with
+			Password *string `json:"password"`  // Password to use for authentication
+			Endpoint *string `json:"endpoint"`  // URL of the redfish service
 
 			// Per client disable collection of power,processor or thermal metrics
 			DisablePowerMetrics     bool `json:"disable_power_metrics"`
@@ -763,7 +764,14 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			isExcluded[key] = true
 		}
 
-		for _, host := range clientConfigJSON.HostList {
+		hostList, err := hostlist.Expand(clientConfigJSON.HostList)
+		if err != nil {
+			err := fmt.Errorf("client config number %d failed to parse host list %s: %v",
+				i, clientConfigJSON.HostList, err)
+			cclog.ComponentError(r.name, err)
+			return nil, err
+		}
+		for _, host := range hostList {
 
 			// Endpoint of the redfish service
 			endpoint := strings.Replace(endpoint_pattern, "%h", host, -1)

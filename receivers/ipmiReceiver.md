@@ -12,7 +12,7 @@ The IPMI Receiver uses `ipmi-sensors` from the [FreeIPMI](https://www.gnu.org/so
         "fanout": 256,
         "username": "<Username>",
         "password": "<Password>",
-        "endpoint": "ipmi-sensors://%h-p",
+        "endpoint": "ipmi-sensors://%h-bmc",
         "exclude_metrics": [ "fan_speed", "voltage" ],
         "client_config": [
             {
