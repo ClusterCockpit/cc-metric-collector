@@ -15,6 +15,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
 )
 
 type IPMIReceiverClientConfig struct {
@@ -319,12 +320,12 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 
 		ClientConfigs []struct {
-			Fanout     int      `json:"fanout,omitempty"`      // Maximum number of simultaneous IPMI connections (default: 64)
-			DriverType string   `json:"driver_type,omitempty"` // Out of band IPMI driver (default: LAN_2_0)
-			HostList   []string `json:"host_list"`             // List of hosts with the same client configuration
-			Username   *string  `json:"username"`              // User name to authenticate with
-			Password   *string  `json:"password"`              // Password to use for authentication
-			Endpoint   *string  `json:"endpoint"`              // URL of the IPMI service
+			Fanout     int     `json:"fanout,omitempty"`      // Maximum number of simultaneous IPMI connections (default: 64)
+			DriverType string  `json:"driver_type,omitempty"` // Out of band IPMI driver (default: LAN_2_0)
+			HostList   string  `json:"host_list"`             // List of hosts with the same client configuration
+			Username   *string `json:"username"`              // User name to authenticate with
+			Password   *string `json:"password"`              // Password to use for authentication
+			Endpoint   *string `json:"endpoint"`              // URL of the IPMI service
 
 			// Per client excluded metrics
 			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
@@ -435,10 +436,17 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 			return nil, err
 		}
 
-		// Create mapping between ipmi hostname and node hostname
-		// This also guaranties that all ipmi hostnames are uniqu
+		// Create mapping between IPMI host name and node host name
+		// This also guaranties that all IPMI host names are unique
 		ipmi2HostMapping := make(map[string]string)
-		for _, host := range clientConfigJSON.HostList {
+		hostList, err := hostlist.Expand(clientConfigJSON.HostList)
+		if err != nil {
+			err := fmt.Errorf("client config number %d failed to parse host list %s: %v",
+				i, clientConfigJSON.HostList, err)
+			cclog.ComponentError(r.name, err)
+			return nil, err
+		}
+		for _, host := range hostList {
 			ipmiHost := strings.Replace(host_pattern, "%h", host, -1)
 			ipmi2HostMapping[ipmiHost] = host
 		}

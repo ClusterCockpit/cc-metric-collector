@@ -32,18 +32,14 @@
             {
                 "username": "username-1",
                 "password": "password-1",
-                "endpoint": "ipmi-sensors://my-endpoint-1",
-                "host_list": [
-                    "my-host-1"
-                ]
+                "endpoint": "ipmi-sensors://%h-ipmi",
+                "host_list": "my-host-1-[1-2]"
             },
             {
                 "username": "username-2",
                 "password": "password-2",
-                "endpoint": "ipmi-sensors://my-endpoint-2",
-                "host_list": [
-                    "my-host-2"
-                ]
+                "endpoint": "ipmi-sensors://%h-ipmi",
+                "host_list": "my-host-2-[1,2]"
             }
         ]
     }

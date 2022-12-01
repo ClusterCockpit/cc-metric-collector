@@ -16,10 +16,10 @@ The IPMI Receiver uses `ipmi-sensors` from the [FreeIPMI](https://www.gnu.org/so
         "exclude_metrics": [ "fan_speed", "voltage" ],
         "client_config": [
             {
-                "host_list": ["n1", "n2", "n3", "n4" ]
+                "host_list": "n[1,2-4]"
             },
             {
-                "host_list": [ "n5", "n6" ],
+                "host_list": "n[5-6]",
                 "driver_type": "LAN",
                 "cli_options": [ "--workaround-flags=..." ],
                 "password": "<Password 2>"
