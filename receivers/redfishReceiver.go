@@ -1,9 +1,11 @@
 package receivers
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -347,9 +349,17 @@ func (r *RedfishReceiver) readProcessorMetrics(
 		// This property shall contain the temperature, in Celsius, of the processor.
 		TemperatureCelsius float32 `json:"TemperatureCelsius"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&processorMetrics)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("unable to decode JSON for processor metrics: %+w", err)
+		return fmt.Errorf("unable to read JSON for processor metrics: %+w", err)
+	}
+	err = json.NewDecoder(bytes.NewReader(body)).Decode(&processorMetrics)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to decode JSON='%s' for processor metrics: %+w",
+			string(body),
+			err,
+		)
 	}
 	processorMetrics.SetClient(processor.Client)
 
@@ -381,7 +391,9 @@ func (r *RedfishReceiver) readProcessorMetrics(
 
 	namePower := "consumed_power"
 
-	if !clientConfig.isExcluded[namePower] {
+	if !clientConfig.isExcluded[namePower] &&
+		// Some servers return "ConsumedPowerWatt":65535 instead of "ConsumedPowerWatt":null
+		processorMetrics.ConsumedPowerWatt != 65535 {
 		y, err := lp.New(namePower, tags, metaPower,
 			map[string]interface{}{
 				"value": processorMetrics.ConsumedPowerWatt,
