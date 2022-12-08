@@ -352,8 +352,9 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 
 	// Read the IPMI receiver specific JSON config
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &configJSON)
-		if err != nil {
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&configJSON); err != nil {
 			cclog.ComponentError(r.name, "Error reading config:", err.Error())
 			return nil, err
 		}

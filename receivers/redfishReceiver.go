@@ -353,10 +353,10 @@ func (r *RedfishReceiver) readProcessorMetrics(
 	if err != nil {
 		return fmt.Errorf("unable to read JSON for processor metrics: %+w", err)
 	}
-	err = json.NewDecoder(bytes.NewReader(body)).Decode(&processorMetrics)
+	err = json.Unmarshal(body, &processorMetrics)
 	if err != nil {
 		return fmt.Errorf(
-			"unable to decode JSON='%s' for processor metrics: %+w",
+			"unable to unmarshal JSON='%s' for processor metrics: %+w",
 			string(body),
 			err,
 		)
@@ -673,8 +673,9 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 
 	// Read the redfish receiver specific JSON config
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &configJSON)
-		if err != nil {
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&configJSON); err != nil {
 			cclog.ComponentError(r.name, "Error reading config:", err.Error())
 			return nil, err
 		}
