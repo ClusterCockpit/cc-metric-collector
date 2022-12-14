@@ -17,9 +17,9 @@ type SampleCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type SampleCollector struct {
 	metricCollector
-	config SampleTimerCollectorConfig // the configuration structure
-	meta   map[string]string          // default meta information
-	tags   map[string]string          // default tags
+	config SampleCollectorConfig // the configuration structure
+	meta   map[string]string     // default meta information
+	tags   map[string]string     // default tags
 }
 
 // Functions to implement MetricCollector interface
@@ -36,14 +36,14 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	// This is for later use, also call it early
 	m.setup()
 	// Tell whether the collector should be run in parallel with others (reading files, ...)
-	// or it should be run serially, mostly for collectors acutally doing measurements
+	// or it should be run serially, mostly for collectors actually doing measurements
 	// because they should not measure the execution of the other collectors
 	m.parallel = true
 	// Define meta information sent with each metric
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
 	m.meta = map[string]string{"source": m.name, "group": "SAMPLE"}
 	// Define tags sent with each metric
-	// The 'type' tag is always needed, it defines the granulatity of the metric
+	// The 'type' tag is always needed, it defines the granularity of the metric
 	// node -> whole system
 	// socket -> CPU socket (requires socket ID as 'type-id' tag)
 	// die -> CPU die (requires CPU die ID as 'type-id' tag)

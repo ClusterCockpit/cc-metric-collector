@@ -1,0 +1,29 @@
+{
+  "title": "cc-metric-collector",
+  "description": "Monitoring agent for ClusterCockpit.",
+  "creators": [
+    {
+      "affiliation": "Regionales Rechenzentrum Erlangen, Friedrich-Alexander-Universität Erlangen-Nürnberg",
+      "name": "Thomas Gruber",
+      "orcid": "0000-0001-5560-6964"
+    },
+    {
+      "affiliation": "Steinbuch Centre for Computing, Karlsruher Institut für Technologie",
+      "name": "Holger Obermaier",
+      "orcid": "0000-0002-6830-6626"
+    }
+  ],
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "keywords": [
+    "performance-monitoring",
+    "cluster-monitoring",
+    "open-source"
+  ],
+  "communities": [
+    {
+      "identifier": "clustercockpit"
+    }
+  ]
+}

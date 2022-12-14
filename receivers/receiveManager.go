@@ -2,6 +2,7 @@ package receivers
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 )
 
 var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
+	"ipmi":    NewIPMIReceiver,
 	"nats":    NewNatsReceiver,
 	"redfish": NewRedfishReceiver,
 }
@@ -71,9 +73,13 @@ func (rm *receiveManager) AddInput(name string, rawConfig json.RawMessage) error
 		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "JSON config error:", err.Error())
 		return err
 	}
+	if config.Type == "" {
+		cclog.ComponentError("ReceiveManager", "SKIP", "JSON config for receiver", name, "does not contain a receiver type")
+		return fmt.Errorf("JSON config for receiver %s does not contain a receiver type", name)
+	}
 	if _, found := AvailableReceivers[config.Type]; !found {
-		cclog.ComponentError("ReceiveManager", "SKIP", config.Type, "unknown receiver:", err.Error())
-		return err
+		cclog.ComponentError("ReceiveManager", "SKIP", "unknown receiver type:", config.Type)
+		return fmt.Errorf("unknown receiver type: %s", config.Type)
 	}
 	r, err := AvailableReceivers[config.Type](name, rawConfig)
 	if err != nil {

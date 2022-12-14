@@ -36,6 +36,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"numastats":       new(NUMAStatsCollector),
 	"beegfs_meta":     new(BeegfsMetaCollector),
 	"beegfs_storage":  new(BeegfsStorageCollector),
+	"rapl":            new(RAPLCollector),
 	"rocm_smi":        new(RocmSmiCollector),
 	"self":            new(SelfCollector),
 	"schedstat":       new(SchedstatCollector),

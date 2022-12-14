@@ -23,20 +23,18 @@ type CPUFreqCollectorTopology struct {
 	numPhysicalPackages     string // number of  sockets / packages
 	numPhysicalPackages_int int64
 	isHT                    bool
-	numNonHT                string // number of non hyperthreading processors
+	numNonHT                string // number of non hyper-threading processors
 	numNonHT_int            int64
 	scalingCurFreqFile      string
 	tagSet                  map[string]string
 }
 
-//
 // CPUFreqCollector
 // a metric collector to measure the current frequency of the CPUs
 // as obtained from the hardware (in KHz)
-// Only measure on the first hyper thread
+// Only measure on the first hyper-thread
 //
 // See: https://www.kernel.org/doc/html/latest/admin-guide/pm/cpufreq.html
-//
 type CPUFreqCollector struct {
 	metricCollector
 	topology []CPUFreqCollectorTopology
@@ -126,7 +124,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		t.scalingCurFreqFile = scalingCurFreqFile
 	}
 
-	// is processor a hyperthread?
+	// is processor a hyper-thread?
 	coreSeenBefore := make(map[string]bool)
 	for i := range m.topology {
 		t := &m.topology[i]
@@ -136,23 +134,20 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		coreSeenBefore[globalID] = true
 	}
 
-	// number of non hyper thread cores and packages / sockets
+	// number of non hyper-thread cores and packages / sockets
 	var numNonHT_int int64 = 0
-	var maxPhysicalPackageID int64 = 0
+	PhysicalPackageIDs := make(map[int64]struct{})
 	for i := range m.topology {
 		t := &m.topology[i]
-
-		// Update maxPackageID
-		if t.physicalPackageID_int > maxPhysicalPackageID {
-			maxPhysicalPackageID = t.physicalPackageID_int
-		}
 
 		if !t.isHT {
 			numNonHT_int++
 		}
+
+		PhysicalPackageIDs[t.physicalPackageID_int] = struct{}{}
 	}
 
-	numPhysicalPackageID_int := maxPhysicalPackageID + 1
+	numPhysicalPackageID_int := int64(len(PhysicalPackageIDs))
 	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
 	numNonHT := fmt.Sprint(numNonHT_int)
 	for i := range m.topology {
@@ -168,6 +163,13 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		}
 	}
 
+	// Initialized
+	cclog.ComponentDebug(
+		m.name,
+		"initialized",
+		numPhysicalPackageID_int, "physical packages,",
+		len(cpuDirs), "CPUs,",
+		numNonHT, "non-hyper-threading CPUs")
 	m.init = true
 	return nil
 }
@@ -182,7 +184,7 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 	for i := range m.topology {
 		t := &m.topology[i]
 
-		// skip hyperthreads
+		// skip hyper-threads
 		if t.isHT {
 			continue
 		}

@@ -14,29 +14,38 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
-//
-// Numa policy hit/miss statistics
+// Non-Uniform Memory Access (NUMA) policy hit/miss statistics
 //
 // numa_hit:
-//   A process wanted to allocate memory from this node, and succeeded.
+//
+//	A process wanted to allocate memory from this node, and succeeded.
+//
 // numa_miss:
-//   A process wanted to allocate memory from another node,
-//   but ended up with memory from this node.
+//
+//	A process wanted to allocate memory from another node,
+//	but ended up with memory from this node.
+//
 // numa_foreign:
-//   A process wanted to allocate on this node,
-//   but ended up with memory from another node.
+//
+//	A process wanted to allocate on this node,
+//	but ended up with memory from another node.
+//
 // local_node:
-//   A process ran on this node's CPU,
-//   and got memory from this node.
+//
+//	A process ran on this node's CPU,
+//	and got memory from this node.
+//
 // other_node:
-//   A process ran on a different node's CPU
-//   and got memory from this node.
+//
+//	A process ran on a different node's CPU
+//	and got memory from this node.
+//
 // interleave_hit:
-//   Interleaving wanted to allocate from this node
-//   and succeeded.
+//
+//	Interleaving wanted to allocate from this node
+//	and succeeded.
 //
 // See: https://www.kernel.org/doc/html/latest/admin-guide/numastat.html
-//
 type NUMAStatsCollectorTopolgy struct {
 	file   string
 	tagSet map[string]string
@@ -82,6 +91,8 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 			})
 	}
 
+	// Initialized
+	cclog.ComponentDebug(m.name, "initialized", len(m.topology), "NUMA domains")
 	m.init = true
 	return nil
 }

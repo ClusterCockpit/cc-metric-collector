@@ -1,9 +1,11 @@
 package receivers
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +14,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
 
 	// See: https://pkg.go.dev/github.com/stmcginnis/gofish
 	"github.com/stmcginnis/gofish"
@@ -346,9 +349,17 @@ func (r *RedfishReceiver) readProcessorMetrics(
 		// This property shall contain the temperature, in Celsius, of the processor.
 		TemperatureCelsius float32 `json:"TemperatureCelsius"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&processorMetrics)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("unable to decode JSON for processor metrics: %+w", err)
+		return fmt.Errorf("unable to read JSON for processor metrics: %+w", err)
+	}
+	err = json.Unmarshal(body, &processorMetrics)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to unmarshal JSON='%s' for processor metrics: %+w",
+			string(body),
+			err,
+		)
 	}
 	processorMetrics.SetClient(processor.Client)
 
@@ -380,7 +391,9 @@ func (r *RedfishReceiver) readProcessorMetrics(
 
 	namePower := "consumed_power"
 
-	if !clientConfig.isExcluded[namePower] {
+	if !clientConfig.isExcluded[namePower] &&
+		// Some servers return "ConsumedPowerWatt":65535 instead of "ConsumedPowerWatt":null
+		processorMetrics.ConsumedPowerWatt != 65535 {
 		y, err := lp.New(namePower, tags, metaPower,
 			map[string]interface{}{
 				"value": processorMetrics.ConsumedPowerWatt,
@@ -630,10 +643,10 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 
 		ClientConfigs []struct {
-			HostList []string `json:"host_list"` // List of hosts with the same client configuration
-			Username *string  `json:"username"`  // User name to authenticate with
-			Password *string  `json:"password"`  // Password to use for authentication
-			Endpoint *string  `json:"endpoint"`  // URL of the redfish service
+			HostList string  `json:"host_list"` // List of hosts with the same client configuration
+			Username *string `json:"username"`  // User name to authenticate with
+			Password *string `json:"password"`  // Password to use for authentication
+			Endpoint *string `json:"endpoint"`  // URL of the redfish service
 
 			// Per client disable collection of power,processor or thermal metrics
 			DisablePowerMetrics     bool `json:"disable_power_metrics"`
@@ -660,8 +673,9 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 
 	// Read the redfish receiver specific JSON config
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &configJSON)
-		if err != nil {
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&configJSON); err != nil {
 			cclog.ComponentError(r.name, "Error reading config:", err.Error())
 			return nil, err
 		}
@@ -763,7 +777,14 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			isExcluded[key] = true
 		}
 
-		for _, host := range clientConfigJSON.HostList {
+		hostList, err := hostlist.Expand(clientConfigJSON.HostList)
+		if err != nil {
+			err := fmt.Errorf("client config number %d failed to parse host list %s: %v",
+				i, clientConfigJSON.HostList, err)
+			cclog.ComponentError(r.name, err)
+			return nil, err
+		}
+		for _, host := range hostList {
 
 			// Endpoint of the redfish service
 			endpoint := strings.Replace(endpoint_pattern, "%h", host, -1)
