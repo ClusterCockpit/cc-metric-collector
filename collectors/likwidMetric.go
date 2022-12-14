@@ -82,6 +82,7 @@ type LikwidCollector struct {
 	basefreq      float64
 	running       bool
 	initialized   bool
+	needs_reinit bool
 	likwidGroups  map[C.int]LikwidEventsetConfig
 	lock          sync.Mutex
 	measureThread thread.Thread
@@ -193,6 +194,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.name = "LikwidCollector"
 	m.parallel = false
 	m.initialized = false
+	m.needs_reinit = true
 	m.running = false
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
 	m.config.LibraryPath = LIKWID_LIB_NAME
@@ -299,6 +301,7 @@ func (m *LikwidCollector) takeMeasurement(evset LikwidEventsetConfig, interval t
 		if ret != 0 {
 			var err error = nil
 			var skip bool = false
+			cclog.ComponentDebug(m.name, "Setup returns", ret)
 			if ret == -37 {
 				skip = true
 			} else {
@@ -353,7 +356,6 @@ func (m *LikwidCollector) takeMeasurement(evset LikwidEventsetConfig, interval t
 		for _, tid := range m.cpu2tid {
 			evset.results[tid]["time"] = runtime
 		}
-
 	}
 	m.lock.Unlock()
 	return false, nil
@@ -458,6 +460,28 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 	return nil
 }
 
+func (m *LikwidCollector) ReInit() error {
+	C.perfmon_finalize()
+	ret := C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
+	if ret != 0 {
+		return nil
+	}
+	for i, evset := range m.config.Eventsets {
+		var gid C.int
+		if len(evset.Events) > 0 {
+			//skip := false
+			likwidGroup := genLikwidEventSet(evset)
+			gid = C.perfmon_addEventSet(likwidGroup.estr)
+			if gid >= 0 {
+				likwidGroup.gid = gid
+				likwidGroup.internal = i
+				m.likwidGroups[gid] = likwidGroup
+			}
+		}
+	}
+	return nil
+}
+
 func (m *LikwidCollector) LateInit() error {
 	var ret C.int
 	if m.initialized {
@@ -498,48 +522,53 @@ func (m *LikwidCollector) LateInit() error {
 	m.basefreq = getBaseFreq()
 	cclog.ComponentDebug(m.name, "BaseFreq", m.basefreq)
 
-	cclog.ComponentDebug(m.name, "initialize LIKWID perfmon module")
-	ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
-	if ret != 0 {
-		var err error = nil
-		C.topology_finalize()
-		if ret != -22 {
-			err = errors.New("failed to initialize LIKWID perfmon")
-			cclog.ComponentError(m.name, err.Error())
-		} else {
-			err = errors.New("access to LIKWID perfmon locked")
-		}
-		return err
+	if m.needs_reinit {
+		m.ReInit()
+		m.needs_reinit = false
 	}
 
-	// While adding the events, we test the metrics whether they can be computed at all
-	for i, evset := range m.config.Eventsets {
-		var gid C.int
-		if len(evset.Events) > 0 {
-			skip := false
-			likwidGroup := genLikwidEventSet(evset)
-			for _, g := range m.likwidGroups {
-				if likwidGroup.go_estr == g.go_estr {
-					skip = true
-					break
-				}
-			}
-			if skip {
-				continue
-			}
-			// Now we add the list of events to likwid
-			gid = C.perfmon_addEventSet(likwidGroup.estr)
-			if gid >= 0 {
-				likwidGroup.gid = gid
-				likwidGroup.internal = i
-				m.likwidGroups[gid] = likwidGroup
-			}
-		} else {
-			cclog.ComponentError(m.name, "Invalid Likwid eventset config, no events given")
-			continue
-		}
+	// cclog.ComponentDebug(m.name, "initialize LIKWID perfmon module")
+	// ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
+	// if ret != 0 {
+	// 	var err error = nil
+	// 	C.topology_finalize()
+	// 	if ret != -22 {
+	// 		err = errors.New("failed to initialize LIKWID perfmon")
+	// 		cclog.ComponentError(m.name, err.Error())
+	// 	} else {
+	// 		err = errors.New("access to LIKWID perfmon locked")
+	// 	}
+	// 	return err
+	// }
 
-	}
+	// // While adding the events, we test the metrics whether they can be computed at all
+	// for i, evset := range m.config.Eventsets {
+	// 	var gid C.int
+	// 	if len(evset.Events) > 0 {
+	// 		//skip := false
+	// 		likwidGroup := genLikwidEventSet(evset)
+	// 		// for _, g := range m.likwidGroups {
+	// 		// 	if likwidGroup.go_estr == g.go_estr {
+	// 		// 		skip = true
+	// 		// 		break
+	// 		// 	}
+	// 		// }
+	// 		// if skip {
+	// 		// 	continue
+	// 		// }
+	// 		// Now we add the list of events to likwid
+	// 		gid = C.perfmon_addEventSet(likwidGroup.estr)
+	// 		if gid >= 0 {
+	// 			likwidGroup.gid = gid
+	// 			likwidGroup.internal = i
+	// 			m.likwidGroups[gid] = likwidGroup
+	// 		}
+	// 	} else {
+	// 		cclog.ComponentError(m.name, "Invalid Likwid eventset config, no events given")
+	// 		continue
+	// 	}
+
+	// }
 
 	// If no event set could be added, shut down LikwidCollector
 	if len(m.likwidGroups) == 0 {
@@ -605,6 +634,10 @@ func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			if !skip {
 				// use the event set metrics to derive the global metrics
 				m.calcGlobalMetrics(time, output)
+			}
+			if skip {
+				m.needs_reinit = true
+				m.initialized = false
 			}
 		}
 	})
