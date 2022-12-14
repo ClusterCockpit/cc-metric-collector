@@ -37,7 +37,9 @@ $ install --mode 644  \
 $ systemctl enable cc-metric-collector
 ```
 
-## RPM
+## Packaging
+
+### RPM
 
 In order to get a RPM packages for cc-metric-collector, just use:
 
@@ -47,7 +49,7 @@ $ make RPM
 
 It uses the RPM SPEC file `scripts/cc-metric-collector.spec` and requires the RPM tools (`rpm` and `rpmspec`) and `git`.
 
-## DEB
+### DEB
 
 In order to get very simple Debian packages for cc-metric-collector, just use:
 
@@ -58,3 +60,15 @@ $ make DEB
 It uses the DEB control file `scripts/cc-metric-collector.control` and requires `dpkg-deb`, `awk`, `sed` and `git`. It creates only a binary deb package.
 
 _This option is not well tested and therefore experimental_
+
+### Customizing RPMs or DEB packages
+
+If you want to customize the RPMs or DEB packages for your local system, use the following workflow.
+
+- (if there is already a fork in the private account, delete it and wait until Github realizes the deletion)
+- Fork the cc-metric-collector repository (if Github hasn't realized it, it creates a fork named cc-metric-collector2)
+- Go to private cc-metric-collector repository and enable Github Actions
+- Do changes to the scripts, code, ... Commit and push your changes.
+- Tag the new commit with `v0.x.y-<myversion>` (`git tag v0.x.y-<myversion>`)
+- Push tags to repository (`git push --tags`)
+- Wait until the Release action finishes. It creates fresh RPMs and DEBs in your private repository on the Releases page.
