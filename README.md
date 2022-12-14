@@ -8,6 +8,10 @@ There is a single timer loop that triggers all collectors serially, collects the
 
 The receiver runs as a go routine side-by-side with the timer loop and asynchronously forwards received metrics to the sink.
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7438287.svg)](https://doi.org/10.5281/zenodo.7438287)
+
+
 # Configuration
 
 Configuration is implemented using a single json document that is distributed over network and may be persisted as file.
