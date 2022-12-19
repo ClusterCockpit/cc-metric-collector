@@ -112,20 +112,16 @@ DEB: scripts/cc-metric-collector.deb.control $(APP)
 	#@mkdir --parents --verbose $$DEBIANDIR
 	@CONTROLFILE="$${BASEDIR}/scripts/cc-metric-collector.deb.control"
 	@COMMITISH="HEAD"
-	@git describe --tags --abbrev=0 $${COMMITISH}
 	@VERS=$$(git describe --tags --abbrev=0 $${COMMITISH})
 	@if [ -z "$$VERS" ]; then VERS=${GITHUB_REF_NAME}; fi
 	@VERS=$${VERS#v}
 	@VERS=$$(echo $$VERS | sed -e s+'-'+'_'+g)
 	@ARCH=$$(uname -m)
 	@ARCH=$$(echo $$ARCH | sed -e s+'_'+'-'+g)
+	@if [ "$${ARCH}" = "x86-64" ]; then ARCH=amd64; fi
 	@PREFIX="$${NAME}-$${VERSION}_$${ARCH}"
 	@SIZE_BYTES=$$(du -bcs --exclude=.dpkgbuild "$$WORKSPACE"/ | awk '{print $$1}' | head -1 | sed -e 's/^0\+//')
 	@SIZE="$$(awk -v size="$$SIZE_BYTES" 'BEGIN {print (size/1024)+1}' | awk '{print int($$0)}')"
-	#@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANDIR}/control
-	@echo "Version: $$VERS"
-	@echo "Size: $$SIZE"
-	@echo "Arch: $$ARCH"
 	@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANBINDIR}/control
 	@make PREFIX=$${WORKSPACE} install
 	@DEB_FILE="cc-metric-collector_$${VERS}_$${ARCH}.deb"
