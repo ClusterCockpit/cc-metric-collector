@@ -10,6 +10,8 @@ BuildRequires:  go-toolset
 BuildRequires:  systemd-rpm-macros
 # for header downloads
 BuildRequires:  wget
+# Recommended when using the sysusers_create_package macro
+Requires(pre): /usr/bin/systemd-sysusers
 
 Provides:       %{name} = %{version}
 
