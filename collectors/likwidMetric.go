@@ -285,6 +285,9 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		} else if !testLikwidMetricFormula(metric.Calc, globalParams) {
 			cclog.ComponentError(m.name, "Metric", metric.Name, "cannot be calculated with given counters")
 			metric.Calc = ""
+		} else if !checkMetricType(metric.Type) {
+			cclog.ComponentError(m.name, "Metric", metric.Name, "has invalid type")
+			metric.Calc = ""
 		} else {
 			totalMetrics++
 		}
@@ -328,7 +331,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 
 	m.basefreq = getBaseFreq()
-
 	m.measureThread = thread.New()
 	m.init = true
 	return nil
@@ -586,6 +588,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 	}
 	return nil
 }
+
 
 func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMetric) {
 	var err error = nil
