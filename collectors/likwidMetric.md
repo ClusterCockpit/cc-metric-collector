@@ -10,6 +10,7 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
     "liblikwid_path" : "/path/to/liblikwid.so",
     "accessdaemon_path" : "/folder/that/contains/likwid-accessD",
     "access_mode" : "direct or accessdaemon or perf_event",
+    "lockfile_path" : "/var/run/likwid.lock",
     "eventsets": [
       {
         "events" : {
@@ -49,6 +50,7 @@ Additional options:
 - `access_mode`: Specify LIKWID access mode: `direct` for direct register access as root user or `accessdaemon`. The access mode `perf_event` is current untested.
 - `accessdaemon_path`: Folder of the accessDaemon `likwid-accessD` (like `/usr/local/sbin`)
 - `liblikwid_path`: Location of `liblikwid.so` including file name like `/usr/local/lib/liblikwid.so`
+- `lockfile_path`: Location of LIKWID's lock file if multiple tools should access the hardware counters. Default `/var/run/likwid.lock`
 
 ### Available metric types
 
