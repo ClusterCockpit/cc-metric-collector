@@ -84,7 +84,7 @@ RPM: scripts/cc-metric-collector.spec
 	@COMMITISH="HEAD"
 	@VERS=$$(git describe --tags $${COMMITISH})
 	@VERS=$${VERS#v}
-	@VERS=$$(echo $$VERS | sed -e s+'-'+'_'+g)
+	@VERS=$$(echo $${VERS} | sed -e s+'-'+'_'+g)
 	@eval $$(rpmspec --query --queryformat "NAME='%{name}' VERSION='%{version}' RELEASE='%{release}' NVR='%{NVR}' NVRA='%{NVRA}'" --define="VERS $${VERS}" "$${SPECFILE}")
 	@PREFIX="$${NAME}-$${VERSION}"
 	@FORMAT="tar.gz"
@@ -96,10 +96,8 @@ RPM: scripts/cc-metric-collector.spec
 	@if [[ "$${GITHUB_ACTIONS}" == true ]]; then
 	@     RPMFILE="$${RPMDIR}/$${ARCH}/$${NVRA}.rpm"
 	@     SRPMFILE="$${SRPMDIR}/$${NVR}.src.rpm"
-	@     echo "RPM: $${RPMFILE}"
-	@     echo "SRPM: $${SRPMFILE}"
-	@     echo "::set-output name=SRPM::$${SRPMFILE}"
-	@     echo "::set-output name=RPM::$${RPMFILE}"
+	@     echo "SRPM=$${SRPMFILE}" >> $${GITHUB_OUTPUT}
+	@     echo "RPM=$${RPMFILE}" >> $${GITHUB_OUTPUT}
 	@fi
 
 .PHONY: DEB
@@ -108,29 +106,25 @@ DEB: scripts/cc-metric-collector.deb.control $(APP)
 	@WORKSPACE=$${PWD}/.dpkgbuild
 	@DEBIANDIR=$${WORKSPACE}/debian
 	@DEBIANBINDIR=$${WORKSPACE}/DEBIAN
-	@mkdir --parents --verbose $$WORKSPACE $$DEBIANBINDIR
+	@mkdir --parents --verbose $${WORKSPACE} $${DEBIANBINDIR}
 	#@mkdir --parents --verbose $$DEBIANDIR
 	@CONTROLFILE="$${BASEDIR}/scripts/cc-metric-collector.deb.control"
 	@COMMITISH="HEAD"
-	@git describe --tags --abbrev=0 $${COMMITISH}
 	@VERS=$$(git describe --tags --abbrev=0 $${COMMITISH})
-	@if [ -z "$$VERS" ]; then VERS=${GITHUB_REF_NAME}; fi
+	@if [ -z "$${VERS}" ]; then VERS=${GITHUB_REF_NAME}; fi
 	@VERS=$${VERS#v}
-	@VERS=$$(echo $$VERS | sed -e s+'-'+'_'+g)
+	@VERS=$$(echo $${VERS} | sed -e s+'-'+'_'+g)
 	@ARCH=$$(uname -m)
-	@ARCH=$$(echo $$ARCH | sed -e s+'_'+'-'+g)
+	@ARCH=$$(echo $${ARCH} | sed -e s+'_'+'-'+g)
+	@if [ "$${ARCH}" = "x86-64" ]; then ARCH=amd64; fi
 	@PREFIX="$${NAME}-$${VERSION}_$${ARCH}"
-	@SIZE_BYTES=$$(du -bcs --exclude=.dpkgbuild "$$WORKSPACE"/ | awk '{print $$1}' | head -1 | sed -e 's/^0\+//')
-	@SIZE="$$(awk -v size="$$SIZE_BYTES" 'BEGIN {print (size/1024)+1}' | awk '{print int($$0)}')"
-	#@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANDIR}/control
-	@echo "Version: $$VERS"
-	@echo "Size: $$SIZE"
-	@echo "Arch: $$ARCH"
-	@sed -e s+"{VERSION}"+"$$VERS"+g -e s+"{INSTALLED_SIZE}"+"$$SIZE"+g -e s+"{ARCH}"+"$$ARCH"+g $$CONTROLFILE > $${DEBIANBINDIR}/control
+	@SIZE_BYTES=$$(du -bcs --exclude=.dpkgbuild "$${WORKSPACE}"/ | awk '{print $$1}' | head -1 | sed -e 's/^0\+//')
+	@SIZE="$$(awk -v size="$${SIZE_BYTES}" 'BEGIN {print (size/1024)+1}' | awk '{print int($$0)}')"
+	@sed -e s+"{VERSION}"+"$${VERS}"+g -e s+"{INSTALLED_SIZE}"+"$${SIZE}"+g -e s+"{ARCH}"+"$${ARCH}"+g $${CONTROLFILE} > $${DEBIANBINDIR}/control
 	@make PREFIX=$${WORKSPACE} install
 	@DEB_FILE="cc-metric-collector_$${VERS}_$${ARCH}.deb"
-	@dpkg-deb -b $${WORKSPACE} "$$DEB_FILE"
+	@dpkg-deb -b $${WORKSPACE} "$${DEB_FILE}"
 	@if [ "$${GITHUB_ACTIONS}" = "true" ]; then
-	@     echo "::set-output name=DEB::$${DEB_FILE}"
+	@     echo "DEB=$${DEB_FILE}" >> $${GITHUB_OUTPUT}
 	@fi
 	@rm -r "$${WORKSPACE}"

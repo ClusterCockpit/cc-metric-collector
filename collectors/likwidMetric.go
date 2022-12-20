@@ -15,6 +15,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"os/user"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,12 +30,14 @@ import (
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 	"golang.design/x/thread"
+	fsnotify "gopkg.in/fsnotify.v0"
 )
 
 const (
 	LIKWID_LIB_NAME       = "liblikwid.so"
 	LIKWID_LIB_DL_FLAGS   = dl.RTLD_LAZY | dl.RTLD_GLOBAL
 	LIKWID_DEF_ACCESSMODE = "direct"
+	LIKWID_DEF_LOCKFILE   = "/var/run/likwid.lock"
 )
 
 type LikwidCollectorMetricConfig struct {
@@ -68,6 +71,7 @@ type LikwidCollectorConfig struct {
 	AccessMode     string                          `json:"access_mode,omitempty"`
 	DaemonPath     string                          `json:"accessdaemon_path,omitempty"`
 	LibraryPath    string                          `json:"liblikwid_path,omitempty"`
+	LockfilePath   string                          `json:"lockfile_path,omitempty"`
 }
 
 type LikwidCollector struct {
@@ -82,7 +86,7 @@ type LikwidCollector struct {
 	basefreq      float64
 	running       bool
 	initialized   bool
-	needs_reinit bool
+	needs_reinit  bool
 	likwidGroups  map[C.int]LikwidEventsetConfig
 	lock          sync.Mutex
 	measureThread thread.Thread
@@ -198,6 +202,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.running = false
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
 	m.config.LibraryPath = LIKWID_LIB_NAME
+	m.config.LockfilePath = LIKWID_DEF_LOCKFILE
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -255,12 +260,16 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 			}
 			for _, metric := range evset.Metrics {
 				// Try to evaluate the metric
-				if testLikwidMetricFormula(metric.Calc, params) && checkMetricType(metric.Type) {
-					// Add the computable metric to the parameter list for the global metrics
+				cclog.ComponentDebug(m.name, "Checking", metric.Name)
+				if !checkMetricType(metric.Type) {
+					cclog.ComponentError(m.name, "Metric", metric.Name, "uses invalid type", metric.Type)
+					metric.Calc = ""
+				} else if !testLikwidMetricFormula(metric.Calc, params) {
+					cclog.ComponentError(m.name, "Metric", metric.Name, "cannot be calculated with given counters")
+					metric.Calc = ""
+				} else {
 					globalParams = append(globalParams, metric.Name)
 					totalMetrics++
-				} else {
-					metric.Calc = ""
 				}
 			}
 		} else {
@@ -270,8 +279,11 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 	for _, metric := range m.config.Metrics {
 		// Try to evaluate the global metric
-		if !testLikwidMetricFormula(metric.Calc, globalParams) {
-			cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed")
+		if !checkMetricType(metric.Type) {
+			cclog.ComponentError(m.name, "Metric", metric.Name, "uses invalid type", metric.Type)
+			metric.Calc = ""
+		} else if !testLikwidMetricFormula(metric.Calc, globalParams) {
+			cclog.ComponentError(m.name, "Metric", metric.Name, "cannot be calculated with given counters")
 			metric.Calc = ""
 		} else if !checkMetricType(metric.Type) {
 			cclog.ComponentError(m.name, "Metric", metric.Name, "has invalid type")
@@ -287,77 +299,194 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
+
+	ret := C.topology_init()
+	if ret != 0 {
+		err := errors.New("failed to initialize topology module")
+		cclog.ComponentError(m.name, err.Error())
+		return err
+	}
+	switch m.config.AccessMode {
+	case "direct":
+		C.HPMmode(0)
+	case "accessdaemon":
+		if len(m.config.DaemonPath) > 0 {
+			p := os.Getenv("PATH")
+			os.Setenv("PATH", m.config.DaemonPath+":"+p)
+		}
+		C.HPMmode(1)
+		for _, c := range m.cpulist {
+			C.HPMaddThread(c)
+		}
+	}
+	m.sock2tid = make(map[int]int)
+	tmp := make([]C.int, 1)
+	for _, sid := range topo.SocketList() {
+		cstr := C.CString(fmt.Sprintf("S%d:0", sid))
+		ret = C.cpustr_to_cpulist(cstr, &tmp[0], 1)
+		if ret > 0 {
+			m.sock2tid[sid] = m.cpu2tid[int(tmp[0])]
+		}
+		C.free(unsafe.Pointer(cstr))
+	}
+
+	m.basefreq = getBaseFreq()
 	m.measureThread = thread.New()
 	m.init = true
 	return nil
 }
 
 // take a measurement for 'interval' seconds of event set index 'group'
-func (m *LikwidCollector) takeMeasurement(evset LikwidEventsetConfig, interval time.Duration) (bool, error) {
+func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig, interval time.Duration) (bool, error) {
 	var ret C.int
-	m.lock.Lock()
-	if m.initialized {
-		ret = C.perfmon_setupCounters(evset.gid)
-		if ret != 0 {
-			var err error = nil
-			var skip bool = false
-			cclog.ComponentDebug(m.name, "Setup returns", ret)
-			if ret == -37 {
-				skip = true
+	var gid C.int = -1
+	sigchan := make(chan os.Signal, 1)
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		cclog.ComponentError(m.name, err.Error())
+	}
+	defer watcher.Close()
+	if len(m.config.LockfilePath) > 0 {
+		info, err := os.Stat(m.config.LockfilePath)
+		if err != nil {
+			return true, err
+		}
+		stat := info.Sys().(*syscall.Stat_t)
+		if stat.Uid != uint32(os.Getuid()) {
+			usr, err := user.LookupId(strconv.FormatUint(uint64(stat.Uid), 10))
+			if err == nil {
+				return true, fmt.Errorf("Access to performance counters locked by %s", usr.Username)
 			} else {
-				err = fmt.Errorf("failed to setup performance group %d", evset.gid)
-			}
-			m.lock.Unlock()
-			return skip, err
-		}
-		m.running = true
-		ret = C.perfmon_startCounters()
-		if ret != 0 {
-			var err error = nil
-			var skip bool = false
-			if ret == -37 {
-				skip = true
-			} else {
-				err = fmt.Errorf("failed to setup performance group %d", evset.gid)
-			}
-			m.lock.Unlock()
-			return skip, err
-		}
-		ret = C.perfmon_readCounters()
-		time.Sleep(interval)
-		m.running = false
-		ret = C.perfmon_stopCounters()
-		if ret != 0 {
-			var err error = nil
-			var skip bool = false
-			if ret == -37 {
-				skip = true
-			} else {
-				err = fmt.Errorf("failed to setup performance group %d", evset.gid)
-			}
-			m.lock.Unlock()
-			return skip, err
-		}
-		m.running = false
-		runtime := float64(C.perfmon_getLastTimeOfGroup(evset.gid))
-		// Go over events and get the results
-		for eidx, counter := range evset.eorder {
-			gctr := C.GoString(counter)
-			for _, tid := range m.cpu2tid {
-				res := C.perfmon_getLastResult(evset.gid, C.int(eidx), C.int(tid))
-				fres := float64(res)
-				if m.config.InvalidToZero && (math.IsNaN(fres) || math.IsInf(fres, 0)) {
-					cclog.ComponentDebug(m.name, "Sanitize", gctr, "to zero")
-					fres = 0.0
-				}
-				evset.results[tid][gctr] = fres
+				return true, fmt.Errorf("Access to performance counters locked by %d", stat.Uid)
 			}
 		}
-		for _, tid := range m.cpu2tid {
-			evset.results[tid]["time"] = runtime
+		err = watcher.Watch(m.config.LockfilePath)
+		if err != nil {
+			cclog.ComponentError(m.name, err.Error())
 		}
 	}
-	m.lock.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	select {
+	case e := <-watcher.Event:
+		ret = -1
+		if !e.IsAttrib() {
+			ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
+		}
+	default:
+		ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
+	}
+	if ret != 0 {
+		return true, fmt.Errorf("failed to initialize library, error %d", ret)
+	}
+	signal.Notify(sigchan, os.Interrupt)
+	signal.Notify(sigchan, syscall.SIGCHLD)
+	select {
+	case <-sigchan:
+		gid = -1
+	case e := <-watcher.Event:
+		gid = -1
+		if !e.IsAttrib() {
+			gid = C.perfmon_addEventSet(evset.estr)
+		}
+	default:
+		gid = C.perfmon_addEventSet(evset.estr)
+	}
+	if gid < 0 {
+		return true, fmt.Errorf("failed to add events %s, error %d", evset.go_estr, gid)
+	} else {
+		evset.gid = gid
+		//m.likwidGroups[gid] = evset
+	}
+	select {
+	case <-sigchan:
+		ret = -1
+	case e := <-watcher.Event:
+		if !e.IsAttrib() {
+			ret = C.perfmon_setupCounters(gid)
+		}
+	default:
+		ret = C.perfmon_setupCounters(gid)
+	}
+	if ret != 0 {
+		return true, fmt.Errorf("failed to setup events '%s', error %d", evset.go_estr, ret)
+	}
+	select {
+	case <-sigchan:
+		ret = -1
+	case e := <-watcher.Event:
+		if !e.IsAttrib() {
+			ret = C.perfmon_startCounters()
+		}
+	default:
+		ret = C.perfmon_startCounters()
+	}
+	if ret != 0 {
+		return true, fmt.Errorf("failed to start events '%s', error %d", evset.go_estr, ret)
+	}
+	select {
+	case <-sigchan:
+		ret = -1
+	case e := <-watcher.Event:
+		if !e.IsAttrib() {
+			ret = C.perfmon_readCounters()
+		}
+	default:
+		ret = C.perfmon_readCounters()
+	}
+	if ret != 0 {
+		return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
+	}
+	time.Sleep(interval)
+	select {
+	case <-sigchan:
+		ret = -1
+	case e := <-watcher.Event:
+		if !e.IsAttrib() {
+			ret = C.perfmon_readCounters()
+		}
+	default:
+		ret = C.perfmon_readCounters()
+	}
+	if ret != 0 {
+		return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
+	}
+	for eidx, counter := range evset.eorder {
+		gctr := C.GoString(counter)
+		for _, tid := range m.cpu2tid {
+			res := C.perfmon_getLastResult(gid, C.int(eidx), C.int(tid))
+			fres := float64(res)
+			if m.config.InvalidToZero && (math.IsNaN(fres) || math.IsInf(fres, 0)) {
+				fres = 0.0
+			}
+			evset.results[tid][gctr] = fres
+		}
+	}
+	for _, tid := range m.cpu2tid {
+		evset.results[tid]["time"] = float64(C.perfmon_getLastTimeOfGroup(gid))
+	}
+	select {
+	case <-sigchan:
+		ret = -1
+	case e := <-watcher.Event:
+		if !e.IsAttrib() {
+			ret = C.perfmon_stopCounters()
+		}
+	default:
+		ret = C.perfmon_stopCounters()
+	}
+	if ret != 0 {
+		return true, fmt.Errorf("failed to stop events '%s', error %d", evset.go_estr, ret)
+	}
+	signal.Stop(sigchan)
+	select {
+	case e := <-watcher.Event:
+		if !e.IsAttrib() {
+			C.perfmon_finalize()
+		}
+	default:
+		C.perfmon_finalize()
+	}
 	return false, nil
 }
 
@@ -412,7 +541,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 }
 
 // Go over the global metrics, derive the value out of the event sets' metric values and send it
-func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan lp.CCMetric) error {
+func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, interval time.Duration, output chan lp.CCMetric) error {
 	for _, metric := range m.config.Metrics {
 		scopemap := m.cpu2tid
 		if metric.Type == "socket" {
@@ -422,7 +551,7 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 			if tid >= 0 {
 				// Here we generate parameter list
 				params := make(map[string]interface{})
-				for _, evset := range m.likwidGroups {
+				for _, evset := range groups {
 					for mname, mres := range evset.metrics[tid] {
 						params[mname] = mres
 					}
@@ -436,7 +565,7 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {
 					value = 0.0
 				}
-				m.gmresults[tid][metric.Name] = value
+				//m.gmresults[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
@@ -460,203 +589,53 @@ func (m *LikwidCollector) calcGlobalMetrics(interval time.Duration, output chan 
 	return nil
 }
 
-func (m *LikwidCollector) ReInit() error {
-	C.perfmon_finalize()
-	ret := C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
-	if ret != 0 {
-		return nil
-	}
-	for i, evset := range m.config.Eventsets {
-		var gid C.int
-		if len(evset.Events) > 0 {
-			//skip := false
-			likwidGroup := genLikwidEventSet(evset)
-			gid = C.perfmon_addEventSet(likwidGroup.estr)
-			if gid >= 0 {
-				likwidGroup.gid = gid
-				likwidGroup.internal = i
-				m.likwidGroups[gid] = likwidGroup
+
+func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMetric) {
+	var err error = nil
+	groups := make([]LikwidEventsetConfig, 0)
+
+	for evidx, evset := range m.config.Eventsets {
+		e := genLikwidEventSet(evset)
+		e.internal = evidx
+		skip := false
+		if !skip {
+			// measure event set 'i' for 'interval' seconds
+			skip, err = m.takeMeasurement(evidx, e, interval)
+			if err != nil {
+				cclog.ComponentError(m.name, err.Error())
+				return
 			}
 		}
-	}
-	return nil
-}
 
-func (m *LikwidCollector) LateInit() error {
-	var ret C.int
-	if m.initialized {
-		return nil
-	}
-	switch m.config.AccessMode {
-	case "direct":
-		C.HPMmode(0)
-	case "accessdaemon":
-		if len(m.config.DaemonPath) > 0 {
-			p := os.Getenv("PATH")
-			os.Setenv("PATH", m.config.DaemonPath+":"+p)
+		if !skip {
+			// read measurements and derive event set metrics
+			m.calcEventsetMetrics(e, interval, output)
 		}
-		C.HPMmode(1)
-		for _, c := range m.cpulist {
-			C.HPMaddThread(c)
-		}
+		groups = append(groups, e)
 	}
-	cclog.ComponentDebug(m.name, "initialize LIKWID topology")
-	ret = C.topology_init()
-	if ret != 0 {
-		err := errors.New("failed to initialize LIKWID topology")
-		cclog.ComponentError(m.name, err.Error())
-		return err
-	}
-
-	m.sock2tid = make(map[int]int)
-	tmp := make([]C.int, 1)
-	for _, sid := range topo.SocketList() {
-		cstr := C.CString(fmt.Sprintf("S%d:0", sid))
-		ret = C.cpustr_to_cpulist(cstr, &tmp[0], 1)
-		if ret > 0 {
-			m.sock2tid[sid] = m.cpu2tid[int(tmp[0])]
-		}
-		C.free(unsafe.Pointer(cstr))
-	}
-
-	m.basefreq = getBaseFreq()
-	cclog.ComponentDebug(m.name, "BaseFreq", m.basefreq)
-
-	if m.needs_reinit {
-		m.ReInit()
-		m.needs_reinit = false
-	}
-
-	// cclog.ComponentDebug(m.name, "initialize LIKWID perfmon module")
-	// ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
-	// if ret != 0 {
-	// 	var err error = nil
-	// 	C.topology_finalize()
-	// 	if ret != -22 {
-	// 		err = errors.New("failed to initialize LIKWID perfmon")
-	// 		cclog.ComponentError(m.name, err.Error())
-	// 	} else {
-	// 		err = errors.New("access to LIKWID perfmon locked")
-	// 	}
-	// 	return err
-	// }
-
-	// // While adding the events, we test the metrics whether they can be computed at all
-	// for i, evset := range m.config.Eventsets {
-	// 	var gid C.int
-	// 	if len(evset.Events) > 0 {
-	// 		//skip := false
-	// 		likwidGroup := genLikwidEventSet(evset)
-	// 		// for _, g := range m.likwidGroups {
-	// 		// 	if likwidGroup.go_estr == g.go_estr {
-	// 		// 		skip = true
-	// 		// 		break
-	// 		// 	}
-	// 		// }
-	// 		// if skip {
-	// 		// 	continue
-	// 		// }
-	// 		// Now we add the list of events to likwid
-	// 		gid = C.perfmon_addEventSet(likwidGroup.estr)
-	// 		if gid >= 0 {
-	// 			likwidGroup.gid = gid
-	// 			likwidGroup.internal = i
-	// 			m.likwidGroups[gid] = likwidGroup
-	// 		}
-	// 	} else {
-	// 		cclog.ComponentError(m.name, "Invalid Likwid eventset config, no events given")
-	// 		continue
-	// 	}
-
-	// }
-
-	// If no event set could be added, shut down LikwidCollector
-	if len(m.likwidGroups) == 0 {
-		C.perfmon_finalize()
-		C.topology_finalize()
-		err := errors.New("no LIKWID performance group initialized")
-		cclog.ComponentError(m.name, err.Error())
-		return err
-	}
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGCHLD)
-	signal.Notify(sigchan, os.Interrupt)
-	go func() {
-		<-sigchan
-
-		signal.Stop(sigchan)
-		m.initialized = false
-	}()
-	m.initialized = true
-	return nil
+	// calculate global metrics
+	m.calcGlobalMetrics(groups, interval, output)
 }
 
 // main read function taking multiple measurement rounds, each 'interval' seconds long
 func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
-	var skip bool = false
-	var err error
+	//var skip bool = false
+	//var err error
 	if !m.init {
 		return
 	}
-
 	m.measureThread.Call(func() {
-		if !m.initialized {
-			m.lock.Lock()
-			err = m.LateInit()
-			if err != nil {
-				m.lock.Unlock()
-				cclog.ComponentError(m.name, "lateinit failed")
-				return
-			}
-			m.initialized = true
-			m.lock.Unlock()
-			skip = true
-		}
-
-		if m.initialized && !skip {
-			time := interval
-			for _, evset := range m.likwidGroups {
-				if !skip {
-					// measure event set 'i' for 'interval' seconds
-					skip, err = m.takeMeasurement(evset, interval)
-					if err != nil {
-						cclog.ComponentError(m.name, err.Error())
-						return
-					}
-				}
-
-				if !skip {
-					// read measurements and derive event set metrics
-					m.calcEventsetMetrics(evset, time, output)
-				}
-			}
-
-			if !skip {
-				// use the event set metrics to derive the global metrics
-				m.calcGlobalMetrics(time, output)
-			}
-			if skip {
-				m.needs_reinit = true
-				m.initialized = false
-			}
-		}
+		m.ReadThread(interval, output)
 	})
 }
 
 func (m *LikwidCollector) Close() {
 	if m.init {
 		m.init = false
-		cclog.ComponentDebug(m.name, "Closing ...")
 		m.lock.Lock()
-		if m.initialized {
-			cclog.ComponentDebug(m.name, "Finalize LIKWID perfmon module")
-			C.perfmon_finalize()
-			m.initialized = false
-		}
+		m.measureThread.Terminate()
+		m.initialized = false
 		m.lock.Unlock()
-		cclog.ComponentDebug(m.name, "Finalize LIKWID topology module")
 		C.topology_finalize()
-
-		cclog.ComponentDebug(m.name, "Closing done")
 	}
 }
