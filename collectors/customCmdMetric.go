@@ -48,7 +48,7 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
 		command.Wait()
 		_, err = command.Output()
-		if err != nil {
+		if err == nil {
 			m.commands = append(m.commands, c)
 		}
 	}
