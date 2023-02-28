@@ -45,7 +45,7 @@ def group_to_json(groupfile):
             if "PWR" in calc:
                 scope = "socket"
 
-            m = {"name" : metric, "calc": calc, "scope" : scope, "publish" : True}
+            m = {"name" : metric, "calc": calc, "type" : scope, "publish" : True}
             metrics.append(m)
     return {"events" : events, "metrics" : metrics}
 
