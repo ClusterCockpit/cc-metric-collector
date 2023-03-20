@@ -10,13 +10,14 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/influxdata/influxdb-client-go/v2 v2.12.1
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
-	github.com/nats-io/nats.go v1.21.0
+	github.com/nats-io/nats.go v1.22.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stmcginnis/gofish v0.13.0
 	github.com/tklauser/go-sysconf v0.3.11
+	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/sys v0.3.0
+	gopkg.in/fsnotify.v0 v0.9.3
 )
-
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
@@ -31,11 +32,11 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.37.0 // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/prometheus/common v0.39.0 // indirect
+	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
-	golang.org/x/crypto v0.3.0 // indirect
-	golang.org/x/net v0.3.0 // indirect
+	golang.org/x/crypto v0.4.0 // indirect
+	golang.org/x/net v0.4.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )

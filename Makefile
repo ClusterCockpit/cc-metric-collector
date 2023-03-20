@@ -113,7 +113,6 @@ DEB: scripts/cc-metric-collector.deb.control $(APP)
 	@VERS=$$(git describe --tags --abbrev=0 $${COMMITISH})
 	@if [ -z "$${VERS}" ]; then VERS=${GITHUB_REF_NAME}; fi
 	@VERS=$${VERS#v}
-	@VERS=$$(echo $${VERS} | sed -e s+'-'+'_'+g)
 	@ARCH=$$(uname -m)
 	@ARCH=$$(echo $${ARCH} | sed -e s+'_'+'-'+g)
 	@if [ "$${ARCH}" = "x86-64" ]; then ARCH=amd64; fi
