@@ -23,3 +23,4 @@ Metrics:
 * `cpu_steal`
 * `cpu_guest`
 * `cpu_guest_nice`
+* `cpu_used` = `cpu_* - cpu_idle`

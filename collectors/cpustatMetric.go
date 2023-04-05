@@ -119,8 +119,17 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 		}
 	}
 
+	sum := float64(0)
 	for name, value := range values {
+		sum += value
 		y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
+		if err == nil {
+			output <- y
+		}
+	}
+	if v, ok := values["cpu_idle"]; ok {
+		sum -= v
+		y, err := lp.New("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
 		if err == nil {
 			output <- y
 		}
