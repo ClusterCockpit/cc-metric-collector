@@ -186,16 +186,16 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 		}
 	}
 	if len(s.config.Port) == 0 {
-		return nil, errors.New("Missing port configuration required by InfluxSink")
+		return nil, errors.New("missing port configuration required by InfluxSink")
 	}
 	if len(s.config.Database) == 0 {
-		return nil, errors.New("Missing database configuration required by InfluxSink")
+		return nil, errors.New("missing database configuration required by InfluxSink")
 	}
 	if len(s.config.Organization) == 0 {
-		return nil, errors.New("Missing organization configuration required by InfluxSink")
+		return nil, errors.New("missing organization configuration required by InfluxSink")
 	}
 	if len(s.config.Password) == 0 {
-		return nil, errors.New("Missing password configuration required by InfluxSink")
+		return nil, errors.New("missing password configuration required by InfluxSink")
 	}
 	// Create lookup map to use meta infos as tags in the output metric
 	s.meta_as_tags = make(map[string]bool)

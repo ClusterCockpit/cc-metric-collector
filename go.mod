@@ -3,20 +3,21 @@ module github.com/ClusterCockpit/cc-metric-collector
 go 1.18
 
 require (
-	github.com/ClusterCockpit/cc-units v0.3.0
+	github.com/ClusterCockpit/cc-units v0.4.0
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
 	github.com/NVIDIA/go-nvml v0.11.6-0
 	github.com/PaesslerAG/gval v1.2.1
 	github.com/gorilla/mux v1.8.0
 	github.com/influxdata/influxdb-client-go/v2 v2.12.1
-	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
+	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839
+	github.com/influxdata/line-protocol/v2 v2.2.1
 	github.com/nats-io/nats.go v1.22.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stmcginnis/gofish v0.13.0
 	github.com/tklauser/go-sysconf v0.3.11
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/sys v0.3.0
-	gopkg.in/fsnotify.v0 v0.9.3
+	gopkg.in/fsnotify.v1 v1.4.7
 )
 
 require (
@@ -24,6 +25,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/deepmap/oapi-codegen v1.12.4 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect

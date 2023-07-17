@@ -213,19 +213,19 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	}
 
 	if len(s.config.Host) == 0 {
-		return s, errors.New("Missing host configuration required by InfluxSink")
+		return s, errors.New("missing host configuration required by InfluxSink")
 	}
 	if len(s.config.Port) == 0 {
-		return s, errors.New("Missing port configuration required by InfluxSink")
+		return s, errors.New("missing port configuration required by InfluxSink")
 	}
 	if len(s.config.Database) == 0 {
-		return s, errors.New("Missing database configuration required by InfluxSink")
+		return s, errors.New("missing database configuration required by InfluxSink")
 	}
 	if len(s.config.Organization) == 0 {
-		return s, errors.New("Missing organization configuration required by InfluxSink")
+		return s, errors.New("missing organization configuration required by InfluxSink")
 	}
 	if len(s.config.Password) == 0 {
-		return s, errors.New("Missing password configuration required by InfluxSink")
+		return s, errors.New("missing password configuration required by InfluxSink")
 	}
 
 	// Create lookup map to use meta infos as tags in the output metric

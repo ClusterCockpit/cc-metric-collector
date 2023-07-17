@@ -11,7 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
-	influx "github.com/influxdata/line-protocol"
+	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 )
 
 type HttpSinkConfig struct {
@@ -41,7 +41,12 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	p := m.ToPoint(s.meta_as_tags)
 	s.lock.Lock()
 	firstWriteOfBatch := s.buffer.Len() == 0
-	_, err := s.encoder.Encode(p)
+	s.encoder.StartLine(p.Name())
+	for _, v := range p.TagList() {
+		s.encoder.AddTag(v.Key, v.Value)
+	}
+	s.encoder.EndLine(p.Time())
+	err := s.encoder.Err()
 	s.lock.Unlock()
 	if err != nil {
 		cclog.ComponentError(s.name, "encoding failed:", err.Error())
@@ -174,7 +179,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	}
 	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
 	s.buffer = &bytes.Buffer{}
-	s.encoder = influx.NewEncoder(s.buffer)
-	s.encoder.SetPrecision(time.Second)
+	s.encoder.SetPrecision(influx.Second)
+	s.encoder.SetBuffer(s.buffer.Bytes())
 	return s, nil
 }
