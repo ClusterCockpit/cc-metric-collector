@@ -45,7 +45,6 @@ func sumfunc(args interface{}) (interface{}, error) {
 }
 
 func minAnyType[T float64 | float32 | int | int32 | int64](values []T) (interface{}, error) {
-	fmt.Println(values)
 	if len(values) == 0 {
 		return 0.0, errors.New("min function requires at least one argument")
 	}
@@ -114,18 +113,35 @@ func avgfunc(args interface{}) (interface{}, error) {
 	return 0.0, nil
 }
 
-// Get the maximum value
-func maxfunc(args interface{}) (interface{}, error) {
-	s := 0.0
-	values, ok := args.([]float64)
-	if ok {
-		for _, x := range values {
-			if x > s {
-				s = x
-			}
+func maxAnyType[T float64 | float32 | int | int32 | int64](values []T) (interface{}, error) {
+	if len(values) == 0 {
+		return 0.0, errors.New("max function requires at least one argument")
+	}
+	var maximum T = values[0]
+	for _, value := range values {
+		if value > maximum {
+			maximum = value
 		}
 	}
-	return s, nil
+	return maximum, nil
+}
+
+// Get the maximum value
+func maxfunc(args interface{}) (interface{}, error) {
+	switch values := args.(type) {
+	case []float64:
+		return maxAnyType(values)
+	case []float32:
+		return maxAnyType(values)
+	case []int:
+		return maxAnyType(values)
+	case []int64:
+		return maxAnyType(values)
+	case []int32:
+		return maxAnyType(values)
+	default:
+		return 0.0, errors.New("function 'max' only on list of values (float64, float32, int, int32, int64)")
+	}
 }
 
 // Get the median value
