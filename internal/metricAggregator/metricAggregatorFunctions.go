@@ -128,18 +128,7 @@ func medianAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, er
 	if len(values) == 0 {
 		return 0.0, errors.New("median function requires at least one argument")
 	}
-	slices.SortFunc(
-		values,
-		func(a T, b T) int {
-			if a < b {
-				return -1
-			} else if a > b {
-				return 1
-			} else {
-				return 0
-			}
-		},
-	)
+	slices.Sort(values)
 	var median T
 	if midPoint := len(values) % 2; midPoint == 0 {
 		median = (values[midPoint-1] + values[midPoint]) / 2
