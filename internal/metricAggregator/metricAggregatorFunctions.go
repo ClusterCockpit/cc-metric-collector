@@ -123,6 +123,13 @@ func avgfunc(args interface{}) (interface{}, error) {
 			s += x
 		}
 		return s / int64(len(values)), nil
+	case []int32:
+		var s int32 = 0
+		for _, x := range values {
+			s += x
+		}
+		return s / int32(len(values)), nil
+
 	}
 	return 0.0, nil
 }
