@@ -15,40 +15,29 @@ import (
  * Arithmetic functions on value arrays
  */
 
+func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) interface{} {
+	var sum T
+	for _, value := range values {
+		sum += value
+	}
+	return sum
+}
+
 // Sum up values
 func sumfunc(args interface{}) (interface{}, error) {
+
 	var err error
 	switch values := args.(type) {
 	case []float64:
-		var s float64 = 0.0
-		for _, x := range values {
-			s += x
-		}
-		return s, nil
+		return sumAnyType(values), nil
 	case []float32:
-		var s float32 = 0.0
-		for _, x := range values {
-			s += x
-		}
-		return s, nil
+		return sumAnyType(values), nil
 	case []int:
-		var s int = 0
-		for _, x := range values {
-			s += x
-		}
-		return s, nil
+		return sumAnyType(values), nil
 	case []int64:
-		var s int64 = 0
-		for _, x := range values {
-			s += x
-		}
-		return s, nil
+		return sumAnyType(values), nil
 	case []int32:
-		var s int32 = 0
-		for _, x := range values {
-			s += x
-		}
-		return s, nil
+		return sumAnyType(values), nil
 	default:
 		err = errors.New("function 'sum' only on list of values (float64, float32, int, int32, int64)")
 	}
