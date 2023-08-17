@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 )
 
@@ -18,18 +17,43 @@ import (
 
 // Sum up values
 func sumfunc(args interface{}) (interface{}, error) {
-	s := 0.0
-	values, ok := args.([]float64)
-	if ok {
-		cclog.ComponentDebug("MetricCache", "SUM FUNC START")
+	var err error
+	switch values := args.(type) {
+	case []float64:
+		var s float64 = 0.0
 		for _, x := range values {
 			s += x
 		}
-		cclog.ComponentDebug("MetricCache", "SUM FUNC END", s)
-	} else {
-		cclog.ComponentDebug("MetricCache", "SUM FUNC CAST FAILED")
+		return s, nil
+	case []float32:
+		var s float32 = 0.0
+		for _, x := range values {
+			s += x
+		}
+		return s, nil
+	case []int:
+		var s int = 0
+		for _, x := range values {
+			s += x
+		}
+		return s, nil
+	case []int64:
+		var s int64 = 0
+		for _, x := range values {
+			s += x
+		}
+		return s, nil
+	case []int32:
+		var s int32 = 0
+		for _, x := range values {
+			s += x
+		}
+		return s, nil
+	default:
+		err = errors.New("function 'sum' only on list of values (float64, float32, int, int32, int64)")
 	}
-	return s, nil
+
+	return 0.0, err
 }
 
 // Get the minimum value
