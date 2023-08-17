@@ -14,7 +14,7 @@ import (
  * Arithmetic functions on value arrays
  */
 
-func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) interface{} {
+func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) T {
 	var sum T
 	for _, value := range values {
 		sum += value
@@ -44,7 +44,7 @@ func sumfunc(args interface{}) (interface{}, error) {
 	return 0.0, err
 }
 
-func minAnyType[T float64 | float32 | int | int32 | int64](values []T) (interface{}, error) {
+func minAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error) {
 	if len(values) == 0 {
 		return 0.0, errors.New("min function requires at least one argument")
 	}
@@ -75,45 +75,33 @@ func minfunc(args interface{}) (interface{}, error) {
 	}
 }
 
+func avgAnyType[T float64 | float32 | int | int32 | int64](values []T) (float64, error) {
+	if len(values) == 0 {
+		return 0.0, errors.New("average function requires at least one argument")
+	}
+	sum := sumAnyType[T](values)
+	return float64(sum) / float64(len(values)), nil
+}
+
 // Get the average or mean value
 func avgfunc(args interface{}) (interface{}, error) {
 	switch values := args.(type) {
 	case []float64:
-		var s float64 = 0
-		for _, x := range values {
-			s += x
-		}
-		return s / float64(len(values)), nil
+		return avgAnyType(values)
 	case []float32:
-		var s float32 = 0
-		for _, x := range values {
-			s += x
-		}
-		return s / float32(len(values)), nil
+		return avgAnyType(values)
 	case []int:
-		var s int = 0
-		for _, x := range values {
-			s += x
-		}
-		return s / len(values), nil
+		return avgAnyType(values)
 	case []int64:
-		var s int64 = 0
-		for _, x := range values {
-			s += x
-		}
-		return s / int64(len(values)), nil
+		return avgAnyType(values)
 	case []int32:
-		var s int32 = 0
-		for _, x := range values {
-			s += x
-		}
-		return s / int32(len(values)), nil
-
+		return avgAnyType(values)
+	default:
+		return 0.0, errors.New("function 'average' only on list of values (float64, float32, int, int32, int64)")
 	}
-	return 0.0, nil
 }
 
-func maxAnyType[T float64 | float32 | int | int32 | int64](values []T) (interface{}, error) {
+func maxAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error) {
 	if len(values) == 0 {
 		return 0.0, errors.New("max function requires at least one argument")
 	}
