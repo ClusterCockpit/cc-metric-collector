@@ -37,6 +37,7 @@ type InfinibandCollector struct {
 	config struct {
 		ExcludeDevices     []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
 		SendAbsoluteValues bool     `json:"send_abs_values"`           // Send absolut values as read from sys filesystem
+		SendTotalValues    bool     `json:"send_total_values"`         // Send computed total values
 		SendDerivedValues  bool     `json:"send_derived_values"`       // Send derived values e.g. rates
 	}
 	info          []*InfinibandCollectorInfo
@@ -171,6 +172,9 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 	m.lastTimestamp = now
 
 	for _, info := range m.info {
+
+		currentState := make(map[string]int64)
+
 		for counterName, counterDef := range info.portCounterFiles {
 
 			// Read counter file
@@ -211,11 +215,52 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 						output <- y
 					}
 				}
-				// Save current state
-				info.lastState[counterName] = v
 			}
+
+			// Save current state
+			currentState[counterName] = v
+
 		}
 
+		// Save current state for use as last state
+		if m.config.SendDerivedValues {
+			info.lastState = currentState
+		}
+
+		if m.config.SendAbsoluteValues {
+			recv, recv_ok := currentState["ib_recv"]
+			xmit, xmit_ok := currentState["ib_xmit"]
+			recv_pkts, recv_pkts_ok := currentState["ib_recv_pkts"]
+			xmit_pkts, xmit_pkts_ok := currentState["ib_xmit_pkts"]
+			if recv_ok && xmit_ok {
+				if y, err :=
+					lp.New(
+						"ib_total",
+						info.tagSet,
+						m.meta,
+						map[string]interface{}{
+							"value": recv + xmit,
+						},
+						now); err == nil {
+					y.AddMeta("unit", "bytes")
+					output <- y
+				}
+			}
+			if recv_pkts_ok && xmit_pkts_ok {
+				if y, err :=
+					lp.New(
+						"ib_total_pkts",
+						info.tagSet,
+						m.meta,
+						map[string]interface{}{
+							"value": recv_pkts + xmit_pkts,
+						},
+						now); err == nil {
+					y.AddMeta("unit", "packets")
+					output <- y
+				}
+			}
+		}
 	}
 }
 
