@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
@@ -135,27 +135,47 @@ func maxfunc(args interface{}) (interface{}, error) {
 	}
 }
 
+func medianAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error) {
+	if len(values) == 0 {
+		return 0.0, errors.New("median function requires at least one argument")
+	}
+	slices.SortFunc(
+		values,
+		func(a T, b T) int {
+			if a < b {
+				return -1
+			} else if a > b {
+				return 1
+			} else {
+				return 0
+			}
+		},
+	)
+	var median T
+	if midPoint := len(values) % 2; midPoint == 0 {
+		median = (values[midPoint-1] + values[midPoint]) / 2
+	} else {
+		median = values[midPoint]
+	}
+	return median, nil
+}
+
 // Get the median value
 func medianfunc(args interface{}) (interface{}, error) {
 	switch values := args.(type) {
 	case []float64:
-		sort.Float64s(values)
-		return values[len(values)/2], nil
-	// case []float32:
-	// 	sort.Float64s(values)
-	// 	return values[len(values)/2], nil
+		return medianAnyType(values)
+	case []float32:
+		return medianAnyType(values)
 	case []int:
-		sort.Ints(values)
-		return values[len(values)/2], nil
-
-		// case []int64:
-		// 	sort.Ints(values)
-		// 	return values[len(values)/2], nil
-		// case []int32:
-		// 	sort.Ints(values)
-		// 	return values[len(values)/2], nil
+		return medianAnyType(values)
+	case []int64:
+		return medianAnyType(values)
+	case []int32:
+		return medianAnyType(values)
+	default:
+		return 0.0, errors.New("function 'median' only on list of values (float64, float32, int, int32, int64)")
 	}
-	return 0.0, errors.New("function 'median()' only on lists of type float64 and int")
 }
 
 /*
