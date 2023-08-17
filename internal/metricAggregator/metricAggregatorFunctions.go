@@ -3,7 +3,6 @@ package metricAggregator
 import (
 	"errors"
 	"fmt"
-	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -45,55 +44,36 @@ func sumfunc(args interface{}) (interface{}, error) {
 	return 0.0, err
 }
 
+func minAnyType[T float64 | float32 | int | int32 | int64](values []T) (interface{}, error) {
+	fmt.Println(values)
+	if len(values) == 0 {
+		return 0.0, errors.New("min function requires at least one argument")
+	}
+	var minimum T = values[0]
+	for _, value := range values {
+		if value < minimum {
+			minimum = value
+		}
+	}
+	return minimum, nil
+}
+
 // Get the minimum value
 func minfunc(args interface{}) (interface{}, error) {
-	var err error = nil
 	switch values := args.(type) {
 	case []float64:
-		var s float64 = math.MaxFloat64
-		for _, x := range values {
-			if x < s {
-				s = x
-			}
-		}
-		return s, nil
+		return minAnyType(values)
 	case []float32:
-		var s float32 = math.MaxFloat32
-		for _, x := range values {
-			if x < s {
-				s = x
-			}
-		}
-		return s, nil
+		return minAnyType(values)
 	case []int:
-		var s int = int(math.MaxInt32)
-		for _, x := range values {
-			if x < s {
-				s = x
-			}
-		}
-		return s, nil
+		return minAnyType(values)
 	case []int64:
-		var s int64 = math.MaxInt64
-		for _, x := range values {
-			if x < s {
-				s = x
-			}
-		}
-		return s, nil
+		return minAnyType(values)
 	case []int32:
-		var s int32 = math.MaxInt32
-		for _, x := range values {
-			if x < s {
-				s = x
-			}
-		}
-		return s, nil
+		return minAnyType(values)
 	default:
-		err = errors.New("function 'min' only on list of values (float64, float32, int, int32, int64)")
+		return 0.0, errors.New("function 'min' only on list of values (float64, float32, int, int32, int64)")
 	}
-
-	return 0.0, err
 }
 
 // Get the average or mean value
