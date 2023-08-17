@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
+
+	"golang.org/x/exp/slices"
 
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 )
@@ -51,13 +52,7 @@ func minAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error
 	if len(values) == 0 {
 		return 0.0, errors.New("min function requires at least one argument")
 	}
-	var minimum T = values[0]
-	for _, value := range values {
-		if value < minimum {
-			minimum = value
-		}
-	}
-	return minimum, nil
+	return slices.Min(values), nil
 }
 
 // Get the minimum value
@@ -108,13 +103,7 @@ func maxAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error
 	if len(values) == 0 {
 		return 0.0, errors.New("max function requires at least one argument")
 	}
-	var maximum T = values[0]
-	for _, value := range values {
-		if value > maximum {
-			maximum = value
-		}
-	}
-	return maximum, nil
+	return slices.Max(values), nil
 }
 
 // Get the maximum value
