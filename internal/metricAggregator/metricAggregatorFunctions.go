@@ -17,9 +17,9 @@ import (
  */
 
 // Sum up values
-func sumfunc(args ...interface{}) (interface{}, error) {
+func sumfunc(args interface{}) (interface{}, error) {
 	s := 0.0
-	values, ok := args[0].([]float64)
+	values, ok := args.([]float64)
 	if ok {
 		cclog.ComponentDebug("MetricCache", "SUM FUNC START")
 		for _, x := range values {
@@ -33,9 +33,9 @@ func sumfunc(args ...interface{}) (interface{}, error) {
 }
 
 // Get the minimum value
-func minfunc(args ...interface{}) (interface{}, error) {
+func minfunc(args interface{}) (interface{}, error) {
 	var err error = nil
-	switch values := args[0].(type) {
+	switch values := args.(type) {
 	case []float64:
 		var s float64 = math.MaxFloat64
 		for _, x := range values {
@@ -84,8 +84,8 @@ func minfunc(args ...interface{}) (interface{}, error) {
 }
 
 // Get the average or mean value
-func avgfunc(args ...interface{}) (interface{}, error) {
-	switch values := args[0].(type) {
+func avgfunc(args interface{}) (interface{}, error) {
+	switch values := args.(type) {
 	case []float64:
 		var s float64 = 0
 		for _, x := range values {
@@ -115,9 +115,9 @@ func avgfunc(args ...interface{}) (interface{}, error) {
 }
 
 // Get the maximum value
-func maxfunc(args ...interface{}) (interface{}, error) {
+func maxfunc(args interface{}) (interface{}, error) {
 	s := 0.0
-	values, ok := args[0].([]float64)
+	values, ok := args.([]float64)
 	if ok {
 		for _, x := range values {
 			if x > s {
@@ -129,8 +129,8 @@ func maxfunc(args ...interface{}) (interface{}, error) {
 }
 
 // Get the median value
-func medianfunc(args ...interface{}) (interface{}, error) {
-	switch values := args[0].(type) {
+func medianfunc(args interface{}) (interface{}, error) {
+	switch values := args.(type) {
 	case []float64:
 		sort.Float64s(values)
 		return values[len(values)/2], nil
@@ -155,10 +155,10 @@ func medianfunc(args ...interface{}) (interface{}, error) {
  * Get number of values in list. Returns always an int
  */
 
-func lenfunc(args ...interface{}) (interface{}, error) {
+func lenfunc(args interface{}) (interface{}, error) {
 	var err error = nil
 	var length int = 0
-	switch values := args[0].(type) {
+	switch values := args.(type) {
 	case []float64:
 		length = len(values)
 	case []float32:
@@ -243,8 +243,8 @@ func matchfunc(args ...interface{}) (interface{}, error) {
  */
 
 // for a given cpuid, it returns the core id
-func getCpuCoreFunc(args ...interface{}) (interface{}, error) {
-	switch cpuid := args[0].(type) {
+func getCpuCoreFunc(args interface{}) (interface{}, error) {
+	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadCore(cpuid), nil
 	}
@@ -252,8 +252,8 @@ func getCpuCoreFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given cpuid, it returns the socket id
-func getCpuSocketFunc(args ...interface{}) (interface{}, error) {
-	switch cpuid := args[0].(type) {
+func getCpuSocketFunc(args interface{}) (interface{}, error) {
+	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadSocket(cpuid), nil
 	}
@@ -261,8 +261,8 @@ func getCpuSocketFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given cpuid, it returns the id of the NUMA node
-func getCpuNumaDomainFunc(args ...interface{}) (interface{}, error) {
-	switch cpuid := args[0].(type) {
+func getCpuNumaDomainFunc(args interface{}) (interface{}, error) {
+	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadNumaDomain(cpuid), nil
 	}
@@ -270,8 +270,8 @@ func getCpuNumaDomainFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given cpuid, it returns the id of the CPU die
-func getCpuDieFunc(args ...interface{}) (interface{}, error) {
-	switch cpuid := args[0].(type) {
+func getCpuDieFunc(args interface{}) (interface{}, error) {
+	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadDie(cpuid), nil
 	}
@@ -279,9 +279,9 @@ func getCpuDieFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given core id, it returns the list of cpuids
-func getCpuListOfCoreFunc(args ...interface{}) (interface{}, error) {
+func getCpuListOfCoreFunc(args interface{}) (interface{}, error) {
 	cpulist := make([]int, 0)
-	switch in := args[0].(type) {
+	switch in := args.(type) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Core == in {
@@ -293,9 +293,9 @@ func getCpuListOfCoreFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given socket id, it returns the list of cpuids
-func getCpuListOfSocketFunc(args ...interface{}) (interface{}, error) {
+func getCpuListOfSocketFunc(args interface{}) (interface{}, error) {
 	cpulist := make([]int, 0)
-	switch in := args[0].(type) {
+	switch in := args.(type) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Socket == in {
@@ -307,9 +307,9 @@ func getCpuListOfSocketFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given id of a NUMA domain, it returns the list of cpuids
-func getCpuListOfNumaDomainFunc(args ...interface{}) (interface{}, error) {
+func getCpuListOfNumaDomainFunc(args interface{}) (interface{}, error) {
 	cpulist := make([]int, 0)
-	switch in := args[0].(type) {
+	switch in := args.(type) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Numadomain == in {
@@ -321,9 +321,9 @@ func getCpuListOfNumaDomainFunc(args ...interface{}) (interface{}, error) {
 }
 
 // for a given CPU die id, it returns the list of cpuids
-func getCpuListOfDieFunc(args ...interface{}) (interface{}, error) {
+func getCpuListOfDieFunc(args interface{}) (interface{}, error) {
 	cpulist := make([]int, 0)
-	switch in := args[0].(type) {
+	switch in := args.(type) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Die == in {
@@ -335,7 +335,7 @@ func getCpuListOfDieFunc(args ...interface{}) (interface{}, error) {
 }
 
 // wrapper function to get a list of all cpuids of the node
-func getCpuListOfNode(args ...interface{}) (interface{}, error) {
+func getCpuListOfNode() (interface{}, error) {
 	return topo.HwthreadList(), nil
 }
 
