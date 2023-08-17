@@ -14,12 +14,15 @@ import (
  * Arithmetic functions on value arrays
  */
 
-func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) T {
+func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error) {
+	if len(values) == 0 {
+		return 0.0, errors.New("sum function requires at least one argument")
+	}
 	var sum T
 	for _, value := range values {
 		sum += value
 	}
-	return sum
+	return sum, nil
 }
 
 // Sum up values
@@ -28,15 +31,15 @@ func sumfunc(args interface{}) (interface{}, error) {
 	var err error
 	switch values := args.(type) {
 	case []float64:
-		return sumAnyType(values), nil
+		return sumAnyType(values)
 	case []float32:
-		return sumAnyType(values), nil
+		return sumAnyType(values)
 	case []int:
-		return sumAnyType(values), nil
+		return sumAnyType(values)
 	case []int64:
-		return sumAnyType(values), nil
+		return sumAnyType(values)
 	case []int32:
-		return sumAnyType(values), nil
+		return sumAnyType(values)
 	default:
 		err = errors.New("function 'sum' only on list of values (float64, float32, int, int32, int64)")
 	}
@@ -79,8 +82,8 @@ func avgAnyType[T float64 | float32 | int | int32 | int64](values []T) (float64,
 	if len(values) == 0 {
 		return 0.0, errors.New("average function requires at least one argument")
 	}
-	sum := sumAnyType[T](values)
-	return float64(sum) / float64(len(values)), nil
+	sum, err := sumAnyType[T](values)
+	return float64(sum) / float64(len(values)), err
 }
 
 // Get the average or mean value
