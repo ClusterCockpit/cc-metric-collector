@@ -344,6 +344,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
+		return true, err
 	}
 	defer watcher.Close()
 	if len(m.config.LockfilePath) > 0 {
