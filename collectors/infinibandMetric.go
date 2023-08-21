@@ -18,18 +18,22 @@ import (
 const IB_BASEPATH = "/sys/class/infiniband/"
 
 type InfinibandCollectorMetric struct {
-	path  string
-	unit  string
-	scale int64
+	name             string
+	path             string
+	unit             string
+	scale            int64
+	addToIBTotal     bool
+	addToIBTotalPkgs bool
+	currentState     int64
+	lastState        int64
 }
 
 type InfinibandCollectorInfo struct {
-	LID              string                               // IB local Identifier (LID)
-	device           string                               // IB device
-	port             string                               // IB device port
-	portCounterFiles map[string]InfinibandCollectorMetric // mapping counter name -> InfinibandCollectorMetric
-	tagSet           map[string]string                    // corresponding tag list
-	lastState        map[string]int64                     // State from last measurement
+	LID              string                      // IB local Identifier (LID)
+	device           string                      // IB device
+	port             string                      // IB device port
+	portCounterFiles []InfinibandCollectorMetric // mapping counter name -> InfinibandCollectorMetric
+	tagSet           map[string]string           // corresponding tag list
 }
 
 type InfinibandCollector struct {
@@ -40,7 +44,7 @@ type InfinibandCollector struct {
 		SendTotalValues    bool     `json:"send_total_values"`         // Send computed total values
 		SendDerivedValues  bool     `json:"send_derived_values"`       // Send derived values e.g. rates
 	}
-	info          []*InfinibandCollectorInfo
+	info          []InfinibandCollectorInfo
 	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
 }
 
@@ -113,11 +117,39 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 
 		// Check access to counter files
 		countersDir := filepath.Join(path, "counters")
-		portCounterFiles := map[string]InfinibandCollectorMetric{
-			"ib_recv":      {path: filepath.Join(countersDir, "port_rcv_data"), unit: "bytes", scale: 4},
-			"ib_xmit":      {path: filepath.Join(countersDir, "port_xmit_data"), unit: "bytes", scale: 4},
-			"ib_recv_pkts": {path: filepath.Join(countersDir, "port_rcv_packets"), unit: "packets", scale: 1},
-			"ib_xmit_pkts": {path: filepath.Join(countersDir, "port_xmit_packets"), unit: "packets", scale: 1},
+		portCounterFiles := []InfinibandCollectorMetric{
+			{
+				name:         "ib_recv",
+				path:         filepath.Join(countersDir, "port_rcv_data"),
+				unit:         "bytes",
+				scale:        4,
+				addToIBTotal: true,
+				lastState:    -1,
+			},
+			{
+				name:         "ib_xmit",
+				path:         filepath.Join(countersDir, "port_xmit_data"),
+				unit:         "bytes",
+				scale:        4,
+				addToIBTotal: true,
+				lastState:    -1,
+			},
+			{
+				name:             "ib_recv_pkts",
+				path:             filepath.Join(countersDir, "port_rcv_packets"),
+				unit:             "packets",
+				scale:            1,
+				addToIBTotalPkgs: true,
+				lastState:        -1,
+			},
+			{
+				name:             "ib_xmit_pkts",
+				path:             filepath.Join(countersDir, "port_xmit_packets"),
+				unit:             "packets",
+				scale:            1,
+				addToIBTotalPkgs: true,
+				lastState:        -1,
+			},
 		}
 		for _, counter := range portCounterFiles {
 			err := unix.Access(counter.path, unix.R_OK)
@@ -126,14 +158,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 			}
 		}
 
-		// Initialize last state
-		lastState := make(map[string]int64)
-		for counter := range portCounterFiles {
-			lastState[counter] = -1
-		}
-
 		m.info = append(m.info,
-			&InfinibandCollectorInfo{
+			InfinibandCollectorInfo{
 				LID:              LID,
 				device:           device,
 				port:             port,
@@ -144,7 +170,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 					"port":   port,
 					"lid":    LID,
 				},
-				lastState: lastState,
 			})
 	}
 
@@ -171,11 +196,12 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 	// Save current timestamp
 	m.lastTimestamp = now
 
-	for _, info := range m.info {
+	for i := range m.info {
+		info := &m.info[i]
 
-		currentState := make(map[string]int64)
-
-		for counterName, counterDef := range info.portCounterFiles {
+		var ib_total, ib_total_pkts int64
+		for i := range info.portCounterFiles {
+			counterDef := &info.portCounterFiles[i]
 
 			// Read counter file
 			line, err := os.ReadFile(counterDef.path)
@@ -192,15 +218,26 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterName, data, err))
+					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterDef.name, data, err))
 				continue
 			}
 			// Scale raw value
 			v *= counterDef.scale
 
+			// Save current state
+			counterDef.currentState = v
+
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
-				if y, err := lp.New(counterName, info.tagSet, m.meta, map[string]interface{}{"value": v}, now); err == nil {
+				if y, err :=
+					lp.New(
+						counterDef.name,
+						info.tagSet,
+						m.meta,
+						map[string]interface{}{
+							"value": counterDef.currentState,
+						},
+						now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
 				}
@@ -208,57 +245,62 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 
 			// Send derived values
 			if m.config.SendDerivedValues {
-				if info.lastState[counterName] >= 0 {
-					rate := float64((v - info.lastState[counterName])) / timeDiff
-					if y, err := lp.New(counterName+"_bw", info.tagSet, m.meta, map[string]interface{}{"value": rate}, now); err == nil {
+				if counterDef.lastState >= 0 {
+					rate := float64((counterDef.currentState - counterDef.lastState)) / timeDiff
+					if y, err :=
+						lp.New(
+							counterDef.name+"_bw",
+							info.tagSet,
+							m.meta,
+							map[string]interface{}{
+								"value": rate,
+							},
+							now); err == nil {
 						y.AddMeta("unit", counterDef.unit+"/sec")
 						output <- y
+
 					}
 				}
+				counterDef.lastState = counterDef.currentState
 			}
 
-			// Save current state
-			currentState[counterName] = v
-
-		}
-
-		// Save current state for use as last state
-		if m.config.SendDerivedValues {
-			info.lastState = currentState
-		}
-
-		if m.config.SendAbsoluteValues {
-			recv, recv_ok := currentState["ib_recv"]
-			xmit, xmit_ok := currentState["ib_xmit"]
-			recv_pkts, recv_pkts_ok := currentState["ib_recv_pkts"]
-			xmit_pkts, xmit_pkts_ok := currentState["ib_xmit_pkts"]
-			if recv_ok && xmit_ok {
-				if y, err :=
-					lp.New(
-						"ib_total",
-						info.tagSet,
-						m.meta,
-						map[string]interface{}{
-							"value": recv + xmit,
-						},
-						now); err == nil {
-					y.AddMeta("unit", "bytes")
-					output <- y
+			// Sum up total values
+			if m.config.SendTotalValues {
+				switch {
+				case counterDef.addToIBTotal:
+					ib_total += counterDef.currentState
+				case counterDef.addToIBTotalPkgs:
+					ib_total_pkts += counterDef.currentState
 				}
 			}
-			if recv_pkts_ok && xmit_pkts_ok {
-				if y, err :=
-					lp.New(
-						"ib_total_pkts",
-						info.tagSet,
-						m.meta,
-						map[string]interface{}{
-							"value": recv_pkts + xmit_pkts,
-						},
-						now); err == nil {
-					y.AddMeta("unit", "packets")
-					output <- y
-				}
+		}
+
+		// Send total values
+		if m.config.SendTotalValues {
+			if y, err :=
+				lp.New(
+					"ib_total",
+					info.tagSet,
+					m.meta,
+					map[string]interface{}{
+						"value": ib_total,
+					},
+					now); err == nil {
+				y.AddMeta("unit", "bytes")
+				output <- y
+			}
+
+			if y, err :=
+				lp.New(
+					"ib_total_pkts",
+					info.tagSet,
+					m.meta,
+					map[string]interface{}{
+						"value": ib_total_pkts,
+					},
+					now); err == nil {
+				y.AddMeta("unit", "packets")
+				output <- y
 			}
 		}
 	}
