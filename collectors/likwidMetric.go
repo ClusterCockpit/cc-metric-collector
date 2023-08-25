@@ -306,17 +306,36 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
+	m.measureThread = thread.New()
 	switch m.config.AccessMode {
 	case "direct":
-		C.HPMmode(0)
+		m.measureThread.Call(
+			func() {
+				C.HPMmode(0)
+			})
 	case "accessdaemon":
 		if len(m.config.DaemonPath) > 0 {
 			p := os.Getenv("PATH")
 			os.Setenv("PATH", m.config.DaemonPath+":"+p)
 		}
-		C.HPMmode(1)
+		m.measureThread.Call(
+			func() {
+				C.HPMmode(1)
+				retCode := C.HPMinit()
+				if retCode != 0 {
+					err := fmt.Errorf("C.HPMinit() failed with return code %v", retCode)
+					cclog.ComponentError(m.name, err.Error())
+				}
+			})
 		for _, c := range m.cpulist {
-			C.HPMaddThread(c)
+			m.measureThread.Call(
+				func() {
+					retCode := C.HPMaddThread(c)
+					if retCode != 0 {
+						err := fmt.Errorf("C.HPMaddThread(%v) failed with return code %v", c, retCode)
+						cclog.ComponentError(m.name, err.Error())
+					}
+				})
 		}
 	}
 	m.sock2tid = make(map[int]int)
@@ -331,7 +350,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 
 	m.basefreq = getBaseFreq()
-	m.measureThread = thread.New()
 	m.init = true
 	return nil
 }
