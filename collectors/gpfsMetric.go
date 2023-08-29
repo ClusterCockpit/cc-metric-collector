@@ -31,6 +31,7 @@ type GpfsCollector struct {
 		Mmpmon            string   `json:"mmpmon_path,omitempty"`
 		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
 		SendBandwidths    bool     `json:"send_bandwidths"`
+		SendTotalValues   bool     `json:"send_total_values"`
 	}
 	skipFS        map[string]struct{}
 	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
@@ -216,13 +217,33 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				fmt.Sprintf("Read(): Failed to convert bytes read '%s' to int64: %v", key_value["_br_"], err))
 			continue
 		}
-		if y, err := lp.New("gpfs_bytes_read", m.tags, m.meta, map[string]interface{}{"value": bytesRead}, timestamp); err == nil {
+		if y, err :=
+			lp.New(
+				"gpfs_bytes_read",
+				m.tags,
+				m.meta,
+				map[string]interface{}{
+					"value": bytesRead,
+				},
+				timestamp,
+			); err == nil {
+			y.AddMeta("unit", "bytes")
 			output <- y
 		}
 		if m.config.SendBandwidths {
 			if lastBytesRead := m.lastState[filesystem].bytesRead; lastBytesRead >= 0 {
 				bwRead := float64(bytesRead-lastBytesRead) / timeDiff
-				if y, err := lp.New("gpfs_bw_read", m.tags, m.meta, map[string]interface{}{"value": bwRead}, timestamp); err == nil {
+				if y, err :=
+					lp.New(
+						"gpfs_bw_read",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": bwRead,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "bytes/sec")
 					output <- y
 				}
 			}
@@ -236,13 +257,33 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				fmt.Sprintf("Read(): Failed to convert bytes written '%s' to int64: %v", key_value["_bw_"], err))
 			continue
 		}
-		if y, err := lp.New("gpfs_bytes_written", m.tags, m.meta, map[string]interface{}{"value": bytesWritten}, timestamp); err == nil {
+		if y, err :=
+			lp.New(
+				"gpfs_bytes_written",
+				m.tags,
+				m.meta,
+				map[string]interface{}{
+					"value": bytesWritten,
+				},
+				timestamp,
+			); err == nil {
+			y.AddMeta("unit", "bytes")
 			output <- y
 		}
 		if m.config.SendBandwidths {
 			if lastBytesWritten := m.lastState[filesystem].bytesRead; lastBytesWritten >= 0 {
 				bwWrite := float64(bytesWritten-lastBytesWritten) / timeDiff
-				if y, err := lp.New("gpfs_bw_write", m.tags, m.meta, map[string]interface{}{"value": bwWrite}, timestamp); err == nil {
+				if y, err :=
+					lp.New(
+						"gpfs_bw_write",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": bwWrite,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "bytes/sec")
 					output <- y
 				}
 			}
@@ -325,6 +366,47 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 		}
 		if y, err := lp.New("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
 			output <- y
+		}
+
+		// Total values
+		if m.config.SendTotalValues {
+			bytesTotal := bytesRead + bytesWritten
+			if y, err :=
+				lp.New("gpfs_bytes_total",
+					m.tags,
+					m.meta,
+					map[string]interface{}{
+						"value": bytesTotal,
+					},
+					timestamp,
+				); err == nil {
+				y.AddMeta("unit", "bytes")
+				output <- y
+			}
+			iops := numReads + numWrites
+			if y, err :=
+				lp.New("gpfs_iops",
+					m.tags,
+					m.meta,
+					map[string]interface{}{
+						"value": iops,
+					},
+					timestamp,
+				); err == nil {
+				output <- y
+			}
+			metaops := numInodeUpdates + numCloses + numOpens + numReaddirs
+			if y, err :=
+				lp.New("gpfs_metaops",
+					m.tags,
+					m.meta,
+					map[string]interface{}{
+						"value": metaops,
+					},
+					timestamp,
+				); err == nil {
+				output <- y
+			}
 		}
 	}
 }

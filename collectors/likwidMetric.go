@@ -30,7 +30,7 @@ import (
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 	"golang.design/x/thread"
-	fsnotify "gopkg.in/fsnotify.v0"
+	fsnotify "gopkg.in/fsnotify.v1"
 )
 
 const (
@@ -306,17 +306,36 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		cclog.ComponentError(m.name, err.Error())
 		return err
 	}
+	m.measureThread = thread.New()
 	switch m.config.AccessMode {
 	case "direct":
-		C.HPMmode(0)
+		m.measureThread.Call(
+			func() {
+				C.HPMmode(0)
+			})
 	case "accessdaemon":
 		if len(m.config.DaemonPath) > 0 {
 			p := os.Getenv("PATH")
 			os.Setenv("PATH", m.config.DaemonPath+":"+p)
 		}
-		C.HPMmode(1)
+		m.measureThread.Call(
+			func() {
+				C.HPMmode(1)
+				retCode := C.HPMinit()
+				if retCode != 0 {
+					err := fmt.Errorf("C.HPMinit() failed with return code %v", retCode)
+					cclog.ComponentError(m.name, err.Error())
+				}
+			})
 		for _, c := range m.cpulist {
-			C.HPMaddThread(c)
+			m.measureThread.Call(
+				func() {
+					retCode := C.HPMaddThread(c)
+					if retCode != 0 {
+						err := fmt.Errorf("C.HPMaddThread(%v) failed with return code %v", c, retCode)
+						cclog.ComponentError(m.name, err.Error())
+					}
+				})
 		}
 	}
 	m.sock2tid = make(map[int]int)
@@ -331,7 +350,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 
 	m.basefreq = getBaseFreq()
-	m.measureThread = thread.New()
 	m.init = true
 	return nil
 }
@@ -344,6 +362,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
+		return true, err
 	}
 	defer watcher.Close()
 	if len(m.config.LockfilePath) > 0 {
@@ -360,7 +379,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 				return true, fmt.Errorf("Access to performance counters locked by %d", stat.Uid)
 			}
 		}
-		err = watcher.Watch(m.config.LockfilePath)
+		err = watcher.Add(m.config.LockfilePath)
 		if err != nil {
 			cclog.ComponentError(m.name, err.Error())
 		}
@@ -368,9 +387,9 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	select {
-	case e := <-watcher.Event:
+	case e := <-watcher.Events:
 		ret = -1
-		if !e.IsAttrib() {
+		if e.Op != fsnotify.Chmod {
 			ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
 		}
 	default:
@@ -384,9 +403,9 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	select {
 	case <-sigchan:
 		gid = -1
-	case e := <-watcher.Event:
+	case e := <-watcher.Events:
 		gid = -1
-		if !e.IsAttrib() {
+		if e.Op != fsnotify.Chmod {
 			gid = C.perfmon_addEventSet(evset.estr)
 		}
 	default:
@@ -401,8 +420,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	select {
 	case <-sigchan:
 		ret = -1
-	case e := <-watcher.Event:
-		if !e.IsAttrib() {
+	case e := <-watcher.Events:
+		if e.Op != fsnotify.Chmod {
 			ret = C.perfmon_setupCounters(gid)
 		}
 	default:
@@ -414,8 +433,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	select {
 	case <-sigchan:
 		ret = -1
-	case e := <-watcher.Event:
-		if !e.IsAttrib() {
+	case e := <-watcher.Events:
+		if e.Op != fsnotify.Chmod {
 			ret = C.perfmon_startCounters()
 		}
 	default:
@@ -427,8 +446,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	select {
 	case <-sigchan:
 		ret = -1
-	case e := <-watcher.Event:
-		if !e.IsAttrib() {
+	case e := <-watcher.Events:
+		if e.Op != fsnotify.Chmod {
 			ret = C.perfmon_readCounters()
 		}
 	default:
@@ -441,8 +460,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	select {
 	case <-sigchan:
 		ret = -1
-	case e := <-watcher.Event:
-		if !e.IsAttrib() {
+	case e := <-watcher.Events:
+		if e.Op != fsnotify.Chmod {
 			ret = C.perfmon_readCounters()
 		}
 	default:
@@ -468,8 +487,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	select {
 	case <-sigchan:
 		ret = -1
-	case e := <-watcher.Event:
-		if !e.IsAttrib() {
+	case e := <-watcher.Events:
+		if e.Op != fsnotify.Chmod {
 			ret = C.perfmon_stopCounters()
 		}
 	default:
@@ -480,8 +499,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	}
 	signal.Stop(sigchan)
 	select {
-	case e := <-watcher.Event:
-		if !e.IsAttrib() {
+	case e := <-watcher.Events:
+		if e.Op != fsnotify.Chmod {
 			C.perfmon_finalize()
 		}
 	default:
@@ -588,7 +607,6 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 	}
 	return nil
 }
-
 
 func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMetric) {
 	var err error = nil
