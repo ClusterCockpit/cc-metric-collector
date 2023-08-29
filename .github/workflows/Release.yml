@@ -51,7 +51,9 @@ jobs:
 
     - name: RPM build MetricCollector
       id: rpmbuild
-      run: make RPM
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
 
     # AlmaLinux 8.5 is a derivate of RedHat Enterprise Linux 8 (UBI8),
     # so the created RPM both contain the substring 'el8' in the RPM file names
@@ -119,7 +121,9 @@ jobs:
 
     - name: RPM build MetricCollector
       id: rpmbuild
-      run: make RPM
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
@@ -168,6 +172,7 @@ jobs:
       id: dpkg-build
       run: |
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make DEB
     - name: Rename DEB (add '_ubuntu20.04')
       id: debrename
