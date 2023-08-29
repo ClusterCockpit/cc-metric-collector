@@ -11,9 +11,10 @@ import (
 )
 
 var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
-	"ipmi":    NewIPMIReceiver,
-	"nats":    NewNatsReceiver,
-	"redfish": NewRedfishReceiver,
+	"ipmi":       NewIPMIReceiver,
+	"nats":       NewNatsReceiver,
+	"redfish":    NewRedfishReceiver,
+	"appmetrics": NewAppMetricReceiver,
 }
 
 type receiveManager struct {
