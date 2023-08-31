@@ -29,7 +29,7 @@ make
 
 
 %install
-install -Dpm 0750 %{name} %{buildroot}%{_sbindir}/%{name}
+install -Dpm 0750 %{name} %{buildroot}%{_bindir}/%{name}
 install -Dpm 0600 config.json %{buildroot}%{_sysconfdir}/%{name}/%{name}.json
 install -Dpm 0600 collectors.json %{buildroot}%{_sysconfdir}/%{name}/collectors.json
 install -Dpm 0600 sinks.json %{buildroot}%{_sysconfdir}/%{name}/sinks.json
@@ -54,7 +54,7 @@ install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.c
 
 %files
 # Binary
-%attr(-,clustercockpit,clustercockpit) %{_sbindir}/%{name}
+%attr(-,clustercockpit,clustercockpit) %{_bindir}/%{name}
 # Config
 %dir %{_sysconfdir}/%{name}
 %attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
