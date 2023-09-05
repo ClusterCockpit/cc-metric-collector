@@ -2,7 +2,6 @@ package ccTopology
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -31,7 +30,7 @@ func intArrayContains(array []int, str int) (int, bool) {
 
 // Used internally for sysfs file reads
 func fileToInt(path string) int {
-	buffer, err := ioutil.ReadFile(path)
+	buffer, err := os.ReadFile(path)
 	if err != nil {
 		log.Print(err)
 		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
@@ -50,7 +49,7 @@ func fileToInt(path string) int {
 
 // Get list of CPU socket IDs
 func SocketList() []int {
-	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
+	buffer, err := os.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -76,7 +75,7 @@ func SocketList() []int {
 
 // Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
 func HwthreadList() []int {
-	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
+	buffer, err := os.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -108,7 +107,7 @@ func CpuList() []int {
 
 // Get list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
-	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
+	buffer, err := os.ReadFile(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -219,7 +218,7 @@ type HwthreadEntry struct {
 func CpuData() []HwthreadEntry {
 
 	// fileToInt := func(path string) int {
-	// 	buffer, err := ioutil.ReadFile(path)
+	// 	buffer, err := os.ReadFile(path)
 	// 	if err != nil {
 	// 		log.Print(err)
 	// 		//cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
@@ -248,7 +247,7 @@ func CpuData() []HwthreadEntry {
 	}
 
 	getSMT := func(cpuid int, basepath string) int {
-		buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/thread_siblings_list", basepath))
+		buffer, err := os.ReadFile(fmt.Sprintf("%s/thread_siblings_list", basepath))
 		if err != nil {
 			cclogger.ComponentError("CCTopology", "CpuData:getSMT", err.Error())
 		}
