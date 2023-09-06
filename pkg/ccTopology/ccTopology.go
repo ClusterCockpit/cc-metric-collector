@@ -1,6 +1,7 @@
 package ccTopology
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -20,6 +21,7 @@ const (
 )
 
 // fileToInt reads an integer value from a file
+// In case of an error -1 is returned
 // Used internally for sysfs file reads
 func fileToInt(path string) int {
 	buffer, err := os.ReadFile(path)
@@ -39,23 +41,27 @@ func fileToInt(path string) int {
 
 // Get list of CPU socket IDs
 func SocketList() []int {
-	buffer, err := os.ReadFile(string(PROCFS_CPUINFO))
+
+	packs := make([]int, 0)
+
+	file, err := os.Open(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
 	}
-	ll := strings.Split(string(buffer), "\n")
-	packs := make([]int, 0)
-	for _, line := range ll {
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.HasPrefix(line, "physical id") {
 			lv := strings.Fields(line)
 			id, err := strconv.ParseInt(lv[3], 10, 32)
 			if err != nil {
 				log.Print(err)
-				return packs
+				return nil
 			}
-			found := slices.Contains(packs, int(id))
-			if !found {
+			if found := slices.Contains(packs, int(id)); !found {
 				packs = append(packs, int(id))
 			}
 		}
