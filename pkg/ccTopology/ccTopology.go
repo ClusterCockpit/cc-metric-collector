@@ -20,6 +20,12 @@ const (
 	PROCFS_CPUINFO = `/proc/cpuinfo`
 )
 
+var cache struct {
+	SocketList   []int
+	HwthreadList []int
+	CoreList     []int
+}
+
 // fileToInt reads an integer value from a file
 // In case of an error -1 is returned
 // Used internally for sysfs file reads
@@ -39,61 +45,68 @@ func fileToInt(path string) int {
 	return id
 }
 
-// SocketList gets the list of CPU socket IDs
-func SocketList() []int {
-
+func initSocketHwthreadCoreList() {
 	file, err := os.Open(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
-		return nil
+		return
 	}
 	defer file.Close()
 
-	packs := make([]int, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "physical id") {
-			lv := strings.Fields(line)
-			id, err := strconv.Atoi(lv[3])
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
-			if found := slices.Contains(packs, id); !found {
-				packs = append(packs, id)
+		lineSplit := strings.Split(scanner.Text(), ":")
+		if len(lineSplit) == 2 {
+			key := strings.TrimSpace(lineSplit[0])
+			value := strings.TrimSpace(lineSplit[1])
+			switch key {
+			case "physical id":
+				id, err := strconv.Atoi(value)
+				if err != nil {
+					log.Print(err)
+					return
+				}
+				if found := slices.Contains(cache.SocketList, id); !found {
+					cache.SocketList = append(cache.SocketList, id)
+				}
+			case "processor":
+				id, err := strconv.Atoi(value)
+				if err != nil {
+					log.Print(err)
+					return
+				}
+				if found := slices.Contains(cache.HwthreadList, id); !found {
+					cache.HwthreadList = append(cache.HwthreadList, id)
+				}
+
+			case "core id":
+				id, err := strconv.Atoi(value)
+				if err != nil {
+					log.Print(err)
+					return
+				}
+				if found := slices.Contains(cache.CoreList, id); !found {
+					cache.CoreList = append(cache.CoreList, id)
+				}
 			}
 		}
 	}
-	return packs
+}
+
+// SocketList gets the list of CPU socket IDs
+func SocketList() []int {
+	if cache.SocketList == nil {
+		initSocketHwthreadCoreList()
+	}
+	return slices.Clone(cache.SocketList)
 }
 
 // HwthreadList gets the list of hardware thread IDs in the order of listing in /proc/cpuinfo
 func HwthreadList() []int {
-	file, err := os.Open(string(PROCFS_CPUINFO))
-	if err != nil {
-		log.Print(err)
-		return nil
+	if cache.HwthreadList == nil {
+		initSocketHwthreadCoreList()
 	}
-	defer file.Close()
-
-	cpuList := make([]int, 0)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "processor") {
-			lv := strings.Fields(line)
-			id, err := strconv.Atoi(lv[2])
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
-			if found := slices.Contains(cpuList, id); !found {
-				cpuList = append(cpuList, id)
-			}
-		}
-	}
-	return cpuList
+	return slices.Clone(cache.HwthreadList)
 }
 
 // Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
@@ -104,30 +117,10 @@ func CpuList() []int {
 
 // CoreList gets the list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
-	file, err := os.Open(string(PROCFS_CPUINFO))
-	if err != nil {
-		log.Print(err)
-		return nil
+	if cache.CoreList == nil {
+		initSocketHwthreadCoreList()
 	}
-	defer file.Close()
-
-	coreList := make([]int, 0)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "core id") {
-			lv := strings.Fields(line)
-			id, err := strconv.Atoi(lv[3])
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
-			if found := slices.Contains(coreList, id); !found {
-				coreList = append(coreList, id)
-			}
-		}
-	}
-	return coreList
+	return slices.Clone(cache.CoreList)
 }
 
 // Get list of NUMA node IDs
