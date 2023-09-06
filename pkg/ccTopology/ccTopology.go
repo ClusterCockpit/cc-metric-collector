@@ -39,10 +39,8 @@ func fileToInt(path string) int {
 	return int(id)
 }
 
-// Get list of CPU socket IDs
+// SocketList gets the list of CPU socket IDs
 func SocketList() []int {
-
-	packs := make([]int, 0)
 
 	file, err := os.Open(string(PROCFS_CPUINFO))
 	if err != nil {
@@ -51,6 +49,7 @@ func SocketList() []int {
 	}
 	defer file.Close()
 
+	packs := make([]int, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -71,23 +70,25 @@ func SocketList() []int {
 
 // Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
 func HwthreadList() []int {
-	buffer, err := os.ReadFile(string(PROCFS_CPUINFO))
+	file, err := os.Open(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
 	}
-	ll := strings.Split(string(buffer), "\n")
+	defer file.Close()
+
 	cpulist := make([]int, 0)
-	for _, line := range ll {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.HasPrefix(line, "processor") {
 			lv := strings.Fields(line)
 			id, err := strconv.ParseInt(lv[2], 10, 32)
 			if err != nil {
 				log.Print(err)
-				return cpulist
+				return nil
 			}
-			found := slices.Contains(cpulist, int(id))
-			if !found {
+			if found := slices.Contains(cpulist, int(id)); !found {
 				cpulist = append(cpulist, int(id))
 			}
 		}
