@@ -165,26 +165,29 @@ func NumaNodeList() []int {
 	return numaList
 }
 
-// Get list of CPU die IDs
+// DieList gets the list of CPU die IDs
 func DieList() []int {
-	cpulist := HwthreadList()
-	dielist := make([]int, 0)
-	for _, c := range cpulist {
-		diepath := filepath.Join(string(SYSFS_CPUBASE), fmt.Sprintf("cpu%d", c), "topology/die_id")
-		dieid := fileToInt(diepath)
-		if dieid > 0 {
-			if found := slices.Contains(dielist, int(dieid)); !found {
-				dielist = append(dielist, int(dieid))
+	cpuList := HwthreadList()
+	dieList := make([]int, 0)
+	for _, c := range cpuList {
+		diePath := filepath.Join(
+			string(SYSFS_CPUBASE),
+			fmt.Sprintf("cpu%d", c),
+			"topology/die_id")
+		dieID := fileToInt(diePath)
+		if dieID > 0 {
+			if found := slices.Contains(dieList, int(dieID)); !found {
+				dieList = append(dieList, int(dieID))
 			}
 		}
 	}
-	if len(dielist) > 0 {
-		return dielist
+	if len(dieList) > 0 {
+		return dieList
 	}
 	return SocketList()
 }
 
-// Get list of specified type using the naming format inside ClusterCockpit
+// GetTypeList gets the list of specified type using the naming format inside ClusterCockpit
 func GetTypeList(topology_type string) []int {
 	switch topology_type {
 	case "node":
@@ -205,11 +208,11 @@ func GetTypeList(topology_type string) []int {
 
 // Structure holding all information about a hardware thread
 type HwthreadEntry struct {
-	Cpuid      int
+	CpuID      int
 	SMT        int
 	Core       int
 	Socket     int
-	Numadomain int
+	NumaDomain int
 	Die        int
 }
 
@@ -291,15 +294,15 @@ func CpuData() []HwthreadEntry {
 
 	clist := make([]HwthreadEntry, 0)
 	for _, c := range HwthreadList() {
-		clist = append(clist, HwthreadEntry{Cpuid: c})
+		clist = append(clist, HwthreadEntry{CpuID: c})
 	}
 	for i, centry := range clist {
 		centry.Socket = -1
-		centry.Numadomain = -1
+		centry.NumaDomain = -1
 		centry.Die = -1
 		centry.Core = -1
 		// Set base directory for topology lookup
-		cpustr := fmt.Sprintf("cpu%d", centry.Cpuid)
+		cpustr := fmt.Sprintf("cpu%d", centry.CpuID)
 		base := filepath.Join("/sys/devices/system/cpu", cpustr)
 		topoBase := filepath.Join(base, "topology")
 
@@ -316,10 +319,10 @@ func CpuData() []HwthreadEntry {
 		}
 
 		// Lookup SMT thread id
-		centry.SMT = getSMT(centry.Cpuid, topoBase)
+		centry.SMT = getSMT(centry.CpuID, topoBase)
 
 		// Lookup NUMA domain id
-		centry.Numadomain = getNumaDomain(base)
+		centry.NumaDomain = getNumaDomain(base)
 
 		// Update values in output list
 		clist[i] = centry
@@ -350,8 +353,8 @@ func CpuInfo() CpuInformation {
 		if ok := slices.Contains(smtList, d.SMT); !ok {
 			smtList = append(smtList, d.SMT)
 		}
-		if ok := slices.Contains(numaList, d.Numadomain); !ok {
-			numaList = append(numaList, d.Numadomain)
+		if ok := slices.Contains(numaList, d.NumaDomain); !ok {
+			numaList = append(numaList, d.NumaDomain)
 		}
 		if ok := slices.Contains(dieList, d.Die); !ok {
 			dieList = append(dieList, d.Die)
@@ -377,7 +380,7 @@ func CpuInfo() CpuInformation {
 func GetHwthreadSocket(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
-		if d.Cpuid == cpuid {
+		if d.CpuID == cpuid {
 			return d.Socket
 		}
 	}
@@ -388,8 +391,8 @@ func GetHwthreadSocket(cpuid int) int {
 func GetHwthreadNumaDomain(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
-		if d.Cpuid == cpuid {
-			return d.Numadomain
+		if d.CpuID == cpuid {
+			return d.NumaDomain
 		}
 	}
 	return -1
@@ -399,7 +402,7 @@ func GetHwthreadNumaDomain(cpuid int) int {
 func GetHwthreadDie(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
-		if d.Cpuid == cpuid {
+		if d.CpuID == cpuid {
 			return d.Die
 		}
 	}
@@ -410,7 +413,7 @@ func GetHwthreadDie(cpuid int) int {
 func GetHwthreadCore(cpuid int) int {
 	cdata := CpuData()
 	for _, d := range cdata {
-		if d.Cpuid == cpuid {
+		if d.CpuID == cpuid {
 			return d.Core
 		}
 	}
@@ -423,7 +426,7 @@ func GetSocketHwthreads(socket int) []int {
 	cpulist := make([]int, 0)
 	for _, d := range all {
 		if d.Socket == socket {
-			cpulist = append(cpulist, d.Cpuid)
+			cpulist = append(cpulist, d.CpuID)
 		}
 	}
 	return cpulist
@@ -434,8 +437,8 @@ func GetNumaDomainHwthreads(domain int) []int {
 	all := CpuData()
 	cpulist := make([]int, 0)
 	for _, d := range all {
-		if d.Numadomain == domain {
-			cpulist = append(cpulist, d.Cpuid)
+		if d.NumaDomain == domain {
+			cpulist = append(cpulist, d.CpuID)
 		}
 	}
 	return cpulist
@@ -447,7 +450,7 @@ func GetDieHwthreads(die int) []int {
 	cpulist := make([]int, 0)
 	for _, d := range all {
 		if d.Die == die {
-			cpulist = append(cpulist, d.Cpuid)
+			cpulist = append(cpulist, d.CpuID)
 		}
 	}
 	return cpulist
@@ -459,7 +462,7 @@ func GetCoreHwthreads(core int) []int {
 	cpulist := make([]int, 0)
 	for _, d := range all {
 		if d.Core == core {
-			cpulist = append(cpulist, d.Cpuid)
+			cpulist = append(cpulist, d.CpuID)
 		}
 	}
 	return cpulist
