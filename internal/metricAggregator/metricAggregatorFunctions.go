@@ -290,7 +290,7 @@ func getCpuListOfCoreFunc(args interface{}) (interface{}, error) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Core == in {
-				cpulist = append(cpulist, c.Cpuid)
+				cpulist = append(cpulist, c.CpuID)
 			}
 		}
 	}
@@ -304,7 +304,7 @@ func getCpuListOfSocketFunc(args interface{}) (interface{}, error) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Socket == in {
-				cpulist = append(cpulist, c.Cpuid)
+				cpulist = append(cpulist, c.CpuID)
 			}
 		}
 	}
@@ -317,8 +317,8 @@ func getCpuListOfNumaDomainFunc(args interface{}) (interface{}, error) {
 	switch in := args.(type) {
 	case int:
 		for _, c := range topo.CpuData() {
-			if c.Numadomain == in {
-				cpulist = append(cpulist, c.Cpuid)
+			if c.NumaDomain == in {
+				cpulist = append(cpulist, c.CpuID)
 			}
 		}
 	}
@@ -332,7 +332,7 @@ func getCpuListOfDieFunc(args interface{}) (interface{}, error) {
 	case int:
 		for _, c := range topo.CpuData() {
 			if c.Die == in {
-				cpulist = append(cpulist, c.Cpuid)
+				cpulist = append(cpulist, c.CpuID)
 			}
 		}
 	}
