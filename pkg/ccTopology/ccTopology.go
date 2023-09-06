@@ -20,10 +20,21 @@ const (
 	PROCFS_CPUINFO = `/proc/cpuinfo`
 )
 
+// Structure holding all information about a hardware thread
+type HwthreadEntry struct {
+	CpuID      int
+	SMT        int
+	Core       int
+	Socket     int
+	NumaDomain int
+	Die        int
+}
+
 var cache struct {
 	SocketList   []int
 	HwthreadList []int
 	CoreList     []int
+	CpuData      []HwthreadEntry
 }
 
 // fileToInt reads an integer value from a file
@@ -78,7 +89,6 @@ func initSocketHwthreadCoreList() {
 				if found := slices.Contains(cache.HwthreadList, id); !found {
 					cache.HwthreadList = append(cache.HwthreadList, id)
 				}
-
 			case "core id":
 				id, err := strconv.Atoi(value)
 				if err != nil {
@@ -153,7 +163,6 @@ func NumaNodeList() []int {
 				}
 			}
 		}
-
 	}
 	return numaList
 }
@@ -199,36 +208,26 @@ func GetTypeList(topology_type string) []int {
 	return []int{}
 }
 
-// Structure holding all information about a hardware thread
-type HwthreadEntry struct {
-	CpuID      int
-	SMT        int
-	Core       int
-	Socket     int
-	NumaDomain int
-	Die        int
-}
-
-func CpuData() []HwthreadEntry {
+func initCpuData() {
 
 	getCore :=
 		func(basePath string) int {
-			return fileToInt(fmt.Sprintf("%s/core_id", basePath))
+			return fileToInt(filepath.Join(basePath, "core_id"))
 		}
 
 	getSocket :=
 		func(basePath string) int {
-			return fileToInt(fmt.Sprintf("%s/physical_package_id", basePath))
+			return fileToInt(filepath.Join(basePath, "physical_package_id"))
 		}
 
 	getDie :=
 		func(basePath string) int {
-			return fileToInt(fmt.Sprintf("%s/die_id", basePath))
+			return fileToInt(filepath.Join(basePath, "die_id"))
 		}
 
 	getSMT :=
 		func(cpuID int, basePath string) int {
-			buffer, err := os.ReadFile(fmt.Sprintf("%s/thread_siblings_list", basePath))
+			buffer, err := os.ReadFile(filepath.Join(basePath, "thread_siblings_list"))
 			if err != nil {
 				cclogger.ComponentError("CCTopology", "CpuData:getSMT", err.Error())
 			}
@@ -268,9 +267,8 @@ func CpuData() []HwthreadEntry {
 			return 0
 		}
 
-	cList := make([]HwthreadEntry, 0)
 	for _, c := range HwthreadList() {
-		cList = append(cList,
+		cache.CpuData = append(cache.CpuData,
 			HwthreadEntry{
 				CpuID:      c,
 				Socket:     -1,
@@ -279,8 +277,8 @@ func CpuData() []HwthreadEntry {
 				Core:       -1,
 			})
 	}
-	for i := range cList {
-		cEntry := &cList[i]
+	for i := range cache.CpuData {
+		cEntry := &cache.CpuData[i]
 
 		// Set base directory for topology lookup
 		cpuStr := fmt.Sprintf("cpu%d", cEntry.CpuID)
@@ -305,7 +303,13 @@ func CpuData() []HwthreadEntry {
 		// Lookup NUMA domain id
 		cEntry.NumaDomain = getNumaDomain(base)
 	}
-	return cList
+}
+
+func CpuData() []HwthreadEntry {
+	if cache.CpuData == nil {
+		initCpuData()
+	}
+	return slices.Clone(cache.CpuData)
 }
 
 // Structure holding basic information about a CPU
