@@ -68,7 +68,7 @@ func SocketList() []int {
 	return packs
 }
 
-// Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
+// HwthreadList gets the list of hardware thread IDs in the order of listing in /proc/cpuinfo
 func HwthreadList() []int {
 	file, err := os.Open(string(PROCFS_CPUINFO))
 	if err != nil {
@@ -77,7 +77,7 @@ func HwthreadList() []int {
 	}
 	defer file.Close()
 
-	cpulist := make([]int, 0)
+	cpuList := make([]int, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -88,12 +88,12 @@ func HwthreadList() []int {
 				log.Print(err)
 				return nil
 			}
-			if found := slices.Contains(cpulist, int(id)); !found {
-				cpulist = append(cpulist, int(id))
+			if found := slices.Contains(cpuList, int(id)); !found {
+				cpuList = append(cpuList, int(id))
 			}
 		}
 	}
-	return cpulist
+	return cpuList
 }
 
 // Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
@@ -102,30 +102,32 @@ func CpuList() []int {
 	return HwthreadList()
 }
 
-// Get list of CPU core IDs in the order of listing in /proc/cpuinfo
+// CoreList gets the list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
-	buffer, err := os.ReadFile(string(PROCFS_CPUINFO))
+	file, err := os.Open(string(PROCFS_CPUINFO))
 	if err != nil {
 		log.Print(err)
 		return nil
 	}
-	ll := strings.Split(string(buffer), "\n")
-	corelist := make([]int, 0)
-	for _, line := range ll {
+	defer file.Close()
+
+	coreList := make([]int, 0)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.HasPrefix(line, "core id") {
 			lv := strings.Fields(line)
 			id, err := strconv.ParseInt(lv[3], 10, 32)
 			if err != nil {
 				log.Print(err)
-				return corelist
+				return nil
 			}
-			found := slices.Contains(corelist, int(id))
-			if !found {
-				corelist = append(corelist, int(id))
+			if found := slices.Contains(coreList, int(id)); !found {
+				coreList = append(coreList, int(id))
 			}
 		}
 	}
-	return corelist
+	return coreList
 }
 
 // Get list of NUMA node IDs
