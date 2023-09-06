@@ -10,24 +10,16 @@ import (
 	"strings"
 
 	cclogger "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	"golang.org/x/exp/slices"
 )
 
-const SYSFS_NUMABASE = `/sys/devices/system/node`
-const SYSFS_CPUBASE = `/sys/devices/system/cpu`
-const PROCFS_CPUINFO = `/proc/cpuinfo`
+const (
+	SYSFS_NUMABASE = `/sys/devices/system/node`
+	SYSFS_CPUBASE  = `/sys/devices/system/cpu`
+	PROCFS_CPUINFO = `/proc/cpuinfo`
+)
 
-// intArrayContains scans an array of ints if the value str is present in the array
-// If the specified value is found, the corresponding array index is returned.
-// The bool value is used to signal success or failure
-func intArrayContains(array []int, str int) (int, bool) {
-	for i, a := range array {
-		if a == str {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
+// fileToInt reads an integer value from a file
 // Used internally for sysfs file reads
 func fileToInt(path string) int {
 	buffer, err := os.ReadFile(path)
@@ -36,10 +28,8 @@ func fileToInt(path string) int {
 		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
 		return -1
 	}
-	sbuffer := strings.Replace(string(buffer), "\n", "", -1)
-	var id int64
-	//_, err = fmt.Scanf("%d", sbuffer, &id)
-	id, err = strconv.ParseInt(sbuffer, 10, 32)
+	sbuffer := strings.TrimSpace(string(buffer))
+	id, err := strconv.ParseInt(sbuffer, 10, 32)
 	if err != nil {
 		cclogger.ComponentError("ccTopology", "Parsing", path, ":", sbuffer, err.Error())
 		return -1
@@ -64,7 +54,7 @@ func SocketList() []int {
 				log.Print(err)
 				return packs
 			}
-			_, found := intArrayContains(packs, int(id))
+			found := slices.Contains(packs, int(id))
 			if !found {
 				packs = append(packs, int(id))
 			}
@@ -90,7 +80,7 @@ func HwthreadList() []int {
 				log.Print(err)
 				return cpulist
 			}
-			_, found := intArrayContains(cpulist, int(id))
+			found := slices.Contains(cpulist, int(id))
 			if !found {
 				cpulist = append(cpulist, int(id))
 			}
@@ -122,7 +112,7 @@ func CoreList() []int {
 				log.Print(err)
 				return corelist
 			}
-			_, found := intArrayContains(corelist, int(id))
+			found := slices.Contains(corelist, int(id))
 			if !found {
 				corelist = append(corelist, int(id))
 			}
@@ -156,7 +146,7 @@ func NumaNodeList() []int {
 		if len(matches) == 2 {
 			id, err := strconv.Atoi(matches[1])
 			if err == nil {
-				if _, found := intArrayContains(numaList, id); !found {
+				if found := slices.Contains(numaList, id); !found {
 					numaList = append(numaList, id)
 				}
 			}
@@ -174,8 +164,7 @@ func DieList() []int {
 		diepath := filepath.Join(string(SYSFS_CPUBASE), fmt.Sprintf("cpu%d", c), "topology/die_id")
 		dieid := fileToInt(diepath)
 		if dieid > 0 {
-			_, found := intArrayContains(dielist, int(dieid))
-			if !found {
+			if found := slices.Contains(dielist, int(dieid)); !found {
 				dielist = append(dielist, int(dieid))
 			}
 		}
@@ -341,7 +330,6 @@ type CpuInformation struct {
 
 // Get basic information about the CPU
 func CpuInfo() CpuInformation {
-	var c CpuInformation
 
 	smtList := make([]int, 0)
 	numaList := make([]int, 0)
@@ -350,29 +338,30 @@ func CpuInfo() CpuInformation {
 	coreList := make([]int, 0)
 	cdata := CpuData()
 	for _, d := range cdata {
-		if _, ok := intArrayContains(smtList, d.SMT); !ok {
+		if ok := slices.Contains(smtList, d.SMT); !ok {
 			smtList = append(smtList, d.SMT)
 		}
-		if _, ok := intArrayContains(numaList, d.Numadomain); !ok {
+		if ok := slices.Contains(numaList, d.Numadomain); !ok {
 			numaList = append(numaList, d.Numadomain)
 		}
-		if _, ok := intArrayContains(dieList, d.Die); !ok {
+		if ok := slices.Contains(dieList, d.Die); !ok {
 			dieList = append(dieList, d.Die)
 		}
-		if _, ok := intArrayContains(socketList, d.Socket); !ok {
+		if ok := slices.Contains(socketList, d.Socket); !ok {
 			socketList = append(socketList, d.Socket)
 		}
-		if _, ok := intArrayContains(coreList, d.Core); !ok {
+		if ok := slices.Contains(coreList, d.Core); !ok {
 			coreList = append(coreList, d.Core)
 		}
 	}
-	c.NumNumaDomains = len(numaList)
-	c.SMTWidth = len(smtList)
-	c.NumDies = len(dieList)
-	c.NumCores = len(coreList)
-	c.NumSockets = len(socketList)
-	c.NumHWthreads = len(cdata)
-	return c
+	return CpuInformation{
+		NumNumaDomains: len(numaList),
+		SMTWidth:       len(smtList),
+		NumDies:        len(dieList),
+		NumCores:       len(coreList),
+		NumSockets:     len(socketList),
+		NumHWthreads:   len(cdata),
+	}
 }
 
 // Get the CPU socket ID for a given hardware thread ID
