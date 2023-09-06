@@ -57,7 +57,7 @@ func fileToInt(path string) int {
 }
 
 func initSocketHwthreadCoreList() {
-	file, err := os.Open(string(PROCFS_CPUINFO))
+	file, err := os.Open(PROCFS_CPUINFO)
 	if err != nil {
 		log.Print(err)
 		return
@@ -136,8 +136,8 @@ func CoreList() []int {
 // Get list of NUMA node IDs
 func NumaNodeList() []int {
 	numaList := make([]int, 0)
-	globPath := filepath.Join(string(SYSFS_NUMABASE), "node*")
-	regexPath := filepath.Join(string(SYSFS_NUMABASE), "node(\\d+)")
+	globPath := filepath.Join(SYSFS_NUMABASE, "node*")
+	regexPath := filepath.Join(SYSFS_NUMABASE, "node(\\d+)")
 	regex := regexp.MustCompile(regexPath)
 	files, err := filepath.Glob(globPath)
 	if err != nil {
@@ -173,7 +173,7 @@ func DieList() []int {
 	dieList := make([]int, 0)
 	for _, c := range cpuList {
 		diePath := filepath.Join(
-			string(SYSFS_CPUBASE),
+			SYSFS_CPUBASE,
 			fmt.Sprintf("cpu%d", c),
 			"topology/die_id")
 		dieID := fileToInt(diePath)
@@ -268,14 +268,17 @@ func initCpuData() {
 		}
 
 	for _, c := range HwthreadList() {
-		cache.CpuData = append(cache.CpuData,
-			HwthreadEntry{
-				CpuID:      c,
-				Socket:     -1,
-				NumaDomain: -1,
-				Die:        -1,
-				Core:       -1,
-			})
+		cache.CpuData =
+			append(
+				cache.CpuData,
+				HwthreadEntry{
+					CpuID:      c,
+					Socket:     -1,
+					NumaDomain: -1,
+					Die:        -1,
+					Core:       -1,
+				},
+			)
 	}
 	for i := range cache.CpuData {
 		cEntry := &cache.CpuData[i]
@@ -325,12 +328,12 @@ type CpuInformation struct {
 // CpuInformation reports basic information about the CPU
 func CpuInfo() CpuInformation {
 
+	cpuData := CpuData()
 	smtList := make([]int, 0)
 	numaList := make([]int, 0)
 	dieList := make([]int, 0)
 	socketList := make([]int, 0)
 	coreList := make([]int, 0)
-	cpuData := CpuData()
 	for i := range cpuData {
 		d := &cpuData[i]
 		if ok := slices.Contains(smtList, d.SMT); !ok {
