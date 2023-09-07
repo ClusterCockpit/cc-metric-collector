@@ -92,16 +92,6 @@ func init() {
 	slices.Sort(cache.uniqSocketList)
 	cache.uniqSocketList = slices.Compact(cache.uniqSocketList)
 
-	getCore :=
-		func(basePath string) int {
-			return fileToInt(filepath.Join(basePath, "core_id"))
-		}
-
-	getSocket :=
-		func(basePath string) int {
-			return fileToInt(filepath.Join(basePath, "physical_package_id"))
-		}
-
 	getDie :=
 		func(basePath string) int {
 			return fileToInt(filepath.Join(basePath, "die_id"))
@@ -149,18 +139,16 @@ func init() {
 			return 0
 		}
 
-	for _, c := range cache.HwthreadList {
-		cache.CpuData =
-			append(
-				cache.CpuData,
-				HwthreadEntry{
-					CpuID:      c,
-					Socket:     -1,
-					NumaDomain: -1,
-					Die:        -1,
-					Core:       -1,
-				},
-			)
+	cache.CpuData = make([]HwthreadEntry, len(cache.HwthreadList))
+	for i := range cache.HwthreadList {
+		cache.CpuData[i] =
+			HwthreadEntry{
+				CpuID:      cache.HwthreadList[i],
+				Socket:     cache.SocketList[i],
+				NumaDomain: -1,
+				Die:        -1,
+				Core:       cache.CoreList[i],
+			}
 	}
 	for i := range cache.CpuData {
 		cEntry := &cache.CpuData[i]
@@ -169,12 +157,6 @@ func init() {
 		cpuStr := fmt.Sprintf("cpu%d", cEntry.CpuID)
 		base := filepath.Join("/sys/devices/system/cpu", cpuStr)
 		topoBase := filepath.Join(base, "topology")
-
-		// Lookup CPU core id
-		cEntry.Core = getCore(topoBase)
-
-		// Lookup CPU socket id
-		cEntry.Socket = getSocket(topoBase)
 
 		// Lookup CPU die id
 		cEntry.Die = getDie(topoBase)
