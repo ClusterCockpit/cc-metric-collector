@@ -31,13 +31,16 @@ type HwthreadEntry struct {
 }
 
 var cache struct {
-	SocketList       []int
-	uniqSocketList   []int
 	HwthreadList     []int
 	uniqHwthreadList []int
-	CoreList         []int
-	uniqCoreList     []int
-	CpuData          []HwthreadEntry
+
+	CoreList     []int
+	uniqCoreList []int
+
+	SocketList     []int
+	uniqSocketList []int
+
+	CpuData []HwthreadEntry
 }
 
 func init() {
@@ -304,14 +307,11 @@ type CpuInformation struct {
 // CpuInformation reports basic information about the CPU
 func CpuInfo() CpuInformation {
 
-	cpuData := CpuData()
 	smtList := make([]int, 0)
 	numaList := make([]int, 0)
 	dieList := make([]int, 0)
-	socketList := make([]int, 0)
-	coreList := make([]int, 0)
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if ok := slices.Contains(smtList, d.SMT); !ok {
 			smtList = append(smtList, d.SMT)
 		}
@@ -321,29 +321,22 @@ func CpuInfo() CpuInformation {
 		if ok := slices.Contains(dieList, d.Die); !ok {
 			dieList = append(dieList, d.Die)
 		}
-		if ok := slices.Contains(socketList, d.Socket); !ok {
-			socketList = append(socketList, d.Socket)
-		}
-		if ok := slices.Contains(coreList, d.Core); !ok {
-			coreList = append(coreList, d.Core)
-		}
 	}
 	return CpuInformation{
 		NumNumaDomains: len(numaList),
 		SMTWidth:       len(smtList),
 		NumDies:        len(dieList),
-		NumCores:       len(coreList),
-		NumSockets:     len(socketList),
-		NumHWthreads:   len(cpuData),
+		NumCores:       len(cache.uniqCoreList),
+		NumSockets:     len(cache.uniqSocketList),
+		NumHWthreads:   len(cache.uniqHwthreadList),
 	}
 }
 
 // GetHwthreadSocket gets the CPU socket ID for a given hardware thread ID
 // In case hardware thread ID is not found -1 is returned
 func GetHwthreadSocket(cpuID int) int {
-	cpuData := CpuData()
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.CpuID == cpuID {
 			return d.Socket
 		}
@@ -354,9 +347,8 @@ func GetHwthreadSocket(cpuID int) int {
 // GetHwthreadNumaDomain gets the NUMA domain ID for a given hardware thread ID
 // In case hardware thread ID is not found -1 is returned
 func GetHwthreadNumaDomain(cpuID int) int {
-	cpuData := CpuData()
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.CpuID == cpuID {
 			return d.NumaDomain
 		}
@@ -367,9 +359,8 @@ func GetHwthreadNumaDomain(cpuID int) int {
 // GetHwthreadDie gets the CPU die ID for a given hardware thread ID
 // In case hardware thread ID is not found -1 is returned
 func GetHwthreadDie(cpuID int) int {
-	cpuData := CpuData()
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.CpuID == cpuID {
 			return d.Die
 		}
@@ -380,9 +371,8 @@ func GetHwthreadDie(cpuID int) int {
 // GetHwthreadCore gets the CPU core ID for a given hardware thread ID
 // In case hardware thread ID is not found -1 is returned
 func GetHwthreadCore(cpuID int) int {
-	cpuData := CpuData()
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.CpuID == cpuID {
 			return d.Core
 		}
