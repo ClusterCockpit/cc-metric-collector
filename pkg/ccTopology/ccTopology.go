@@ -22,36 +22,26 @@ const (
 
 // Structure holding all information about a hardware thread
 type HwthreadEntry struct {
-	CpuID      int
-	SMT        int
-	Core       int
-	Socket     int
-	NumaDomain int
-	Die        int
+	CpuID      int // CPU hardware threads
+	SMT        int // symmetric hyper threading ID
+	Core       int // CPU core ID
+	Socket     int // CPU sockets (physical) ID
+	Die        int // CPU Die ID
+	NumaDomain int // NUMA Domain
 }
 
 var cache struct {
-	HwthreadList     []int
-	uniqHwthreadList []int
-
-	SMTList     []int
-	uniqSMTList []int
-
-	CoreList     []int
-	uniqCoreList []int
-
-	SocketList     []int
-	uniqSocketList []int
-
-	DieList     []int
-	uniqDieList []int
-
-	NumaDomainList     []int
-	uniqNumaDomainList []int
+	HwthreadList, uniqHwthreadList     []int // List of CPU hardware threads
+	SMTList, uniqSMTList               []int // List of symmetric hyper threading IDs
+	CoreList, uniqCoreList             []int // List of CPU core IDs
+	SocketList, uniqSocketList         []int // List of CPU sockets (physical) IDs
+	DieList, uniqDieList               []int // List of CPU Die IDs
+	NumaDomainList, uniqNumaDomainList []int // List of NUMA Domains
 
 	CpuData []HwthreadEntry
 }
 
+// init initializes the cache structure
 func init() {
 	file, err := os.Open(PROCFS_CPUINFO)
 	if err != nil {
