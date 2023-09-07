@@ -269,6 +269,7 @@ func GetTypeList(topology_type string) []int {
 	return []int{}
 }
 
+// CpuData returns CPU data for each hardware thread
 func CpuData() []HwthreadEntry {
 	return slices.Clone(cache.CpuData)
 }
