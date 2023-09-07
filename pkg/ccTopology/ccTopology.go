@@ -40,6 +40,9 @@ var cache struct {
 	SocketList     []int
 	uniqSocketList []int
 
+	DieList     []int
+	uniqDieList []int
+
 	CpuData []HwthreadEntry
 }
 
@@ -83,6 +86,20 @@ func init() {
 		}
 	}
 
+	cache.DieList = make([]int, len(cache.HwthreadList))
+	for i, c := range cache.HwthreadList {
+		// Set base directory for topology lookup
+		cpuStr := fmt.Sprintf("cpu%d", c)
+		base := filepath.Join("/sys/devices/system/cpu", cpuStr)
+		topoBase := filepath.Join(base, "topology")
+
+		// Lookup CPU die id
+		cache.DieList[i] = fileToInt(filepath.Join(topoBase, "die_id"))
+		if cache.DieList[i] < 0 {
+			cache.DieList[i] = cache.SocketList[i]
+		}
+	}
+
 	cache.uniqHwthreadList = slices.Clone(cache.HwthreadList)
 	slices.Sort(cache.uniqHwthreadList)
 	cache.uniqHwthreadList = slices.Compact(cache.uniqHwthreadList)
@@ -95,10 +112,9 @@ func init() {
 	slices.Sort(cache.uniqSocketList)
 	cache.uniqSocketList = slices.Compact(cache.uniqSocketList)
 
-	getDie :=
-		func(basePath string) int {
-			return fileToInt(filepath.Join(basePath, "die_id"))
-		}
+	cache.uniqDieList = slices.Clone(cache.DieList)
+	slices.Sort(cache.uniqDieList)
+	cache.uniqDieList = slices.Compact(cache.uniqDieList)
 
 	getSMT :=
 		func(cpuID int, basePath string) int {
@@ -149,7 +165,7 @@ func init() {
 				CpuID:      cache.HwthreadList[i],
 				Socket:     cache.SocketList[i],
 				NumaDomain: -1,
-				Die:        -1,
+				Die:        cache.DieList[i],
 				Core:       cache.CoreList[i],
 			}
 	}
@@ -160,12 +176,6 @@ func init() {
 		cpuStr := fmt.Sprintf("cpu%d", cEntry.CpuID)
 		base := filepath.Join("/sys/devices/system/cpu", cpuStr)
 		topoBase := filepath.Join(base, "topology")
-
-		// Lookup CPU die id
-		cEntry.Die = getDie(topoBase)
-		if cEntry.Die < 0 {
-			cEntry.Die = cEntry.Socket
-		}
 
 		// Lookup SMT thread id
 		cEntry.SMT = getSMT(cEntry.CpuID, topoBase)
@@ -309,7 +319,6 @@ func CpuInfo() CpuInformation {
 
 	smtList := make([]int, 0)
 	numaList := make([]int, 0)
-	dieList := make([]int, 0)
 	for i := range cache.CpuData {
 		d := &cache.CpuData[i]
 		if ok := slices.Contains(smtList, d.SMT); !ok {
@@ -318,14 +327,11 @@ func CpuInfo() CpuInformation {
 		if ok := slices.Contains(numaList, d.NumaDomain); !ok {
 			numaList = append(numaList, d.NumaDomain)
 		}
-		if ok := slices.Contains(dieList, d.Die); !ok {
-			dieList = append(dieList, d.Die)
-		}
 	}
 	return CpuInformation{
 		NumNumaDomains: len(numaList),
 		SMTWidth:       len(smtList),
-		NumDies:        len(dieList),
+		NumDies:        len(cache.uniqDieList),
 		NumCores:       len(cache.uniqCoreList),
 		NumSockets:     len(cache.uniqSocketList),
 		NumHWthreads:   len(cache.uniqHwthreadList),
@@ -382,10 +388,9 @@ func GetHwthreadCore(cpuID int) int {
 
 // GetSocketHwthreads gets all hardware thread IDs associated with a CPU socket
 func GetSocketHwthreads(socket int) []int {
-	cpuData := CpuData()
 	cpuList := make([]int, 0)
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.Socket == socket {
 			cpuList = append(cpuList, d.CpuID)
 		}
@@ -395,10 +400,9 @@ func GetSocketHwthreads(socket int) []int {
 
 // GetNumaDomainHwthreads gets the all hardware thread IDs associated with a NUMA domain
 func GetNumaDomainHwthreads(numaDomain int) []int {
-	cpuData := CpuData()
 	cpuList := make([]int, 0)
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.NumaDomain == numaDomain {
 			cpuList = append(cpuList, d.CpuID)
 		}
@@ -408,10 +412,9 @@ func GetNumaDomainHwthreads(numaDomain int) []int {
 
 // GetDieHwthreads gets all hardware thread IDs associated with a CPU die
 func GetDieHwthreads(die int) []int {
-	cpuData := CpuData()
 	cpuList := make([]int, 0)
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.Die == die {
 			cpuList = append(cpuList, d.CpuID)
 		}
@@ -421,10 +424,9 @@ func GetDieHwthreads(die int) []int {
 
 // GetCoreHwthreads get all hardware thread IDs associated with a CPU core
 func GetCoreHwthreads(core int) []int {
-	cpuData := CpuData()
 	cpuList := make([]int, 0)
-	for i := range cpuData {
-		d := &cpuData[i]
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.Core == core {
 			cpuList = append(cpuList, d.CpuID)
 		}
