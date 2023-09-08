@@ -17,12 +17,13 @@ const SYSFS_CPUBASE = `/sys/devices/system/cpu`
 
 // Structure holding all information about a hardware thread
 type HwthreadEntry struct {
-	CpuID      int // CPU hardware threads
-	SMT        int // symmetric hyper threading ID
-	Core       int // CPU core ID
-	Socket     int // CPU sockets (physical) ID
-	Die        int // CPU Die ID
-	NumaDomain int // NUMA Domain
+	CpuID              int   // CPU hardware threads
+	SMT                int   // Simultaneous Multithreading ID
+	ThreadSiblingsList []int // Simultaneous Multithreading siblings
+	Core               int   // CPU core ID
+	Socket             int   // CPU sockets (physical) ID
+	Die                int   // CPU Die ID
+	NumaDomain         int   // NUMA Domain
 }
 
 var cache struct {
@@ -36,30 +37,28 @@ var cache struct {
 	CpuData []HwthreadEntry
 }
 
-// fileToInt reads an integer value from a file
+// fileToInt reads an integer value from a sysfs file
 // In case of an error -1 is returned
-// Used internally for sysfs file reads
 func fileToInt(path string) int {
 	buffer, err := os.ReadFile(path)
 	if err != nil {
 		log.Print(err)
-		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
+		cclogger.ComponentError("ccTopology", "fileToInt", "Reading", path, ":", err.Error())
 		return -1
 	}
 	stringBuffer := strings.TrimSpace(string(buffer))
 	id, err := strconv.Atoi(stringBuffer)
 	if err != nil {
-		cclogger.ComponentError("ccTopology", "Parsing", path, ":", stringBuffer, err.Error())
+		cclogger.ComponentError("ccTopology", "fileToInt", "Parsing", path, ":", stringBuffer, err.Error())
 		return -1
 	}
 	return id
 }
 
-// fileToList reads a list from a file
+// fileToList reads a list from a sysfs file
 // A list consists of value ranges separated by colon
 // A range can be a single value or a range of values given by a startValue-endValue
 // In case of an error nil is returned
-// Used internally for sysfs file reads
 func fileToList(path string) []int {
 	// Read thread sibling list
 	buffer, err := os.ReadFile(path)
@@ -78,23 +77,25 @@ func fileToList(path string) []int {
 		case 1:
 			singleValue, err := strconv.Atoi(valueRange[0])
 			if err != nil {
-				cclogger.ComponentError("CCTopology", "fileToList", err.Error())
+				cclogger.ComponentError("CCTopology", "fileToList", "Parsing", valueRange[0], ":", err.Error())
+				return nil
 			}
 			list = append(list, singleValue)
 		case 2:
 			startValue, err := strconv.Atoi(valueRange[0])
 			if err != nil {
-				cclogger.ComponentError("CCTopology", "fileToList", err.Error())
+				cclogger.ComponentError("CCTopology", "fileToList", "Parsing", valueRange[0], ":", err.Error())
+				return nil
 			}
 			endValue, err := strconv.Atoi(valueRange[1])
 			if err != nil {
-				cclogger.ComponentError("CCTopology", "fileToList", err.Error())
+				cclogger.ComponentError("CCTopology", "fileToList", "Parsing", valueRange[1], ":", err.Error())
+				return nil
 			}
 			for value := startValue; value <= endValue; value++ {
 				list = append(list, value)
 			}
 		}
-
 	}
 
 	return list
@@ -149,19 +150,26 @@ func init() {
 			// File globbing for NUMA node
 			files, err := filepath.Glob(globPath)
 			if err != nil {
-				cclogger.ComponentError("CCTopology", "CpuData:getNumaDomain", err.Error())
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", err.Error())
+				return -1
 			}
+
+			// Check, that exactly one NUMA domain was found
 			if len(files) != 1 {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Number of NUMA domains != 1: ", len(files))
 				return -1
 			}
 
 			// Extract NUMA node ID
 			matches := regex.FindStringSubmatch(files[0])
 			if len(matches) != 2 {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to extract NUMA node ID from: ", files[0])
 				return -1
 			}
+
 			id, err := strconv.Atoi(matches[1])
 			if err != nil {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to parse NUMA node ID from: ", matches[1])
 				return -1
 			}
 
@@ -174,14 +182,11 @@ func init() {
 	cache.DieList = make([]int, len(cache.HwthreadList))
 	cache.SMTList = make([]int, len(cache.HwthreadList))
 	cache.NumaDomainList = make([]int, len(cache.HwthreadList))
+	cache.CpuData = make([]HwthreadEntry, len(cache.HwthreadList))
 	for i, c := range cache.HwthreadList {
-		// Set base directory for topology lookup
-		base :=
-			filepath.Join(
-				SYSFS_CPUBASE,
-				fmt.Sprintf("cpu%d", c),
-			)
-		topoBase := filepath.Join(base, "topology")
+		// Set cpuBase directory for topology lookup
+		cpuBase := filepath.Join(SYSFS_CPUBASE, fmt.Sprintf("cpu%d", c))
+		topoBase := filepath.Join(cpuBase, "topology")
 
 		// Lookup Core ID
 		cache.CoreList[i] = fileToInt(filepath.Join(topoBase, "core_id"))
@@ -196,14 +201,25 @@ func init() {
 		}
 
 		// Lookup thread siblings list
-		threadList := fileToList(filepath.Join(topoBase, "thread_siblings_list"))
+		threadSiblingList := fileToList(filepath.Join(topoBase, "thread_siblings_list"))
 
 		// Find index of CPU ID in thread sibling list
 		// if not found return -1
-		cache.SMTList[i] = slices.Index(threadList, c)
+		cache.SMTList[i] = slices.Index(threadSiblingList, c)
 
 		// Lookup NUMA domain id
-		cache.NumaDomainList[i] = getNumaDomain(base)
+		cache.NumaDomainList[i] = getNumaDomain(cpuBase)
+
+		cache.CpuData[i] =
+			HwthreadEntry{
+				CpuID:              cache.HwthreadList[i],
+				SMT:                cache.SMTList[i],
+				ThreadSiblingsList: threadSiblingList,
+				Socket:             cache.SocketList[i],
+				NumaDomain:         cache.NumaDomainList[i],
+				Die:                cache.DieList[i],
+				Core:               cache.CoreList[i],
+			}
 	}
 
 	cache.uniqHwthreadList = slices.Clone(cache.HwthreadList)
@@ -229,19 +245,6 @@ func init() {
 	cache.uniqNumaDomainList = slices.Clone(cache.NumaDomainList)
 	slices.Sort(cache.uniqNumaDomainList)
 	cache.uniqNumaDomainList = slices.Compact(cache.uniqNumaDomainList)
-
-	cache.CpuData = make([]HwthreadEntry, len(cache.HwthreadList))
-	for i := range cache.HwthreadList {
-		cache.CpuData[i] =
-			HwthreadEntry{
-				CpuID:      cache.HwthreadList[i],
-				SMT:        cache.SMTList[i],
-				Socket:     cache.SocketList[i],
-				NumaDomain: cache.NumaDomainList[i],
-				Die:        cache.DieList[i],
-				Core:       cache.CoreList[i],
-			}
-	}
 }
 
 // SocketList gets the list of CPU socket IDs
@@ -299,7 +302,12 @@ func GetTypeList(topology_type string) []int {
 
 // CpuData returns CPU data for each hardware thread
 func CpuData() []HwthreadEntry {
-	return slices.Clone(cache.CpuData)
+	// return a deep copy to protect cache data
+	c := slices.Clone(cache.CpuData)
+	for i := range c {
+		c[i].ThreadSiblingsList = slices.Clone(cache.CpuData[i].ThreadSiblingsList)
+	}
+	return c
 }
 
 // Structure holding basic information about a CPU
