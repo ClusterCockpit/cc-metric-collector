@@ -71,13 +71,6 @@ func init() {
 					return
 				}
 				cache.HwthreadList = append(cache.HwthreadList, id)
-			case "core id":
-				id, err := strconv.Atoi(value)
-				if err != nil {
-					log.Print(err)
-					return
-				}
-				cache.CoreList = append(cache.CoreList, id)
 			}
 		}
 	}
@@ -134,6 +127,7 @@ func init() {
 			return id
 		}
 
+	cache.CoreList = make([]int, len(cache.HwthreadList))
 	cache.DieList = make([]int, len(cache.HwthreadList))
 	cache.SMTList = make([]int, len(cache.HwthreadList))
 	cache.NumaDomainList = make([]int, len(cache.HwthreadList))
@@ -145,6 +139,9 @@ func init() {
 				fmt.Sprintf("cpu%d", c),
 			)
 		topoBase := filepath.Join(base, "topology")
+
+		// Lookup Core ID
+		cache.CoreList[i] = fileToInt(filepath.Join(topoBase, "core_id"))
 
 		// Lookup CPU die id
 		cache.DieList[i] = fileToInt(filepath.Join(topoBase, "die_id"))
