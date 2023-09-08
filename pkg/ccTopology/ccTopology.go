@@ -1,7 +1,6 @@
 package ccTopology
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -14,11 +13,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const (
-	SYSFS_NUMABASE = `/sys/devices/system/node`
-	SYSFS_CPUBASE  = `/sys/devices/system/cpu`
-	PROCFS_CPUINFO = `/proc/cpuinfo`
-)
+const SYSFS_CPUBASE = `/sys/devices/system/cpu`
 
 // Structure holding all information about a hardware thread
 type HwthreadEntry struct {
@@ -43,37 +38,43 @@ var cache struct {
 
 // init initializes the cache structure
 func init() {
-	file, err := os.Open(PROCFS_CPUINFO)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lineSplit := strings.Split(scanner.Text(), ":")
-		if len(lineSplit) == 2 {
-			key := strings.TrimSpace(lineSplit[0])
-			value := strings.TrimSpace(lineSplit[1])
-			switch key {
-			case "physical id":
-				id, err := strconv.Atoi(value)
-				if err != nil {
-					log.Print(err)
-					return
-				}
-				cache.SocketList = append(cache.SocketList, id)
-			case "processor":
-				id, err := strconv.Atoi(value)
-				if err != nil {
-					log.Print(err)
-					return
-				}
-				cache.HwthreadList = append(cache.HwthreadList, id)
+	getHWThreads :=
+		func() []int {
+			globPath := filepath.Join(SYSFS_CPUBASE, "cpu[0-9]*")
+			regexPath := filepath.Join(SYSFS_CPUBASE, "cpu([[:digit:]]+)")
+			regex := regexp.MustCompile(regexPath)
+
+			// File globbing for hardware threads
+			files, err := filepath.Glob(globPath)
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "init:getHWThreads", err.Error())
+				return nil
 			}
+
+			hwThreadIDs := make([]int, len(files))
+			for i, file := range files {
+				// Extract hardware thread ID
+				matches := regex.FindStringSubmatch(file)
+				if len(matches) != 2 {
+					cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to extract hardware thread ID from ", file)
+					return nil
+				}
+
+				// Convert hardware thread ID to int
+				id, err := strconv.Atoi(matches[1])
+				if err != nil {
+					cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to convert to int hardware thread ID ", matches[1])
+					return nil
+				}
+
+				hwThreadIDs[i] = id
+			}
+
+			// Sort hardware thread IDs
+			slices.Sort(hwThreadIDs)
+			return hwThreadIDs
 		}
-	}
 
 	getSMT :=
 		func(cpuID int, basePath string) int {
@@ -127,7 +128,9 @@ func init() {
 			return id
 		}
 
+	cache.HwthreadList = getHWThreads()
 	cache.CoreList = make([]int, len(cache.HwthreadList))
+	cache.SocketList = make([]int, len(cache.HwthreadList))
 	cache.DieList = make([]int, len(cache.HwthreadList))
 	cache.SMTList = make([]int, len(cache.HwthreadList))
 	cache.NumaDomainList = make([]int, len(cache.HwthreadList))
@@ -135,13 +138,16 @@ func init() {
 		// Set base directory for topology lookup
 		base :=
 			filepath.Join(
-				"/sys/devices/system/cpu",
+				SYSFS_CPUBASE,
 				fmt.Sprintf("cpu%d", c),
 			)
 		topoBase := filepath.Join(base, "topology")
 
 		// Lookup Core ID
 		cache.CoreList[i] = fileToInt(filepath.Join(topoBase, "core_id"))
+
+		// Lookup socket / physical package ID
+		cache.SocketList[i] = fileToInt(filepath.Join(topoBase, "physical_package_id"))
 
 		// Lookup CPU die id
 		cache.DieList[i] = fileToInt(filepath.Join(topoBase, "die_id"))
