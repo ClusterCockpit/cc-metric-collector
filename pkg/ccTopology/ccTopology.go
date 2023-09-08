@@ -16,14 +16,16 @@ import (
 const SYSFS_CPUBASE = `/sys/devices/system/cpu`
 
 // Structure holding all information about a hardware thread
+// See https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-devices-system-cpu
 type HwthreadEntry struct {
-	CpuID              int   // CPU hardware threads
-	SMT                int   // Simultaneous Multithreading ID
-	ThreadSiblingsList []int // Simultaneous Multithreading siblings
-	Core               int   // CPU core ID
-	Socket             int   // CPU sockets (physical) ID
-	Die                int   // CPU Die ID
-	NumaDomain         int   // NUMA Domain
+	// for each CPUx:
+	CpuID        int   // CPU / hardware thread ID
+	SMT          int   // Simultaneous Multithreading ID
+	CoreCPUsList []int // CPUs within the same core
+	Core         int   // Socket local core ID
+	Socket       int   // Sockets (physical) ID
+	Die          int   // Die ID
+	NumaDomain   int   // NUMA Domain
 }
 
 var cache struct {
@@ -60,7 +62,7 @@ func fileToInt(path string) int {
 // A range can be a single value or a range of values given by a startValue-endValue
 // In case of an error nil is returned
 func fileToList(path string) []int {
-	// Read thread sibling list
+	// Read list
 	buffer, err := os.ReadFile(path)
 	if err != nil {
 		log.Print(err)
@@ -200,25 +202,25 @@ func init() {
 			cache.DieList[i] = cache.SocketList[i]
 		}
 
-		// Lookup thread siblings list
-		threadSiblingList := fileToList(filepath.Join(topoBase, "thread_siblings_list"))
+		// Lookup List of CPUs within the same core
+		coreCPUsList := fileToList(filepath.Join(topoBase, "core_cpus_list"))
 
-		// Find index of CPU ID in thread sibling list
+		// Find index of CPU ID in List of CPUs within the same core
 		// if not found return -1
-		cache.SMTList[i] = slices.Index(threadSiblingList, c)
+		cache.SMTList[i] = slices.Index(coreCPUsList, c)
 
 		// Lookup NUMA domain id
 		cache.NumaDomainList[i] = getNumaDomain(cpuBase)
 
 		cache.CpuData[i] =
 			HwthreadEntry{
-				CpuID:              cache.HwthreadList[i],
-				SMT:                cache.SMTList[i],
-				ThreadSiblingsList: threadSiblingList,
-				Socket:             cache.SocketList[i],
-				NumaDomain:         cache.NumaDomainList[i],
-				Die:                cache.DieList[i],
-				Core:               cache.CoreList[i],
+				CpuID:        cache.HwthreadList[i],
+				SMT:          cache.SMTList[i],
+				CoreCPUsList: coreCPUsList,
+				Socket:       cache.SocketList[i],
+				NumaDomain:   cache.NumaDomainList[i],
+				Die:          cache.DieList[i],
+				Core:         cache.CoreList[i],
 			}
 	}
 
@@ -305,7 +307,7 @@ func CpuData() []HwthreadEntry {
 	// return a deep copy to protect cache data
 	c := slices.Clone(cache.CpuData)
 	for i := range c {
-		c[i].ThreadSiblingsList = slices.Clone(cache.CpuData[i].ThreadSiblingsList)
+		c[i].CoreCPUsList = slices.Clone(cache.CpuData[i].CoreCPUsList)
 	}
 	return c
 }
