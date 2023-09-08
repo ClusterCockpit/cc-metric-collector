@@ -36,6 +36,70 @@ var cache struct {
 	CpuData []HwthreadEntry
 }
 
+// fileToInt reads an integer value from a file
+// In case of an error -1 is returned
+// Used internally for sysfs file reads
+func fileToInt(path string) int {
+	buffer, err := os.ReadFile(path)
+	if err != nil {
+		log.Print(err)
+		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
+		return -1
+	}
+	stringBuffer := strings.TrimSpace(string(buffer))
+	id, err := strconv.Atoi(stringBuffer)
+	if err != nil {
+		cclogger.ComponentError("ccTopology", "Parsing", path, ":", stringBuffer, err.Error())
+		return -1
+	}
+	return id
+}
+
+// fileToList reads a list from a file
+// A list consists of value ranges separated by colon
+// A range can be a single value or a range of values given by a startValue-endValue
+// In case of an error nil is returned
+// Used internally for sysfs file reads
+func fileToList(path string) []int {
+	// Read thread sibling list
+	buffer, err := os.ReadFile(path)
+	if err != nil {
+		log.Print(err)
+		cclogger.ComponentError("ccTopology", "fileToList", "Reading", path, ":", err.Error())
+		return nil
+	}
+
+	// Create list
+	list := make([]int, 0)
+	stringBuffer := strings.TrimSpace(string(buffer))
+	for _, valueRangeString := range strings.Split(stringBuffer, ",") {
+		valueRange := strings.Split(valueRangeString, "-")
+		switch len(valueRange) {
+		case 1:
+			singleValue, err := strconv.Atoi(valueRange[0])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "fileToList", err.Error())
+			}
+			list = append(list, singleValue)
+		case 2:
+			startValue, err := strconv.Atoi(valueRange[0])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "fileToList", err.Error())
+			}
+			endValue, err := strconv.Atoi(valueRange[1])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "fileToList", err.Error())
+			}
+			for value := startValue; value <= endValue; value++ {
+				list = append(list, value)
+			}
+		}
+
+	}
+
+	return list
+}
+
 // init initializes the cache structure
 func init() {
 
@@ -74,30 +138,6 @@ func init() {
 			// Sort hardware thread IDs
 			slices.Sort(hwThreadIDs)
 			return hwThreadIDs
-		}
-
-	getSMT :=
-		func(cpuID int, basePath string) int {
-			// Read thread sibling list
-			buffer, err := os.ReadFile(filepath.Join(basePath, "thread_siblings_list"))
-			if err != nil {
-				cclogger.ComponentError("CCTopology", "init", err.Error())
-			}
-
-			// Create thread sibling list
-			threadList := make([]int, 0)
-			stringBuffer := strings.TrimSpace(string(buffer))
-			for _, x := range strings.Split(stringBuffer, ",") {
-				id, err := strconv.Atoi(x)
-				if err != nil {
-					cclogger.ComponentError("CCTopology", "init", err.Error())
-				}
-				threadList = append(threadList, id)
-			}
-
-			// Find index of CPU ID in thread sibling list
-			// if not found return -1
-			return slices.Index(threadList, cpuID)
 		}
 
 	getNumaDomain :=
@@ -155,8 +195,12 @@ func init() {
 			cache.DieList[i] = cache.SocketList[i]
 		}
 
-		// Lookup SMT thread id
-		cache.SMTList[i] = getSMT(c, topoBase)
+		// Lookup thread siblings list
+		threadList := fileToList(filepath.Join(topoBase, "thread_siblings_list"))
+
+		// Find index of CPU ID in thread sibling list
+		// if not found return -1
+		cache.SMTList[i] = slices.Index(threadList, c)
 
 		// Lookup NUMA domain id
 		cache.NumaDomainList[i] = getNumaDomain(base)
@@ -198,25 +242,6 @@ func init() {
 				Core:       cache.CoreList[i],
 			}
 	}
-}
-
-// fileToInt reads an integer value from a file
-// In case of an error -1 is returned
-// Used internally for sysfs file reads
-func fileToInt(path string) int {
-	buffer, err := os.ReadFile(path)
-	if err != nil {
-		log.Print(err)
-		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
-		return -1
-	}
-	stringBuffer := strings.TrimSpace(string(buffer))
-	id, err := strconv.Atoi(stringBuffer)
-	if err != nil {
-		cclogger.ComponentError("ccTopology", "Parsing", path, ":", stringBuffer, err.Error())
-		return -1
-	}
-	return id
 }
 
 // SocketList gets the list of CPU socket IDs
