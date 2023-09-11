@@ -29,12 +29,12 @@ type HwthreadEntry struct {
 }
 
 var cache struct {
-	HwthreadList, uniqHwthreadList     []int // List of CPU hardware threads
-	SMTList, uniqSMTList               []int // List of symmetric hyper threading IDs
-	CoreList, uniqCoreList             []int // List of CPU core IDs
-	SocketList, uniqSocketList         []int // List of CPU sockets (physical) IDs
-	DieList, uniqDieList               []int // List of CPU Die IDs
-	NumaDomainList, uniqNumaDomainList []int // List of NUMA Domains
+	HwthreadList   []int // List of CPU hardware threads
+	SMTList        []int // List of symmetric hyper threading IDs
+	CoreList       []int // List of CPU core IDs
+	SocketList     []int // List of CPU sockets (physical) IDs
+	DieList        []int // List of CPU Die IDs
+	NumaDomainList []int // List of NUMA Domains
 
 	CpuData []HwthreadEntry
 }
@@ -224,39 +224,33 @@ func init() {
 			}
 	}
 
-	cache.uniqHwthreadList = slices.Clone(cache.HwthreadList)
-	slices.Sort(cache.uniqHwthreadList)
-	cache.uniqHwthreadList = slices.Compact(cache.uniqHwthreadList)
+	slices.Sort(cache.HwthreadList)
+	cache.HwthreadList = slices.Compact(cache.HwthreadList)
 
-	cache.uniqSMTList = slices.Clone(cache.SMTList)
-	slices.Sort(cache.uniqSMTList)
-	cache.uniqSMTList = slices.Compact(cache.uniqSMTList)
+	slices.Sort(cache.SMTList)
+	cache.SMTList = slices.Compact(cache.SMTList)
 
-	cache.uniqCoreList = slices.Clone(cache.CoreList)
-	slices.Sort(cache.uniqCoreList)
-	cache.uniqCoreList = slices.Compact(cache.uniqCoreList)
+	slices.Sort(cache.CoreList)
+	cache.CoreList = slices.Compact(cache.CoreList)
 
-	cache.uniqSocketList = slices.Clone(cache.SocketList)
-	slices.Sort(cache.uniqSocketList)
-	cache.uniqSocketList = slices.Compact(cache.uniqSocketList)
+	slices.Sort(cache.SocketList)
+	cache.SocketList = slices.Compact(cache.SocketList)
 
-	cache.uniqDieList = slices.Clone(cache.DieList)
-	slices.Sort(cache.uniqDieList)
-	cache.uniqDieList = slices.Compact(cache.uniqDieList)
+	slices.Sort(cache.DieList)
+	cache.DieList = slices.Compact(cache.DieList)
 
-	cache.uniqNumaDomainList = slices.Clone(cache.NumaDomainList)
-	slices.Sort(cache.uniqNumaDomainList)
-	cache.uniqNumaDomainList = slices.Compact(cache.uniqNumaDomainList)
+	slices.Sort(cache.NumaDomainList)
+	cache.NumaDomainList = slices.Compact(cache.NumaDomainList)
 }
 
 // SocketList gets the list of CPU socket IDs
 func SocketList() []int {
-	return slices.Clone(cache.uniqSocketList)
+	return slices.Clone(cache.SocketList)
 }
 
 // HwthreadList gets the list of hardware thread IDs in the order of listing in /proc/cpuinfo
 func HwthreadList() []int {
-	return slices.Clone(cache.uniqHwthreadList)
+	return slices.Clone(cache.HwthreadList)
 }
 
 // Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
@@ -267,18 +261,18 @@ func CpuList() []int {
 
 // CoreList gets the list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
-	return slices.Clone(cache.uniqCoreList)
+	return slices.Clone(cache.CoreList)
 }
 
 // Get list of NUMA node IDs
 func NumaNodeList() []int {
-	return slices.Clone(cache.uniqNumaDomainList)
+	return slices.Clone(cache.NumaDomainList)
 }
 
 // DieList gets the list of CPU die IDs
 func DieList() []int {
-	if len(cache.uniqDieList) > 0 {
-		return slices.Clone(cache.uniqDieList)
+	if len(cache.DieList) > 0 {
+		return slices.Clone(cache.DieList)
 	}
 	return SocketList()
 }
@@ -325,12 +319,12 @@ type CpuInformation struct {
 // CpuInformation reports basic information about the CPU
 func CpuInfo() CpuInformation {
 	return CpuInformation{
-		NumNumaDomains: len(cache.uniqNumaDomainList),
-		SMTWidth:       len(cache.uniqSMTList),
-		NumDies:        len(cache.uniqDieList),
-		NumCores:       len(cache.uniqCoreList),
-		NumSockets:     len(cache.uniqSocketList),
-		NumHWthreads:   len(cache.uniqHwthreadList),
+		NumNumaDomains: len(cache.NumaDomainList),
+		SMTWidth:       len(cache.SMTList),
+		NumDies:        len(cache.DieList),
+		NumCores:       len(cache.CoreList),
+		NumSockets:     len(cache.SocketList),
+		NumHWthreads:   len(cache.HwthreadList),
 	}
 }
 
