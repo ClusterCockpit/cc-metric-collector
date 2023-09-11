@@ -41,11 +41,14 @@ const (
 )
 
 type LikwidCollectorMetricConfig struct {
-	Name    string `json:"name"` // Name of the metric
-	Calc    string `json:"calc"` // Calculation for the metric using
-	Type    string `json:"type"` // Metric type (aka node, socket, cpu, ...)
-	Publish bool   `json:"publish"`
-	Unit    string `json:"unit"` // Unit of metric if any
+	Name               string `json:"name"` // Name of the metric
+	Calc               string `json:"calc"` // Calculation for the metric using
+	Type               string `json:"type"` // Metric type (aka node, socket, cpu, ...)
+	Publish            bool   `json:"publish"`
+	SendCoreTotalVal   bool   `json:"send_core_total_values,omitempty"`
+	SendSocketTotalVal bool   `json:"send_socket_total_values,omitempty"`
+	SendNodeTotalVal   bool   `json:"send_node_total_values,omitempty"`
+	Unit               string `json:"unit"` // Unit of metric if any
 }
 
 type LikwidCollectorEventsetConfig struct {
@@ -79,6 +82,8 @@ type LikwidCollector struct {
 	cpulist       []C.int
 	cpu2tid       map[int]int
 	sock2tid      map[int]int
+	tid2core      map[int]int
+	tid2socket    map[int]int
 	metrics       map[C.int]map[string]int
 	groups        []C.int
 	config        LikwidCollectorConfig
@@ -309,24 +314,18 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.measureThread = thread.New()
 	switch m.config.AccessMode {
 	case "direct":
-		m.measureThread.Call(
-			func() {
-				C.HPMmode(0)
-			})
+		C.HPMmode(0)
 	case "accessdaemon":
 		if len(m.config.DaemonPath) > 0 {
 			p := os.Getenv("PATH")
 			os.Setenv("PATH", m.config.DaemonPath+":"+p)
 		}
-		m.measureThread.Call(
-			func() {
-				C.HPMmode(1)
-				retCode := C.HPMinit()
-				if retCode != 0 {
-					err := fmt.Errorf("C.HPMinit() failed with return code %v", retCode)
-					cclog.ComponentError(m.name, err.Error())
-				}
-			})
+		C.HPMmode(1)
+		retCode := C.HPMinit()
+		if retCode != 0 {
+			err := fmt.Errorf("C.HPMinit() failed with return code %v", retCode)
+			cclog.ComponentError(m.name, err.Error())
+		}
 		for _, c := range m.cpulist {
 			m.measureThread.Call(
 				func() {
@@ -347,6 +346,21 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 			m.sock2tid[sid] = m.cpu2tid[int(tmp[0])]
 		}
 		C.free(unsafe.Pointer(cstr))
+	}
+
+	cpuData := topo.CpuData()
+	m.tid2core = make(map[int]int, len(cpuData))
+	m.tid2socket = make(map[int]int, len(cpuData))
+	for i := range cpuData {
+		c := &cpuData[i]
+		// Hardware thread ID to core ID mapping
+		if len(c.CoreCPUsList) > 0 {
+			m.tid2core[c.CpuID] = c.CoreCPUsList[0]
+		} else {
+			m.tid2core[c.CpuID] = c.CpuID
+		}
+		// Hardware thead ID to socket ID mapping
+		m.tid2socket[c.CpuID] = c.Socket
 	}
 
 	m.basefreq = getBaseFreq()
@@ -537,22 +551,125 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				}
 				evset.metrics[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
-				if !math.IsNaN(value) {
-					if metric.Publish {
-						fields := map[string]interface{}{"value": value}
-						y, err := lp.New(metric.Name, map[string]string{"type": metric.Type}, m.meta, fields, time.Now())
-						if err == nil {
-							if metric.Type != "node" {
-								y.AddTag("type-id", fmt.Sprintf("%d", domain))
-							}
-							if len(metric.Unit) > 0 {
-								y.AddMeta("unit", metric.Unit)
-							}
-							output <- y
+				if !math.IsNaN(value) && metric.Publish {
+					fields := map[string]interface{}{"value": value}
+					y, err := lp.New(metric.Name, map[string]string{"type": metric.Type}, m.meta, fields, time.Now())
+					if err == nil {
+						if metric.Type != "node" {
+							y.AddTag("type-id", fmt.Sprintf("%d", domain))
 						}
+						if len(metric.Unit) > 0 {
+							y.AddMeta("unit", metric.Unit)
+						}
+						output <- y
 					}
 				}
 			}
+		}
+
+		// Send per core aggregated values
+		if metric.SendCoreTotalVal {
+			now := time.Now()
+			totalCoreValues := make(map[int]float64)
+			for _, tid := range scopemap {
+				if tid >= 0 && len(metric.Calc) > 0 {
+					coreID := m.tid2core[tid]
+					value := evset.metrics[tid][metric.Name]
+					if !math.IsNaN(value) && metric.Publish {
+						totalCoreValues[coreID] += value
+					}
+				}
+			}
+
+			for coreID, value := range totalCoreValues {
+				y, err := lp.New(
+					metric.Name,
+					map[string]string{
+						"type":    "core",
+						"type-id": fmt.Sprintf("%d", coreID),
+					},
+					m.meta,
+					map[string]interface{}{
+						"value": value,
+					},
+					now,
+				)
+				if err != nil {
+					continue
+				}
+				if len(metric.Unit) > 0 {
+					y.AddMeta("unit", metric.Unit)
+				}
+				output <- y
+			}
+		}
+
+		// Send per socket aggregated values
+		if metric.SendSocketTotalVal {
+			now := time.Now()
+			totalSocketValues := make(map[int]float64)
+			for _, tid := range scopemap {
+				if tid >= 0 && len(metric.Calc) > 0 {
+					socketID := m.tid2socket[tid]
+					value := evset.metrics[tid][metric.Name]
+					if !math.IsNaN(value) && metric.Publish {
+						totalSocketValues[socketID] += value
+					}
+				}
+			}
+
+			for socketID, value := range totalSocketValues {
+				y, err := lp.New(
+					metric.Name,
+					map[string]string{
+						"type":    "socket",
+						"type-id": fmt.Sprintf("%d", socketID),
+					},
+					m.meta,
+					map[string]interface{}{
+						"value": value,
+					},
+					now,
+				)
+				if err != nil {
+					continue
+				}
+				if len(metric.Unit) > 0 {
+					y.AddMeta("unit", metric.Unit)
+				}
+				output <- y
+			}
+		}
+
+		// Send per node aggregated value
+		if metric.SendNodeTotalVal {
+			now := time.Now()
+			var totalNodeValue float64 = 0.0
+			for _, tid := range scopemap {
+				if tid >= 0 && len(metric.Calc) > 0 {
+					value := evset.metrics[tid][metric.Name]
+					if !math.IsNaN(value) && metric.Publish {
+						totalNodeValue += value
+					}
+				}
+			}
+
+			y, err := lp.New(
+				metric.Name,
+				map[string]string{},
+				m.meta,
+				map[string]interface{}{
+					"value": totalNodeValue,
+				},
+				now,
+			)
+			if err != nil {
+				continue
+			}
+			if len(metric.Unit) > 0 {
+				y.AddMeta("unit", metric.Unit)
+			}
+			output <- y
 		}
 	}
 
