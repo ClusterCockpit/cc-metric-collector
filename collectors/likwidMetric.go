@@ -554,14 +554,16 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) && metric.Publish {
 					fields := map[string]interface{}{"value": value}
-					y, err := lp.New(
-						metric.Name,
-						map[string]string{
-							"type": metric.Type,
-						},
-						m.meta,
-						fields,
-						now)
+					y, err :=
+						lp.New(
+							metric.Name,
+							map[string]string{
+								"type": metric.Type,
+							},
+							m.meta,
+							fields,
+							now,
+						)
 					if err == nil {
 						if metric.Type != "node" {
 							y.AddTag("type-id", fmt.Sprintf("%d", domain))
@@ -589,18 +591,19 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 			}
 
 			for coreID, value := range totalCoreValues {
-				y, err := lp.New(
-					metric.Name,
-					map[string]string{
-						"type":    "core",
-						"type-id": fmt.Sprintf("%d", coreID),
-					},
-					m.meta,
-					map[string]interface{}{
-						"value": value,
-					},
-					now,
-				)
+				y, err :=
+					lp.New(
+						metric.Name,
+						map[string]string{
+							"type":    "core",
+							"type-id": fmt.Sprintf("%d", coreID),
+						},
+						m.meta,
+						map[string]interface{}{
+							"value": value,
+						},
+						now,
+					)
 				if err != nil {
 					continue
 				}
@@ -625,18 +628,19 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 			}
 
 			for socketID, value := range totalSocketValues {
-				y, err := lp.New(
-					metric.Name,
-					map[string]string{
-						"type":    "socket",
-						"type-id": fmt.Sprintf("%d", socketID),
-					},
-					m.meta,
-					map[string]interface{}{
-						"value": value,
-					},
-					now,
-				)
+				y, err :=
+					lp.New(
+						metric.Name,
+						map[string]string{
+							"type":    "socket",
+							"type-id": fmt.Sprintf("%d", socketID),
+						},
+						m.meta,
+						map[string]interface{}{
+							"value": value,
+						},
+						now,
+					)
 				if err != nil {
 					continue
 				}
@@ -659,17 +663,18 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				}
 			}
 
-			y, err := lp.New(
-				metric.Name,
-				map[string]string{
-					"type": "node",
-				},
-				m.meta,
-				map[string]interface{}{
-					"value": totalNodeValue,
-				},
-				now,
-			)
+			y, err :=
+				lp.New(
+					metric.Name,
+					map[string]string{
+						"type": "node",
+					},
+					m.meta,
+					map[string]interface{}{
+						"value": totalNodeValue,
+					},
+					now,
+				)
 			if err != nil {
 				continue
 			}
@@ -685,7 +690,13 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 // Go over the global metrics, derive the value out of the event sets' metric values and send it
 func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, interval time.Duration, output chan lp.CCMetric) error {
+	// Send all metrics with same time stamp
+	// This function does only computiation, counter measurement is done before
+	now := time.Now()
+
 	for _, metric := range m.config.Metrics {
+		// The metric scope is determined in the Init() function
+		// Get the map scope-id -> tids
 		scopemap := m.cpu2tid
 		if metric.Type == "socket" {
 			scopemap = m.sock2tid
@@ -712,9 +723,18 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
-						tags := map[string]string{"type": metric.Type}
-						fields := map[string]interface{}{"value": value}
-						y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+						y, err :=
+							lp.New(
+								metric.Name,
+								map[string]string{
+									"type": metric.Type,
+								},
+								m.meta,
+								map[string]interface{}{
+									"value": value,
+								},
+								now,
+							)
 						if err == nil {
 							if metric.Type != "node" {
 								y.AddTag("type-id", fmt.Sprintf("%d", domain))
