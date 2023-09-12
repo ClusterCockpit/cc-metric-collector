@@ -241,8 +241,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	m.likwidGroups = make(map[C.int]LikwidEventsetConfig)
 
-	// m.results = make(map[int]map[int]map[string]interface{})
-	// m.mresults = make(map[int]map[int]map[string]float64)
 	m.gmresults = make(map[int]map[string]float64)
 	for _, tid := range m.cpu2tid {
 		m.gmresults[tid] = make(map[string]float64)
@@ -539,6 +537,9 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 		if metric.Type == "socket" {
 			scopemap = m.sock2tid
 		}
+		// Send all metrics with same time stamp
+		// This function does only computiation, counter measurement is done before
+		now := time.Now()
 		for domain, tid := range scopemap {
 			if tid >= 0 && len(metric.Calc) > 0 {
 				value, err := agg.EvalFloat64Condition(metric.Calc, evset.results[tid])
@@ -553,7 +554,14 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) && metric.Publish {
 					fields := map[string]interface{}{"value": value}
-					y, err := lp.New(metric.Name, map[string]string{"type": metric.Type}, m.meta, fields, time.Now())
+					y, err := lp.New(
+						metric.Name,
+						map[string]string{
+							"type": metric.Type,
+						},
+						m.meta,
+						fields,
+						now)
 					if err == nil {
 						if metric.Type != "node" {
 							y.AddTag("type-id", fmt.Sprintf("%d", domain))
@@ -569,7 +577,6 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 		// Send per core aggregated values
 		if metric.SendCoreTotalVal {
-			now := time.Now()
 			totalCoreValues := make(map[int]float64)
 			for _, tid := range scopemap {
 				if tid >= 0 && len(metric.Calc) > 0 {
@@ -606,7 +613,6 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 		// Send per socket aggregated values
 		if metric.SendSocketTotalVal {
-			now := time.Now()
 			totalSocketValues := make(map[int]float64)
 			for _, tid := range scopemap {
 				if tid >= 0 && len(metric.Calc) > 0 {
@@ -643,7 +649,6 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 		// Send per node aggregated value
 		if metric.SendNodeTotalVal {
-			now := time.Now()
 			var totalNodeValue float64 = 0.0
 			for _, tid := range scopemap {
 				if tid >= 0 && len(metric.Calc) > 0 {
@@ -656,7 +661,9 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 			y, err := lp.New(
 				metric.Name,
-				map[string]string{},
+				map[string]string{
+					"type": "node",
+				},
 				m.meta,
 				map[string]interface{}{
 					"value": totalNodeValue,
