@@ -365,6 +365,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	var ret C.int
 	var gid C.int = -1
 	sigchan := make(chan os.Signal, 1)
+
+	// Watch changes for the lock file ()
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
@@ -376,13 +378,13 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		if err != nil {
 			return true, err
 		}
-		stat := info.Sys().(*syscall.Stat_t)
-		if stat.Uid != uint32(os.Getuid()) {
-			usr, err := user.LookupId(strconv.FormatUint(uint64(stat.Uid), 10))
+		uid := info.Sys().(*syscall.Stat_t).Uid
+		if uid != uint32(os.Getuid()) {
+			usr, err := user.LookupId(fmt.Sprint(uid))
 			if err == nil {
 				return true, fmt.Errorf("Access to performance counters locked by %s", usr.Username)
 			} else {
-				return true, fmt.Errorf("Access to performance counters locked by %d", stat.Uid)
+				return true, fmt.Errorf("Access to performance counters locked by %d", uid)
 			}
 		}
 		err = watcher.Add(m.config.LockfilePath)
@@ -392,6 +394,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
+	// Initialize the performance monitoring feature by creating basic data structures
 	select {
 	case e := <-watcher.Events:
 		ret = -1
@@ -406,6 +410,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	}
 	signal.Notify(sigchan, os.Interrupt)
 	signal.Notify(sigchan, syscall.SIGCHLD)
+
+	// Add an event string to LIKWID
 	select {
 	case <-sigchan:
 		gid = -1
@@ -421,8 +427,9 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		return true, fmt.Errorf("failed to add events %s, error %d", evset.go_estr, gid)
 	} else {
 		evset.gid = gid
-		//m.likwidGroups[gid] = evset
 	}
+
+	// Setup all performance monitoring counters of an eventSet
 	select {
 	case <-sigchan:
 		ret = -1
@@ -436,6 +443,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to setup events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Start counters
 	select {
 	case <-sigchan:
 		ret = -1
@@ -462,7 +471,11 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Wait
 	time.Sleep(interval)
+
+	// Read counters
 	select {
 	case <-sigchan:
 		ret = -1
@@ -476,6 +489,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Store counters
 	for eidx, counter := range evset.eorder {
 		gctr := C.GoString(counter)
 		for _, tid := range m.cpu2tid {
@@ -487,9 +502,13 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 			evset.results[tid][gctr] = fres
 		}
 	}
+
+	// Store time in seconds the event group was measured the last time
 	for _, tid := range m.cpu2tid {
 		evset.results[tid]["time"] = float64(C.perfmon_getLastTimeOfGroup(gid))
 	}
+
+	// Stop counters
 	select {
 	case <-sigchan:
 		ret = -1
@@ -503,6 +522,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to stop events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Deallocates all internal data that is used during performance monitoring
 	signal.Stop(sigchan)
 	select {
 	case e := <-watcher.Events:
@@ -774,8 +795,6 @@ func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMe
 
 // main read function taking multiple measurement rounds, each 'interval' seconds long
 func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
-	//var skip bool = false
-	//var err error
 	if !m.init {
 		return
 	}
