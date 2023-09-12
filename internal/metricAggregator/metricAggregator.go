@@ -367,7 +367,7 @@ func EvalBoolCondition(condition string, params map[string]interface{}) (bool, e
 	return value, err
 }
 
-func EvalFloat64Condition(condition string, params map[string]interface{}) (float64, error) {
+func EvalFloat64Condition(condition string, params map[string]float64) (float64, error) {
 	evaluables.mutex.Lock()
 	evaluable, ok := evaluables.mapping[condition]
 	evaluables.mutex.Unlock()

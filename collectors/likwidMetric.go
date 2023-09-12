@@ -62,7 +62,7 @@ type LikwidEventsetConfig struct {
 	eorder   []*C.char
 	estr     *C.char
 	go_estr  string
-	results  map[int]map[string]interface{}
+	results  map[int]map[string]float64
 	metrics  map[int]map[string]float64
 }
 
@@ -139,10 +139,10 @@ func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig
 		elist = append(elist, c_counter)
 	}
 	estr := strings.Join(tmplist, ",")
-	res := make(map[int]map[string]interface{})
+	res := make(map[int]map[string]float64)
 	met := make(map[int]map[string]float64)
 	for _, i := range topo.CpuList() {
-		res[i] = make(map[string]interface{})
+		res[i] = make(map[string]float64)
 		for k := range input.Events {
 			res[i][k] = 0.0
 		}
@@ -162,7 +162,7 @@ func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig
 }
 
 func testLikwidMetricFormula(formula string, params []string) bool {
-	myparams := make(map[string]interface{})
+	myparams := make(map[string]float64)
 	for _, p := range params {
 		myparams[p] = float64(1.0)
 	}
@@ -693,7 +693,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 		for domain, tid := range scopemap {
 			if tid >= 0 {
 				// Here we generate parameter list
-				params := make(map[string]interface{})
+				params := make(map[string]float64)
 				for _, evset := range groups {
 					for mname, mres := range evset.metrics[tid] {
 						params[mname] = mres
