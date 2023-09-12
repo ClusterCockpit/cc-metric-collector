@@ -87,7 +87,6 @@ type LikwidCollector struct {
 	metrics       map[C.int]map[string]int
 	groups        []C.int
 	config        LikwidCollectorConfig
-	gmresults     map[int]map[string]float64
 	basefreq      float64
 	running       bool
 	initialized   bool
@@ -240,11 +239,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 
 	m.likwidGroups = make(map[C.int]LikwidEventsetConfig)
-
-	m.gmresults = make(map[int]map[string]float64)
-	for _, tid := range m.cpu2tid {
-		m.gmresults[tid] = make(map[string]float64)
-	}
 
 	// This is for the global metrics computation test
 	totalMetrics := 0
@@ -719,7 +713,6 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {
 					value = 0.0
 				}
-				//m.gmresults[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
