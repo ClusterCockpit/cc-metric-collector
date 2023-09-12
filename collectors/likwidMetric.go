@@ -29,8 +29,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
+	"github.com/fsnotify/fsnotify"
 	"golang.design/x/thread"
-	fsnotify "gopkg.in/fsnotify.v1"
 )
 
 const (
