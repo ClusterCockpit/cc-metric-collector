@@ -13,12 +13,12 @@ on:
 jobs:
 
   #
-  # Build on AlmaLinux 8.5 using go-toolset
+  # Build on AlmaLinux 8 using go-toolset
   #
   AlmaLinux-RPM-build:
     runs-on: ubuntu-latest
     # See: https://hub.docker.com/_/almalinux
-    container: almalinux:8.5
+    container: almalinux:8
     # The job outputs link to the outputs of the 'rpmrename' step
     # Only job outputs can be used in child jobs
     outputs:
@@ -44,11 +44,11 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          wget -q http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.18.2-1.module_el8.7.0+1173+5d37c0fd.noarch.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm
-          rpm -i go*.rpm
+          dnf --assumeyes install \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -56,18 +56,18 @@ jobs:
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make RPM
 
-    # AlmaLinux 8.5 is a derivate of RedHat Enterprise Linux 8 (UBI8),
+    # AlmaLinux 8 is a derivate of RedHat Enterprise Linux 8 (UBI8),
     # so the created RPM both contain the substring 'el8' in the RPM file names
-    # This step replaces the substring 'el8' to 'alma85'. It uses the move operation
-    # because it is unclear whether the default AlmaLinux 8.5 container contains the 
+    # This step replaces the substring 'el8' to 'alma8'. It uses the move operation
+    # because it is unclear whether the default AlmaLinux 8 container contains the
     # 'rename' command. This way we also get the new names for output.
-    - name: Rename RPMs (s/el8/alma85/)
+    - name: Rename RPMs (s/el8/alma8/)
       id: rpmrename
       run: |
         OLD_RPM="${{steps.rpmbuild.outputs.RPM}}"
         OLD_SRPM="${{steps.rpmbuild.outputs.SRPM}}"
-        NEW_RPM="${OLD_RPM/el8/alma85}"
-        NEW_SRPM=${OLD_SRPM/el8/alma85}
+        NEW_RPM="${OLD_RPM/el8/alma8}"
+        NEW_SRPM=${OLD_SRPM/el8/alma8}
         mv "${OLD_RPM}" "${NEW_RPM}"
         mv "${OLD_SRPM}" "${NEW_SRPM}"
         echo "::set-output name=SRPM::${NEW_SRPM}"
@@ -77,12 +77,12 @@ jobs:
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector RPM for AlmaLinux 8.5
+        name: cc-metric-collector RPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.RPM }}
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector SRPM for AlmaLinux 8.5
+        name: cc-metric-collector SRPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.SRPM }}
 
   #
@@ -90,8 +90,8 @@ jobs:
   #
   UBI-8-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
-    container: registry.access.redhat.com/ubi8/ubi:8.5-226.1645809065
+    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c35984d70cc534b3a3784e?container-tabs=gti
+    container: registry.access.redhat.com/ubi8/ubi:8.8-1032.1692772289
     # The job outputs link to the outputs of the 'rpmbuild' step
     outputs:
       rpm : ${{steps.rpmbuild.outputs.RPM}}
@@ -114,11 +114,11 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          wget -q http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.18.2-1.module_el8.7.0+1173+5d37c0fd.noarch.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.18.2-1.module_el8.7.0+1173+5d37c0fd.x86_64.rpm
-          rpm -i go*.rpm
+          dnf --assumeyes --disableplugin=subscription-manager install \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -139,11 +139,11 @@ jobs:
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
   #
-  # Build on Ubuntu 20.04 using official go package
+  # Build on Ubuntu 22.04 using official go package
   #
-  Ubuntu-focal-build:
+  Ubuntu-jammy-build:
     runs-on: ubuntu-latest
-    container: ubuntu:20.04
+    container: ubuntu:22.04
     # The job outputs link to the outputs of the 'debrename' step
     # Only job outputs can be used in child jobs
     outputs:
@@ -165,8 +165,8 @@ jobs:
     # Use official golang package
     - name: Install Golang
       run: |
-          wget -q https://go.dev/dl/go1.19.1.linux-amd64.tar.gz
-          tar -C /usr/local -xzf go1.19.1.linux-amd64.tar.gz
+          wget -q https://go.dev/dl/go1.21.1.linux-amd64.tar.gz --output-document=- | \
+          tar --directory=/usr/local --extract --gzip
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           go version
     - name: DEB build MetricCollector
@@ -199,15 +199,15 @@ jobs:
 
     steps:
     # See: https://github.com/actions/download-artifact
-    - name: Download AlmaLinux 8.5 RPM
+    - name: Download AlmaLinux 8 RPM
       uses: actions/download-artifact@v2
       with:
-        name: cc-metric-collector RPM for AlmaLinux 8.5
-    - name: Download AlmaLinux 8.5 SRPM
+        name: cc-metric-collector RPM for AlmaLinux 8
+    - name: Download AlmaLinux 8 SRPM
       uses: actions/download-artifact@v2
       with:
-        name: cc-metric-collector SRPM for AlmaLinux 8.5
-    
+        name: cc-metric-collector SRPM for AlmaLinux 8
+
     - name: Download UBI 8 RPM
       uses: actions/download-artifact@v2
       with:
@@ -231,18 +231,18 @@ jobs:
     - name: Set RPM variables
       id: files
       run: |
-        ALMA_85_RPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.rpm}}")
-        ALMA_85_SRPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.srpm}}")
+        ALMA_8_RPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.rpm}}")
+        ALMA_8_SRPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.srpm}}")
         UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
         UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
         U_2004_DEB=$(basename "${{ needs.Ubuntu-focal-build.outputs.deb}}")
-        echo "ALMA_85_RPM::${ALMA_85_RPM}"
-        echo "ALMA_85_SRPM::${ALMA_85_SRPM}"
+        echo "ALMA_8_RPM::${ALMA_8_RPM}"
+        echo "ALMA_8_SRPM::${ALMA_8_SRPM}"
         echo "UBI_8_RPM::${UBI_8_RPM}"
         echo "UBI_8_SRPM::${UBI_8_SRPM}"
         echo "U_2004_DEB::${U_2004_DEB}"
-        echo "::set-output name=ALMA_85_RPM::${ALMA_85_RPM}"
-        echo "::set-output name=ALMA_85_SRPM::${ALMA_85_SRPM}"
+        echo "::set-output name=ALMA_8_RPM::${ALMA_8_RPM}"
+        echo "::set-output name=ALMA_8_SRPM::${ALMA_8_SRPM}"
         echo "::set-output name=UBI_8_RPM::${UBI_8_RPM}"
         echo "::set-output name=UBI_8_SRPM::${UBI_8_SRPM}"
         echo "::set-output name=U_2004_DEB::${U_2004_DEB}"
@@ -254,8 +254,8 @@ jobs:
       with:
         name: cc-metric-collector-${{github.ref_name}}
         files: |
-         ${{ steps.files.outputs.ALMA_85_RPM }}
-         ${{ steps.files.outputs.ALMA_85_SRPM }}
+         ${{ steps.files.outputs.ALMA_8_RPM }}
+         ${{ steps.files.outputs.ALMA_8_SRPM }}
          ${{ steps.files.outputs.UBI_8_RPM }}
          ${{ steps.files.outputs.UBI_8_SRPM }}
          ${{ steps.files.outputs.U_2004_DEB }}
