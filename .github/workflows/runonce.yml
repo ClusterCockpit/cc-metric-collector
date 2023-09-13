@@ -9,57 +9,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  #
-  # Job build-1-18
-  # Build on latest Ubuntu using golang version 1.18
-  #
-  build-1-18:
-    runs-on: ubuntu-latest
-    steps:
-    # See: https://github.com/marketplace/actions/checkout
-    # Checkout git repository and submodules
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    - name: Setup Golang
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.18.2'
-
-    - name: Build MetricCollector
-      run: make
-
-    - name: Run MetricCollector once
-      run: ./cc-metric-collector --once --config .github/ci-config.json
-
-  #
-  # Job build-1-19
-  # Build on latest Ubuntu using golang version 1.19
-  #
-  build-1-19:
-    runs-on: ubuntu-latest
-    steps:
-    # See: https://github.com/marketplace/actions/checkout
-    # Checkout git repository and submodules
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    - name: Setup Golang
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.19'
-
-    - name: Build MetricCollector
-      run: make
-
-    - name: Run MetricCollector once
-      run: ./cc-metric-collector --once --config .github/ci-config.json
 
   #
   # Job build-1-20
@@ -160,11 +109,8 @@ jobs:
   UBI-8-RPM-build:
     runs-on: ubuntu-latest
     # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
-    container: registry.access.redhat.com/ubi8/ubi:8.5-226.1645809065
+    container: registry.access.redhat.com/ubi8/ubi:8.8-1032.1692772289
     # The job outputs link to the outputs of the 'rpmbuild' step
-    outputs:
-      rpm : ${{steps.rpmbuild.outputs.RPM}}
-      srpm : ${{steps.rpmbuild.outputs.SRPM}}
     steps:
 
     # Use dnf to install development packages
@@ -183,11 +129,11 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          wget -q http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/	golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
-                  http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
-          rpm -i go*.rpm
+          dnf --assumeyes --disableplugin=subscription-manager install \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
