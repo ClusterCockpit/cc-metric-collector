@@ -175,18 +175,18 @@ jobs:
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make DEB
-    - name: Rename DEB (add '_ubuntu20.04')
+    - name: Rename DEB (add '_ubuntu22.04')
       id: debrename
       run: |
         OLD_DEB_NAME=$(echo "${{steps.dpkg-build.outputs.DEB}}" | rev | cut -d '.' -f 2- | rev)
-        NEW_DEB_FILE="${OLD_DEB_NAME}_ubuntu20.04.deb"
+        NEW_DEB_FILE="${OLD_DEB_NAME}_ubuntu22.04.deb"
         mv "${{steps.dpkg-build.outputs.DEB}}" "${NEW_DEB_FILE}"
         echo "::set-output name=DEB::${NEW_DEB_FILE}"
     # See: https://github.com/actions/upload-artifact
     - name: Save DEB as artifact
       uses: actions/upload-artifact@v2
       with:
-        name: cc-metric-collector DEB for Ubuntu 20.04
+        name: cc-metric-collector DEB for Ubuntu 22.04
         path: ${{ steps.debrename.outputs.DEB }}
 
   #
@@ -217,10 +217,10 @@ jobs:
       with:
         name: cc-metric-collector SRPM for UBI 8
 
-    - name: Download Ubuntu 20.04 DEB
+    - name: Download Ubuntu 22.04 DEB
       uses: actions/download-artifact@v2
       with:
-        name: cc-metric-collector DEB for Ubuntu 20.04
+        name: cc-metric-collector DEB for Ubuntu 22.04
 
     # The download actions do not publish the name of the downloaded file,
     # so we re-use the job outputs of the parent jobs. The files are all
