@@ -142,11 +142,11 @@ jobs:
           make RPM
 
   #
-  # Build on Ubuntu 20.04 using official go package
+  # Build on Ubuntu 22.04 using official go package
   #
-  Ubuntu-focal-build:
+  Ubuntu-jammy-build:
     runs-on: ubuntu-latest
-    container: ubuntu:20.04
+    container: ubuntu:22.04
 
     steps:
     # Use apt to install development packages
@@ -165,8 +165,8 @@ jobs:
     # Use official golang package
     - name: Install Golang
       run: |
-          wget -q https://go.dev/dl/go1.19.1.linux-amd64.tar.gz
-          tar -C /usr/local -xzf go1.19.1.linux-amd64.tar.gz
+          wget -q https://go.dev/dl/go1.21.1.linux-amd64.tar.gz | \
+          tar --directory=/usr/local --extract --gzip
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           go version
     - name: DEB build MetricCollector
