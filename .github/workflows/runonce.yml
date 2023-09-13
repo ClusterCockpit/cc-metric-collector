@@ -165,7 +165,7 @@ jobs:
     # Use official golang package
     - name: Install Golang
       run: |
-          wget -q https://go.dev/dl/go1.21.1.linux-amd64.tar.gz | \
+          wget -q https://go.dev/dl/go1.21.1.linux-amd64.tar.gz --output-document=- | \
           tar --directory=/usr/local --extract --gzip
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           go version
