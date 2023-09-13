@@ -95,7 +95,7 @@ jobs:
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
