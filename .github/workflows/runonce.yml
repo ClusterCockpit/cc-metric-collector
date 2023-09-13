@@ -84,3 +84,29 @@ jobs:
 
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
+
+  #
+  # Job build-1-21
+  # Build on latest Ubuntu using golang version 1.21
+  #
+  build-1-21:
+    runs-on: ubuntu-latest
+    steps:
+    # See: https://github.com/marketplace/actions/checkout
+    # Checkout git repository and submodules
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.21'
+
+    - name: Build MetricCollector
+      run: make
+
+    - name: Run MetricCollector once
+      run: ./cc-metric-collector --once --config .github/ci-config.json
