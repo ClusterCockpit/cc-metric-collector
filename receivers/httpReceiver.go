@@ -54,15 +54,22 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 	if !strings.HasPrefix(p, "/") {
 		p = "/" + p
 	}
-	uri := fmt.Sprintf("%s:%s%s", r.config.Addr, r.config.Port, p)
-	cclog.ComponentDebug(r.name, "INIT", uri)
+	addr := fmt.Sprintf("%s:%s", r.config.Addr, r.config.Port)
+	uri := addr + p
+	cclog.ComponentDebug(r.name, "INIT", "listen on:", uri)
 	r.handler = influx.NewMetricHandler()
 	r.parser = influx.NewParser(r.handler)
 	r.parser.SetTimeFunc(DefaultTime)
 
+	// Create new router and register p as path
 	r.router = mux.NewRouter()
 	r.router.Path(p).HandlerFunc(r.ServerHttp)
-	r.server = &http.Server{Addr: uri, Handler: r.router}
+
+	// Create http server, with router as handler
+	r.server = &http.Server{
+		Addr:    addr,
+		Handler: r.router,
+	}
 	return nil
 }
 
