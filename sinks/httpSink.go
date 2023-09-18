@@ -43,23 +43,24 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	p := m.ToPoint(s.meta_as_tags)
 	s.lock.Lock()
 	firstWriteOfBatch = len(s.encoder.Bytes()) == 0
-	v, ok := m.GetField("value")
-	if ok {
 
-		s.encoder.StartLine(p.Name())
-		for _, v := range p.TagList() {
-			s.encoder.AddTag(v.Key, v.Value)
-		}
-
-		s.encoder.AddField("value", influx.MustNewValue(v))
-		s.encoder.EndLine(p.Time())
-		err = s.encoder.Err()
-		if err != nil {
-			cclog.ComponentError(s.name, "encoding failed:", err.Error())
-			s.lock.Unlock()
-			return err
-		}
+	s.encoder.StartLine(p.Name())
+	for _, v := range p.TagList() {
+		s.encoder.AddTag(v.Key, v.Value)
 	}
+
+	for _, v := range p.FieldList() {
+		s.encoder.AddField(v.Key, influx.MustNewValue(v.Value))
+	}
+	s.encoder.EndLine(p.Time())
+
+	err = s.encoder.Err()
+	if err != nil {
+		cclog.ComponentError(s.name, "encoding failed:", err.Error())
+		s.lock.Unlock()
+		return err
+	}
+
 	s.lock.Unlock()
 
 	if s.flushDelay == 0 {
