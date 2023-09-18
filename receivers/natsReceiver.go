@@ -32,11 +32,14 @@ var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
+// Start subscribes to the configured NATS subject
+// Messages wil be handled by r._NatsReceive
 func (r *NatsReceiver) Start() {
 	cclog.ComponentDebug(r.name, "START")
 	r.nc.Subscribe(r.config.Subject, r._NatsReceive)
 }
 
+// _NatsReceive receives subscribed messages from the NATS server
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 	metrics, err := r.parser.Parse(m.Data)
 	if err == nil {
@@ -52,6 +55,7 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 	}
 }
 
+// Close closes the connection to the NATS server
 func (r *NatsReceiver) Close() {
 	if r.nc != nil {
 		cclog.ComponentDebug(r.name, "CLOSE")
@@ -59,10 +63,13 @@ func (r *NatsReceiver) Close() {
 	}
 }
 
+// NewNatsReceiver creates a new Receiver which subscribes to messages from a NATS server
 func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
 	r := new(NatsReceiver)
 	r.name = fmt.Sprintf("NatsReceiver(%s)", name)
-	r.config.Addr = nats.DefaultURL
+
+	// Read configuration file, allow overwriting default config
+	r.config.Addr = "localhost"
 	r.config.Port = "4222"
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &r.config)
@@ -76,15 +83,22 @@ func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
 		len(r.config.Subject) == 0 {
 		return nil, errors.New("not all configuration variables set required by NatsReceiver")
 	}
-	r.meta = map[string]string{"source": r.name}
-	uri := fmt.Sprintf("%s:%s", r.config.Addr, r.config.Port)
-	cclog.ComponentDebug(r.name, "NewNatsReceiver", uri, "Subject", r.config.Subject)
-	if nc, err := nats.Connect(uri); err == nil {
+
+	// Set metadata
+	r.meta = map[string]string{
+		"source": r.name,
+	}
+
+	// Connect to NATS server
+	url := fmt.Sprintf("nats://%s:%s", r.config.Addr, r.config.Port)
+	cclog.ComponentDebug(r.name, "NewNatsReceiver", url, "Subject", r.config.Subject)
+	if nc, err := nats.Connect(url); err == nil {
 		r.nc = nc
 	} else {
 		r.nc = nil
 		return nil, err
 	}
+
 	r.handler = influx.NewMetricHandler()
 	r.parser = influx.NewParser(r.handler)
 	r.parser.SetTimeFunc(DefaultTime)
