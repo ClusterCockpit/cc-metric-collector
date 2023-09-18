@@ -19,3 +19,32 @@ The `nats` receiver can be used receive metrics from the NATS network. The `nats
 - `address`: Address of the NATS control server
 - `port`: Port of the NATS control server
 - `subject`: Subscribes to this subject and receive metrics
+
+### Debugging
+
+- Install NATS server and command line client
+- Start NATS server
+
+  ```bash
+  nats-server --net nats-server.example.org --port 4222
+  ```
+
+- Check NATS server works as expected
+
+  ```bash
+  nats --server=nats-server-db.example.org:4222 server check
+  ```
+
+- Use NATS command line client to subscribe to all messages
+
+  ```bash
+  nats --server=nats-server-db.example.org:4222 sub ">"
+  ```
+
+- Use NATS command line client to send message to NATS receiver
+
+  ```bash
+  nats --server=nats-server-db.example.org:4222 pub subject \
+  "myMetric,hostname=myHost,type=hwthread,type-id=0,unit=Hz value=400000i 1694777161164284635
+  myMetric,hostname=myHost,type=hwthread,type-id=1,unit=Hz value=400001i 1694777161164284635"
+  ```
