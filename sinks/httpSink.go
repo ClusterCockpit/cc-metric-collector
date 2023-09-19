@@ -12,70 +12,116 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
+	"golang.org/x/exp/slices"
 )
 
 type HttpSinkConfig struct {
 	defaultSinkConfig
-	URL             string `json:"url"`
-	JWT             string `json:"jwt,omitempty"`
-	Timeout         string `json:"timeout,omitempty"`
+
+	// The full URL of the endpoint
+	URL string `json:"url"`
+
+	// JSON web tokens for authentication (Using the *Bearer* scheme)
+	JWT string `json:"jwt,omitempty"`
+
+	// time limit for requests made by the http client
+	Timeout string `json:"timeout,omitempty"`
+	timeout time.Duration
+
+	// Maximum amount of time an idle (keep-alive) connection will remain idle before closing itself
+	// should be larger than the measurement interval to keep the connection open
 	IdleConnTimeout string `json:"idle_connection_timeout,omitempty"`
-	FlushDelay      string `json:"flush_delay,omitempty"`
-	MaxRetries      int    `json:"max_retries,omitempty"`
+	idleConnTimeout time.Duration
+
+	// Batch all writes arriving in during this duration
+	// (default '5s', batching can be disabled by setting it to 0)
+	FlushDelay string `json:"flush_delay,omitempty"`
+	flushDelay time.Duration
+
+	// Maximum number of retries to connect to the http server (default: 3)
+	MaxRetries int `json:"max_retries,omitempty"`
 }
 
 type HttpSink struct {
 	sink
 	client  *http.Client
 	encoder influx.Encoder
-	lock    sync.Mutex // Flush() runs in another goroutine, so this lock has to protect the buffer
-	//buffer          *bytes.Buffer
-	flushTimer      *time.Timer
-	config          HttpSinkConfig
-	idleConnTimeout time.Duration
-	timeout         time.Duration
-	flushDelay      time.Duration
+	// Flush() runs in another goroutine, so this encoderLock has to protect the encoder
+	encoderLock sync.Mutex
+	timerLock   sync.Mutex
+	flushTimer  *time.Timer
+	config      HttpSinkConfig
 }
 
+// Write sends metric m as http message
 func (s *HttpSink) Write(m lp.CCMetric) error {
-	var err error = nil
-	var firstWriteOfBatch bool = false
-	p := m.ToPoint(s.meta_as_tags)
-	s.lock.Lock()
-	firstWriteOfBatch = len(s.encoder.Bytes()) == 0
 
-	s.encoder.StartLine(p.Name())
-	for _, v := range p.TagList() {
-		s.encoder.AddTag(v.Key, v.Value)
+	// Lock for encoder usage
+	s.encoderLock.Lock()
+
+	// Encode measurement name
+	s.encoder.StartLine(m.Name())
+
+	// Encode tags
+	for key, value := range m.Tags() {
+		s.encoder.AddTag(key, value)
 	}
 
-	for _, v := range p.FieldList() {
-		s.encoder.AddField(v.Key, influx.MustNewValue(v.Value))
+	// Encode metadata as tags
+	for key, use_meta_as_tag := range s.meta_as_tags {
+		if use_meta_as_tag {
+			if val, ok := m.GetMeta(key); ok {
+				s.encoder.AddTag(key, val)
+			}
+		}
 	}
-	s.encoder.EndLine(p.Time())
 
-	err = s.encoder.Err()
+	// Encode fields
+	for key, value := range m.Fields() {
+		s.encoder.AddField(key, influx.MustNewValue(value))
+	}
+
+	// Encode time stamp
+	s.encoder.EndLine(m.Time())
+
+	// Check for encoder errors
+	err := s.encoder.Err()
+
+	// Unlock encoder usage
+	s.encoderLock.Unlock()
+
+	// Check that encoding worked
 	if err != nil {
 		cclog.ComponentError(s.name, "encoding failed:", err.Error())
-		s.lock.Unlock()
 		return err
 	}
 
-	s.lock.Unlock()
+	if s.config.flushDelay == 0 {
 
-	if s.flushDelay == 0 {
+		// Directly flush if no flush delay is configured
 		return s.Flush()
-	}
+	} else if s.timerLock.TryLock() {
 
-	if firstWriteOfBatch {
-		if s.flushTimer == nil {
-			s.flushTimer = time.AfterFunc(s.flushDelay, func() {
-				if err := s.Flush(); err != nil {
-					cclog.ComponentError(s.name, "flush failed:", err.Error())
-				}
-			})
+		// Setup flush timer when flush delay is configured
+		// and no other timer is already running
+		if s.flushTimer != nil {
+
+			// Restarting existing flush timer
+			cclog.ComponentDebug(s.name, "Restarting flush timer")
+			s.flushTimer.Reset(s.config.flushDelay)
 		} else {
-			s.flushTimer.Reset(s.flushDelay)
+
+			// Creating and starting flush timer
+			cclog.ComponentDebug(s.name, "Starting new flush timer")
+			s.flushTimer = time.AfterFunc(
+				s.config.flushDelay,
+				func() {
+					defer s.timerLock.Unlock()
+					cclog.ComponentDebug(s.name, "Starting flush in flush timer")
+					if err := s.Flush(); err != nil {
+						cclog.ComponentError(s.name, "Flush timer: flush failed:", err)
+					}
+				})
 		}
 	}
 
@@ -83,12 +129,16 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 }
 
 func (s *HttpSink) Flush() error {
-	// Own lock for as short as possible: the time it takes to copy the buffer.
-	s.lock.Lock()
-	buf := make([]byte, len(s.encoder.Bytes()))
-	copy(buf, s.encoder.Bytes())
+	// Lock for encoder usage
+	// Own lock for as short as possible: the time it takes to clone the buffer.
+	s.encoderLock.Lock()
+
+	buf := slices.Clone(s.encoder.Bytes())
 	s.encoder.Reset()
-	s.lock.Unlock()
+
+	// Unlock encoder usage
+	s.encoderLock.Unlock()
+
 	if len(buf) == 0 {
 		return nil
 	}
@@ -141,11 +191,13 @@ func (s *HttpSink) Close() {
 	s.client.CloseIdleConnections()
 }
 
+// NewHttpSink creates a new http sink
 func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(HttpSink)
 	// Set default values
 	s.name = fmt.Sprintf("HttpSink(%s)", name)
-	s.config.IdleConnTimeout = "120s" // should be larger than the measurement interval.
+	// should be larger than the measurement interval to keep the connection open
+	s.config.IdleConnTimeout = "120s"
 	s.config.Timeout = "5s"
 	s.config.FlushDelay = "5s"
 	s.config.MaxRetries = 3
@@ -165,20 +217,20 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 		t, err := time.ParseDuration(s.config.IdleConnTimeout)
 		if err == nil {
 			cclog.ComponentDebug(s.name, "idleConnTimeout", t)
-			s.idleConnTimeout = t
+			s.config.idleConnTimeout = t
 		}
 	}
 	if len(s.config.Timeout) > 0 {
 		t, err := time.ParseDuration(s.config.Timeout)
 		if err == nil {
-			s.timeout = t
+			s.config.timeout = t
 			cclog.ComponentDebug(s.name, "timeout", t)
 		}
 	}
 	if len(s.config.FlushDelay) > 0 {
 		t, err := time.ParseDuration(s.config.FlushDelay)
 		if err == nil {
-			s.flushDelay = t
+			s.config.flushDelay = t
 			cclog.ComponentDebug(s.name, "flushDelay", t)
 		}
 	}
@@ -187,11 +239,13 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	for _, k := range s.config.MetaAsTags {
 		s.meta_as_tags[k] = true
 	}
-	tr := &http.Transport{
-		MaxIdleConns:    1, // We will only ever talk to one host.
-		IdleConnTimeout: s.idleConnTimeout,
+	s.client = &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:    1, // We will only ever talk to one host.
+			IdleConnTimeout: s.config.idleConnTimeout,
+		},
+		Timeout: s.config.timeout,
 	}
-	s.client = &http.Client{Transport: tr, Timeout: s.timeout}
 	s.encoder.SetPrecision(influx.Second)
 	return s, nil
 }
