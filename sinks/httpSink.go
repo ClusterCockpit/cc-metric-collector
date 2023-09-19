@@ -2,7 +2,6 @@ package sinks
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,7 +101,13 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	slices.SortFunc(
 		key_value_store,
 		func(a key_value, b key_value) int {
-			return cmp.Compare(a.key, b.key)
+			if a.key < b.key {
+				return -1
+			}
+			if a.key > b.key {
+				return +1
+			}
+			return 0
 		},
 	)
 	for i := range key_value_store {
