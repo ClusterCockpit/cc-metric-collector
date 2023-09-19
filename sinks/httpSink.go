@@ -2,6 +2,7 @@ package sinks
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,23 +70,46 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	s.encoder.StartLine(m.Name())
 
 	// copy tags and meta data which should be used as tags
-	tags := make(map[string]string)
-	keys := make([]string, 0)
+	type key_value struct {
+		key   string
+		value string
+	}
+	key_value_store := make([]key_value, 0)
 	for key, value := range m.Tags() {
-		keys = append(keys, key)
-		tags[key] = value
+		key_value_store =
+			append(
+				key_value_store,
+				key_value{
+					key:   key,
+					value: value,
+				},
+			)
 	}
 	for _, key := range s.config.MetaAsTags {
 		if value, ok := m.GetMeta(key); ok {
-			keys = append(keys, key)
-			tags[key] = value
+			key_value_store =
+				append(
+					key_value_store,
+					key_value{
+						key:   key,
+						value: value,
+					},
+				)
 		}
 	}
 
-	// Encode tags
-	slices.Sort(keys)
-	for _, key := range keys {
-		s.encoder.AddTag(key, tags[key])
+	// Encode tags (they musts be in lexical order)
+	slices.SortFunc(
+		key_value_store,
+		func(a key_value, b key_value) int {
+			return cmp.Compare(a.key, b.key)
+		},
+	)
+	for i := range key_value_store {
+		s.encoder.AddTag(
+			key_value_store[i].key,
+			key_value_store[i].value,
+		)
 	}
 
 	// Encode fields
@@ -257,7 +281,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	}
 
 	// Configure influx line protocol encoder
-	s.encoder.SetPrecision(influx.Second)
+	s.encoder.SetPrecision(influx.Nanosecond)
 
 	return s, nil
 }

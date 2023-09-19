@@ -130,9 +130,10 @@ func (r *HttpReceiver) ServerHttp(w http.ResponseWriter, req *http.Request) {
 			fields[string(key)] = value.Interface()
 		}
 
+		// Decode time stamp
 		t, err := d.Time(influx.Nanosecond, time.Time{})
 		if err != nil {
-			msg := "ServerHttp: Failed to decode time: " + err.Error()
+			msg := "ServerHttp: Failed to decode time stamp: " + err.Error()
 			cclog.ComponentError(r.name, msg)
 			http.Error(w, msg, http.StatusInternalServerError)
 			return
