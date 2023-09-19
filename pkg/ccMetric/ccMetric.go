@@ -64,9 +64,11 @@ func (m *ccMetric) String() string {
 // ToLineProtocol generates influxDB line protocol for data type ccMetric
 func (m *ccMetric) ToPoint(metaAsTags map[string]bool) (p *write.Point) {
 	p = influxdb2.NewPoint(m.name, m.tags, m.fields, m.tm)
-	for key, ok1 := range metaAsTags {
-		if val, ok2 := m.GetMeta(key); ok1 && ok2 {
-			p.AddTag(key, val)
+	for key, use_as_tag := range metaAsTags {
+		if use_as_tag {
+			if value, ok := m.GetMeta(key); ok {
+				p.AddTag(key, value)
+			}
 		}
 	}
 	return p
@@ -264,8 +266,10 @@ func FromInfluxMetric(other lp.Metric) CCMetric {
 }
 
 // convertField converts data types of fields by the following schemata:
-//                         *float32, *float64,                      float32, float64 -> float64
-//  *int,  *int8,  *int16,   *int32,   *int64,  int,  int8,  int16,   int32,   int64 ->   int64
+//
+//	                       *float32, *float64,                      float32, float64 -> float64
+//	*int,  *int8,  *int16,   *int32,   *int64,  int,  int8,  int16,   int32,   int64 ->   int64
+//
 // *uint, *uint8, *uint16,  *uint32,  *uint64, uint, uint8, uint16,  uint32,  uint64 ->  uint64
 // *[]byte, *string,                           []byte, string                        -> string
 // *bool,                                      bool                                  -> bool
