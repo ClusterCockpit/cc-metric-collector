@@ -24,6 +24,11 @@ type HttpSinkConfig struct {
 	// JSON web tokens for authentication (Using the *Bearer* scheme)
 	JWT string `json:"jwt,omitempty"`
 
+	// Basic authentication
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	useBasicAuth bool
+
 	// time limit for requests made by the http client
 	Timeout string `json:"timeout,omitempty"`
 	timeout time.Duration
@@ -198,6 +203,11 @@ func (s *HttpSink) Flush() error {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.config.JWT))
 		}
 
+		// Set basic authentication
+		if s.config.useBasicAuth {
+			req.SetBasicAuth(s.config.Username, s.config.Password)
+		}
+
 		// Do request
 		res, err = s.client.Do(req)
 		if err != nil {
@@ -254,6 +264,18 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	if len(s.config.URL) == 0 {
 		return nil, errors.New("`url` config option is required for HTTP sink")
 	}
+
+	// Check basic authentication config
+	if len(s.config.Username) > 0 || len(s.config.Password) > 0 {
+		s.config.useBasicAuth = true
+	}
+	if s.config.useBasicAuth && len(s.config.Username) == 0 {
+		return nil, errors.New("basic authentication requires username")
+	}
+	if s.config.useBasicAuth && len(s.config.Password) == 0 {
+		return nil, errors.New("basic authentication requires password")
+	}
+
 	if len(s.config.IdleConnTimeout) > 0 {
 		t, err := time.ParseDuration(s.config.IdleConnTimeout)
 		if err == nil {
