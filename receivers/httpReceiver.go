@@ -23,6 +23,11 @@ type HttpReceiverConfig struct {
 	Addr string `json:"address"`
 	Port string `json:"port"`
 	Path string `json:"path"`
+
+	// Maximum amount of time to wait for the next request when keep-alives are enabled
+	// should be larger than the measurement interval to keep the connection open
+	IdleTimeout string `json:"idle_timeout"`
+	idleTimeout time.Duration
 }
 
 type HttpReceiver struct {
@@ -36,7 +41,13 @@ type HttpReceiver struct {
 
 func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 	r.name = fmt.Sprintf("HttpReceiver(%s)", name)
+
+	// Set default values
 	r.config.Port = HTTP_RECEIVER_PORT
+	// should be larger than the measurement interval to keep the connection open
+	r.config.IdleTimeout = "120s"
+
+	// Read config
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &r.config)
 		if err != nil {
@@ -46,6 +57,13 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 	}
 	if len(r.config.Port) == 0 {
 		return errors.New("not all configuration variables set required by HttpReceiver")
+	}
+	if len(r.config.IdleTimeout) > 0 {
+		t, err := time.ParseDuration(r.config.IdleTimeout)
+		if err == nil {
+			cclog.ComponentDebug(r.name, "idleTimeout", t)
+			r.config.idleTimeout = t
+		}
 	}
 	r.meta = map[string]string{"source": r.name}
 	p := r.config.Path
@@ -62,8 +80,9 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 
 	// Create http server, with router as handler
 	r.server = &http.Server{
-		Addr:    addr,
-		Handler: r.router,
+		Addr:        addr,
+		Handler:     r.router,
+		IdleTimeout: r.config.idleTimeout,
 	}
 	return nil
 }
