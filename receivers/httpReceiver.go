@@ -28,6 +28,11 @@ type HttpReceiverConfig struct {
 	// should be larger than the measurement interval to keep the connection open
 	IdleTimeout string `json:"idle_timeout"`
 	idleTimeout time.Duration
+
+	// Basic authentication
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	useBasicAuth bool
 }
 
 type HttpReceiver struct {
@@ -58,6 +63,8 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 	if len(r.config.Port) == 0 {
 		return errors.New("not all configuration variables set required by HttpReceiver")
 	}
+
+	// Check idle timeout config
 	if len(r.config.IdleTimeout) > 0 {
 		t, err := time.ParseDuration(r.config.IdleTimeout)
 		if err == nil {
@@ -65,6 +72,18 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 			r.config.idleTimeout = t
 		}
 	}
+
+	// Check basic authentication config
+	if len(r.config.Username) > 0 || len(r.config.Password) > 0 {
+		r.config.useBasicAuth = true
+	}
+	if r.config.useBasicAuth && len(r.config.Username) == 0 {
+		return errors.New("basic authentication requires username")
+	}
+	if r.config.useBasicAuth && len(r.config.Password) == 0 {
+		return errors.New("basic authentication requires password")
+	}
+
 	r.meta = map[string]string{"source": r.name}
 	p := r.config.Path
 	if !strings.HasPrefix(p, "/") {
@@ -100,9 +119,20 @@ func (r *HttpReceiver) Start() {
 }
 
 func (r *HttpReceiver) ServerHttp(w http.ResponseWriter, req *http.Request) {
+
+	// Check request method, only post method is handled
 	if req.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
+	}
+
+	// Check basic authentication
+	if r.config.useBasicAuth {
+		username, password, ok := req.BasicAuth()
+		if !ok || username != r.config.Username || password != r.config.Password {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	d := influx.NewDecoder(req.Body)
