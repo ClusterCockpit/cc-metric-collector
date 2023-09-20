@@ -71,6 +71,14 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 
 	// Initialize NVIDIA Management Library (NVML)
 	ret := nvml.Init()
+
+	// Error: NVML library not found
+	// (nvml.ErrorString can not be used in this case)
+	if ret == nvml.ERROR_LIBRARY_NOT_FOUND {
+		err = fmt.Errorf("NVML library not found")
+		cclog.ComponentError(m.name, err.Error())
+		return err
+	}
 	if ret != nvml.SUCCESS {
 		err = errors.New(nvml.ErrorString(ret))
 		cclog.ComponentError(m.name, "Unable to initialize NVML", err.Error())
