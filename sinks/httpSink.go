@@ -47,11 +47,18 @@ type HttpSinkConfig struct {
 	MaxRetries int `json:"max_retries,omitempty"`
 }
 
+type key_value_pair struct {
+	key   string
+	value string
+}
+
 type HttpSink struct {
 	sink
 	client *http.Client
 	// influx line protocol encoder
 	encoder influx.Encoder
+	// List of tags and meta data tags which should be used as tags
+	extended_tag_list []key_value_pair
 	// Flush() runs in another goroutine and accesses the influx line protocol encoder,
 	// so this encoderLock has to protect the encoder
 	encoderLock sync.Mutex
@@ -74,16 +81,12 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	s.encoder.StartLine(m.Name())
 
 	// copy tags and meta data which should be used as tags
-	type key_value struct {
-		key   string
-		value string
-	}
-	key_value_store := make([]key_value, 0)
+	s.extended_tag_list = s.extended_tag_list[:0]
 	for key, value := range m.Tags() {
-		key_value_store =
+		s.extended_tag_list =
 			append(
-				key_value_store,
-				key_value{
+				s.extended_tag_list,
+				key_value_pair{
 					key:   key,
 					value: value,
 				},
@@ -91,10 +94,10 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	}
 	for _, key := range s.config.MetaAsTags {
 		if value, ok := m.GetMeta(key); ok {
-			key_value_store =
+			s.extended_tag_list =
 				append(
-					key_value_store,
-					key_value{
+					s.extended_tag_list,
+					key_value_pair{
 						key:   key,
 						value: value,
 					},
@@ -104,8 +107,8 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 
 	// Encode tags (they musts be in lexical order)
 	slices.SortFunc(
-		key_value_store,
-		func(a key_value, b key_value) int {
+		s.extended_tag_list,
+		func(a key_value_pair, b key_value_pair) int {
 			if a.key < b.key {
 				return -1
 			}
@@ -115,10 +118,10 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 			return 0
 		},
 	)
-	for i := range key_value_store {
+	for i := range s.extended_tag_list {
 		s.encoder.AddTag(
-			key_value_store[i].key,
-			key_value_store[i].value,
+			s.extended_tag_list[i].key,
+			s.extended_tag_list[i].value,
 		)
 	}
 
@@ -309,6 +312,6 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 
 	// Configure influx line protocol encoder
 	s.encoder.SetPrecision(influx.Nanosecond)
-
+	s.extended_tag_list = make([]key_value_pair, 0)
 	return s, nil
 }
