@@ -7,6 +7,7 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	write "github.com/influxdata/influxdb-client-go/v2/api/write"
 	lp "github.com/influxdata/line-protocol" // MIT license
+	"golang.org/x/exp/maps"
 )
 
 // Most functions are derived from github.com/influxdata/line-protocol/metric.go
@@ -195,19 +196,13 @@ func New(
 ) (CCMetric, error) {
 	m := &ccMetric{
 		name:   name,
-		tags:   make(map[string]string, len(tags)),
-		meta:   make(map[string]string, len(meta)),
+		tags:   maps.Clone(tags),
+		meta:   maps.Clone(meta),
 		fields: make(map[string]interface{}, len(fields)),
 		tm:     tm,
 	}
 
-	// deep copy tags, meta data tags and fields
-	for k, v := range tags {
-		m.tags[k] = v
-	}
-	for k, v := range meta {
-		m.meta[k] = v
-	}
+	// deep copy fields
 	for k, v := range fields {
 		v := convertField(v)
 		if v == nil {
@@ -221,28 +216,14 @@ func New(
 
 // FromMetric copies the metric <other>
 func FromMetric(other CCMetric) CCMetric {
-	otags := other.Tags()
-	ometa := other.Meta()
-	ofields := other.Fields()
-	m := &ccMetric{
+
+	return &ccMetric{
 		name:   other.Name(),
-		tags:   make(map[string]string, len(otags)),
-		meta:   make(map[string]string, len(ometa)),
-		fields: make(map[string]interface{}, len(ofields)),
+		tags:   maps.Clone(other.Tags()),
+		meta:   maps.Clone(other.Meta()),
+		fields: maps.Clone(other.Fields()),
 		tm:     other.Time(),
 	}
-
-	// deep copy tags, meta data tags and fields
-	for key, value := range otags {
-		m.tags[key] = value
-	}
-	for key, value := range ometa {
-		m.meta[key] = value
-	}
-	for key, value := range ofields {
-		m.fields[key] = value
-	}
-	return m
 }
 
 // FromInfluxMetric copies the influxDB line protocol metric <other>
