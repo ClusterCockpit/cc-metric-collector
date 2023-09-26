@@ -105,17 +105,28 @@ func (s *InfluxSink) connect() error {
 func (s *InfluxSink) Write(m lp.CCMetric) error {
 
 	if s.flushDelay != 0 && s.flushTimerMutex.TryLock() {
-		// Run a batched flush for all metrics that arrived in the last flush delay interval
-		cclog.ComponentDebug(s.name, "Starting new flush timer")
-		s.flushTimer = time.AfterFunc(
-			s.flushDelay,
-			func() {
-				defer s.flushTimerMutex.Unlock()
-				cclog.ComponentDebug(s.name, "Starting flush in flush timer")
-				if err := s.Flush(); err != nil {
-					cclog.ComponentError(s.name, "Flush timer: flush failed:", err)
-				}
-			})
+
+		// Setup flush timer when flush delay is configured
+		// and no other timer is already running
+		if s.flushTimer != nil {
+
+			// Restarting existing flush timer
+			cclog.ComponentDebug(s.name, "Restarting flush timer")
+			s.flushTimer.Reset(s.flushDelay)
+		} else {
+
+			// Creating and starting flush timer
+			cclog.ComponentDebug(s.name, "Starting new flush timer")
+			s.flushTimer = time.AfterFunc(
+				s.flushDelay,
+				func() {
+					defer s.flushTimerMutex.Unlock()
+					cclog.ComponentDebug(s.name, "Starting flush in flush timer")
+					if err := s.Flush(); err != nil {
+						cclog.ComponentError(s.name, "Flush timer: flush failed:", err)
+					}
+				})
+		}
 	}
 
 	// Lock access to batch slice
