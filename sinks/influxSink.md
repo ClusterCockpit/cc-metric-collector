@@ -35,3 +35,9 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 - `flush_delay`: Group metrics coming in to a single batch
 - `batch_size`: Maximal batch size
 
+Influx client options:
+
+- `retry_interval`: maximum delay between each retry attempt
+- `retry_exponential_base`: base for the exponential retry delay
+- `max_retries`: maximum count of retry attempts of failed writes
+- `max_retry_time`: maximum total retry timeout

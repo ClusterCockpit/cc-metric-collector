@@ -40,6 +40,17 @@ type InfluxSink struct {
 		// Number of metrics that are dropped when buffer is full
 		// Default: 100
 		DropRate int `json:"drop_rate,omitempty"`
+
+		// Influx client options:
+
+		// maximum delay between each retry attempt
+		InfluxMaxRetryInterval string `json:"retry_interval,omitempty"`
+		// base for the exponential retry delay
+		InfluxExponentialBase uint `json:"retry_exponential_base,omitempty"`
+		// maximum count of retry attempts of failed writes
+		InfluxMaxRetries uint `json:"max_retries,omitempty"`
+		// maximum total retry timeout
+		InfluxMaxRetryTime string `json:"max_retry_time,omitempty"`
 	}
 	batch           []*write.Point
 	flushTimer      *time.Timer
@@ -77,6 +88,40 @@ func (s *InfluxSink) connect() error {
 
 	// Set influxDB client options
 	clientOptions := influxdb2.DefaultOptions()
+
+	// Set the maximum delay between each retry attempt
+	if len(s.config.InfluxMaxRetryInterval) > 0 {
+		if t, err := time.ParseDuration(s.config.InfluxMaxRetryInterval); err == nil {
+			influxMaxRetryInterval := uint(t.Milliseconds())
+			cclog.ComponentDebug(s.name, "Influx MaxRetryInterval", s.config.InfluxMaxRetryInterval)
+			clientOptions.SetMaxRetryInterval(influxMaxRetryInterval)
+		} else {
+			cclog.ComponentError(s.name, "Failed to parse duration for Influx MaxRetryInterval: ", s.config.InfluxMaxRetryInterval)
+		}
+	}
+
+	// Set the base for the exponential retry delay
+	if s.config.InfluxExponentialBase != 0 {
+		cclog.ComponentDebug(s.name, "Influx Exponential Base", s.config.InfluxExponentialBase)
+		clientOptions.SetExponentialBase(s.config.InfluxExponentialBase)
+	}
+
+	// Set maximum count of retry attempts of failed writes
+	if s.config.InfluxMaxRetries != 0 {
+		cclog.ComponentDebug(s.name, "Influx Max Retries", s.config.InfluxMaxRetries)
+		clientOptions.SetMaxRetries(s.config.InfluxMaxRetries)
+	}
+
+	// Set the maximum total retry timeout
+	if len(s.config.InfluxMaxRetryTime) > 0 {
+		if t, err := time.ParseDuration(s.config.InfluxMaxRetryTime); err == nil {
+			influxMaxRetryTime := uint(t.Milliseconds())
+			cclog.ComponentDebug(s.name, "MaxRetryTime", s.config.InfluxMaxRetryTime)
+			clientOptions.SetMaxRetryTime(influxMaxRetryTime)
+		} else {
+			cclog.ComponentError(s.name, "Failed to parse duration for Influx MaxRetryInterval: ", s.config.InfluxMaxRetryInterval)
+		}
+	}
 
 	// Do not check InfluxDB certificate
 	clientOptions.SetTLSConfig(
