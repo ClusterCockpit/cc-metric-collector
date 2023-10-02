@@ -14,29 +14,18 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
-//
 // CPUFreqCollector
 // a metric collector to measure the current frequency of the CPUs
 // as obtained from /proc/cpuinfo
 // Only measure on the first hyperthread
-//
 type CPUFreqCpuInfoCollectorTopology struct {
-	processor               string // logical processor number (continuous, starting at 0)
-	coreID                  string // socket local core ID
-	coreID_int              int64
-	physicalPackageID       string // socket / package ID
-	physicalPackageID_int   int64
-	numPhysicalPackages     string // number of  sockets / packages
-	numPhysicalPackages_int int64
-	isHT                    bool
-	numNonHT                string // number of non hyperthreading processors
-	numNonHT_int            int64
-	tagSet                  map[string]string
+	isHT   bool
+	tagSet map[string]string
 }
 
 type CPUFreqCpuInfoCollector struct {
 	metricCollector
-	topology []*CPUFreqCpuInfoCollectorTopology
+	topology []CPUFreqCpuInfoCollectorTopology
 }
 
 func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
@@ -65,11 +54,9 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	// Collect topology information from file cpuinfo
 	foundFreq := false
 	processor := ""
-	var numNonHT_int int64 = 0
 	coreID := ""
 	physicalPackageID := ""
-	var maxPhysicalPackageID int64 = 0
-	m.topology = make([]*CPUFreqCpuInfoCollectorTopology, 0)
+	m.topology = make([]CPUFreqCpuInfoCollectorTopology, 0)
 	coreSeenBefore := make(map[string]bool)
 
 	// Read cpuinfo file, line by line
@@ -98,41 +85,22 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			len(coreID) > 0 &&
 			len(physicalPackageID) > 0 {
 
-			topology := new(CPUFreqCpuInfoCollectorTopology)
-
-			// Processor
-			topology.processor = processor
-
-			// Core ID
-			topology.coreID = coreID
-			topology.coreID_int, err = strconv.ParseInt(coreID, 10, 64)
-			if err != nil {
-				return fmt.Errorf("unable to convert coreID '%s' to int64: %v", coreID, err)
-			}
-
-			// Physical package ID
-			topology.physicalPackageID = physicalPackageID
-			topology.physicalPackageID_int, err = strconv.ParseInt(physicalPackageID, 10, 64)
-			if err != nil {
-				return fmt.Errorf("unable to convert physicalPackageID '%s' to int64: %v", physicalPackageID, err)
-			}
-
-			// increase maximun socket / package ID, when required
-			if topology.physicalPackageID_int > maxPhysicalPackageID {
-				maxPhysicalPackageID = topology.physicalPackageID_int
-			}
-
-			// is hyperthread?
 			globalID := physicalPackageID + ":" + coreID
-			topology.isHT = coreSeenBefore[globalID]
-			coreSeenBefore[globalID] = true
-			if !topology.isHT {
-				// increase number on non hyper thread cores
-				numNonHT_int++
-			}
 
 			// store collected topology information
-			m.topology = append(m.topology, topology)
+			m.topology = append(m.topology,
+				CPUFreqCpuInfoCollectorTopology{
+					isHT: coreSeenBefore[globalID],
+					tagSet: map[string]string{
+						"type":       "hwthread",
+						"type-id":    processor,
+						"package_id": physicalPackageID,
+					},
+				},
+			)
+
+			// mark core as seen before
+			coreSeenBefore[globalID] = true
 
 			// reset topology information
 			foundFreq = false
@@ -142,24 +110,9 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 		}
 	}
 
-        // Check if at least one CPU with frequency information was detected
-        if len(m.topology) == 0 {
-                return fmt.Errorf("No CPU frequency info found in %s", cpuInfoFile)
-        }
-
-	numPhysicalPackageID_int := maxPhysicalPackageID + 1
-	numPhysicalPackageID := fmt.Sprint(numPhysicalPackageID_int)
-	numNonHT := fmt.Sprint(numNonHT_int)
-	for _, t := range m.topology {
-		t.numPhysicalPackages = numPhysicalPackageID
-		t.numPhysicalPackages_int = numPhysicalPackageID_int
-		t.numNonHT = numNonHT
-		t.numNonHT_int = numNonHT_int
-		t.tagSet = map[string]string{
-			"type":       "hwthread",
-			"type-id":    t.processor,
-			"package_id": t.physicalPackageID,
-		}
+	// Check if at least one CPU with frequency information was detected
+	if len(m.topology) == 0 {
+		return fmt.Errorf("No CPU frequency info found in %s", cpuInfoFile)
 	}
 
 	m.init = true
