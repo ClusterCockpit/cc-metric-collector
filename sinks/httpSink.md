@@ -18,6 +18,7 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
     "timeout": "5s",
     "idle_connection_timeout" : "5s",
     "flush_delay": "2s",
+    "batch_size": 1000
   }
 }
 ```
@@ -32,3 +33,4 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
 - `max_retries`: Maximum number of retries to connect to the http server
 - `idle_connection_timeout`: Timeout for idle connections (default '120s'). Should be larger than the measurement interval to keep the connection open
 - `flush_delay`: Batch all writes arriving in during this duration (default '1s', batching can be disabled by setting it to 0)
+- `batch_size`: Maximal batch size. If `batch_size` is reached before the end of `flush_delay`, the metrics are sent without further delay
