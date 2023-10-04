@@ -177,8 +177,6 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 				cclog.ComponentError(s.name, "Flush triggered by batch size limit: flush failed:", err)
 			}
 		}()
-		return nil
-
 	} else if s.timerLock.TryLock() {
 
 		// Setup flush timer when flush delay is configured
@@ -347,6 +345,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 
 	// Configure influx line protocol encoder
 	s.encoder.SetPrecision(influx.Nanosecond)
+	s.encoderRecordCount = 0
 	s.extended_tag_list = make([]key_value_pair, 0)
 	return s, nil
 }
