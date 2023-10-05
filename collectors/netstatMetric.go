@@ -102,7 +102,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 
 		// Check if device is a included device
 		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
-			tags := map[string]string{"device": dev, "type": "node"}
+			tags := map[string]string{"stype": "network", "stype-id": dev, "type": "node"}
 			meta_unit_byte := map[string]string{"source": m.name, "group": "Network", "unit": "bytes"}
 			meta_unit_byte_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "bytes/sec"}
 			meta_unit_pkts := map[string]string{"source": m.name, "group": "Network", "unit": "packets"}
