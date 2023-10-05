@@ -153,7 +153,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 
 	// Check that encoding worked
 	if err != nil {
-		cclog.ComponentError(s.name, "encoding failed:", err.Error())
+		cclog.ComponentError(s.name, "Write(): Encoding failed:", err)
 		return err
 	}
 
@@ -168,7 +168,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 		// Stop flush timer if possible
 		if s.flushTimer != nil {
 			if ok := s.flushTimer.Stop(); ok {
-				cclog.ComponentDebug(s.name, "Stopped flush timer. Batch size limit reached before flush delay")
+				cclog.ComponentDebug(s.name, "Write(): Stopped flush timer. Batch size limit reached before flush delay")
 				s.timerLock.Unlock()
 			}
 		}
@@ -187,12 +187,12 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 		if s.flushTimer != nil {
 
 			// Restarting existing flush timer
-			cclog.ComponentDebug(s.name, "Restarting flush timer")
+			cclog.ComponentDebug(s.name, "Write(): Restarting flush timer")
 			s.flushTimer.Reset(s.config.flushDelay)
 		} else {
 
 			// Creating and starting flush timer
-			cclog.ComponentDebug(s.name, "Starting new flush timer")
+			cclog.ComponentDebug(s.name, "Write(): Starting new flush timer")
 			s.flushTimer = time.AfterFunc(
 				s.config.flushDelay,
 				func() {
@@ -228,14 +228,14 @@ func (s *HttpSink) Flush() error {
 		return nil
 	}
 
-	cclog.ComponentDebug(s.name, "Flushing", recordCount, "records")
+	cclog.ComponentDebug(s.name, "Flush(): Flushing", recordCount, "records")
 
 	var res *http.Response
 	for i := 0; i < s.config.MaxRetries; i++ {
 		// Create new request to send buffer
 		req, err := http.NewRequest(http.MethodPost, s.config.URL, bytes.NewReader(buf))
 		if err != nil {
-			cclog.ComponentError(s.name, "failed to create request:", err.Error())
+			cclog.ComponentError(s.name, "Flush(): Failed to create HTTP request:", err)
 			return err
 		}
 
@@ -252,7 +252,7 @@ func (s *HttpSink) Flush() error {
 		// Do request
 		res, err = s.client.Do(req)
 		if err != nil {
-			cclog.ComponentError(s.name, "transport/tcp error:", err.Error())
+			cclog.ComponentError(s.name, "Flush(): transport/tcp error:", err)
 			// Wait between retries
 			time.Sleep(time.Duration(i+1) * (time.Second / 2))
 			continue
@@ -268,7 +268,7 @@ func (s *HttpSink) Flush() error {
 	// Handle application errors
 	if res.StatusCode != http.StatusOK {
 		err := errors.New(res.Status)
-		cclog.ComponentError(s.name, "application error:", err.Error())
+		cclog.ComponentError(s.name, "Flush(): Application error:", err)
 		return err
 	}
 
@@ -283,7 +283,7 @@ func (s *HttpSink) Close() {
 		}
 	}
 	if err := s.Flush(); err != nil {
-		cclog.ComponentError(s.name, "flush failed:", err.Error())
+		cclog.ComponentError(s.name, "Close(): Flush failed:", err)
 	}
 
 	// Wait for flush operations to finish
@@ -303,7 +303,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.BatchSize = 1000
 	s.config.FlushDelay = "5s"
 	s.config.MaxRetries = 3
-	cclog.ComponentDebug(s.name, "init")
+	cclog.ComponentDebug(s.name, "Init()")
 
 	// Read config
 	if len(config) > 0 {
@@ -330,7 +330,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	if len(s.config.IdleConnTimeout) > 0 {
 		t, err := time.ParseDuration(s.config.IdleConnTimeout)
 		if err == nil {
-			cclog.ComponentDebug(s.name, "idleConnTimeout", t)
+			cclog.ComponentDebug(s.name, "Init(): idleConnTimeout", t)
 			s.config.idleConnTimeout = t
 		}
 	}
@@ -338,14 +338,14 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 		t, err := time.ParseDuration(s.config.Timeout)
 		if err == nil {
 			s.config.timeout = t
-			cclog.ComponentDebug(s.name, "timeout", t)
+			cclog.ComponentDebug(s.name, "Init(): timeout", t)
 		}
 	}
 	if len(s.config.FlushDelay) > 0 {
 		t, err := time.ParseDuration(s.config.FlushDelay)
 		if err == nil {
 			s.config.flushDelay = t
-			cclog.ComponentDebug(s.name, "flushDelay", t)
+			cclog.ComponentDebug(s.name, "Init(): flushDelay", t)
 		}
 	}
 
@@ -362,5 +362,6 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s.encoder.SetPrecision(influx.Nanosecond)
 	s.encoderRecordCount = 0
 	s.extended_tag_list = make([]key_value_pair, 0)
+
 	return s, nil
 }
