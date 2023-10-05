@@ -75,6 +75,9 @@ type HttpSink struct {
 	// Lock to assure that only one timer is running at a time
 	timerLock sync.Mutex
 
+	// WaitGroup for concurrent flush operations
+	flushWaitGroup sync.WaitGroup
+
 	config HttpSinkConfig
 }
 
@@ -206,6 +209,9 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 }
 
 func (s *HttpSink) Flush() error {
+	s.flushWaitGroup.Add(1)
+	defer s.flushWaitGroup.Done()
+
 	// Lock for encoder usage
 	// Own lock for as short as possible: the time it takes to clone the buffer.
 	s.encoderLock.Lock()
@@ -270,10 +276,19 @@ func (s *HttpSink) Flush() error {
 }
 
 func (s *HttpSink) Close() {
-	s.flushTimer.Stop()
+	// Stop existing timer and immediately flush
+	if s.flushTimer != nil {
+		if ok := s.flushTimer.Stop(); ok {
+			s.timerLock.Unlock()
+		}
+	}
 	if err := s.Flush(); err != nil {
 		cclog.ComponentError(s.name, "flush failed:", err.Error())
 	}
+
+	// Wait for flush operations to finish
+	s.flushWaitGroup.Wait()
+
 	s.client.CloseIdleConnections()
 }
 
