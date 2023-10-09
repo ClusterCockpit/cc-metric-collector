@@ -155,7 +155,6 @@ func (s *InfluxSink) connect() error {
 }
 
 func (s *InfluxSink) Write(m lp.CCMetric) error {
-
 	if s.flushDelay != 0 && s.flushTimerMutex.TryLock() {
 
 		// Setup flush timer when flush delay is configured
@@ -183,7 +182,6 @@ func (s *InfluxSink) Write(m lp.CCMetric) error {
 
 	// Protect access to batch slice
 	s.batchMutex.Lock()
-	defer s.batchMutex.Unlock()
 
 	// batch slice full, dropping oldest metric(s)
 	// e.g. when previous flushes failed and batch slice was not cleared
@@ -259,6 +257,9 @@ func (s *InfluxSink) Write(m lp.CCMetric) error {
 	// Check that encoding worked
 	if err := s.encoder.Err(); err != nil {
 		cclog.ComponentError(s.name, "Write():", "Encoding failed:", err)
+
+		// Unlock access to batch slice
+		s.batchMutex.Unlock()
 		return err
 	}
 
@@ -282,9 +283,13 @@ func (s *InfluxSink) Write(m lp.CCMetric) error {
 			}
 		}
 
+		// Unlock access to batch slice
+		s.batchMutex.Unlock()
 		return s.Flush()
 	}
 
+	// Unlock access to batch slice
+	s.batchMutex.Unlock()
 	return nil
 }
 
