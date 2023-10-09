@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,7 +14,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
+	"golang.org/x/exp/slices"
 )
 
 type InfluxSink struct {
@@ -52,11 +54,15 @@ type InfluxSink struct {
 		// maximum total retry timeout
 		InfluxMaxRetryTime string `json:"max_retry_time,omitempty"`
 	}
-	batch           []*write.Point
+	batch           []string
 	flushTimer      *time.Timer
 	flushDelay      time.Duration
 	batchMutex      sync.Mutex // Flush() runs in another goroutine, so this lock has to protect the buffer
 	flushTimerMutex sync.Mutex // Ensure only one flush timer is running
+	// influx line protocol encoder
+	encoder influx.Encoder
+	// List of tags and meta data tags which should be used as tags
+	extended_tag_list []key_value_pair
 }
 
 // connect connects to the InfluxDB server
@@ -130,7 +136,8 @@ func (s *InfluxSink) connect() error {
 		},
 	)
 
-	clientOptions.SetPrecision(time.Second)
+	// Set time precision
+	clientOptions.SetPrecision(time.Nanosecond)
 
 	// Create new writeAPI
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
@@ -186,15 +193,80 @@ func (s *InfluxSink) Write(m lp.CCMetric) error {
 			s.batch[i] = s.batch[i+s.config.DropRate]
 		}
 		for i := newSize; i < s.config.BatchSize; i++ {
-			s.batch[i] = nil
+			s.batch[i] = ""
 		}
 		s.batch = s.batch[:newSize]
 		cclog.ComponentError(s.name, "Batch slice full, dropping", s.config.DropRate, "oldest metric(s)")
 	}
 
+	// Encode measurement name
+	s.encoder.StartLine(m.Name())
+
+	// copy tags and meta data which should be used as tags
+	s.extended_tag_list = s.extended_tag_list[:0]
+	for key, value := range m.Tags() {
+		s.extended_tag_list =
+			append(
+				s.extended_tag_list,
+				key_value_pair{
+					key:   key,
+					value: value,
+				},
+			)
+	}
+	for _, key := range s.config.MetaAsTags {
+		if value, ok := m.GetMeta(key); ok {
+			s.extended_tag_list =
+				append(
+					s.extended_tag_list,
+					key_value_pair{
+						key:   key,
+						value: value,
+					},
+				)
+		}
+	}
+
+	// Encode tags (they musts be in lexical order)
+	slices.SortFunc(
+		s.extended_tag_list,
+		func(a key_value_pair, b key_value_pair) int {
+			if a.key < b.key {
+				return -1
+			}
+			if a.key > b.key {
+				return +1
+			}
+			return 0
+		},
+	)
+	for i := range s.extended_tag_list {
+		s.encoder.AddTag(
+			s.extended_tag_list[i].key,
+			s.extended_tag_list[i].value,
+		)
+	}
+
+	// Encode fields
+	for key, value := range m.Fields() {
+		s.encoder.AddField(key, influx.MustNewValue(value))
+	}
+
+	// Encode time stamp
+	s.encoder.EndLine(m.Time())
+
+	// Check that encoding worked
+	if err := s.encoder.Err(); err != nil {
+		cclog.ComponentError(s.name, "Write(): Encoding failed:", err)
+		return err
+	}
+
 	// Append metric to batch slice
-	p := m.ToPoint(s.meta_as_tags)
-	s.batch = append(s.batch, p)
+	s.batch = append(s.batch,
+		string(
+			slices.Clone(
+				s.encoder.Bytes())))
+	s.encoder.Reset()
 
 	// Flush synchronously if "flush_delay" is zero
 	// or
@@ -225,7 +297,7 @@ func (s *InfluxSink) Flush() error {
 	}
 
 	// Send metrics from batch slice
-	err := s.writeApi.WritePoint(context.Background(), s.batch...)
+	err := s.writeApi.WriteRecord(context.Background(), strings.Join(s.batch, ""))
 	if err != nil {
 		cclog.ComponentError(s.name, "Flush(): Flush of", len(s.batch), "metrics failed:", err)
 		return err
@@ -233,7 +305,7 @@ func (s *InfluxSink) Flush() error {
 
 	// Clear batch slice
 	for i := range s.batch {
-		s.batch[i] = nil
+		s.batch[i] = ""
 	}
 	s.batch = s.batch[:0]
 
@@ -311,11 +383,16 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	}
 
 	// allocate batch slice
-	s.batch = make([]*write.Point, 0, s.config.BatchSize)
+	s.batch = make([]string, 0, s.config.BatchSize)
 
 	// Connect to InfluxDB server
 	if err := s.connect(); err != nil {
 		return s, fmt.Errorf("unable to connect: %v", err)
 	}
+
+	// Configure influx line protocol encoder
+	s.encoder.SetPrecision(influx.Nanosecond)
+	s.extended_tag_list = make([]key_value_pair, 0)
+
 	return s, nil
 }

@@ -2,7 +2,6 @@
 
 The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.dev/github.com/influxdata/influxdb-client-go/v2) to write the metrics to an InfluxDB database in a **blocking** fashion. It provides only support for V2 write endpoints (InfluxDB 1.8.0 or later).
 
-
 ### Configuration structure
 
 ```json
@@ -18,14 +17,14 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
     "organization": "myorg",
     "ssl": true,
     "flush_delay" : "1s",
-    "batch_size" : 100
+    "batch_size" : 1000
   }
 }
 ```
 
 - `type`: makes the sink an `influxdb` sink
 - `meta_as_tags`: print all meta information as tags in the output (optional)
-- `database`: All metrics are written to this bucket 
+- `database`: All metrics are written to this bucket
 - `host`: Hostname of the InfluxDB database server
 - `port`: Portnumber (as string) of the InfluxDB database server
 - `user`: Username for basic authentification
@@ -33,7 +32,7 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 - `organization`: Organization in the InfluxDB
 - `ssl`: Use SSL connection
 - `flush_delay`: Group metrics coming in to a single batch
-- `batch_size`: Maximal batch size
+- `batch_size`: Maximal batch size. If `batch_size` is reached before the end of `flush_delay`, the metrics are sent without further delay
 
 Influx client options:
 
