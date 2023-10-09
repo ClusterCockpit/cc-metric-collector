@@ -17,7 +17,8 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
     "organization": "myorg",
     "ssl": true,
     "flush_delay" : "1s",
-    "batch_size" : 1000
+    "batch_size" : 1000,
+    "use_gzip": true
   }
 }
 ```
@@ -40,3 +41,4 @@ Influx client options:
 - `retry_exponential_base`: base for the exponential retry delay
 - `max_retries`: maximum count of retry attempts of failed writes
 - `max_retry_time`: maximum total retry timeout
+- `use_gzip`: Specify whether to use GZip compression in write requests

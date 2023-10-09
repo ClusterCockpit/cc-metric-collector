@@ -53,6 +53,8 @@ type InfluxSink struct {
 		InfluxMaxRetries uint `json:"max_retries,omitempty"`
 		// maximum total retry timeout
 		InfluxMaxRetryTime string `json:"max_retry_time,omitempty"`
+		// Specify whether to use GZip compression in write requests
+		InfluxUseGzip bool `json:"use_gzip"`
 	}
 	batch           []string
 	flushTimer      *time.Timer
@@ -128,6 +130,9 @@ func (s *InfluxSink) connect() error {
 			cclog.ComponentError(s.name, "connect():", "Failed to parse duration for Influx MaxRetryInterval: ", s.config.InfluxMaxRetryInterval)
 		}
 	}
+
+	// Specify whether to use GZip compression in write requests
+	clientOptions.SetUseGZip(s.config.InfluxUseGzip)
 
 	// Do not check InfluxDB certificate
 	clientOptions.SetTLSConfig(
