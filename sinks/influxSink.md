@@ -9,7 +9,6 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 {
   "<name>": {
     "type": "influxdb",
-    "meta_as_tags" : true,
     "database" : "mymetrics",
     "host": "dbhost.example.com",
     "port": "4222",
@@ -18,13 +17,13 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
     "organization": "myorg",
     "ssl": true,
     "flush_delay" : "1s",
-    "batch_size" : 100
+    "batch_size" : 100,
+    "meta_as_tags" : [],
   }
 }
 ```
 
 - `type`: makes the sink an `influxdb` sink
-- `meta_as_tags`: print all meta information as tags in the output (optional)
 - `database`: All metrics are written to this bucket 
 - `host`: Hostname of the InfluxDB database server
 - `port`: Portnumber (as string) of the InfluxDB database server
@@ -34,4 +33,5 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 - `ssl`: Use SSL connection
 - `flush_delay`: Group metrics coming in to a single batch
 - `batch_size`: Maximal batch size
+- `meta_as_tags`: move meta information keys to tags (optional)
 
