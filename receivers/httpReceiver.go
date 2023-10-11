@@ -12,7 +12,6 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
-	"github.com/gorilla/mux"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 )
 
@@ -39,7 +38,6 @@ type HttpReceiver struct {
 	receiver
 	meta   map[string]string
 	config HttpReceiverConfig
-	router *mux.Router
 	server *http.Server
 	wg     sync.WaitGroup
 }
@@ -93,16 +91,16 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 	uri := addr + p
 	cclog.ComponentDebug(r.name, "INIT", "listen on:", uri)
 
-	// Create new router and register p as path
-	r.router = mux.NewRouter()
-	r.router.Path(p).HandlerFunc(r.ServerHttp)
+	// Register handler function r.ServerHttp for path p in the DefaultServeMux
+	http.HandleFunc(p, r.ServerHttp)
 
-	// Create http server, with router as handler
+	// Create http server
 	r.server = &http.Server{
 		Addr:        addr,
-		Handler:     r.router,
+		Handler:     nil, // handler to invoke, http.DefaultServeMux if nil
 		IdleTimeout: r.config.idleTimeout,
 	}
+
 	return nil
 }
 
