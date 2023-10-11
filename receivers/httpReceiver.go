@@ -28,6 +28,9 @@ type HttpReceiverConfig struct {
 	IdleTimeout string `json:"idle_timeout"`
 	idleTimeout time.Duration
 
+	// Controls whether HTTP keep-alives are enabled. By default, keep-alives are enabled
+	KeepAlivesEnabled bool `json:"keep_alives_enabled"`
+
 	// Basic authentication
 	Username     string `json:"username"`
 	Password     string `json:"password"`
@@ -47,6 +50,7 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 
 	// Set default values
 	r.config.Port = HTTP_RECEIVER_PORT
+	r.config.KeepAlivesEnabled = true
 	// should be larger than the measurement interval to keep the connection open
 	r.config.IdleTimeout = "120s"
 
@@ -100,6 +104,7 @@ func (r *HttpReceiver) Init(name string, config json.RawMessage) error {
 		Handler:     nil, // handler to invoke, http.DefaultServeMux if nil
 		IdleTimeout: r.config.idleTimeout,
 	}
+	r.server.SetKeepAlivesEnabled(r.config.KeepAlivesEnabled)
 
 	return nil
 }

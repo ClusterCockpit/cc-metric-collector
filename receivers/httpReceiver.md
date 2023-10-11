@@ -23,6 +23,7 @@ The `http` receiver can be used receive metrics through HTTP POST requests.
 - `port`: Listen port
 - `path`: URL path for the write endpoint
 - `idle_timeout`: Maximum amount of time to wait for the next request when keep-alives are enabled should be larger than the measurement interval to keep the connection open
+- `keep_alives_enabled`: Controls whether HTTP keep-alives are enabled. By default, keep-alives are enabled.
 - `username`: username for basic authentication
 - `password`: password for basic authentication
 
