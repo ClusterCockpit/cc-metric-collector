@@ -27,9 +27,9 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 - `meta_as_tags`: print all meta information as tags in the output (optional)
 - `database`: All metrics are written to this bucket
 - `host`: Hostname of the InfluxDB database server
-- `port`: Portnumber (as string) of the InfluxDB database server
-- `user`: Username for basic authentification
-- `password`: Password for basic authentification
+- `port`: Port number (as string) of the InfluxDB database server
+- `user`: Username for basic authentication
+- `password`: Password for basic authentication
 - `organization`: Organization in the InfluxDB
 - `ssl`: Use SSL connection
 - `flush_delay`: Group metrics coming in to a single batch

@@ -141,8 +141,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 
 	// Check that encoding worked
 	if err != nil {
-		cclog.ComponentError(s.name, "Write(): Encoding failed:", err)
-		return err
+		return fmt.Errorf("Encoding failed: %v", err)
 	}
 
 	if s.config.flushDelay == 0 {
@@ -177,6 +176,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 	return nil
 }
 
+// Flush sends all metrics stored in encoder to HTTP server
 func (s *HttpSink) Flush() error {
 
 	// Lock for encoder usage
@@ -192,6 +192,8 @@ func (s *HttpSink) Flush() error {
 	if len(buf) == 0 {
 		return nil
 	}
+
+	cclog.ComponentDebug(s.name, "Flush(): Flushing")
 
 	var res *http.Response
 	for i := 0; i < s.config.MaxRetries; i++ {
@@ -239,12 +241,16 @@ func (s *HttpSink) Flush() error {
 }
 
 func (s *HttpSink) Close() {
+	cclog.ComponentDebug(s.name, "Closing HTTP connection")
+
 	// Stop existing timer and immediately flush
 	if s.flushTimer != nil {
 		if ok := s.flushTimer.Stop(); ok {
 			s.timerLock.Unlock()
 		}
 	}
+
+	// Flush
 	if err := s.Flush(); err != nil {
 		cclog.ComponentError(s.name, "Close(): Flush failed:", err)
 	}
