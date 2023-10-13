@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,9 +95,10 @@ func NewGangliaSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.AddTagsAsDesc = false
 	s.config.AddGangliaGroup = false
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&s.config); err != nil {
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
 			return nil, err
 		}
 	}

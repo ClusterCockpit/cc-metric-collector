@@ -1,12 +1,14 @@
 package sinks
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	//	"time"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
@@ -42,8 +44,10 @@ func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(StdoutSink)
 	s.name = fmt.Sprintf("StdoutSink(%s)", name)
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&s.config); err != nil {
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
 			return nil, err
 		}
 	}

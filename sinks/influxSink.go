@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -364,9 +365,11 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 
 	// Read config
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			return s, err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&s.config); err != nil {
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
+			return nil, err
 		}
 	}
 
