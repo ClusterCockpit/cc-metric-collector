@@ -366,7 +366,6 @@ func (s *InfluxSink) Flush() error {
 	cclog.ComponentDebug(s.name, "Flush(): Flushing", numRecordsInBuf, "metrics")
 
 	// Asynchron send of encoder metrics
-	s.sendWaitGroup.Wait()
 	s.sendWaitGroup.Add(1)
 	go func() {
 		defer s.sendWaitGroup.Done()
@@ -404,7 +403,7 @@ func (s *InfluxSink) Close() {
 		cclog.ComponentError(s.name, "Close():", "Flush failed:", err)
 	}
 
-	// Wait for send operation to finish
+	// Wait for send operations to finish
 	s.sendWaitGroup.Wait()
 
 	s.client.Close()
