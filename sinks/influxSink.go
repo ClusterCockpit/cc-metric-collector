@@ -44,8 +44,12 @@ type InfluxSink struct {
 
 		// Influx client options:
 
+		// HTTP request timeout
+		HTTPRequestTimeout string `json:"http_request_timeout"`
+		// Retry interval
+		InfluxRetryInterval string `json:"retry_interval,omitempty"`
 		// maximum delay between each retry attempt
-		InfluxMaxRetryInterval string `json:"retry_interval,omitempty"`
+		InfluxMaxRetryInterval string `json:"max_retry_interval,omitempty"`
 		// base for the exponential retry delay
 		InfluxExponentialBase uint `json:"retry_exponential_base,omitempty"`
 		// maximum count of retry attempts of failed writes
@@ -105,28 +109,70 @@ func (s *InfluxSink) connect() error {
 	// Set influxDB client options
 	clientOptions := influxdb2.DefaultOptions()
 
+	// set HTTP request timeout
+	if len(s.config.HTTPRequestTimeout) > 0 {
+		if t, err := time.ParseDuration(s.config.HTTPRequestTimeout); err == nil {
+			httpRequestTimeout := uint(t.Seconds())
+			clientOptions.SetHTTPRequestTimeout(httpRequestTimeout)
+		} else {
+			cclog.ComponentError(s.name, "connect():", "Failed to parse duration for HTTP RequestTimeout: ", s.config.HTTPRequestTimeout)
+		}
+	}
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options HTTPRequestTimeout:",
+		time.Second*time.Duration(clientOptions.HTTPRequestTimeout()))
+
+	// Set retry interval
+	if len(s.config.InfluxRetryInterval) > 0 {
+		if t, err := time.ParseDuration(s.config.InfluxRetryInterval); err == nil {
+			influxRetryInterval := uint(t.Milliseconds())
+			clientOptions.SetRetryInterval(influxRetryInterval)
+		} else {
+			cclog.ComponentError(s.name, "connect():", "Failed to parse duration for Influx RetryInterval: ", s.config.InfluxRetryInterval)
+		}
+	}
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options RetryInterval:",
+		time.Millisecond*time.Duration(clientOptions.RetryInterval()))
+
 	// Set the maximum delay between each retry attempt
 	if len(s.config.InfluxMaxRetryInterval) > 0 {
 		if t, err := time.ParseDuration(s.config.InfluxMaxRetryInterval); err == nil {
 			influxMaxRetryInterval := uint(t.Milliseconds())
-			cclog.ComponentDebug(s.name, "connect():", "Influx MaxRetryInterval", s.config.InfluxMaxRetryInterval)
 			clientOptions.SetMaxRetryInterval(influxMaxRetryInterval)
 		} else {
 			cclog.ComponentError(s.name, "connect():", "Failed to parse duration for Influx MaxRetryInterval: ", s.config.InfluxMaxRetryInterval)
 		}
 	}
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options MaxRetryInterval:",
+		time.Millisecond*time.Duration(clientOptions.MaxRetryInterval()))
 
 	// Set the base for the exponential retry delay
 	if s.config.InfluxExponentialBase != 0 {
-		cclog.ComponentDebug(s.name, "connect():", "Influx Exponential Base", s.config.InfluxExponentialBase)
 		clientOptions.SetExponentialBase(s.config.InfluxExponentialBase)
 	}
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options ExponentialBase:",
+		clientOptions.ExponentialBase())
 
 	// Set maximum count of retry attempts of failed writes
 	if s.config.InfluxMaxRetries != 0 {
-		cclog.ComponentDebug(s.name, "connect():", "Influx Max Retries", s.config.InfluxMaxRetries)
 		clientOptions.SetMaxRetries(s.config.InfluxMaxRetries)
 	}
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options MaxRetries:",
+		clientOptions.MaxRetries())
 
 	// Set the maximum total retry timeout
 	if len(s.config.InfluxMaxRetryTime) > 0 {
@@ -138,9 +184,19 @@ func (s *InfluxSink) connect() error {
 			cclog.ComponentError(s.name, "connect():", "Failed to parse duration for Influx MaxRetryInterval: ", s.config.InfluxMaxRetryInterval)
 		}
 	}
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options MaxRetryTime:",
+		time.Millisecond*time.Duration(clientOptions.MaxRetryTime()))
 
 	// Specify whether to use GZip compression in write requests
 	clientOptions.SetUseGZip(s.config.InfluxUseGzip)
+	cclog.ComponentDebug(
+		s.name,
+		"connect():",
+		"Influx client options UseGZip:",
+		clientOptions.UseGZip())
 
 	// Do not check InfluxDB certificate
 	clientOptions.SetTLSConfig(
