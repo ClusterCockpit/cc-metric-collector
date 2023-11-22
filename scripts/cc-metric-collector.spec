@@ -44,7 +44,7 @@ install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.c
 # go test should be here... :)
 
 %pre
-%sysusers_create_package scripts/%{name}.sysusers
+%sysusers_create_package %{name} scripts/%{name}.sysusers
 
 %post
 %systemd_post %{name}.service
