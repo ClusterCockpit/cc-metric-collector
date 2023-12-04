@@ -29,8 +29,8 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
+	"github.com/fsnotify/fsnotify"
 	"golang.design/x/thread"
-	fsnotify "gopkg.in/fsnotify.v1"
 )
 
 const (
@@ -41,11 +41,14 @@ const (
 )
 
 type LikwidCollectorMetricConfig struct {
-	Name    string `json:"name"` // Name of the metric
-	Calc    string `json:"calc"` // Calculation for the metric using
-	Type    string `json:"type"` // Metric type (aka node, socket, cpu, ...)
-	Publish bool   `json:"publish"`
-	Unit    string `json:"unit"` // Unit of metric if any
+	Name               string `json:"name"` // Name of the metric
+	Calc               string `json:"calc"` // Calculation for the metric using
+	Type               string `json:"type"` // Metric type (aka node, socket, cpu, ...)
+	Publish            bool   `json:"publish"`
+	SendCoreTotalVal   bool   `json:"send_core_total_values,omitempty"`
+	SendSocketTotalVal bool   `json:"send_socket_total_values,omitempty"`
+	SendNodeTotalVal   bool   `json:"send_node_total_values,omitempty"`
+	Unit               string `json:"unit"` // Unit of metric if any
 }
 
 type LikwidCollectorEventsetConfig struct {
@@ -59,7 +62,7 @@ type LikwidEventsetConfig struct {
 	eorder   []*C.char
 	estr     *C.char
 	go_estr  string
-	results  map[int]map[string]interface{}
+	results  map[int]map[string]float64
 	metrics  map[int]map[string]float64
 }
 
@@ -79,10 +82,11 @@ type LikwidCollector struct {
 	cpulist       []C.int
 	cpu2tid       map[int]int
 	sock2tid      map[int]int
+	tid2core      map[int]int
+	tid2socket    map[int]int
 	metrics       map[C.int]map[string]int
 	groups        []C.int
 	config        LikwidCollectorConfig
-	gmresults     map[int]map[string]float64
 	basefreq      float64
 	running       bool
 	initialized   bool
@@ -134,10 +138,10 @@ func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig
 		elist = append(elist, c_counter)
 	}
 	estr := strings.Join(tmplist, ",")
-	res := make(map[int]map[string]interface{})
+	res := make(map[int]map[string]float64)
 	met := make(map[int]map[string]float64)
 	for _, i := range topo.CpuList() {
-		res[i] = make(map[string]interface{})
+		res[i] = make(map[string]float64)
 		for k := range input.Events {
 			res[i][k] = 0.0
 		}
@@ -157,7 +161,7 @@ func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig
 }
 
 func testLikwidMetricFormula(formula string, params []string) bool {
-	myparams := make(map[string]interface{})
+	myparams := make(map[string]float64)
 	for _, p := range params {
 		myparams[p] = float64(1.0)
 	}
@@ -236,13 +240,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	m.likwidGroups = make(map[C.int]LikwidEventsetConfig)
 
-	// m.results = make(map[int]map[int]map[string]interface{})
-	// m.mresults = make(map[int]map[int]map[string]float64)
-	m.gmresults = make(map[int]map[string]float64)
-	for _, tid := range m.cpu2tid {
-		m.gmresults[tid] = make(map[string]float64)
-	}
-
 	// This is for the global metrics computation test
 	totalMetrics := 0
 	// Generate parameter list for the metric computing test
@@ -309,24 +306,18 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.measureThread = thread.New()
 	switch m.config.AccessMode {
 	case "direct":
-		m.measureThread.Call(
-			func() {
-				C.HPMmode(0)
-			})
+		C.HPMmode(0)
 	case "accessdaemon":
 		if len(m.config.DaemonPath) > 0 {
 			p := os.Getenv("PATH")
 			os.Setenv("PATH", m.config.DaemonPath+":"+p)
 		}
-		m.measureThread.Call(
-			func() {
-				C.HPMmode(1)
-				retCode := C.HPMinit()
-				if retCode != 0 {
-					err := fmt.Errorf("C.HPMinit() failed with return code %v", retCode)
-					cclog.ComponentError(m.name, err.Error())
-				}
-			})
+		C.HPMmode(1)
+		retCode := C.HPMinit()
+		if retCode != 0 {
+			err := fmt.Errorf("C.HPMinit() failed with return code %v", retCode)
+			cclog.ComponentError(m.name, err.Error())
+		}
 		for _, c := range m.cpulist {
 			m.measureThread.Call(
 				func() {
@@ -349,6 +340,21 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		C.free(unsafe.Pointer(cstr))
 	}
 
+	cpuData := topo.CpuData()
+	m.tid2core = make(map[int]int, len(cpuData))
+	m.tid2socket = make(map[int]int, len(cpuData))
+	for i := range cpuData {
+		c := &cpuData[i]
+		// Hardware thread ID to core ID mapping
+		if len(c.CoreCPUsList) > 0 {
+			m.tid2core[c.CpuID] = c.CoreCPUsList[0]
+		} else {
+			m.tid2core[c.CpuID] = c.CpuID
+		}
+		// Hardware thead ID to socket ID mapping
+		m.tid2socket[c.CpuID] = c.Socket
+	}
+
 	m.basefreq = getBaseFreq()
 	m.init = true
 	return nil
@@ -359,6 +365,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	var ret C.int
 	var gid C.int = -1
 	sigchan := make(chan os.Signal, 1)
+
+	// Watch changes for the lock file ()
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
@@ -370,13 +378,13 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		if err != nil {
 			return true, err
 		}
-		stat := info.Sys().(*syscall.Stat_t)
-		if stat.Uid != uint32(os.Getuid()) {
-			usr, err := user.LookupId(strconv.FormatUint(uint64(stat.Uid), 10))
+		uid := info.Sys().(*syscall.Stat_t).Uid
+		if uid != uint32(os.Getuid()) {
+			usr, err := user.LookupId(fmt.Sprint(uid))
 			if err == nil {
 				return true, fmt.Errorf("Access to performance counters locked by %s", usr.Username)
 			} else {
-				return true, fmt.Errorf("Access to performance counters locked by %d", stat.Uid)
+				return true, fmt.Errorf("Access to performance counters locked by %d", uid)
 			}
 		}
 		err = watcher.Add(m.config.LockfilePath)
@@ -386,6 +394,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
+	// Initialize the performance monitoring feature by creating basic data structures
 	select {
 	case e := <-watcher.Events:
 		ret = -1
@@ -400,6 +410,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	}
 	signal.Notify(sigchan, os.Interrupt)
 	signal.Notify(sigchan, syscall.SIGCHLD)
+
+	// Add an event string to LIKWID
 	select {
 	case <-sigchan:
 		gid = -1
@@ -415,8 +427,9 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		return true, fmt.Errorf("failed to add events %s, error %d", evset.go_estr, gid)
 	} else {
 		evset.gid = gid
-		//m.likwidGroups[gid] = evset
 	}
+
+	// Setup all performance monitoring counters of an eventSet
 	select {
 	case <-sigchan:
 		ret = -1
@@ -430,6 +443,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to setup events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Start counters
 	select {
 	case <-sigchan:
 		ret = -1
@@ -456,7 +471,11 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Wait
 	time.Sleep(interval)
+
+	// Read counters
 	select {
 	case <-sigchan:
 		ret = -1
@@ -470,6 +489,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Store counters
 	for eidx, counter := range evset.eorder {
 		gctr := C.GoString(counter)
 		for _, tid := range m.cpu2tid {
@@ -481,9 +502,13 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 			evset.results[tid][gctr] = fres
 		}
 	}
+
+	// Store time in seconds the event group was measured the last time
 	for _, tid := range m.cpu2tid {
 		evset.results[tid]["time"] = float64(C.perfmon_getLastTimeOfGroup(gid))
 	}
+
+	// Stop counters
 	select {
 	case <-sigchan:
 		ret = -1
@@ -497,6 +522,8 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to stop events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// Deallocates all internal data that is used during performance monitoring
 	signal.Stop(sigchan)
 	select {
 	case e := <-watcher.Events:
@@ -525,6 +552,9 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 		if metric.Type == "socket" {
 			scopemap = m.sock2tid
 		}
+		// Send all metrics with same time stamp
+		// This function does only computiation, counter measurement is done before
+		now := time.Now()
 		for domain, tid := range scopemap {
 			if tid >= 0 && len(metric.Calc) > 0 {
 				value, err := agg.EvalFloat64Condition(metric.Calc, evset.results[tid])
@@ -537,22 +567,136 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				}
 				evset.metrics[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
-				if !math.IsNaN(value) {
-					if metric.Publish {
-						fields := map[string]interface{}{"value": value}
-						y, err := lp.New(metric.Name, map[string]string{"type": metric.Type}, m.meta, fields, time.Now())
-						if err == nil {
-							if metric.Type != "node" {
-								y.AddTag("type-id", fmt.Sprintf("%d", domain))
-							}
-							if len(metric.Unit) > 0 {
-								y.AddMeta("unit", metric.Unit)
-							}
-							output <- y
+				if !math.IsNaN(value) && metric.Publish {
+					fields := map[string]interface{}{"value": value}
+					y, err :=
+						lp.New(
+							metric.Name,
+							map[string]string{
+								"type": metric.Type,
+							},
+							m.meta,
+							fields,
+							now,
+						)
+					if err == nil {
+						if metric.Type != "node" {
+							y.AddTag("type-id", fmt.Sprintf("%d", domain))
 						}
+						if len(metric.Unit) > 0 {
+							y.AddMeta("unit", metric.Unit)
+						}
+						output <- y
 					}
 				}
 			}
+		}
+
+		// Send per core aggregated values
+		if metric.SendCoreTotalVal {
+			totalCoreValues := make(map[int]float64)
+			for _, tid := range scopemap {
+				if tid >= 0 && len(metric.Calc) > 0 {
+					coreID := m.tid2core[tid]
+					value := evset.metrics[tid][metric.Name]
+					if !math.IsNaN(value) && metric.Publish {
+						totalCoreValues[coreID] += value
+					}
+				}
+			}
+
+			for coreID, value := range totalCoreValues {
+				y, err :=
+					lp.New(
+						metric.Name,
+						map[string]string{
+							"type":    "core",
+							"type-id": fmt.Sprintf("%d", coreID),
+						},
+						m.meta,
+						map[string]interface{}{
+							"value": value,
+						},
+						now,
+					)
+				if err != nil {
+					continue
+				}
+				if len(metric.Unit) > 0 {
+					y.AddMeta("unit", metric.Unit)
+				}
+				output <- y
+			}
+		}
+
+		// Send per socket aggregated values
+		if metric.SendSocketTotalVal {
+			totalSocketValues := make(map[int]float64)
+			for _, tid := range scopemap {
+				if tid >= 0 && len(metric.Calc) > 0 {
+					socketID := m.tid2socket[tid]
+					value := evset.metrics[tid][metric.Name]
+					if !math.IsNaN(value) && metric.Publish {
+						totalSocketValues[socketID] += value
+					}
+				}
+			}
+
+			for socketID, value := range totalSocketValues {
+				y, err :=
+					lp.New(
+						metric.Name,
+						map[string]string{
+							"type":    "socket",
+							"type-id": fmt.Sprintf("%d", socketID),
+						},
+						m.meta,
+						map[string]interface{}{
+							"value": value,
+						},
+						now,
+					)
+				if err != nil {
+					continue
+				}
+				if len(metric.Unit) > 0 {
+					y.AddMeta("unit", metric.Unit)
+				}
+				output <- y
+			}
+		}
+
+		// Send per node aggregated value
+		if metric.SendNodeTotalVal {
+			var totalNodeValue float64 = 0.0
+			for _, tid := range scopemap {
+				if tid >= 0 && len(metric.Calc) > 0 {
+					value := evset.metrics[tid][metric.Name]
+					if !math.IsNaN(value) && metric.Publish {
+						totalNodeValue += value
+					}
+				}
+			}
+
+			y, err :=
+				lp.New(
+					metric.Name,
+					map[string]string{
+						"type": "node",
+					},
+					m.meta,
+					map[string]interface{}{
+						"value": totalNodeValue,
+					},
+					now,
+				)
+			if err != nil {
+				continue
+			}
+			if len(metric.Unit) > 0 {
+				y.AddMeta("unit", metric.Unit)
+			}
+			output <- y
 		}
 	}
 
@@ -561,7 +705,13 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 // Go over the global metrics, derive the value out of the event sets' metric values and send it
 func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, interval time.Duration, output chan lp.CCMetric) error {
+	// Send all metrics with same time stamp
+	// This function does only computiation, counter measurement is done before
+	now := time.Now()
+
 	for _, metric := range m.config.Metrics {
+		// The metric scope is determined in the Init() function
+		// Get the map scope-id -> tids
 		scopemap := m.cpu2tid
 		if metric.Type == "socket" {
 			scopemap = m.sock2tid
@@ -569,7 +719,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 		for domain, tid := range scopemap {
 			if tid >= 0 {
 				// Here we generate parameter list
-				params := make(map[string]interface{})
+				params := make(map[string]float64)
 				for _, evset := range groups {
 					for mname, mres := range evset.metrics[tid] {
 						params[mname] = mres
@@ -584,13 +734,21 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {
 					value = 0.0
 				}
-				//m.gmresults[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
-						tags := map[string]string{"type": metric.Type}
-						fields := map[string]interface{}{"value": value}
-						y, err := lp.New(metric.Name, tags, m.meta, fields, time.Now())
+						y, err :=
+							lp.New(
+								metric.Name,
+								map[string]string{
+									"type": metric.Type,
+								},
+								m.meta,
+								map[string]interface{}{
+									"value": value,
+								},
+								now,
+							)
 						if err == nil {
 							if metric.Type != "node" {
 								y.AddTag("type-id", fmt.Sprintf("%d", domain))
@@ -637,8 +795,6 @@ func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMe
 
 // main read function taking multiple measurement rounds, each 'interval' seconds long
 func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
-	//var skip bool = false
-	//var err error
 	if !m.init {
 		return
 	}

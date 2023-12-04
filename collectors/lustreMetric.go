@@ -101,7 +101,7 @@ func getMetricData(lines []string, prefix string, offset int) (int64, error) {
 // 	llitedir := filepath.Join(LUSTRE_SYSFS, "llite")
 // 	devdir := filepath.Join(llitedir, device)
 // 	statsfile := filepath.Join(devdir, "stats")
-// 	buffer, err := ioutil.ReadFile(statsfile)
+// 	buffer, err := os.ReadFile(statsfile)
 // 	if err != nil {
 // 		return make([]string, 0)
 // 	}

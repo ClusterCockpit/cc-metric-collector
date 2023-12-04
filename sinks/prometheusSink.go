@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -167,9 +168,10 @@ func NewPrometheusSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(PrometheusSink)
 	s.name = "PrometheusSink"
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
-			cclog.ComponentError(s.name, "Error reading config for", s.name, ":", err.Error())
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&s.config); err != nil {
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
 			return nil, err
 		}
 	}
