@@ -195,7 +195,7 @@ jobs:
   Release:
     runs-on: ubuntu-latest
     # We need the RPMs, so add dependency
-    needs: [AlmaLinux-RPM-build, UBI-8-RPM-build, Ubuntu-focal-build]
+    needs: [AlmaLinux-RPM-build, UBI-8-RPM-build, Ubuntu-jammy-build]
 
     steps:
     # See: https://github.com/actions/download-artifact
