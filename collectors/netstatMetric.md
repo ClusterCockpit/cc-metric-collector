@@ -23,5 +23,5 @@ Metrics:
 * `net_pkts_in_bw` (`unit=packets/sec` if `send_derived_values == true`)
 * `net_pkts_out_bw` (`unit=packets/sec` if `send_derived_values == true`)
 
-The device name is added as tag `device`.
+The device name is added as tag `stype=network,stype-id=<device>`.
 

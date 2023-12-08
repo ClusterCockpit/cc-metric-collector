@@ -13,10 +13,12 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
     ],
     "url" : "https://my-monitoring.example.com:1234/api/write",
     "jwt" : "blabla.blabla.blabla",
+    "username": "myUser",
+    "password": "myPW",
     "timeout": "5s",
-    "max_idle_connections" : 10,
     "idle_connection_timeout" : "5s",
     "flush_delay": "2s",
+    "batch_size": 1000
   }
 }
 ```
@@ -24,8 +26,11 @@ The `http` sink uses POST requests to a HTTP server to submit the metrics in the
 - `type`: makes the sink an `http` sink
 - `meta_as_tags`: Move specific meta information to the tags in the output (optional)
 - `url`: The full URL of the endpoint
-- `jwt`: JSON web tokens for authentification (Using the *Bearer* scheme)
+- `jwt`: JSON web tokens for authentication (Using the *Bearer* scheme)
+- `username`: username for basic authentication
+- `password`: password for basic authentication
 - `timeout`: General timeout for the HTTP client (default '5s')
-- `max_idle_connections`: Maximally idle connections (default 10)
-- `idle_connection_timeout`: Timeout for idle connections (default '5s')
+- `max_retries`: Maximum number of retries to connect to the http server
+- `idle_connection_timeout`: Timeout for idle connections (default '120s'). Should be larger than the measurement interval to keep the connection open
 - `flush_delay`: Batch all writes arriving in during this duration (default '1s', batching can be disabled by setting it to 0)
+- `batch_size`: Maximal batch size. If `batch_size` is reached before the end of `flush_delay`, the metrics are sent without further delay

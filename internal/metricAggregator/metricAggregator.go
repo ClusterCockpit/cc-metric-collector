@@ -121,7 +121,12 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 	vars["endtime"] = endtime
 	for _, f := range c.functions {
 		cclog.ComponentDebug("MetricCache", "COLLECT", f.Name, "COND", f.Condition)
-		values := make([]float64, 0)
+		var valuesFloat64 []float64
+		var valuesFloat32 []float32
+		var valuesInt []int
+		var valuesInt32 []int32
+		var valuesInt64 []int64
+		var valuesBool []bool
 		matches := make([]lp.CCMetric, 0)
 		for _, m := range metrics {
 			vars["metric"] = m
@@ -136,17 +141,17 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 				if valid {
 					switch x := v.(type) {
 					case float64:
-						values = append(values, x)
+						valuesFloat64 = append(valuesFloat64, x)
 					case float32:
+						valuesFloat32 = append(valuesFloat32, x)
 					case int:
+						valuesInt = append(valuesInt, x)
+					case int32:
+						valuesInt32 = append(valuesInt32, x)
 					case int64:
-						values = append(values, float64(x))
+						valuesInt64 = append(valuesInt64, x)
 					case bool:
-						if x {
-							values = append(values, float64(1.0))
-						} else {
-							values = append(values, float64(0.0))
-						}
+						valuesBool = append(valuesBool, x)
 					default:
 						cclog.ComponentError("MetricCache", "COLLECT ADD VALUE", v, "FAILED")
 					}
@@ -155,13 +160,59 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			}
 		}
 		delete(vars, "metric")
-		cclog.ComponentDebug("MetricCache", "EVALUATE", f.Name, "METRICS", len(values), "CALC", f.Function)
-		vars["values"] = values
+
+		// Check, that only values of one type were collected
+		countValueTypes := 0
+		if len(valuesFloat64) > 0 {
+			countValueTypes += 1
+		}
+		if len(valuesFloat32) > 0 {
+			countValueTypes += 1
+		}
+		if len(valuesInt) > 0 {
+			countValueTypes += 1
+		}
+		if len(valuesInt32) > 0 {
+			countValueTypes += 1
+		}
+		if len(valuesInt64) > 0 {
+			countValueTypes += 1
+		}
+		if len(valuesBool) > 0 {
+			countValueTypes += 1
+		}
+		if countValueTypes > 1 {
+			cclog.ComponentError("MetricCache", "Collected values of different types")
+		}
+
+		var len_values int
+		switch {
+		case len(valuesFloat64) > 0:
+			vars["values"] = valuesFloat64
+			len_values = len(valuesFloat64)
+		case len(valuesFloat32) > 0:
+			vars["values"] = valuesFloat32
+			len_values = len(valuesFloat32)
+		case len(valuesInt) > 0:
+			vars["values"] = valuesInt
+			len_values = len(valuesInt)
+		case len(valuesInt32) > 0:
+			vars["values"] = valuesInt32
+			len_values = len(valuesInt32)
+		case len(valuesInt64) > 0:
+			vars["values"] = valuesInt64
+			len_values = len(valuesInt64)
+		case len(valuesBool) > 0:
+			vars["values"] = valuesBool
+			len_values = len(valuesBool)
+		}
+		cclog.ComponentDebug("MetricCache", "EVALUATE", f.Name, "METRICS", len_values, "CALC", f.Function)
+
 		vars["metrics"] = matches
-		if len(values) > 0 {
+		if len_values > 0 {
 			value, err := gval.Evaluate(f.Function, vars, c.language)
 			if err != nil {
-				cclog.ComponentError("MetricCache", "EVALUATE", f.Name, "METRICS", len(values), "CALC", f.Function, ":", err.Error())
+				cclog.ComponentError("MetricCache", "EVALUATE", f.Name, "METRICS", len_values, "CALC", f.Function, ":", err.Error())
 				break
 			}
 
@@ -316,7 +367,7 @@ func EvalBoolCondition(condition string, params map[string]interface{}) (bool, e
 	return value, err
 }
 
-func EvalFloat64Condition(condition string, params map[string]interface{}) (float64, error) {
+func EvalFloat64Condition(condition string, params map[string]float64) (float64, error) {
 	evaluables.mutex.Lock()
 	evaluable, ok := evaluables.mapping[condition]
 	evaluables.mutex.Unlock()

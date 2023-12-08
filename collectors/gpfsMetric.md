@@ -6,7 +6,8 @@
     "exclude_filesystem": [
       "fs1"
     ],
-    "send_bandwidths" : true
+    "send_bandwidths": true,
+    "send_total_values": true
   }
 ```
 
@@ -26,8 +27,12 @@ Metrics:
 * `gpfs_num_opens`
 * `gpfs_num_closes`
 * `gpfs_num_reads`
+* `gpfs_num_writes`
 * `gpfs_num_readdirs`
 * `gpfs_num_inode_updates`
+* `gpfs_bytes_total = gpfs_bytes_read + gpfs_bytes_written` (if `send_total_values == true`)
+* `gpfs_iops = gpfs_num_reads + gpfs_num_writes` (if `send_total_values == true`)
+* `gpfs_metaops = gpfs_num_inode_updates + gpfs_num_closes + gpfs_num_opens + gpfs_num_readdirs` (if `send_total_values == true`)
 * `gpfs_bw_read` (if `send_bandwidths == true`)
 * `gpfs_bw_write` (if `send_bandwidths == true`)
 

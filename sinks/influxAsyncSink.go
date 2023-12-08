@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -180,22 +181,24 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 	// 262144 524288
 
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &s.config)
-		if err != nil {
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&s.config); err != nil {
+			cclog.ComponentError(s.name, "Error reading config:", err.Error())
 			return nil, err
 		}
 	}
 	if len(s.config.Port) == 0 {
-		return nil, errors.New("Missing port configuration required by InfluxSink")
+		return nil, errors.New("missing port configuration required by InfluxSink")
 	}
 	if len(s.config.Database) == 0 {
-		return nil, errors.New("Missing database configuration required by InfluxSink")
+		return nil, errors.New("missing database configuration required by InfluxSink")
 	}
 	if len(s.config.Organization) == 0 {
-		return nil, errors.New("Missing organization configuration required by InfluxSink")
+		return nil, errors.New("missing organization configuration required by InfluxSink")
 	}
 	if len(s.config.Password) == 0 {
-		return nil, errors.New("Missing password configuration required by InfluxSink")
+		return nil, errors.New("missing password configuration required by InfluxSink")
 	}
 	// Create lookup map to use meta infos as tags in the output metric
 	s.meta_as_tags = make(map[string]bool)

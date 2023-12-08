@@ -84,7 +84,7 @@ func (sm *sinkManager) Init(wg *sync.WaitGroup, sinkConfigFile string) error {
 	// Check that at least one sink is running
 	if !(len(sm.sinks) > 0) {
 		cclog.ComponentError("SinkManager", "Found no usable sinks")
-		return fmt.Errorf("Found no usable sinks")
+		return fmt.Errorf("found no usable sinks")
 	}
 
 	return nil
@@ -157,7 +157,7 @@ func (sm *sinkManager) AddOutput(name string, rawConfig json.RawMessage) error {
 	}
 	s, err := AvailableSinks[sinkConfig.Type](name, rawConfig)
 	if err != nil {
-		cclog.ComponentError("SinkManager", "SKIP", s.Name(), "initialization failed:", err.Error())
+		cclog.ComponentError("SinkManager", "SKIP", name, "initialization failed:", err.Error())
 		return err
 	}
 	sm.sinks[name] = s

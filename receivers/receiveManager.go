@@ -11,6 +11,7 @@ import (
 )
 
 var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
+	"http":    NewHttpReceiver,
 	"ipmi":    NewIPMIReceiver,
 	"nats":    NewNatsReceiver,
 	"redfish": NewRedfishReceiver,
