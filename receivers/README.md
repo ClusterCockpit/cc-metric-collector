@@ -24,6 +24,7 @@ This allows to specify
 - [`http`](./httpReceiver.md): Listen for HTTP Post requests transporting metrics in InfluxDB line protocol
 - [`ipmi`](./ipmiReceiver.md): Read IPMI sensor readings
 - [`redfish`](redfishReceiver.md) Use the Redfish (specification) to query thermal and power metrics
+- [`snmp`](./snmpReceiver.md) Query SNMP endpoints in the network
 
 ## Contributing own receivers
 

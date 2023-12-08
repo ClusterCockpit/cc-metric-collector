@@ -54,3 +54,7 @@ Each network-attached device that should be queried. A target consits of
 - `unit` can be empty, an OID or a user-given string
 
 If a OID is used for `name` or `unit`, the receiver will use the returned values to create the output metric. If there are any issues with the returned values, it uses the `OID`.
+
+## Testing
+
+For testing an SNMP endpoint and OIDs, you can use [`scripts/snmpReceiverTest`](../scripts/snmpReceiverTest)
