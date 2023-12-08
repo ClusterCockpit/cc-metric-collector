@@ -9,6 +9,7 @@ require (
 	github.com/PaesslerAG/gval v1.2.2
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gorilla/mux v1.8.0
+	github.com/gosnmp/gosnmp v1.37.0
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
 	github.com/influxdata/line-protocol/v2 v2.2.1

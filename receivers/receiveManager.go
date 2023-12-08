@@ -15,6 +15,7 @@ var AvailableReceivers = map[string]func(name string, config json.RawMessage) (R
 	"ipmi":    NewIPMIReceiver,
 	"nats":    NewNatsReceiver,
 	"redfish": NewRedfishReceiver,
+	"snmp":    NewSNMPReceiver,
 }
 
 type receiveManager struct {
