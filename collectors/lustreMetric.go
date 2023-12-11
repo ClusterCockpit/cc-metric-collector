@@ -14,10 +14,6 @@ import (
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
-const LUSTRE_SYSFS = `/sys/fs/lustre`
-const LCTL_CMD = `lctl`
-const LCTL_OPTION = `get_param`
-
 type LustreCollectorConfig struct {
 	LCtlCommand        string   `json:"lctl_command,omitempty"`
 	ExcludeMetrics     []string `json:"exclude_metrics,omitempty"`
@@ -25,14 +21,6 @@ type LustreCollectorConfig struct {
 	SendAbsoluteValues bool     `json:"send_abs_values,omitempty"`
 	SendDerivedValues  bool     `json:"send_derived_values,omitempty"`
 	SendDiffValues     bool     `json:"send_diff_values,omitempty"`
-}
-
-type LustreMetricDefinition struct {
-	name       string
-	lineprefix string
-	lineoffset int
-	unit       string
-	calc       string
 }
 
 type LustreCollector struct {
@@ -46,17 +34,209 @@ type LustreCollector struct {
 	stats         map[string]map[string]int64 // Data for last value per device and metric
 }
 
+var LustreAbsMetrics = []LustreMetricDefinition{
+	{
+		name:       "lustre_read_requests",
+		lineprefix: "read_bytes",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_write_requests",
+		lineprefix: "write_bytes",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_read_bytes",
+		lineprefix: "read_bytes",
+		lineoffset: 6,
+		offsetname: "sum",
+		unit:       "bytes",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_write_bytes",
+		lineprefix: "write_bytes",
+		lineoffset: 6,
+		offsetname: "sum",
+		unit:       "bytes",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_open",
+		lineprefix: "open",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_close",
+		lineprefix: "close",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_setattr",
+		lineprefix: "setattr",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_getattr",
+		lineprefix: "getattr",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_statfs",
+		lineprefix: "statfs",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "none",
+	},
+	{
+		name:       "lustre_inode_permission",
+		lineprefix: "inode_permission",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "none",
+	},
+}
+
+var LustreDiffMetrics = []LustreMetricDefinition{
+	{
+		name:       "lustre_read_requests_diff",
+		lineprefix: "read_bytes",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_write_requests_diff",
+		lineprefix: "write_bytes",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_read_bytes_diff",
+		lineprefix: "read_bytes",
+		lineoffset: 6,
+		offsetname: "sum",
+		unit:       "bytes",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_write_bytes_diff",
+		lineprefix: "write_bytes",
+		lineoffset: 6,
+		offsetname: "sum",
+		unit:       "bytes",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_open_diff",
+		lineprefix: "open",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_close_diff",
+		lineprefix: "close",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_setattr_diff",
+		lineprefix: "setattr",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_getattr_diff",
+		lineprefix: "getattr",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_statfs_diff",
+		lineprefix: "statfs",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "difference",
+	},
+	{
+		name:       "lustre_inode_permission_diff",
+		lineprefix: "inode_permission",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "",
+		calc:       "difference",
+	},
+}
+
+var LustreDeriveMetrics = []LustreMetricDefinition{
+	{
+		name:       "lustre_read_requests_rate",
+		lineprefix: "read_bytes",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "lustre_write_requests_rate",
+		lineprefix: "write_bytes",
+		lineoffset: 1,
+		offsetname: "samples",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "lustre_read_bw",
+		lineprefix: "read_bytes",
+		lineoffset: 6,
+		offsetname: "sum",
+		unit:       "bytes/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "lustre_write_bw",
+		lineprefix: "write_bytes",
+		lineoffset: 6,
+		offsetname: "sum",
+		unit:       "bytes/sec",
+		calc:       "derivative",
+	},
+}
+
 func (m *LustreCollector) getDeviceDataCommand(device string) []string {
-	var command *exec.Cmd
-	statsfile := fmt.Sprintf("llite.%s.stats", device)
-	if m.config.Sudo {
-		command = exec.Command(m.sudoCmd, m.lctl, LCTL_OPTION, statsfile)
-	} else {
-		command = exec.Command(m.lctl, LCTL_OPTION, statsfile)
-	}
-	command.Wait()
-	stdout, _ := command.Output()
-	return strings.Split(string(stdout), "\n")
+	return executeLustreCommand(m.sudoCmd, m.lctl, LCTL_OPTION, fmt.Sprintf("llite.%s.stats", device), m.config.Sudo)
 }
 
 func (m *LustreCollector) getDevices() []string {
@@ -108,183 +288,6 @@ func getMetricData(lines []string, prefix string, offset int) (int64, error) {
 // 	return strings.Split(string(buffer), "\n")
 // }
 
-var LustreAbsMetrics = []LustreMetricDefinition{
-	{
-		name:       "lustre_read_requests",
-		lineprefix: "read_bytes",
-		lineoffset: 1,
-		unit:       "requests",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_write_requests",
-		lineprefix: "write_bytes",
-		lineoffset: 1,
-		unit:       "requests",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_read_bytes",
-		lineprefix: "read_bytes",
-		lineoffset: 6,
-		unit:       "bytes",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_write_bytes",
-		lineprefix: "write_bytes",
-		lineoffset: 6,
-		unit:       "bytes",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_open",
-		lineprefix: "open",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_close",
-		lineprefix: "close",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_setattr",
-		lineprefix: "setattr",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_getattr",
-		lineprefix: "getattr",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_statfs",
-		lineprefix: "statfs",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "none",
-	},
-	{
-		name:       "lustre_inode_permission",
-		lineprefix: "inode_permission",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "none",
-	},
-}
-
-var LustreDiffMetrics = []LustreMetricDefinition{
-	{
-		name:       "lustre_read_requests_diff",
-		lineprefix: "read_bytes",
-		lineoffset: 1,
-		unit:       "requests",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_write_requests_diff",
-		lineprefix: "write_bytes",
-		lineoffset: 1,
-		unit:       "requests",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_read_bytes_diff",
-		lineprefix: "read_bytes",
-		lineoffset: 6,
-		unit:       "bytes",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_write_bytes_diff",
-		lineprefix: "write_bytes",
-		lineoffset: 6,
-		unit:       "bytes",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_open_diff",
-		lineprefix: "open",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_close_diff",
-		lineprefix: "close",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_setattr_diff",
-		lineprefix: "setattr",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_getattr_diff",
-		lineprefix: "getattr",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_statfs_diff",
-		lineprefix: "statfs",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "difference",
-	},
-	{
-		name:       "lustre_inode_permission_diff",
-		lineprefix: "inode_permission",
-		lineoffset: 1,
-		unit:       "",
-		calc:       "difference",
-	},
-}
-
-var LustreDeriveMetrics = []LustreMetricDefinition{
-	{
-		name:       "lustre_read_requests_rate",
-		lineprefix: "read_bytes",
-		lineoffset: 1,
-		unit:       "requests/sec",
-		calc:       "derivative",
-	},
-	{
-		name:       "lustre_write_requests_rate",
-		lineprefix: "write_bytes",
-		lineoffset: 1,
-		unit:       "requests/sec",
-		calc:       "derivative",
-	},
-	{
-		name:       "lustre_read_bw",
-		lineprefix: "read_bytes",
-		lineoffset: 6,
-		unit:       "bytes/sec",
-		calc:       "derivative",
-	},
-	{
-		name:       "lustre_write_bw",
-		lineprefix: "write_bytes",
-		lineoffset: 6,
-		unit:       "bytes/sec",
-		calc:       "derivative",
-	},
-}
-
 func (m *LustreCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "LustreCollector"
@@ -297,7 +300,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	}
 	m.setup()
 	m.tags = map[string]string{"type": "node"}
-	m.meta = map[string]string{"source": m.name, "group": "Lustre"}
+	m.meta = map[string]string{"source": m.name, "group": "Lustre", "scope": "node"}
 
 	// Lustre file system statistics can only be queried by user root
 	// or with password-less sudo

@@ -9,8 +9,8 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
-	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 	units "github.com/ClusterCockpit/cc-units"
 )
@@ -281,7 +281,9 @@ func (r *metricRouter) Start() {
 	// Foward message received from collector channel
 	coll_forward := func(p lp.CCMetric) {
 		// receive from metric collector
-		p.AddTag(r.config.HostnameTagName, r.hostname)
+		if !p.HasTag(r.config.HostnameTagName) {
+			p.AddTag(r.config.HostnameTagName, r.hostname)
+		}
 		if r.config.IntervalStamp {
 			p.SetTime(r.timestamp)
 		}
@@ -310,7 +312,9 @@ func (r *metricRouter) Start() {
 	cache_forward := func(p lp.CCMetric) {
 		// receive from metric collector
 		if !r.dropMetric(p) {
-			p.AddTag(r.config.HostnameTagName, r.hostname)
+			if !p.HasTag(r.config.HostnameTagName) {
+				p.AddTag(r.config.HostnameTagName, r.hostname)
+			}
 			forward(p)
 		}
 	}
