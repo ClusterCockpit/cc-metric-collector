@@ -8,7 +8,6 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 {
   "<name>": {
     "type": "influxdb",
-    "meta_as_tags" : true,
     "database" : "mymetrics",
     "host": "dbhost.example.com",
     "port": "4222",
@@ -19,6 +18,7 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
     "flush_delay" : "1s",
     "batch_size" : 1000,
     "use_gzip": true
+    "meta_as_tags" : [],
   }
 }
 ```
@@ -36,7 +36,9 @@ The `influxdb` sink uses the official [InfluxDB golang client](https://pkg.go.de
 - `batch_size`: Maximal batch size. If `batch_size` is reached before the end of `flush_delay`, the metrics are sent without further delay
 
 Influx client options:
-
+=======
+- `batch_size`: Maximal batch size
+- `meta_as_tags`: move meta information keys to tags (optional)
 - `http_request_timeout`: HTTP request timeout
 - `retry_interval`: retry interval
 - `max_retry_interval`: maximum delay between each retry attempt
