@@ -409,13 +409,15 @@ func (m *SlurmJobDetector) NewJobEvent(uid, jobid uint64, timestamp time.Time, o
 		"type-id": fmt.Sprintf("%d", jobid),
 	}
 	userdir := fmt.Sprintf("uid_%d", uid)
-	jobdir := fmt.Sprintf("job_%d", uid)
+	jobdir := fmt.Sprintf("job_%d", jobid)
 
 	// Fill job JSON with data from cgroup
 	var md SlurmJobMetadata
 	job_cpus_file := filepath.Join(cpuset_base, userdir, jobdir, "cpuset.effective_cpus")
+	cclog.ComponentDebug(m.name, job_cpus_file)
 	job_cpus, err := os.ReadFile(job_cpus_file)
 	if err == nil {
+		cclog.ComponentDebug(m.name, string(job_cpus))
 		md.Cpus = ExpandList(string(job_cpus))
 	}
 	job_mems_file := filepath.Join(cpuset_base, userdir, jobdir, "cpuset.effective_mems")
