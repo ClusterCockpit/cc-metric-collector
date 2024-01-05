@@ -21,5 +21,20 @@ Options:
 * `send_step_events`: Send events when a job step starts
 * `send_step_metrics`: Send metrics of each job step with the global collector interval
 
-Testing options:
-For testing the collector, you can specifiy a different base directory that should be checked for new events. The default is `/sys/fs/cgroup/`. By specifying a `sysfs_base` in the configuration, this can be changed. Moreover, with the `slurmJobDetector_dummy.sh`, you can create and delete "jobs" for testing.
+## Testing
+For testing the collector, you can specifiy a different base directory that should be checked for new events. The default is `/sys/fs/cgroup/`. By specifying a `sysfs_base` in the configuration, this can be changed. Moreover, with the `slurmJobDetector_dummy.sh`, you can create and delete "jobs" for testing. Use the same directory with `--basedir`
+
+```sh
+$ slurmJobDetector_dummy.sh -h
+
+Usage: slurmJobDetector_dummy.sh <opts>
+       [ -h | --help ]
+       [ -v | --verbosity ]
+       [ -u | --uid <UID> (default: XXXX) ]
+       [ -j | --jobid <JOBID> (default: random) ]
+       [ -b | --basedir <JOBID> (default: ./slurm-test) ]
+       [ -d | --delete ]
+       [ -l | --list ]
+```
+
+With no options, it creates a job with the executing user's UID and a random JOBID. For deletion, use `-d -j JOBID`, deletion requires a JOBID. If you want to get a list of all UIDs and JOBIDs that currently exist, you can get the list with `-l`.
