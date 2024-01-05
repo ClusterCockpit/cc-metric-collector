@@ -40,6 +40,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"rocm_smi":        new(RocmSmiCollector),
 	"self":            new(SelfCollector),
 	"schedstat":       new(SchedstatCollector),
+	"slurm":           new(SlurmJobDetector),
 }
 
 // Metric collector manager data structure
