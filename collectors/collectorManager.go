@@ -41,6 +41,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"self":            new(SelfCollector),
 	"schedstat":       new(SchedstatCollector),
 	"slurm":           new(SlurmJobDetector),
+	"nfsiostat":       new(NfsIOStatCollector),
 }
 
 // Metric collector manager data structure

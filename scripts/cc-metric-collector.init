@@ -25,7 +25,7 @@ CC_USER=clustercockpit
 CC_GROUP=clustercockpit
 CONF_DIR=/etc/cc-metric-collector
 PID_FILE=/var/run/$NAME.pid
-DAEMON=/usr/sbin/$NAME
+DAEMON=/usr/bin/$NAME
 CONF_FILE=${CONF_DIR}/cc-metric-collector.json
 
 umask 0027

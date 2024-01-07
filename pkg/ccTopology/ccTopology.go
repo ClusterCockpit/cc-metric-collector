@@ -2,7 +2,6 @@ package ccTopology
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,93 +10,247 @@ import (
 	"strings"
 
 	cclogger "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	"golang.org/x/exp/slices"
 )
 
-const SYSFS_NUMABASE = `/sys/devices/system/node`
 const SYSFS_CPUBASE = `/sys/devices/system/cpu`
-const PROCFS_CPUINFO = `/proc/cpuinfo`
 
-// intArrayContains scans an array of ints if the value str is present in the array
-// If the specified value is found, the corresponding array index is returned.
-// The bool value is used to signal success or failure
-func intArrayContains(array []int, str int) (int, bool) {
-	for i, a := range array {
-		if a == str {
-			return i, true
-		}
-	}
-	return -1, false
+// Structure holding all information about a hardware thread
+// See https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-devices-system-cpu
+type HwthreadEntry struct {
+	// for each CPUx:
+	CpuID        int   // CPU / hardware thread ID
+	SMT          int   // Simultaneous Multithreading ID
+	CoreCPUsList []int // CPUs within the same core
+	Core         int   // Socket local core ID
+	Socket       int   // Sockets (physical) ID
+	Die          int   // Die ID
+	NumaDomain   int   // NUMA Domain
 }
 
-// Used internally for sysfs file reads
+var cache struct {
+	HwthreadList   []int // List of CPU hardware threads
+	SMTList        []int // List of symmetric hyper threading IDs
+	CoreList       []int // List of CPU core IDs
+	SocketList     []int // List of CPU sockets (physical) IDs
+	DieList        []int // List of CPU Die IDs
+	NumaDomainList []int // List of NUMA Domains
+
+	CpuData []HwthreadEntry
+}
+
+// fileToInt reads an integer value from a sysfs file
+// In case of an error -1 is returned
 func fileToInt(path string) int {
-	buffer, err := ioutil.ReadFile(path)
+	buffer, err := os.ReadFile(path)
 	if err != nil {
 		log.Print(err)
-		cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
+		cclogger.ComponentError("ccTopology", "fileToInt", "Reading", path, ":", err.Error())
 		return -1
 	}
-	sbuffer := strings.Replace(string(buffer), "\n", "", -1)
-	var id int64
-	//_, err = fmt.Scanf("%d", sbuffer, &id)
-	id, err = strconv.ParseInt(sbuffer, 10, 32)
+	stringBuffer := strings.TrimSpace(string(buffer))
+	id, err := strconv.Atoi(stringBuffer)
 	if err != nil {
-		cclogger.ComponentError("ccTopology", "Parsing", path, ":", sbuffer, err.Error())
+		cclogger.ComponentError("ccTopology", "fileToInt", "Parsing", path, ":", stringBuffer, err.Error())
 		return -1
 	}
-	return int(id)
+	return id
 }
 
-// Get list of CPU socket IDs
+// fileToList reads a list from a sysfs file
+// A list consists of value ranges separated by colon
+// A range can be a single value or a range of values given by a startValue-endValue
+// In case of an error nil is returned
+func fileToList(path string) []int {
+	// Read list
+	buffer, err := os.ReadFile(path)
+	if err != nil {
+		log.Print(err)
+		cclogger.ComponentError("ccTopology", "fileToList", "Reading", path, ":", err.Error())
+		return nil
+	}
+
+	// Create list
+	list := make([]int, 0)
+	stringBuffer := strings.TrimSpace(string(buffer))
+	for _, valueRangeString := range strings.Split(stringBuffer, ",") {
+		valueRange := strings.Split(valueRangeString, "-")
+		switch len(valueRange) {
+		case 1:
+			singleValue, err := strconv.Atoi(valueRange[0])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "fileToList", "Parsing", valueRange[0], ":", err.Error())
+				return nil
+			}
+			list = append(list, singleValue)
+		case 2:
+			startValue, err := strconv.Atoi(valueRange[0])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "fileToList", "Parsing", valueRange[0], ":", err.Error())
+				return nil
+			}
+			endValue, err := strconv.Atoi(valueRange[1])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "fileToList", "Parsing", valueRange[1], ":", err.Error())
+				return nil
+			}
+			for value := startValue; value <= endValue; value++ {
+				list = append(list, value)
+			}
+		}
+	}
+
+	return list
+}
+
+// init initializes the cache structure
+func init() {
+
+	getHWThreads :=
+		func() []int {
+			globPath := filepath.Join(SYSFS_CPUBASE, "cpu[0-9]*")
+			regexPath := filepath.Join(SYSFS_CPUBASE, "cpu([[:digit:]]+)")
+			regex := regexp.MustCompile(regexPath)
+
+			// File globbing for hardware threads
+			files, err := filepath.Glob(globPath)
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "init:getHWThreads", err.Error())
+				return nil
+			}
+
+			hwThreadIDs := make([]int, len(files))
+			for i, file := range files {
+				// Extract hardware thread ID
+				matches := regex.FindStringSubmatch(file)
+				if len(matches) != 2 {
+					cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to extract hardware thread ID from ", file)
+					return nil
+				}
+
+				// Convert hardware thread ID to int
+				id, err := strconv.Atoi(matches[1])
+				if err != nil {
+					cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to convert to int hardware thread ID ", matches[1])
+					return nil
+				}
+
+				hwThreadIDs[i] = id
+			}
+
+			// Sort hardware thread IDs
+			slices.Sort(hwThreadIDs)
+			return hwThreadIDs
+		}
+
+	getNumaDomain :=
+		func(basePath string) int {
+			globPath := filepath.Join(basePath, "node*")
+			regexPath := filepath.Join(basePath, "node([[:digit:]]+)")
+			regex := regexp.MustCompile(regexPath)
+
+			// File globbing for NUMA node
+			files, err := filepath.Glob(globPath)
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", err.Error())
+				return -1
+			}
+
+			// Check, that exactly one NUMA domain was found
+			if len(files) != 1 {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Number of NUMA domains != 1: ", len(files))
+				return -1
+			}
+
+			// Extract NUMA node ID
+			matches := regex.FindStringSubmatch(files[0])
+			if len(matches) != 2 {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to extract NUMA node ID from: ", files[0])
+				return -1
+			}
+
+			id, err := strconv.Atoi(matches[1])
+			if err != nil {
+				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to parse NUMA node ID from: ", matches[1])
+				return -1
+			}
+
+			return id
+		}
+
+	cache.HwthreadList = getHWThreads()
+	cache.CoreList = make([]int, len(cache.HwthreadList))
+	cache.SocketList = make([]int, len(cache.HwthreadList))
+	cache.DieList = make([]int, len(cache.HwthreadList))
+	cache.SMTList = make([]int, len(cache.HwthreadList))
+	cache.NumaDomainList = make([]int, len(cache.HwthreadList))
+	cache.CpuData = make([]HwthreadEntry, len(cache.HwthreadList))
+	for i, c := range cache.HwthreadList {
+		// Set cpuBase directory for topology lookup
+		cpuBase := filepath.Join(SYSFS_CPUBASE, fmt.Sprintf("cpu%d", c))
+		topoBase := filepath.Join(cpuBase, "topology")
+
+		// Lookup Core ID
+		cache.CoreList[i] = fileToInt(filepath.Join(topoBase, "core_id"))
+
+		// Lookup socket / physical package ID
+		cache.SocketList[i] = fileToInt(filepath.Join(topoBase, "physical_package_id"))
+
+		// Lookup CPU die id
+		cache.DieList[i] = fileToInt(filepath.Join(topoBase, "die_id"))
+		if cache.DieList[i] < 0 {
+			cache.DieList[i] = cache.SocketList[i]
+		}
+
+		// Lookup List of CPUs within the same core
+		coreCPUsList := fileToList(filepath.Join(topoBase, "core_cpus_list"))
+
+		// Find index of CPU ID in List of CPUs within the same core
+		// if not found return -1
+		cache.SMTList[i] = slices.Index(coreCPUsList, c)
+
+		// Lookup NUMA domain id
+		cache.NumaDomainList[i] = getNumaDomain(cpuBase)
+
+		cache.CpuData[i] =
+			HwthreadEntry{
+				CpuID:        cache.HwthreadList[i],
+				SMT:          cache.SMTList[i],
+				CoreCPUsList: coreCPUsList,
+				Socket:       cache.SocketList[i],
+				NumaDomain:   cache.NumaDomainList[i],
+				Die:          cache.DieList[i],
+				Core:         cache.CoreList[i],
+			}
+	}
+
+	slices.Sort(cache.HwthreadList)
+	cache.HwthreadList = slices.Compact(cache.HwthreadList)
+
+	slices.Sort(cache.SMTList)
+	cache.SMTList = slices.Compact(cache.SMTList)
+
+	slices.Sort(cache.CoreList)
+	cache.CoreList = slices.Compact(cache.CoreList)
+
+	slices.Sort(cache.SocketList)
+	cache.SocketList = slices.Compact(cache.SocketList)
+
+	slices.Sort(cache.DieList)
+	cache.DieList = slices.Compact(cache.DieList)
+
+	slices.Sort(cache.NumaDomainList)
+	cache.NumaDomainList = slices.Compact(cache.NumaDomainList)
+}
+
+// SocketList gets the list of CPU socket IDs
 func SocketList() []int {
-	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	ll := strings.Split(string(buffer), "\n")
-	packs := make([]int, 0)
-	for _, line := range ll {
-		if strings.HasPrefix(line, "physical id") {
-			lv := strings.Fields(line)
-			id, err := strconv.ParseInt(lv[3], 10, 32)
-			if err != nil {
-				log.Print(err)
-				return packs
-			}
-			_, found := intArrayContains(packs, int(id))
-			if !found {
-				packs = append(packs, int(id))
-			}
-		}
-	}
-	return packs
+	return slices.Clone(cache.SocketList)
 }
 
-// Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
+// HwthreadList gets the list of hardware thread IDs in the order of listing in /proc/cpuinfo
 func HwthreadList() []int {
-	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	ll := strings.Split(string(buffer), "\n")
-	cpulist := make([]int, 0)
-	for _, line := range ll {
-		if strings.HasPrefix(line, "processor") {
-			lv := strings.Fields(line)
-			id, err := strconv.ParseInt(lv[2], 10, 32)
-			if err != nil {
-				log.Print(err)
-				return cpulist
-			}
-			_, found := intArrayContains(cpulist, int(id))
-			if !found {
-				cpulist = append(cpulist, int(id))
-			}
-		}
-	}
-	return cpulist
+	return slices.Clone(cache.HwthreadList)
 }
 
 // Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
@@ -106,88 +259,25 @@ func CpuList() []int {
 	return HwthreadList()
 }
 
-// Get list of CPU core IDs in the order of listing in /proc/cpuinfo
+// CoreList gets the list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
-	buffer, err := ioutil.ReadFile(string(PROCFS_CPUINFO))
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	ll := strings.Split(string(buffer), "\n")
-	corelist := make([]int, 0)
-	for _, line := range ll {
-		if strings.HasPrefix(line, "core id") {
-			lv := strings.Fields(line)
-			id, err := strconv.ParseInt(lv[3], 10, 32)
-			if err != nil {
-				log.Print(err)
-				return corelist
-			}
-			_, found := intArrayContains(corelist, int(id))
-			if !found {
-				corelist = append(corelist, int(id))
-			}
-		}
-	}
-	return corelist
+	return slices.Clone(cache.CoreList)
 }
 
 // Get list of NUMA node IDs
 func NumaNodeList() []int {
-	numaList := make([]int, 0)
-	globPath := filepath.Join(string(SYSFS_NUMABASE), "node*")
-	regexPath := filepath.Join(string(SYSFS_NUMABASE), "node(\\d+)")
-	regex := regexp.MustCompile(regexPath)
-	files, err := filepath.Glob(globPath)
-	if err != nil {
-		cclogger.ComponentError("CCTopology", "NumaNodeList", err.Error())
-	}
-	for _, f := range files {
-		if !regex.MatchString(f) {
-			continue
-		}
-		finfo, err := os.Lstat(f)
-		if err != nil {
-			continue
-		}
-		if !finfo.IsDir() {
-			continue
-		}
-		matches := regex.FindStringSubmatch(f)
-		if len(matches) == 2 {
-			id, err := strconv.Atoi(matches[1])
-			if err == nil {
-				if _, found := intArrayContains(numaList, id); !found {
-					numaList = append(numaList, id)
-				}
-			}
-		}
-
-	}
-	return numaList
+	return slices.Clone(cache.NumaDomainList)
 }
 
-// Get list of CPU die IDs
+// DieList gets the list of CPU die IDs
 func DieList() []int {
-	cpulist := HwthreadList()
-	dielist := make([]int, 0)
-	for _, c := range cpulist {
-		diepath := filepath.Join(string(SYSFS_CPUBASE), fmt.Sprintf("cpu%d", c), "topology/die_id")
-		dieid := fileToInt(diepath)
-		if dieid > 0 {
-			_, found := intArrayContains(dielist, int(dieid))
-			if !found {
-				dielist = append(dielist, int(dieid))
-			}
-		}
-	}
-	if len(dielist) > 0 {
-		return dielist
+	if len(cache.DieList) > 0 {
+		return slices.Clone(cache.DieList)
 	}
 	return SocketList()
 }
 
-// Get list of specified type using the naming format inside ClusterCockpit
+// GetTypeList gets the list of specified type using the naming format inside ClusterCockpit
 func GetTypeList(topology_type string) []int {
 	switch topology_type {
 	case "node":
@@ -206,128 +296,14 @@ func GetTypeList(topology_type string) []int {
 	return []int{}
 }
 
-// Structure holding all information about a hardware thread
-type HwthreadEntry struct {
-	Cpuid      int
-	SMT        int
-	Core       int
-	Socket     int
-	Numadomain int
-	Die        int
-}
-
+// CpuData returns CPU data for each hardware thread
 func CpuData() []HwthreadEntry {
-
-	// fileToInt := func(path string) int {
-	// 	buffer, err := ioutil.ReadFile(path)
-	// 	if err != nil {
-	// 		log.Print(err)
-	// 		//cclogger.ComponentError("ccTopology", "Reading", path, ":", err.Error())
-	// 		return -1
-	// 	}
-	// 	sbuffer := strings.Replace(string(buffer), "\n", "", -1)
-	// 	var id int64
-	// 	//_, err = fmt.Scanf("%d", sbuffer, &id)
-	// 	id, err = strconv.ParseInt(sbuffer, 10, 32)
-	// 	if err != nil {
-	// 		cclogger.ComponentError("ccTopology", "Parsing", path, ":", sbuffer, err.Error())
-	// 		return -1
-	// 	}
-	// 	return int(id)
-	// }
-	getCore := func(basepath string) int {
-		return fileToInt(fmt.Sprintf("%s/core_id", basepath))
+	// return a deep copy to protect cache data
+	c := slices.Clone(cache.CpuData)
+	for i := range c {
+		c[i].CoreCPUsList = slices.Clone(cache.CpuData[i].CoreCPUsList)
 	}
-
-	getSocket := func(basepath string) int {
-		return fileToInt(fmt.Sprintf("%s/physical_package_id", basepath))
-	}
-
-	getDie := func(basepath string) int {
-		return fileToInt(fmt.Sprintf("%s/die_id", basepath))
-	}
-
-	getSMT := func(cpuid int, basepath string) int {
-		buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/thread_siblings_list", basepath))
-		if err != nil {
-			cclogger.ComponentError("CCTopology", "CpuData:getSMT", err.Error())
-		}
-		threadlist := make([]int, 0)
-		sbuffer := strings.Replace(string(buffer), "\n", "", -1)
-		for _, x := range strings.Split(sbuffer, ",") {
-			id, err := strconv.ParseInt(x, 10, 32)
-			if err != nil {
-				cclogger.ComponentError("CCTopology", "CpuData:getSMT", err.Error())
-			}
-			threadlist = append(threadlist, int(id))
-		}
-		for i, x := range threadlist {
-			if x == cpuid {
-				return i
-			}
-		}
-		return 1
-	}
-
-	getNumaDomain := func(basepath string) int {
-		globPath := filepath.Join(basepath, "node*")
-		regexPath := filepath.Join(basepath, "node(\\d+)")
-		regex := regexp.MustCompile(regexPath)
-		files, err := filepath.Glob(globPath)
-		if err != nil {
-			cclogger.ComponentError("CCTopology", "CpuData:getNumaDomain", err.Error())
-		}
-		for _, f := range files {
-			finfo, err := os.Lstat(f)
-			if err == nil && finfo.IsDir() {
-				matches := regex.FindStringSubmatch(f)
-				if len(matches) == 2 {
-					id, err := strconv.Atoi(matches[1])
-					if err == nil {
-						return id
-					}
-				}
-			}
-		}
-		return 0
-	}
-
-	clist := make([]HwthreadEntry, 0)
-	for _, c := range HwthreadList() {
-		clist = append(clist, HwthreadEntry{Cpuid: c})
-	}
-	for i, centry := range clist {
-		centry.Socket = -1
-		centry.Numadomain = -1
-		centry.Die = -1
-		centry.Core = -1
-		// Set base directory for topology lookup
-		cpustr := fmt.Sprintf("cpu%d", centry.Cpuid)
-		base := filepath.Join("/sys/devices/system/cpu", cpustr)
-		topoBase := filepath.Join(base, "topology")
-
-		// Lookup CPU core id
-		centry.Core = getCore(topoBase)
-
-		// Lookup CPU socket id
-		centry.Socket = getSocket(topoBase)
-
-		// Lookup CPU die id
-		centry.Die = getDie(topoBase)
-		if centry.Die < 0 {
-			centry.Die = centry.Socket
-		}
-
-		// Lookup SMT thread id
-		centry.SMT = getSMT(centry.Cpuid, topoBase)
-
-		// Lookup NUMA domain id
-		centry.Numadomain = getNumaDomain(base)
-
-		// Update values in output list
-		clist[i] = centry
-	}
-	return clist
+	return c
 }
 
 // Structure holding basic information about a CPU
@@ -340,130 +316,110 @@ type CpuInformation struct {
 	NumNumaDomains int
 }
 
-// Get basic information about the CPU
+// CpuInformation reports basic information about the CPU
 func CpuInfo() CpuInformation {
-	var c CpuInformation
-
-	smtList := make([]int, 0)
-	numaList := make([]int, 0)
-	dieList := make([]int, 0)
-	socketList := make([]int, 0)
-	coreList := make([]int, 0)
-	cdata := CpuData()
-	for _, d := range cdata {
-		if _, ok := intArrayContains(smtList, d.SMT); !ok {
-			smtList = append(smtList, d.SMT)
-		}
-		if _, ok := intArrayContains(numaList, d.Numadomain); !ok {
-			numaList = append(numaList, d.Numadomain)
-		}
-		if _, ok := intArrayContains(dieList, d.Die); !ok {
-			dieList = append(dieList, d.Die)
-		}
-		if _, ok := intArrayContains(socketList, d.Socket); !ok {
-			socketList = append(socketList, d.Socket)
-		}
-		if _, ok := intArrayContains(coreList, d.Core); !ok {
-			coreList = append(coreList, d.Core)
-		}
+	return CpuInformation{
+		NumNumaDomains: len(cache.NumaDomainList),
+		SMTWidth:       len(cache.SMTList),
+		NumDies:        len(cache.DieList),
+		NumCores:       len(cache.CoreList),
+		NumSockets:     len(cache.SocketList),
+		NumHWthreads:   len(cache.HwthreadList),
 	}
-	c.NumNumaDomains = len(numaList)
-	c.SMTWidth = len(smtList)
-	c.NumDies = len(dieList)
-	c.NumCores = len(coreList)
-	c.NumSockets = len(socketList)
-	c.NumHWthreads = len(cdata)
-	return c
 }
 
-// Get the CPU socket ID for a given hardware thread ID
-func GetHwthreadSocket(cpuid int) int {
-	cdata := CpuData()
-	for _, d := range cdata {
-		if d.Cpuid == cpuid {
+// GetHwthreadSocket gets the CPU socket ID for a given hardware thread ID
+// In case hardware thread ID is not found -1 is returned
+func GetHwthreadSocket(cpuID int) int {
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
+		if d.CpuID == cpuID {
 			return d.Socket
 		}
 	}
 	return -1
 }
 
-// Get the NUMA node ID for a given hardware thread ID
-func GetHwthreadNumaDomain(cpuid int) int {
-	cdata := CpuData()
-	for _, d := range cdata {
-		if d.Cpuid == cpuid {
-			return d.Numadomain
+// GetHwthreadNumaDomain gets the NUMA domain ID for a given hardware thread ID
+// In case hardware thread ID is not found -1 is returned
+func GetHwthreadNumaDomain(cpuID int) int {
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
+		if d.CpuID == cpuID {
+			return d.NumaDomain
 		}
 	}
 	return -1
 }
 
-// Get the CPU die ID for a given hardware thread ID
-func GetHwthreadDie(cpuid int) int {
-	cdata := CpuData()
-	for _, d := range cdata {
-		if d.Cpuid == cpuid {
+// GetHwthreadDie gets the CPU die ID for a given hardware thread ID
+// In case hardware thread ID is not found -1 is returned
+func GetHwthreadDie(cpuID int) int {
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
+		if d.CpuID == cpuID {
 			return d.Die
 		}
 	}
 	return -1
 }
 
-// Get the CPU core ID for a given hardware thread ID
-func GetHwthreadCore(cpuid int) int {
-	cdata := CpuData()
-	for _, d := range cdata {
-		if d.Cpuid == cpuid {
+// GetHwthreadCore gets the CPU core ID for a given hardware thread ID
+// In case hardware thread ID is not found -1 is returned
+func GetHwthreadCore(cpuID int) int {
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
+		if d.CpuID == cpuID {
 			return d.Core
 		}
 	}
 	return -1
 }
 
-// Get the all hardware thread ID associated with a CPU socket
+// GetSocketHwthreads gets all hardware thread IDs associated with a CPU socket
 func GetSocketHwthreads(socket int) []int {
-	all := CpuData()
-	cpulist := make([]int, 0)
-	for _, d := range all {
+	cpuList := make([]int, 0)
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.Socket == socket {
-			cpulist = append(cpulist, d.Cpuid)
+			cpuList = append(cpuList, d.CpuID)
 		}
 	}
-	return cpulist
+	return cpuList
 }
 
-// Get the all hardware thread ID associated with a NUMA node
-func GetNumaDomainHwthreads(domain int) []int {
-	all := CpuData()
-	cpulist := make([]int, 0)
-	for _, d := range all {
-		if d.Numadomain == domain {
-			cpulist = append(cpulist, d.Cpuid)
+// GetNumaDomainHwthreads gets the all hardware thread IDs associated with a NUMA domain
+func GetNumaDomainHwthreads(numaDomain int) []int {
+	cpuList := make([]int, 0)
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
+		if d.NumaDomain == numaDomain {
+			cpuList = append(cpuList, d.CpuID)
 		}
 	}
-	return cpulist
+	return cpuList
 }
 
-// Get the all hardware thread ID associated with a CPU die
+// GetDieHwthreads gets all hardware thread IDs associated with a CPU die
 func GetDieHwthreads(die int) []int {
-	all := CpuData()
-	cpulist := make([]int, 0)
-	for _, d := range all {
+	cpuList := make([]int, 0)
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.Die == die {
-			cpulist = append(cpulist, d.Cpuid)
+			cpuList = append(cpuList, d.CpuID)
 		}
 	}
-	return cpulist
+	return cpuList
 }
 
-// Get the all hardware thread ID associated with a CPU core
+// GetCoreHwthreads get all hardware thread IDs associated with a CPU core
 func GetCoreHwthreads(core int) []int {
-	all := CpuData()
-	cpulist := make([]int, 0)
-	for _, d := range all {
+	cpuList := make([]int, 0)
+	for i := range cache.CpuData {
+		d := &cache.CpuData[i]
 		if d.Core == core {
-			cpulist = append(cpulist, d.Cpuid)
+			cpuList = append(cpuList, d.CpuID)
 		}
 	}
-	return cpulist
+	return cpuList
 }
