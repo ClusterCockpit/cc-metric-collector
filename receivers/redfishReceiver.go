@@ -328,7 +328,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 		return nil
 	}
 
-	resp, err := processor.Client.Get(URL)
+	resp, err := processor.GetClient().Get(URL)
 	if err != nil {
 		// Skip non existing URLs
 		if statusCode := err.(*common.Error).HTTPReturnedStatusCode; statusCode == http.StatusNotFound {
@@ -336,7 +336,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 			return nil
 		}
 
-		return fmt.Errorf("processor.Client.Get(%v) failed: %+w", URL, err)
+		return fmt.Errorf("processor.GetClient().Get(%v) failed: %+w", URL, err)
 	}
 
 	var processorMetrics struct {
@@ -351,7 +351,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("unable to read JSON for processor metrics: %+w", err)
+		return fmt.Errorf("unable to read response body for processor metrics: %+w", err)
 	}
 	err = json.Unmarshal(body, &processorMetrics)
 	if err != nil {
@@ -361,7 +361,6 @@ func (r *RedfishReceiver) readProcessorMetrics(
 			err,
 		)
 	}
-	processorMetrics.SetClient(processor.Client)
 
 	// Set tags
 	tags := map[string]string{
@@ -724,6 +723,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 
 		clientConfigJSON := &configJSON.ClientConfigs[i]
 
+		// Redfish endpoint
 		var endpoint_pattern string
 		if clientConfigJSON.Endpoint != nil {
 			endpoint_pattern = *clientConfigJSON.Endpoint
@@ -735,6 +735,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			return nil, err
 		}
 
+		// Redfish username
 		var username string
 		if clientConfigJSON.Username != nil {
 			username = *clientConfigJSON.Username
@@ -746,6 +747,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			return nil, err
 		}
 
+		// Redfish password
 		var password string
 		if clientConfigJSON.Password != nil {
 			password = *clientConfigJSON.Password
@@ -816,6 +818,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		r.config.fanout = numClients
 	}
 
+	// Check that at least on client config exists
 	if numClients == 0 {
 		err := fmt.Errorf("at least one client config is required")
 		cclog.ComponentError(r.name, err)
