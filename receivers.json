@@ -1,44 +1,8 @@
 {
-    "natsrecv": {
-        "type": "nats",
-        "address": "nats://my-url",
-        "port": "4222",
-        "database": "testcluster"
-    },
-    "redfish_recv": {
-        "type": "redfish",
-        "endpoint": "https://%h-bmc",
-        "client_config": [
-            {
-                "host_list": "my-host-1-[1-2]",
-                "username": "username-1",
-                "password": "password-1"
-            },
-            {
-                "host_list": "my-host-2-[1,2]",
-                "username": "username-2",
-                "password": "password-2"
-            }
-        ]
-    },
-    "ipmi_recv": {
-        "type": "ipmi",
-        "endpoint": "ipmi-sensors://%h-ipmi",
-        "exclude_metrics": [
-            "fan_speed",
-            "voltage"
-        ],
-        "client_config": [
-            {
-                "username": "username-1",
-                "password": "password-1",
-                "host_list": "my-host-1-[1-2]"
-            },
-            {
-                "username": "username-2",
-                "password": "password-2",
-                "host_list": "my-host-2-[1,2]"
-            }
-        ]
+    "nats_recv": {
+      "type": "nats",
+      "address" : "127.0.0.1",
+      "port" : "4222",
+      "subject" : "subject"
     }
-}
+  }

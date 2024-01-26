@@ -1,8 +1,18 @@
 {
-  "mystdout": {
-    "type": "stdout",
-    "meta_as_tags": [
-      "unit"
-    ]
+  "influxdb": {
+    "type": "influxasync",
+    "database": "Bucket",
+    "host": "localhost",
+    "port": "8086",
+    "user": "",
+    "password": "9GQv2m099okVndYbhkZT_lcMsH2XMcjlGkJT59D-fJyytowDwTNgiG8FJli1YI6HSvjaJOf_xtF2cZZis7CbJQ==",
+    "organization": "myorg",
+    "ssl": false,
+    "batch_size": 200,
+    "retry_interval": "1s",
+    "retry_exponential_base": 2,
+    "max_retries": 20,
+    "max_retry_time": "168h",
+    "meta_as_tags": []
   }
 }

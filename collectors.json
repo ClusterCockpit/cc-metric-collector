@@ -6,6 +6,11 @@
             "test_fs"
         ]
     },
+    "diskstat": {
+        "exclude_metrics": [
+          "disk_total"
+        ]
+      },
     "ibstat": {},
     "loadavg": {
         "exclude_metrics": [
