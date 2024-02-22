@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
@@ -24,6 +25,81 @@ type NvidiaCollectorConfig struct {
 	ProcessMigDevices     bool     `json:"process_mig_devices,omitempty"`
 	UseUuidForMigDevices  bool     `json:"use_uuid_for_mig_device,omitempty"`
 	UseSliceForMigDevices bool     `json:"use_slice_for_mig_device,omitempty"`
+	AveragePowerInterval  string   `json:"average_power_interval,omitempty"`
+}
+
+type powerAverager struct {
+	device       nvml.Device
+	interval     time.Duration
+	done         chan bool
+	wg           sync.WaitGroup
+	powerSum     float64
+	powerSamples int
+	ticker       *time.Ticker
+	running      bool
+}
+
+type PowerAverager interface {
+	Start()
+	IsRunning() bool
+	Get() float64
+	Close()
+}
+
+func (pa *powerAverager) IsRunning() bool {
+	return pa.running
+}
+
+func (pa *powerAverager) Start() {
+	pa.wg.Add(1)
+
+	go func(avger *powerAverager) {
+		avger.running = true
+		avger.ticker = time.NewTicker(avger.interval)
+		for {
+			select {
+			case <-avger.done:
+				avger.wg.Done()
+				avger.running = false
+				return
+			case <-avger.ticker.C:
+				power, ret := nvml.DeviceGetPowerUsage(avger.device)
+				if ret == nvml.SUCCESS {
+					avger.powerSum += float64(power) / 1000
+					avger.powerSamples += 1
+				}
+			}
+		}
+	}(pa)
+}
+
+func (pa *powerAverager) Get() float64 {
+	avg := float64(0)
+	if pa.powerSamples > 0 {
+		pa.ticker.Stop()
+		avg = pa.powerSum / float64(pa.powerSamples)
+		pa.powerSum = 0
+		pa.powerSamples = 0
+		pa.ticker.Reset(pa.interval)
+	}
+	return avg
+}
+
+func (pa *powerAverager) Close() {
+	pa.done <- true
+	pa.wg.Wait()
+	pa.running = false
+}
+
+func NewPowerAverager(device nvml.Device, interval time.Duration) (PowerAverager, error) {
+	pa := new(powerAverager)
+	pa.device = device
+	pa.interval = interval
+	pa.done = make(chan bool)
+	pa.powerSamples = 0
+	pa.powerSum = 0
+	pa.running = false
+	return pa, nil
 }
 
 type NvidiaCollectorDevice struct {
@@ -31,6 +107,8 @@ type NvidiaCollectorDevice struct {
 	excludeMetrics map[string]bool
 	tags           map[string]string
 	meta           map[string]string
+	powerInterval  time.Duration
+	averager       PowerAverager
 }
 
 type NvidiaCollector struct {
@@ -55,6 +133,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	m.config.ProcessMigDevices = false
 	m.config.UseUuidForMigDevices = false
 	m.config.UseSliceForMigDevices = false
+	m.config.AveragePowerInterval = ""
 	m.setup()
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
@@ -91,6 +170,16 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		err = errors.New(nvml.ErrorString(ret))
 		cclog.ComponentError(m.name, "Unable to get device count", err.Error())
 		return err
+	}
+
+	powerDur := time.Duration(0)
+	if len(m.config.AveragePowerInterval) > 0 {
+		d, err := time.ParseDuration(m.config.AveragePowerInterval)
+		if err != nil {
+			cclog.ComponentError(m.name, "Unable to parse average_power_interval ", m.config.AveragePowerInterval, ":", err.Error())
+			return err
+		}
+		powerDur = d
 	}
 
 	// For all GPUs
@@ -195,6 +284,15 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		g.excludeMetrics = map[string]bool{}
 		for _, e := range m.config.ExcludeMetrics {
 			g.excludeMetrics[e] = true
+		}
+
+		if powerDur > 0 {
+			a, err := NewPowerAverager(g.device, powerDur)
+			if err != nil {
+				cclog.ComponentError(m.name, "Failed to initialize power averager for device at index", i, ":", err.Error())
+			} else {
+				g.averager = a
+			}
 		}
 
 		// Increment the index for the next device
@@ -429,6 +527,21 @@ func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 		if ret == nvml.SUCCESS {
 			y, err := lp.New("nv_perf_state", device.tags, device.meta, map[string]interface{}{"value": fmt.Sprintf("P%d", int(pState))}, time.Now())
 			if err == nil {
+				output <- y
+			}
+		}
+	}
+	return nil
+}
+
+func readPowerUsageAverage(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+	if !device.excludeMetrics["nv_power_usage_avg"] && device.averager != nil {
+		if !device.averager.IsRunning() {
+			device.averager.Start()
+		} else {
+			y, err := lp.New("nv_power_usage_avg", device.tags, device.meta, map[string]interface{}{"value": device.averager.Get()}, time.Now())
+			if err == nil {
+				y.AddMeta("unit", "watts")
 				output <- y
 			}
 		}
@@ -1022,95 +1135,100 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 		if ret != nvml.SUCCESS {
 			name = "NoName"
 		}
-		err = readMemoryInfo(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readMemoryInfo for device", name, "failed")
-		}
+		// err = readMemoryInfo(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readMemoryInfo for device", name, "failed")
+		// }
 
-		err = readUtilization(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readUtilization for device", name, "failed")
-		}
+		// err = readUtilization(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readUtilization for device", name, "failed")
+		// }
 
-		err = readTemp(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readTemp for device", name, "failed")
-		}
+		// err = readTemp(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readTemp for device", name, "failed")
+		// }
 
-		err = readFan(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readFan for device", name, "failed")
-		}
+		// err = readFan(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readFan for device", name, "failed")
+		// }
 
-		err = readEccMode(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readEccMode for device", name, "failed")
-		}
+		// err = readEccMode(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readEccMode for device", name, "failed")
+		// }
 
-		err = readPerfState(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readPerfState for device", name, "failed")
-		}
+		// err = readPerfState(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readPerfState for device", name, "failed")
+		// }
 
 		err = readPowerUsage(device, output)
 		if err != nil {
 			cclog.ComponentDebug(m.name, "readPowerUsage for device", name, "failed")
 		}
 
-		err = readClocks(device, output)
+		err = readPowerUsageAverage(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readClocks for device", name, "failed")
+			cclog.ComponentDebug(m.name, "readPowerUsageAverage for device", name, "failed")
 		}
 
-		err = readMaxClocks(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readMaxClocks for device", name, "failed")
-		}
+		// err = readClocks(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readClocks for device", name, "failed")
+		// }
 
-		err = readEccErrors(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readEccErrors for device", name, "failed")
-		}
+		// err = readMaxClocks(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readMaxClocks for device", name, "failed")
+		// }
 
-		err = readPowerLimit(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readPowerLimit for device", name, "failed")
-		}
+		// err = readEccErrors(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readEccErrors for device", name, "failed")
+		// }
 
-		err = readEncUtilization(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readEncUtilization for device", name, "failed")
-		}
+		// err = readPowerLimit(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readPowerLimit for device", name, "failed")
+		// }
 
-		err = readDecUtilization(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readDecUtilization for device", name, "failed")
-		}
+		// err = readEncUtilization(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readEncUtilization for device", name, "failed")
+		// }
 
-		err = readRemappedRows(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readRemappedRows for device", name, "failed")
-		}
+		// err = readDecUtilization(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readDecUtilization for device", name, "failed")
+		// }
 
-		err = readBarMemoryInfo(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readBarMemoryInfo for device", name, "failed")
-		}
+		// err = readRemappedRows(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readRemappedRows for device", name, "failed")
+		// }
 
-		err = readProcessCounts(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readProcessCounts for device", name, "failed")
-		}
+		// err = readBarMemoryInfo(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readBarMemoryInfo for device", name, "failed")
+		// }
 
-		err = readViolationStats(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readViolationStats for device", name, "failed")
-		}
+		// err = readProcessCounts(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readProcessCounts for device", name, "failed")
+		// }
 
-		err = readNVLinkStats(device, output)
-		if err != nil {
-			cclog.ComponentDebug(m.name, "readNVLinkStats for device", name, "failed")
-		}
+		// err = readViolationStats(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readViolationStats for device", name, "failed")
+		// }
+
+		// err = readNVLinkStats(device, output)
+		// if err != nil {
+		// 	cclog.ComponentDebug(m.name, "readNVLinkStats for device", name, "failed")
+		// }
 	}
 
 	// Actual read loop over all attached Nvidia GPUs
@@ -1198,6 +1316,9 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 
 func (m *NvidiaCollector) Close() {
 	if m.init {
+		for i := 0; i < m.num_gpus; i++ {
+			m.gpus[i].averager.Close()
+		}
 		nvml.Shutdown()
 		m.init = false
 	}
