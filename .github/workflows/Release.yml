@@ -45,10 +45,10 @@ jobs:
     - name: Install build dependencies
       run: |
           dnf --assumeyes install \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.21.7-1.module_el8+960+4060efbe.noarch.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -115,10 +115,10 @@ jobs:
     - name: Install build dependencies
       run: |
           dnf --assumeyes --disableplugin=subscription-manager install \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.21.7-1.module_el8+960+4060efbe.noarch.rpm \
+              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
