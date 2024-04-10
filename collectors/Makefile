@@ -1,5 +1,5 @@
 # LIKWID version
-LIKWID_VERSION := 5.2.2
+LIKWID_VERSION := 5.3.0
 LIKWID_INSTALLED_FOLDER := $(shell dirname $$(which likwid-topology 2>/dev/null) 2>/dev/null)
 
 LIKWID_FOLDER := $(CURDIR)/likwid
