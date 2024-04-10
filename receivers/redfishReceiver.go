@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,9 +33,13 @@ type RedfishReceiverClientConfig struct {
 
 	doPowerMetric      bool
 	doProcessorMetrics bool
+	doSensors          bool
 	doThermalMetrics   bool
 
 	skipProcessorMetricsURL map[string]bool
+
+	// readSensorURLs stores for each chassis ID a list of sensor URLs to read
+	readSensorURLs map[string][]string
 
 	gofish gofish.ClientConfig
 }
@@ -56,7 +61,226 @@ type RedfishReceiver struct {
 	wg   sync.WaitGroup // wait group for redfish receiver
 }
 
+// deleteEmptyTags removes tags or meta data tags with empty value
+func deleteEmptyTags(tags map[string]string) {
+	maps.DeleteFunc(
+		tags,
+		func(key string, value string) bool {
+			return value == ""
+		},
+	)
+}
+
+// setMetricValue sets the value entry in the fields map
+func setMetricValue(value any) map[string]interface{} {
+	return map[string]interface{}{
+		"value": value,
+	}
+}
+
+// sendMetric sends the metric through the sink channel
+func (r *RedfishReceiver) sendMetric(name string, tags map[string]string, meta map[string]string, value any, timestamp time.Time) {
+
+	deleteEmptyTags(tags)
+	deleteEmptyTags(meta)
+	y, err := lp.New(name, tags, meta, setMetricValue(value), timestamp)
+	if err == nil {
+		r.sink <- y
+	}
+}
+
+// readSensors reads sensors from a redfish device
+// See: https://redfish.dmtf.org/schemas/v1/Sensor.json
+// Redfish URI: /redfish/v1/Chassis/{ChassisId}/Sensors/{SensorId}
+func (r *RedfishReceiver) readSensors(
+	clientConfig *RedfishReceiverClientConfig,
+	chassis *redfish.Chassis) error {
+
+	writeTemperatureSensor := func(sensor *redfish.Sensor) {
+		tags := map[string]string{
+			"hostname": clientConfig.Hostname,
+			"type":     "node",
+			// ChassisType shall indicate the physical form factor for the type of chassis
+			"chassis_typ": string(chassis.ChassisType),
+			// Chassis name
+			"chassis_name": chassis.Name,
+			// ID uniquely identifies the resource
+			"sensor_id": sensor.ID,
+			// The area or device to which this sensor measurement applies
+			"temperature_physical_context": string(sensor.PhysicalContext),
+			// Name
+			"temperature_name": sensor.Name,
+		}
+
+		// Set meta data tags
+		meta := map[string]string{
+			"source": r.name,
+			"group":  "Temperature",
+			"unit":   "degC",
+		}
+
+		r.sendMetric("temperature", tags, meta, sensor.Reading, time.Now())
+	}
+
+	writeFanSpeedSensor := func(sensor *redfish.Sensor) {
+		tags := map[string]string{
+			"hostname": clientConfig.Hostname,
+			"type":     "node",
+			// ChassisType shall indicate the physical form factor for the type of chassis
+			"chassis_typ": string(chassis.ChassisType),
+			// Chassis name
+			"chassis_name": chassis.Name,
+			// ID uniquely identifies the resource
+			"sensor_id": sensor.ID,
+			// The area or device to which this sensor measurement applies
+			"fan_physical_context": string(sensor.PhysicalContext),
+			// Name
+			"fan_name": sensor.Name,
+		}
+
+		// Set meta data tags
+		meta := map[string]string{
+			"source": r.name,
+			"group":  "FanSpeed",
+			"unit":   string(sensor.ReadingUnits),
+		}
+
+		r.sendMetric("fan_speed", tags, meta, sensor.Reading, time.Now())
+	}
+
+	writePowerSensor := func(sensor *redfish.Sensor) {
+		// Set tags
+		tags := map[string]string{
+			"hostname": clientConfig.Hostname,
+			"type":     "node",
+			// ChassisType shall indicate the physical form factor for the type of chassis
+			"chassis_typ": string(chassis.ChassisType),
+			// Chassis name
+			"chassis_name": chassis.Name,
+			// ID uniquely identifies the resource
+			"sensor_id": sensor.ID,
+			// The area or device to which this sensor measurement applies
+			"power_physical_context": string(sensor.PhysicalContext),
+			// Name
+			"power_name": sensor.Name,
+		}
+
+		// Set meta data tags
+		meta := map[string]string{
+			"source": r.name,
+			"group":  "Energy",
+			"unit":   "watts",
+		}
+
+		r.sendMetric("power", tags, meta, sensor.Reading, time.Now())
+	}
+
+	if _, ok := clientConfig.readSensorURLs[chassis.ID]; !ok {
+		// First time run of read sensors for this chassis
+
+		clientConfig.readSensorURLs[chassis.ID] = make([]string, 0)
+
+		// Get sensor information for this chassis
+		sensors, err := chassis.Sensors()
+		if err != nil {
+			return fmt.Errorf("readSensors: chassis.Sensors() failed: %v", err)
+		}
+
+		// Skip empty sensors information
+		if sensors == nil {
+			return nil
+		}
+
+		for _, sensor := range sensors {
+
+			// Skip all sensors which are not in enabled state or which are unhealthy
+			if sensor.Status.State != common.EnabledState || sensor.Status.Health != common.OKHealth {
+				continue
+			}
+
+			// Skip sensors with missing readings units or type
+			if sensor.ReadingUnits == "" || sensor.ReadingType == "" {
+				continue
+			}
+
+			// Power readings
+			if (sensor.ReadingType == redfish.PowerReadingType && sensor.ReadingUnits == "Watts") ||
+				(sensor.ReadingType == redfish.CurrentReadingType && sensor.ReadingUnits == "Watts") {
+				if clientConfig.isExcluded["power"] {
+					continue
+				}
+
+				clientConfig.readSensorURLs[chassis.ID] = append(clientConfig.readSensorURLs[chassis.ID], sensor.ODataID)
+				writePowerSensor(sensor)
+				continue
+			}
+
+			// Fan speed readings
+			if (sensor.ReadingType == redfish.AirFlowReadingType && sensor.ReadingUnits == "RPM") ||
+				(sensor.ReadingType == redfish.AirFlowReadingType && sensor.ReadingUnits == "Percent") {
+				// Skip, when fan_speed metric is excluded
+				if clientConfig.isExcluded["fan_speed"] {
+					continue
+				}
+
+				clientConfig.readSensorURLs[chassis.ID] = append(clientConfig.readSensorURLs[chassis.ID], sensor.ODataID)
+				writeFanSpeedSensor(sensor)
+			}
+
+			// Temperature readings
+			if sensor.ReadingType == redfish.TemperatureReadingType && sensor.ReadingUnits == "C" {
+				if clientConfig.isExcluded["temperature"] {
+					continue
+				}
+
+				clientConfig.readSensorURLs[chassis.ID] = append(clientConfig.readSensorURLs[chassis.ID], sensor.ODataID)
+				writeTemperatureSensor(sensor)
+				continue
+			}
+		}
+	} else {
+
+		common.CollectCollection(
+			func(uri string) {
+				sensor, err := redfish.GetSensor(chassis.GetClient(), uri)
+				if err != nil {
+					cclog.ComponentError(r.name, "redfish.GetSensor() for uri '", uri, "' failed")
+				}
+
+				// Power readings
+				if (sensor.ReadingType == redfish.PowerReadingType && sensor.ReadingUnits == "Watts") ||
+					(sensor.ReadingType == redfish.CurrentReadingType && sensor.ReadingUnits == "Watts") {
+
+					writePowerSensor(sensor)
+					return
+				}
+
+				// Fan speed readings
+				if (sensor.ReadingType == redfish.AirFlowReadingType && sensor.ReadingUnits == "RPM") ||
+					(sensor.ReadingType == redfish.AirFlowReadingType && sensor.ReadingUnits == "Percent") {
+
+					writeFanSpeedSensor(sensor)
+					return
+				}
+
+				// Temperature readings
+				if sensor.ReadingType == redfish.TemperatureReadingType && sensor.ReadingUnits == "C" {
+
+					writeTemperatureSensor(sensor)
+					return
+				}
+			},
+			clientConfig.readSensorURLs[chassis.ID])
+
+	}
+	return nil
+}
+
 // readThermalMetrics reads thermal metrics from a redfish device
+// See: https://redfish.dmtf.org/schemas/v1/Thermal.json
+// Redfish URI: /redfish/v1/Chassis/{ChassisId}/Thermal
+// -> deprecated in favor of the ThermalSubsystem schema
+// -> on Lenovo servers /redfish/v1/Chassis/{ChassisId}/ThermalSubsystem/ThermalMetrics links to /redfish/v1/Chassis/{ChassisId}/Sensors/{SensorId}
 func (r *RedfishReceiver) readThermalMetrics(
 	clientConfig *RedfishReceiverClientConfig,
 	chassis *redfish.Chassis) error {
@@ -106,13 +330,6 @@ func (r *RedfishReceiver) readThermalMetrics(
 			"temperature_name": temperature.Name,
 		}
 
-		// Delete empty tags
-		for key, value := range tags {
-			if value == "" {
-				delete(tags, key)
-			}
-		}
-
 		// Set meta data tags
 		meta := map[string]string{
 			"source": r.name,
@@ -123,14 +340,7 @@ func (r *RedfishReceiver) readThermalMetrics(
 		// ReadingCelsius shall be the current value of the temperature sensor's reading.
 		value := temperature.ReadingCelsius
 
-		y, err := lp.New("temperature", tags, meta,
-			map[string]interface{}{
-				"value": value,
-			},
-			timestamp)
-		if err == nil {
-			r.sink <- y
-		}
+		r.sendMetric("temperature", tags, meta, value, timestamp)
 	}
 
 	for _, fan := range thermal.Fans {
@@ -164,13 +374,6 @@ func (r *RedfishReceiver) readThermalMetrics(
 			"fan_name": fan.Name,
 		}
 
-		// Delete empty tags
-		for key, value := range tags {
-			if value == "" {
-				delete(tags, key)
-			}
-		}
-
 		// Set meta data tags
 		meta := map[string]string{
 			"source": r.name,
@@ -178,23 +381,16 @@ func (r *RedfishReceiver) readThermalMetrics(
 			"unit":   string(fan.ReadingUnits),
 		}
 
-		// Reading shall be the current value of the fan sensor's reading
-		value := fan.Reading
-
-		y, err := lp.New("fan_speed", tags, meta,
-			map[string]interface{}{
-				"value": value,
-			},
-			timestamp)
-		if err == nil {
-			r.sink <- y
-		}
+		r.sendMetric("fan_speed", tags, meta, fan.Reading, timestamp)
 	}
 
 	return nil
 }
 
 // readPowerMetrics reads power metrics from a redfish device
+// See: https://redfish.dmtf.org/schemas/v1/Power.json
+// Redfish URI: /redfish/v1/Chassis/{ChassisId}/Power
+// -> deprecated in favor of the PowerSubsystem schema
 func (r *RedfishReceiver) readPowerMetrics(
 	clientConfig *RedfishReceiverClientConfig,
 	chassis *redfish.Chassis) error {
@@ -274,13 +470,6 @@ func (r *RedfishReceiver) readPowerMetrics(
 			"power_control_name": pc.Name,
 		}
 
-		// Delete empty tags
-		for key, value := range tags {
-			if value == "" {
-				delete(tags, key)
-			}
-		}
-
 		// Set meta data tags
 		meta := map[string]string{
 			"source":              r.name,
@@ -289,23 +478,8 @@ func (r *RedfishReceiver) readPowerMetrics(
 			"unit":                "watts",
 		}
 
-		// Delete empty meta data tags
-		for key, value := range meta {
-			if value == "" {
-				delete(meta, key)
-			}
-		}
-
 		for name, value := range metrics {
-
-			y, err := lp.New(name, tags, meta,
-				map[string]interface{}{
-					"value": value,
-				},
-				timestamp)
-			if err == nil {
-				r.sink <- y
-			}
+			r.sendMetric(name, tags, meta, value, timestamp)
 		}
 	}
 
@@ -314,6 +488,7 @@ func (r *RedfishReceiver) readPowerMetrics(
 
 // readProcessorMetrics reads processor metrics from a redfish device
 // See: https://redfish.dmtf.org/schemas/v1/ProcessorMetrics.json
+// Redfish URI: /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/ProcessorMetrics
 func (r *RedfishReceiver) readProcessorMetrics(
 	clientConfig *RedfishReceiverClientConfig,
 	processor *redfish.Processor) error {
@@ -374,13 +549,6 @@ func (r *RedfishReceiver) readProcessorMetrics(
 		"processor_id": processor.ID,
 	}
 
-	// Delete empty tags
-	for key, value := range tags {
-		if value == "" {
-			delete(tags, key)
-		}
-	}
-
 	// Set meta data tags
 	metaPower := map[string]string{
 		"source": r.name,
@@ -393,14 +561,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 	if !clientConfig.isExcluded[namePower] &&
 		// Some servers return "ConsumedPowerWatt":65535 instead of "ConsumedPowerWatt":null
 		processorMetrics.ConsumedPowerWatt != 65535 {
-		y, err := lp.New(namePower, tags, metaPower,
-			map[string]interface{}{
-				"value": processorMetrics.ConsumedPowerWatt,
-			},
-			timestamp)
-		if err == nil {
-			r.sink <- y
-		}
+		r.sendMetric(namePower, tags, metaPower, processorMetrics.ConsumedPowerWatt, timestamp)
 	}
 	// Set meta data tags
 	metaThermal := map[string]string{
@@ -412,14 +573,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 	nameThermal := "temperature"
 
 	if !clientConfig.isExcluded[nameThermal] {
-		y, err := lp.New(nameThermal, tags, metaThermal,
-			map[string]interface{}{
-				"value": processorMetrics.TemperatureCelsius,
-			},
-			timestamp)
-		if err == nil {
-			r.sink <- y
-		}
+		r.sendMetric(nameThermal, tags, metaThermal, processorMetrics.TemperatureCelsius, timestamp)
 	}
 	return nil
 }
@@ -452,7 +606,8 @@ func (r *RedfishReceiver) readMetrics(clientConfig *RedfishReceiverClientConfig)
 
 	// Get all chassis managed by this service
 	isChassisListRequired :=
-		clientConfig.doThermalMetrics ||
+		clientConfig.doSensors ||
+			clientConfig.doThermalMetrics ||
 			clientConfig.doPowerMetric
 	var chassisList []*redfish.Chassis
 	if isChassisListRequired {
@@ -469,6 +624,16 @@ func (r *RedfishReceiver) readMetrics(clientConfig *RedfishReceiverClientConfig)
 		computerSystemList, err = c.Service.Systems()
 		if err != nil {
 			return fmt.Errorf("readMetrics: c.Service.Systems() failed: %v", err)
+		}
+	}
+
+	// Read sensors
+	if clientConfig.doSensors {
+		for _, chassis := range chassisList {
+			err := r.readSensors(clientConfig, chassis)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -636,6 +801,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		// Globally disable collection of power, processor or thermal metrics
 		DisablePowerMetrics     bool `json:"disable_power_metrics"`
 		DisableProcessorMetrics bool `json:"disable_processor_metrics"`
+		DisableSensors          bool `json:"disable_sensors"`
 		DisableThermalMetrics   bool `json:"disable_thermal_metrics"`
 
 		// Globally excluded metrics
@@ -650,6 +816,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			// Per client disable collection of power,processor or thermal metrics
 			DisablePowerMetrics     bool `json:"disable_power_metrics"`
 			DisableProcessorMetrics bool `json:"disable_processor_metrics"`
+			DisableSensors          bool `json:"disable_sensors"`
 			DisableThermalMetrics   bool `json:"disable_thermal_metrics"`
 
 			// Per client excluded metrics
@@ -766,6 +933,9 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		doProcessorMetrics :=
 			!(configJSON.DisableProcessorMetrics ||
 				clientConfigJSON.DisableProcessorMetrics)
+		doSensors :=
+			!(configJSON.DisableSensors ||
+				clientConfigJSON.DisableSensors)
 		doThermalMetrics :=
 			!(configJSON.DisableThermalMetrics ||
 				clientConfigJSON.DisableThermalMetrics)
@@ -798,8 +968,10 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 					isExcluded:              isExcluded,
 					doPowerMetric:           doPowerMetric,
 					doProcessorMetrics:      doProcessorMetrics,
+					doSensors:               doSensors,
 					doThermalMetrics:        doThermalMetrics,
 					skipProcessorMetricsURL: make(map[string]bool),
+					readSensorURLs:          map[string][]string{},
 					gofish: gofish.ClientConfig{
 						Username:   username,
 						Password:   password,
