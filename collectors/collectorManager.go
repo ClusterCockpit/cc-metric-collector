@@ -41,6 +41,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"self":            new(SelfCollector),
 	"schedstat":       new(SchedstatCollector),
 	"nfsiostat":       new(NfsIOStatCollector),
+	"likwidenergy":    new(LikwidEnergyCollector),
 }
 
 // Metric collector manager data structure
