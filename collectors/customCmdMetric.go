@@ -99,10 +99,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 				continue
 			}
 
-			y := lp.FromInfluxMetric(c)
-			if err == nil {
-				output <- y
-			}
+			output <- lp.FromInfluxMetric(c)
 		}
 	}
 	for _, file := range m.files {
@@ -121,10 +118,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetri
 			if skip {
 				continue
 			}
-			y := lp.FromInfluxMetric(f)
-			if err == nil {
-				output <- y
-			}
+			output <- lp.FromInfluxMetric(f)
 		}
 	}
 }
