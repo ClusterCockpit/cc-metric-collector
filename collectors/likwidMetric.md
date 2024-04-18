@@ -132,6 +132,9 @@ In some cases LIKWID returns `0.0` for some events that are further used in proc
 
 One might think this does not happen often but often used metrics in the world of performance engineering like Instructions-per-Cycle (IPC) or more frequently the actual CPU clock are derived with events like `CPU_CLK_UNHALTED_CORE` (Intel) which do not increment in halted state (as the name implies). In there are different power management systems in a chip which can cause a hardware thread to go in such a state. Moreover, if no cycles are executed by the core, also many other events are not incremented as well (like `INSTR_RETIRED_ANY` for retired instructions and part of IPC).
 
+### `lockfile_path` option
+LIKWID can be configured with a lock file with which the access to the performance monitoring registers can be disabled (only the owner of the lock file is allowed to access the registers). When the `lockfile_path` option is set, the collector subscribes to changes to this file to stop monitoring if the owner of the lock file changes. This feature is useful when users should be able to perform own hardware performance counter measurements through LIKWID or any other tool.
+
 ### `send_*_total values` option
 
 - `send_core_total_values`: Metrics, which are usually collected on a per hardware thread basis, are additionally summed up per CPU core.
