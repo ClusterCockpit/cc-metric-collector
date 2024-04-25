@@ -267,3 +267,45 @@ IPC   PMC0/PMC1                  ->     {
 ```
 
 The script `scripts/likwid_perfgroup_to_cc_config.py` might help you.
+
+### Internal structure
+
+This section describes the internal structure of the `likwid` collector. 
+
+#### At initialization
+
+After setting the defaults, the configuration is read.
+
+Based on the configuration, the library is searched using `dlopen` to see whether it makes sense to proceed.
+
+Next, the user-given metrics are tested to ensure they can be evaluated. For this, it creates a list of all user-given events/counters with the value `1.0` which is provided to the metric evaluator. The same is done for the global metrics by using the metric names with value `1.0`. If the evaluator does not fail, the metric can be evaluated and the collector initialization can proceed.
+
+A separate thread is started to do the measurement. This is not done using a common goroutine but a real application thread with full control. This is required because LIKWID's access system tracks the processes of the using application and the PID should not change between measurements because that would require teardown and reopening of the access system.
+
+With the separate thread, the access system is initialized by setting the user-given access mode and adding all hardware threads.
+
+LIKWID measures per hardware thread in general but only some HW threads read the counters available only e.g. per CPU socket (often memory traffic). For this, the collector gets the system topology through LIKWID and creates different mappings like 'hwthread to list offset' and others. With this, the hardware threads responsible for a topological entity can be determined because those read the counters of the per CPU socket units. These mappings are later used in the measurement phase.
+
+In the end, we read the base CPU frequency of the system. It may be used in the metric evaluation.
+
+#### Measurements
+
+The reading of events is done by the separate application thread.
+
+It traverses over all configured event sets, creates valid LIKWID eventstrings out of them and pass them to take a measurement. This could be done only once but when the LIKWID lock changes, LIKWID has to be completely reopened to provide access again. With this reopening, the already added event sets are gone.
+
+LIKWID has it's own locking mechanism using a lock file. But not the content of the file is of interest but the owner. In order to track changes of the file, a `fsnotify` watcher is installed on the file. If the file does not exist, it is created and consequently is owned by the same user as `cc-metric-collector`. The LikwidCollector has to watch the file on it's own because LIKWID does not provide proper error handling for this.
+
+Each call to the LIKWID library for loading the event set, setting up the counting facilities as well as starting and stopping of the counters is wrapped into lockfile checks to ensure no state change happens. If the file owner changed, the LikwidCollector cannot access the counters anymore, so no further operation can be done and measurment stops.
+
+Although start/stop would be sufficient, the LikwidCollector performs start, read, wait, read, `getLastResult`, stop. Reason might be "historic" but is not 100% clear anymore. The author failed to document ;)
+
+#### Metric evaluation
+
+After each meaurement, the metrics of the event set are directly evaluated. It updates the counter->result mapping with the new measurements, calls the evaluator and generates the `CCMetric` with the user-given settings if it should be published. Each metric name to result calculation is stored for the global metric evaluation, which is done as a final step.
+
+#### Shutdown
+
+Since each measurment involves a complete initialize to finalize cycle of the LIKWID library, only the topology module needs to be closed.
+
+Moreover, the separate application thread is stopped.
