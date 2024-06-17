@@ -12,8 +12,8 @@ The global file contains the paths to the other four files and some global optio
   "collectors" : "collectors.json",
   "receivers" : "receivers.json",
   "router" : "router.json",
-  "interval": 10,
-  "duration": 1
+  "interval": "10s",
+  "duration": "1s"
 }
 ```
 
