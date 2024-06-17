@@ -91,16 +91,16 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          dnf --assumeyes install \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.21.7-1.module_el8+960+4060efbe.noarch.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm
+          wget -q https://go.dev/dl/go1.22.4.linux-amd64.tar.gz --output-document=- | \
+          tar --directory=/usr/local --extract --gzip
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
+          go version
 
     - name: RPM build MetricCollector
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
 
   #
@@ -129,16 +129,16 @@ jobs:
     # Use dnf to install build dependencies
     - name: Install build dependencies
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.21.7-1.module_el8+960+4060efbe.noarch.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.21.7-1.module_el8+960+4060efbe.x86_64.rpm
+          wget -q https://go.dev/dl/go1.22.4.linux-amd64.tar.gz --output-document=- | \
+          tar --directory=/usr/local --extract --gzip
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
+          go version
 
     - name: RPM build MetricCollector
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
 
   #
@@ -165,7 +165,7 @@ jobs:
     # Use official golang package
     - name: Install Golang
       run: |
-          wget -q https://go.dev/dl/go1.21.1.linux-amd64.tar.gz --output-document=- | \
+          wget -q https://go.dev/dl/go1.22.4.linux-amd64.tar.gz --output-document=- | \
           tar --directory=/usr/local --extract --gzip
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           go version
