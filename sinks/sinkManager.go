@@ -21,6 +21,8 @@ var AvailableSinks = map[string]func(name string, config json.RawMessage) (Sink,
 	"influxdb":    NewInfluxSink,
 	"influxasync": NewInfluxAsyncSink,
 	"http":        NewHttpSink,
+	"amqp":        NewAmqpSink,
+	"rabbitmq":    NewAmqpSink,
 }
 
 // Metric collector manager data structure
