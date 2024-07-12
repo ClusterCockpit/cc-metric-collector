@@ -326,28 +326,37 @@ func TestConfigList(t *testing.T) {
 				return
 			}
 			//t.Log(m.ToLineProtocol(nil))
-			drop, err := mp.ProcessMessage(m)
+			out, err := mp.ProcessMessage(m)
 			if err != nil && !c.errors {
 				cclog.SetDebug()
 				mp.ProcessMessage(m)
 				t.Error(err.Error())
 				return
 			}
-			if drop != c.drop {
-				if c.drop {
-					t.Error("fail, message should be dropped but processor signalled NO dropping")
-				} else {
-					t.Error("fail, message should NOT be dropped but processor signalled dropping")
-				}
-				cclog.SetDebug()
-				mp.ProcessMessage(m)
+			if out == nil && !c.drop {
+				t.Error("fail, message should NOT be dropped but processor signalled dropping")
+				return
+			} else if out != nil && c.drop {
+				t.Error("fail, message should be dropped but processor signalled NO dropping")
+				return
 			}
+			// {
+			// 	if c.drop {
+			// 		t.Error("fail, message should be dropped but processor signalled NO dropping")
+			// 	} else {
+			// 		t.Error("fail, message should NOT be dropped but processor signalled dropping")
+			// 	}
+			// 	cclog.SetDebug()
+			// 	mp.ProcessMessage(m)
+			// 	return
+			// }
 			if c.check != nil {
-				if err := c.check(m); err != nil {
+				if err := c.check(out); err != nil {
 					t.Errorf("check failed with %v", err.Error())
 					t.Log("Rerun with debugging")
 					cclog.SetDebug()
 					mp.ProcessMessage(m)
+					return
 				}
 			}
 		})
