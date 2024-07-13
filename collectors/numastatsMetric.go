@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // Non-Uniform Memory Access (NUMA) policy hit/miss statistics
@@ -97,7 +97,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -130,7 +130,7 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMetri
 					fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
 				continue
 			}
-			y, err := lp.New(
+			y, err := lp.NewMessage(
 				"numastats_"+key,
 				t.tagSet,
 				m.meta,

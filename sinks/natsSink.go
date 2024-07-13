@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 )
@@ -59,7 +59,7 @@ func (s *NatsSink) connect() error {
 	return nil
 }
 
-func (s *NatsSink) Write(m lp.CCMetric) error {
+func (s *NatsSink) Write(m lp.CCMessage) error {
 	s.lock.Lock()
 	_, err := s.encoder.Encode(m.ToPoint(s.meta_as_tags))
 	s.lock.Unlock()

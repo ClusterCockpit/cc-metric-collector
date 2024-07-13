@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // These are the fields we read from the JSON configuration
@@ -114,7 +114,7 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	return err
 }
 
-func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	timestamp := time.Now()
 
 	// Get the current values for all mountpoints
@@ -126,7 +126,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMetri
 			// Calculate the difference of old and new values
 			for i := range values {
 				x := values[i] - old[i]
-				y, err := lp.New(fmt.Sprintf("nfsio_%s", i), m.tags, m.meta, map[string]interface{}{"value": x}, timestamp)
+				y, err := lp.NewMessage(fmt.Sprintf("nfsio_%s", i), m.tags, m.meta, map[string]interface{}{"value": x}, timestamp)
 				if err == nil {
 					if strings.HasPrefix(i, "page") {
 						y.AddMeta("unit", "4K_Pages")

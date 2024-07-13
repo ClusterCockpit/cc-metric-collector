@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const LUSTRE_SYSFS = `/sys/fs/lustre`
@@ -377,7 +377,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -388,7 +388,7 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 		for _, def := range m.definitions {
 			var use_x int64
 			var err error
-			var y lp.CCMetric
+			var y lp.CCMessage
 			x, err := getMetricData(data, def.lineprefix, def.lineoffset)
 			if err == nil {
 				use_x = x
@@ -399,19 +399,19 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 			switch def.calc {
 			case "none":
 				value = use_x
-				y, err = lp.New(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 			case "difference":
 				value = use_x - devData[def.name]
 				if value.(int64) < 0 {
 					value = 0
 				}
-				y, err = lp.New(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 			case "derivative":
 				value = float64(use_x-devData[def.name]) / tdiff.Seconds()
 				if value.(float64) < 0 {
 					value = 0
 				}
-				y, err = lp.New(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 			}
 			if err == nil {
 				y.AddTag("device", device)

@@ -7,7 +7,7 @@ import (
 	"log"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 type SampleSinkConfig struct {
@@ -28,7 +28,7 @@ type SampleSink struct {
 // See: metricSink.go
 
 // Code to submit a single CCMetric to the sink
-func (s *SampleSink) Write(point lp.CCMetric) error {
+func (s *SampleSink) Write(point lp.CCMessage) error {
 	// based on s.meta_as_tags use meta infos as tags
 	log.Print(point)
 	return nil

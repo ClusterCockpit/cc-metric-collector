@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 // CPUFreqCollector
@@ -112,14 +112,14 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 
 	// Check if at least one CPU with frequency information was detected
 	if len(m.topology) == 0 {
-		return fmt.Errorf("No CPU frequency info found in %s", cpuInfoFile)
+		return fmt.Errorf("no CPU frequency info found in %s", cpuInfoFile)
 	}
 
 	m.init = true
 	return nil
 }
 
-func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	// Check if already initialized
 	if !m.init {
 		return
@@ -154,7 +154,7 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 							fmt.Sprintf("Read(): Failed to convert cpu MHz '%s' to float64: %v", lineSplit[1], err))
 						return
 					}
-					if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now); err == nil {
+					if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now); err == nil {
 						output <- y
 					}
 				}

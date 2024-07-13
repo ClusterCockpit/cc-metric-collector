@@ -14,7 +14,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
 )
 
@@ -213,7 +213,7 @@ func (r *IPMIReceiver) doReadMetric() {
 					continue
 				}
 
-				y, err := lp.New(
+				y, err := lp.NewMessage(
 					metric,
 					map[string]string{
 						"hostname": host,

@@ -11,7 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 
 	"github.com/PaesslerAG/gval"
@@ -31,14 +31,14 @@ type metricAggregator struct {
 	functions []*MetricAggregatorIntervalConfig
 	constants map[string]interface{}
 	language  gval.Language
-	output    chan lp.CCMetric
+	output    chan lp.CCMessage
 }
 
 type MetricAggregator interface {
 	AddAggregation(name, function, condition string, tags, meta map[string]string) error
 	DeleteAggregation(name string) error
-	Init(output chan lp.CCMetric) error
-	Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMetric)
+	Init(output chan lp.CCMessage) error
+	Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMessage)
 }
 
 var metricCacheLanguage = gval.NewLanguage(
@@ -74,7 +74,7 @@ var evaluables = struct {
 	mapping: make(map[string]gval.Evaluable),
 }
 
-func (c *metricAggregator) Init(output chan lp.CCMetric) error {
+func (c *metricAggregator) Init(output chan lp.CCMessage) error {
 	c.output = output
 	c.functions = make([]*MetricAggregatorIntervalConfig, 0)
 	c.constants = make(map[string]interface{})
@@ -112,7 +112,7 @@ func (c *metricAggregator) Init(output chan lp.CCMetric) error {
 	return nil
 }
 
-func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMetric) {
+func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMessage) {
 	vars := make(map[string]interface{})
 	for k, v := range c.constants {
 		vars[k] = v
@@ -127,7 +127,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 		var valuesInt32 []int32
 		var valuesInt64 []int64
 		var valuesBool []bool
-		matches := make([]lp.CCMetric, 0)
+		matches := make([]lp.CCMessage, 0)
 		for _, m := range metrics {
 			vars["metric"] = m
 			//value, err := gval.Evaluate(f.Condition, vars, c.language)
@@ -216,7 +216,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 				break
 			}
 
-			copy_tags := func(tags map[string]string, metrics []lp.CCMetric) map[string]string {
+			copy_tags := func(tags map[string]string, metrics []lp.CCMessage) map[string]string {
 				out := make(map[string]string)
 				for key, value := range tags {
 					switch value {
@@ -233,7 +233,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 				}
 				return out
 			}
-			copy_meta := func(meta map[string]string, metrics []lp.CCMetric) map[string]string {
+			copy_meta := func(meta map[string]string, metrics []lp.CCMessage) map[string]string {
 				out := make(map[string]string)
 				for key, value := range meta {
 					switch value {
@@ -253,18 +253,18 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			tags := copy_tags(f.Tags, matches)
 			meta := copy_meta(f.Meta, matches)
 
-			var m lp.CCMetric
+			var m lp.CCMessage
 			switch t := value.(type) {
 			case float64:
-				m, err = lp.New(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
 			case float32:
-				m, err = lp.New(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
 			case int:
-				m, err = lp.New(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
 			case int64:
-				m, err = lp.New(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
 			case string:
-				m, err = lp.New(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
 			default:
 				cclog.ComponentError("MetricCache", "Gval returned invalid type", t, "skipping metric", f.Name)
 			}
@@ -389,7 +389,7 @@ func EvalFloat64Condition(condition string, params map[string]float64) (float64,
 	return value, err
 }
 
-func NewAggregator(output chan lp.CCMetric) (MetricAggregator, error) {
+func NewAggregator(output chan lp.CCMessage) (MetricAggregator, error) {
 	a := new(metricAggregator)
 	err := a.Init(output)
 	if err != nil {

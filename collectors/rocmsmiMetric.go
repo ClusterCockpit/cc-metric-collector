@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/ClusterCockpit/go-rocm-smi/pkg/rocm_smi"
 )
 
@@ -162,7 +162,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 
 // Read collects all metrics belonging to the sample collector
 // and sends them through the output channel to the collector manager
-func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	// Create a sample metric
 	timestamp := time.Now()
 
@@ -175,119 +175,119 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMetric)
 
 		if !dev.excludeMetrics["rocm_gfx_util"] {
 			value := metrics.Average_gfx_activity
-			y, err := lp.New("rocm_gfx_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_gfx_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_umc_util"] {
 			value := metrics.Average_umc_activity
-			y, err := lp.New("rocm_umc_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_umc_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_mm_util"] {
 			value := metrics.Average_mm_activity
-			y, err := lp.New("rocm_mm_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_mm_util", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_avg_power"] {
 			value := metrics.Average_socket_power
-			y, err := lp.New("rocm_avg_power", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_avg_power", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_mem"] {
 			value := metrics.Temperature_mem
-			y, err := lp.New("rocm_temp_mem", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_temp_mem", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_hotspot"] {
 			value := metrics.Temperature_hotspot
-			y, err := lp.New("rocm_temp_hotspot", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_temp_hotspot", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_edge"] {
 			value := metrics.Temperature_edge
-			y, err := lp.New("rocm_temp_edge", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_temp_edge", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_vrgfx"] {
 			value := metrics.Temperature_vrgfx
-			y, err := lp.New("rocm_temp_vrgfx", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_temp_vrgfx", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_vrsoc"] {
 			value := metrics.Temperature_vrsoc
-			y, err := lp.New("rocm_temp_vrsoc", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_temp_vrsoc", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_vrmem"] {
 			value := metrics.Temperature_vrmem
-			y, err := lp.New("rocm_temp_vrmem", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_temp_vrmem", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_gfx_clock"] {
 			value := metrics.Average_gfxclk_frequency
-			y, err := lp.New("rocm_gfx_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_gfx_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_soc_clock"] {
 			value := metrics.Average_socclk_frequency
-			y, err := lp.New("rocm_soc_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_soc_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_u_clock"] {
 			value := metrics.Average_uclk_frequency
-			y, err := lp.New("rocm_u_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_u_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_v0_clock"] {
 			value := metrics.Average_vclk0_frequency
-			y, err := lp.New("rocm_v0_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_v0_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_v1_clock"] {
 			value := metrics.Average_vclk1_frequency
-			y, err := lp.New("rocm_v1_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_v1_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_d0_clock"] {
 			value := metrics.Average_dclk0_frequency
-			y, err := lp.New("rocm_d0_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_d0_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
 		}
 		if !dev.excludeMetrics["rocm_d1_clock"] {
 			value := metrics.Average_dclk1_frequency
-			y, err := lp.New("rocm_d1_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+			y, err := lp.NewMessage("rocm_d1_clock", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 			if err == nil {
 				output <- y
 			}
@@ -295,7 +295,7 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		if !dev.excludeMetrics["rocm_temp_hbm"] {
 			for i := 0; i < rocm_smi.NUM_HBM_INSTANCES; i++ {
 				value := metrics.Temperature_hbm[i]
-				y, err := lp.New("rocm_temp_hbm", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
+				y, err := lp.NewMessage("rocm_temp_hbm", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 				if err == nil {
 					y.AddTag("stype", "device")
 					y.AddTag("stype-id", fmt.Sprintf("%d", i))

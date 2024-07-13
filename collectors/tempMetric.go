@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // See: https://www.kernel.org/doc/html/latest/hwmon/sysfs-interface.html
@@ -171,7 +171,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 	for _, sensor := range m.sensors {
 		// Read sensor file
@@ -190,7 +190,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			continue
 		}
 		x /= 1000
-		y, err := lp.New(
+		y, err := lp.NewMessage(
 			sensor.metricName,
 			sensor.tags,
 			m.meta,
@@ -203,7 +203,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 		// max temperature
 		if m.config.ReportMaxTemp && sensor.maxTemp != 0 {
-			y, err := lp.New(
+			y, err := lp.NewMessage(
 				sensor.maxTempName,
 				sensor.tags,
 				m.meta,
@@ -217,7 +217,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 
 		// critical temperature
 		if m.config.ReportCriticalTemp && sensor.critTemp != 0 {
-			y, err := lp.New(
+			y, err := lp.NewMessage(
 				sensor.critTempName,
 				sensor.tags,
 				m.meta,

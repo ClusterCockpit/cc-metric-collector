@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	"golang.org/x/exp/slices"
 )
@@ -45,6 +45,9 @@ type HttpSinkConfig struct {
 
 	// Maximum number of retries to connect to the http server (default: 3)
 	MaxRetries int `json:"max_retries,omitempty"`
+
+	// Timestamp precision
+	Precision string `json:"precision,omitempty"`
 }
 
 type key_value_pair struct {
@@ -72,7 +75,7 @@ type HttpSink struct {
 }
 
 // Write sends metric m as http message
-func (s *HttpSink) Write(m lp.CCMetric) error {
+func (s *HttpSink) Write(m lp.CCMessage) error {
 
 	// Lock for encoder usage
 	s.encoderLock.Lock()
@@ -141,7 +144,7 @@ func (s *HttpSink) Write(m lp.CCMetric) error {
 
 	// Check that encoding worked
 	if err != nil {
-		return fmt.Errorf("Encoding failed: %v", err)
+		return fmt.Errorf("encoding failed: %v", err)
 	}
 
 	if s.config.flushDelay == 0 {
@@ -268,6 +271,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.Timeout = "5s"
 	s.config.FlushDelay = "5s"
 	s.config.MaxRetries = 3
+	s.config.Precision = "ns"
 	cclog.ComponentDebug(s.name, "Init()")
 
 	// Read config
@@ -315,6 +319,19 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 			cclog.ComponentDebug(s.name, "Init(): flushDelay", t)
 		}
 	}
+	precision := influx.Nanosecond
+	if len(s.config.Precision) > 0 {
+		switch s.config.Precision {
+		case "s":
+			precision = influx.Second
+		case "ms":
+			precision = influx.Millisecond
+		case "us":
+			precision = influx.Microsecond
+		case "ns":
+			precision = influx.Nanosecond
+		}
+	}
 
 	// Create http client
 	s.client = &http.Client{
@@ -326,7 +343,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	}
 
 	// Configure influx line protocol encoder
-	s.encoder.SetPrecision(influx.Nanosecond)
+	s.encoder.SetPrecision(precision)
 	s.extended_tag_list = make([]key_value_pair, 0)
 
 	return s, nil

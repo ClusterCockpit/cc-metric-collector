@@ -15,7 +15,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const DEFAULT_BEEGFS_CMD = "beegfs-ctl"
@@ -110,7 +110,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -216,7 +216,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMetr
 
 			for key, data := range m.matches {
 				value, _ := strconv.ParseFloat(data, 32)
-				y, err := lp.New(key, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err := lp.NewMessage(key, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 				if err == nil {
 					output <- y
 				}

@@ -7,7 +7,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
@@ -16,7 +16,7 @@ type metricCachePeriod struct {
 	stopstamp   time.Time
 	numMetrics  int
 	sizeMetrics int
-	metrics     []lp.CCMetric
+	metrics     []lp.CCMessage
 }
 
 // Metric cache data structure
@@ -29,21 +29,21 @@ type metricCache struct {
 	ticker     mct.MultiChanTicker
 	tickchan   chan time.Time
 	done       chan bool
-	output     chan lp.CCMetric
+	output     chan lp.CCMessage
 	aggEngine  agg.MetricAggregator
 }
 
 type MetricCache interface {
-	Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error
+	Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error
 	Start()
-	Add(metric lp.CCMetric)
-	GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric)
+	Add(metric lp.CCMessage)
+	GetPeriod(index int) (time.Time, time.Time, []lp.CCMessage)
 	AddAggregation(name, function, condition string, tags, meta map[string]string) error
 	DeleteAggregation(name string) error
 	Close()
 }
 
-func (c *metricCache) Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
+func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
 	var err error = nil
 	c.done = make(chan bool)
 	c.wg = wg
@@ -55,7 +55,7 @@ func (c *metricCache) Init(output chan lp.CCMetric, ticker mct.MultiChanTicker, 
 		p := new(metricCachePeriod)
 		p.numMetrics = 0
 		p.sizeMetrics = 0
-		p.metrics = make([]lp.CCMetric, 0)
+		p.metrics = make([]lp.CCMessage, 0)
 		c.intervals = append(c.intervals, p)
 	}
 
@@ -124,7 +124,7 @@ func (c *metricCache) Start() {
 // Add a metric to the cache. The interval is defined by the global timer (rotate() in Start())
 // The intervals list is used as round-robin buffer and the metric list grows dynamically and
 // to avoid reallocations
-func (c *metricCache) Add(metric lp.CCMetric) {
+func (c *metricCache) Add(metric lp.CCMessage) {
 	if c.curPeriod >= 0 && c.curPeriod < c.numPeriods {
 		c.lock.Lock()
 		p := c.intervals[c.curPeriod]
@@ -153,10 +153,10 @@ func (c *metricCache) DeleteAggregation(name string) error {
 // Get all metrics of a interval. The index is the difference to the current interval, so index=0
 // is the current one, index=1 the last interval and so on. Returns and empty array if a wrong index
 // is given (negative index, index larger than configured number of total intervals, ...)
-func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric) {
+func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMessage) {
 	var start time.Time = time.Now()
 	var stop time.Time = time.Now()
-	var metrics []lp.CCMetric
+	var metrics []lp.CCMessage
 	if index >= 0 && index < c.numPeriods {
 		pindex := c.curPeriod - index
 		if pindex < 0 {
@@ -168,10 +168,10 @@ func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMetric)
 			metrics = c.intervals[pindex].metrics
 			//return c.intervals[pindex].startstamp, c.intervals[pindex].stopstamp, c.intervals[pindex].metrics
 		} else {
-			metrics = make([]lp.CCMetric, 0)
+			metrics = make([]lp.CCMessage, 0)
 		}
 	} else {
-		metrics = make([]lp.CCMetric, 0)
+		metrics = make([]lp.CCMessage, 0)
 	}
 	return start, stop, metrics
 }
@@ -182,7 +182,7 @@ func (c *metricCache) Close() {
 	c.done <- true
 }
 
-func NewCache(output chan lp.CCMetric, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) (MetricCache, error) {
+func NewCache(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) (MetricCache, error) {
 	c := new(metricCache)
 	err := c.Init(output, ticker, wg, numPeriods)
 	if err != nil {

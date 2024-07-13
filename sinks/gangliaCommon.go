@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
-func GangliaMetricName(point lp.CCMetric) string {
+func GangliaMetricName(point lp.CCMessage) string {
 	name := point.Name()
 	metricType, typeOK := point.GetTag("type")
 	metricTid, tidOk := point.GetTag("type-id")
@@ -39,7 +39,7 @@ func GangliaMetricRename(name string) string {
 	return name
 }
 
-func GangliaSlopeType(point lp.CCMetric) uint {
+func GangliaSlopeType(point lp.CCMessage) uint {
 	name := point.Name()
 	if name == "mem_total" || name == "swap_total" {
 		return 0
@@ -151,7 +151,7 @@ type GangliaMetricConfig struct {
 	Name  string
 }
 
-func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
+func GetCommonGangliaConfig(point lp.CCMessage) GangliaMetricConfig {
 	mname := GangliaMetricRename(point.Name())
 	if oldname, ok := point.GetMeta("oldname"); ok {
 		mname = GangliaMetricRename(oldname)
@@ -207,7 +207,7 @@ func GetCommonGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
 	}
 }
 
-func GetGangliaConfig(point lp.CCMetric) GangliaMetricConfig {
+func GetGangliaConfig(point lp.CCMessage) GangliaMetricConfig {
 	mname := GangliaMetricRename(point.Name())
 	if oldname, ok := point.GetMeta("oldname"); ok {
 		mname = GangliaMetricRename(oldname)

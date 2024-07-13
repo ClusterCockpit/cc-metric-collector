@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const IPMISENSORS_PATH = `ipmi-sensors`
@@ -67,7 +67,7 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
+func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 
 	// Setup ipmitool command
 	command := exec.Command(cmd, "sensor")
@@ -105,7 +105,7 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 				unit = "Watts"
 			}
 
-			y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
+			y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", unit)
 				output <- y
@@ -125,7 +125,7 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 	}
 }
 
-func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
+func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 
 	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
 	command.Wait()
@@ -143,7 +143,7 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
 			v, err := strconv.ParseFloat(lv[3], 64)
 			if err == nil {
 				name := strings.ToLower(strings.Replace(lv[1], " ", "_", -1))
-				y, err := lp.New(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
+				y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 				if err == nil {
 					if len(lv) > 4 {
 						y.AddMeta("unit", lv[4])
@@ -155,7 +155,7 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMetric) {
 	}
 }
 
-func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 	// Check if already initialized
 	if !m.init {

@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 var AvailableReceivers = map[string]func(name string, config json.RawMessage) (Receiver, error){
@@ -19,14 +19,14 @@ var AvailableReceivers = map[string]func(name string, config json.RawMessage) (R
 
 type receiveManager struct {
 	inputs []Receiver
-	output chan lp.CCMetric
+	output chan lp.CCMessage
 	config []json.RawMessage
 }
 
 type ReceiveManager interface {
 	Init(wg *sync.WaitGroup, receiverConfigFile string) error
 	AddInput(name string, rawConfig json.RawMessage) error
-	AddOutput(output chan lp.CCMetric)
+	AddOutput(output chan lp.CCMessage)
 	Start()
 	Close()
 }
@@ -93,7 +93,7 @@ func (rm *receiveManager) AddInput(name string, rawConfig json.RawMessage) error
 	return nil
 }
 
-func (rm *receiveManager) AddOutput(output chan lp.CCMetric) {
+func (rm *receiveManager) AddOutput(output chan lp.CCMessage) {
 	rm.output = output
 	for _, r := range rm.inputs {
 		r.SetSink(rm.output)

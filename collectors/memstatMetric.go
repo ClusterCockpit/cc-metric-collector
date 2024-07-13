@@ -13,7 +13,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const MEMSTATFILE = "/proc/meminfo"
@@ -159,7 +159,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 	return err
 }
 
-func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -175,7 +175,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 				}
 			}
 
-			y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+			y, err := lp.NewMessage(name, tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 			if err == nil {
 				if len(unit) > 0 {
 					y.AddMeta("unit", unit)
@@ -208,7 +208,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 					}
 				}
 			}
-			y, err := lp.New("mem_used", tags, m.meta, map[string]interface{}{"value": memUsed}, time.Now())
+			y, err := lp.NewMessage("mem_used", tags, m.meta, map[string]interface{}{"value": memUsed}, time.Now())
 			if err == nil {
 				if len(unit) > 0 {
 					y.AddMeta("unit", unit)

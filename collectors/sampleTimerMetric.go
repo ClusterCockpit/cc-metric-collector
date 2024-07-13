@@ -6,7 +6,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // These are the fields we read from the JSON configuration
@@ -25,7 +25,7 @@ type SampleTimerCollector struct {
 	config   SampleTimerCollectorConfig // the configuration structure
 	interval time.Duration              // the interval parsed from configuration
 	ticker   *time.Ticker               // own timer
-	output   chan lp.CCMetric           // own internal output channel
+	output   chan lp.CCMessage           // own internal output channel
 }
 
 func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
@@ -100,14 +100,14 @@ func (m *SampleTimerCollector) ReadMetrics(timestamp time.Time) {
 	// stop := readState()
 	// value = (stop - start) / interval.Seconds()
 
-	y, err := lp.New("sample_metric", m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
+	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
 	if err == nil && m.output != nil {
 		// Send it to output channel if we have a valid channel
 		m.output <- y
 	}
 }
 
-func (m *SampleTimerCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *SampleTimerCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	// Capture output channel
 	m.output = output
 }

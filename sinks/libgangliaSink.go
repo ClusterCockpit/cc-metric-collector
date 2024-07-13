@@ -73,7 +73,7 @@ import (
 	"unsafe"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
@@ -110,7 +110,7 @@ type LibgangliaSink struct {
 	cstrCache      map[string]*C.char
 }
 
-func (s *LibgangliaSink) Write(point lp.CCMetric) error {
+func (s *LibgangliaSink) Write(point lp.CCMessage) error {
 	var err error = nil
 	var c_name *C.char
 	var c_value *C.char

@@ -9,7 +9,7 @@ import (
 
 	//	"time"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 type StdoutSink struct {
@@ -21,7 +21,7 @@ type StdoutSink struct {
 	}
 }
 
-func (s *StdoutSink) Write(m lp.CCMetric) error {
+func (s *StdoutSink) Write(m lp.CCMessage) error {
 	fmt.Fprint(
 		s.output,
 		m.ToLineProtocol(s.meta_as_tags),

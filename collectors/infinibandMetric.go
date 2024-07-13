@@ -5,7 +5,7 @@ import (
 	"os"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"golang.org/x/sys/unix"
 
 	"encoding/json"
@@ -182,7 +182,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 }
 
 // Read reads Infiniband counter files below IB_BASEPATH
-func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 	// Check if already initialized
 	if !m.init {
@@ -230,7 +230,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
 				if y, err :=
-					lp.New(
+					lp.NewMessage(
 						counterDef.name,
 						info.tagSet,
 						m.meta,
@@ -248,7 +248,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 				if counterDef.lastState >= 0 {
 					rate := float64((counterDef.currentState - counterDef.lastState)) / timeDiff
 					if y, err :=
-						lp.New(
+						lp.NewMessage(
 							counterDef.name+"_bw",
 							info.tagSet,
 							m.meta,
@@ -278,7 +278,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 		// Send total values
 		if m.config.SendTotalValues {
 			if y, err :=
-				lp.New(
+				lp.NewMessage(
 					"ib_total",
 					info.tagSet,
 					m.meta,
@@ -291,7 +291,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMetr
 			}
 
 			if y, err :=
-				lp.New(
+				lp.NewMessage(
 					"ib_total_pkts",
 					info.tagSet,
 					m.meta,

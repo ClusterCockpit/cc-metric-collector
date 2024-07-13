@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"golang.org/x/sys/unix"
 )
@@ -91,7 +91,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	// Check if already initialized
 	if !m.init {
 		return
@@ -117,7 +117,7 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMetric)
 			continue
 		}
 
-		if y, err := lp.New("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now); err == nil {
+		if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now); err == nil {
 			output <- y
 		}
 	}
