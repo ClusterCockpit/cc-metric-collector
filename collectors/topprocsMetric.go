@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const MAX_NUM_PROCS = 10
@@ -53,7 +53,7 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -68,7 +68,7 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMetric
 	lines := strings.Split(string(stdout), "\n")
 	for i := 1; i < m.config.Num_procs+1; i++ {
 		name := fmt.Sprintf("topproc%d", i)
-		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": string(lines[i])}, time.Now())
+		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]interface{}{"value": string(lines[i])}, time.Now())
 		if err == nil {
 			output <- y
 		}

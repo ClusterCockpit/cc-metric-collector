@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const NETSTATFILE = "/proc/net/dev"
@@ -153,7 +153,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -197,14 +197,14 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 					continue
 				}
 				if m.config.SendAbsoluteValues {
-					if y, err := lp.New(metric.name, metric.tags, metric.meta, map[string]interface{}{"value": v}, now); err == nil {
+					if y, err := lp.NewMessage(metric.name, metric.tags, metric.meta, map[string]interface{}{"value": v}, now); err == nil {
 						output <- y
 					}
 				}
 				if m.config.SendDerivedValues {
 					if metric.lastValue >= 0 {
 						rate := float64(v-metric.lastValue) / timeDiff
-						if y, err := lp.New(metric.name+"_bw", metric.tags, metric.meta_rates, map[string]interface{}{"value": rate}, now); err == nil {
+						if y, err := lp.NewMessage(metric.name+"_bw", metric.tags, metric.meta_rates, map[string]interface{}{"value": rate}, now); err == nil {
 							output <- y
 						}
 					}

@@ -11,7 +11,7 @@ import (
 	"os/exec"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const GMETRIC_EXEC = `gmetric`
@@ -35,7 +35,7 @@ type GangliaSink struct {
 	config         GangliaSinkConfig
 }
 
-func (s *GangliaSink) Write(point lp.CCMetric) error {
+func (s *GangliaSink) Write(point lp.CCMessage) error {
 	var err error = nil
 	//var tagsstr []string
 	var argstr []string

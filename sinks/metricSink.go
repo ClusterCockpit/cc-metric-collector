@@ -1,7 +1,7 @@
 package sinks
 
 import (
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 type defaultSinkConfig struct {
@@ -15,7 +15,7 @@ type sink struct {
 }
 
 type Sink interface {
-	Write(point lp.CCMetric) error // Write metric to the sink
+	Write(point lp.CCMessage) error // Write metric to the sink
 	Flush() error                  // Flush buffered metrics
 	Close()                        // Close / finish metric sink
 	Name() string                  // Name of the metric sink

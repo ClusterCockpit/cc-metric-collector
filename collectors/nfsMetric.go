@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // First part contains the code for the general NfsCollector.
@@ -118,7 +118,7 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 	return nil
 }
 
-func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -140,7 +140,7 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 			continue
 		}
 		value := data.current - data.last
-		y, err := lp.New(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
+		y, err := lp.NewMessage(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
 		if err == nil {
 			y.AddMeta("version", m.version)
 			output <- y
