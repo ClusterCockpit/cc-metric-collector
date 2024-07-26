@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
@@ -54,15 +55,30 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 	// Check if executables ipmitool or ipmisensors are found
 	p, err := exec.LookPath(m.config.IpmitoolPath)
 	if err == nil {
-		m.ipmitool = p
+		command := exec.Command(p)
+		err := command.Run()
+		if err != nil {
+			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %v", p, err.Error()))
+			m.ipmitool = ""
+		} else {
+			m.ipmitool = p
+		}
 	}
 	p, err = exec.LookPath(m.config.IpmisensorsPath)
 	if err == nil {
-		m.ipmisensors = p
+		command := exec.Command(p)
+		err := command.Run()
+		if err != nil {
+			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %v", p, err.Error()))
+			m.ipmisensors = ""
+		} else {
+			m.ipmisensors = p
+		}
 	}
 	if len(m.ipmitool) == 0 && len(m.ipmisensors) == 0 {
-		return errors.New("no IPMI reader found")
+		return errors.New("no usable IPMI reader found")
 	}
+
 	m.init = true
 	return nil
 }
@@ -119,8 +135,8 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMetric) {
 		cclog.ComponentError(
 			m.name,
 			fmt.Sprintf("readIpmiTool(): Failed to wait for the end of command \"%s\": %v\n", command.String(), err),
-			fmt.Sprintf("readIpmiTool(): command stderr: \"%s\"\n", string(errMsg)),
 		)
+		cclog.ComponentError(m.name, fmt.Sprintf("readIpmiTool(): command stderr: \"%s\"\n", strings.TrimSpace(string(errMsg))))
 		return
 	}
 }
