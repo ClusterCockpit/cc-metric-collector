@@ -27,7 +27,7 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
           }
         ]
       }
-    ]
+    ],
     "globalmetrics" : [
       {
         "name": "global_sum",
