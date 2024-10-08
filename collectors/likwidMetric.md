@@ -15,7 +15,7 @@ The `likwid` collector is probably the most complicated collector. The LIKWID li
       {
         "events" : {
           "COUNTER0": "EVENT0",
-          "COUNTER1": "EVENT1",
+          "COUNTER1": "EVENT1"
         },
         "metrics" : [
           {
