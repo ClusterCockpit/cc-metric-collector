@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -22,6 +23,7 @@ type NatsSinkConfig struct {
 	User       string `json:"user,omitempty"`
 	Password   string `json:"password,omitempty"`
 	FlushDelay string `json:"flush_delay,omitempty"`
+	NkeyFile   string `json:"nkey_file,omitempty"`
 }
 
 type NatsSink struct {
@@ -42,6 +44,13 @@ func (s *NatsSink) connect() error {
 	var nc *nats.Conn
 	if len(s.config.User) > 0 && len(s.config.Password) > 0 {
 		uinfo = nats.UserInfo(s.config.User, s.config.Password)
+	} else if len(s.config.NkeyFile) > 0 {
+		if _, err := os.Stat(s.config.NkeyFile); err == nil {
+			uinfo = nats.UserCredentials(s.config.NkeyFile)
+		} else {
+			cclog.ComponentError(s.name, "NKEY file", s.config.NkeyFile, "does not exist: %v", err.Error())
+			return err
+		}
 	}
 	uri := fmt.Sprintf("nats://%s:%s", s.config.Host, s.config.Port)
 	cclog.ComponentDebug(s.name, "Connect to", uri)

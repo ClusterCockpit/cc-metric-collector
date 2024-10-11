@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
@@ -13,10 +14,13 @@ import (
 )
 
 type NatsReceiverConfig struct {
-	Type    string `json:"type"`
-	Addr    string `json:"address"`
-	Port    string `json:"port"`
-	Subject string `json:"subject"`
+	Type     string `json:"type"`
+	Addr     string `json:"address"`
+	Port     string `json:"port"`
+	Subject  string `json:"subject"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+	NkeyFile string `json:"nkey_file,omitempty"`
 }
 
 type NatsReceiver struct {
@@ -109,6 +113,7 @@ func (r *NatsReceiver) Close() {
 
 // NewNatsReceiver creates a new Receiver which subscribes to messages from a NATS server
 func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
+	var uinfo nats.Option = nil
 	r := new(NatsReceiver)
 	r.name = fmt.Sprintf("NatsReceiver(%s)", name)
 
@@ -133,10 +138,22 @@ func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
 		"source": r.name,
 	}
 
+	if len(r.config.User) > 0 && len(r.config.Password) > 0 {
+		uinfo = nats.UserInfo(r.config.User, r.config.Password)
+	} else if len(r.config.NkeyFile) > 0 {
+		_, err := os.Stat(r.config.NkeyFile)
+		if err == nil {
+			uinfo = nats.UserCredentials(r.config.NkeyFile)
+		} else {
+			cclog.ComponentError(r.name, "NKEY file", r.config.NkeyFile, "does not exist: %v", err.Error())
+			return nil, err
+		}
+	}
+
 	// Connect to NATS server
 	url := fmt.Sprintf("nats://%s:%s", r.config.Addr, r.config.Port)
 	cclog.ComponentDebug(r.name, "NewNatsReceiver", url, "Subject", r.config.Subject)
-	if nc, err := nats.Connect(url); err == nil {
+	if nc, err := nats.Connect(url, uinfo); err == nil {
 		r.nc = nc
 	} else {
 		r.nc = nil
