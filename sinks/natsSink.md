@@ -13,6 +13,7 @@ The `nats` sink publishes all metrics into a NATS network. The publishing key is
     "port": "4222",
     "user": "exampleuser",
     "password" : "examplepw",
+    "nkey_file": "/path/to/nkey_file",
     "meta_as_tags" : [],
   }
 }
@@ -25,3 +26,4 @@ The `nats` sink publishes all metrics into a NATS network. The publishing key is
 - `user`: Username for basic authentication
 - `password`: Password for basic authentication
 - `meta_as_tags`: print all meta information as tags in the output (optional)
+- `nkey_file`: Path to credentials file with NKEY
