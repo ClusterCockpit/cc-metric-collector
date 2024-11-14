@@ -88,14 +88,11 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # Use dnf to install build dependencies
-    - name: Install build dependencies
-      run: |
-          dnf --assumeyes install \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -126,14 +123,11 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # Use dnf to install build dependencies
-    - name: Install build dependencies
-      run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-bin-1.20.6-2.module_el8+658+f14b2092.x86_64.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/golang-src-1.20.6-2.module_el8+658+f14b2092.noarch.rpm \
-              http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/go-toolset-1.20.6-1.module_el8+602+8bb8a8d6.x86_64.rpm
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -163,12 +157,11 @@ jobs:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
-    - name: Install Golang
-      run: |
-          wget -q https://go.dev/dl/go1.21.1.linux-amd64.tar.gz --output-document=- | \
-          tar --directory=/usr/local --extract --gzip
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
-          go version
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
     - name: DEB build MetricCollector
       id: dpkg-build
       run: |
