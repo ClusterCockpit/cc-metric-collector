@@ -374,10 +374,21 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	}
 	defer watcher.Close()
 	if len(m.config.LockfilePath) > 0 {
+		// Check if the lock file exists
 		info, err := os.Stat(m.config.LockfilePath)
+		if os.IsNotExist(err) {
+			// Create the lock file if it does not exist
+			file, createErr := os.Create(m.config.LockfilePath)
+			if createErr != nil {
+				return true, fmt.Errorf("failed to create lock file: %v", createErr)
+			}
+			file.Close()
+			info, err = os.Stat(m.config.LockfilePath) // Recheck the file after creation
+		}
 		if err != nil {
 			return true, err
 		}
+		// Check file ownership
 		uid := info.Sys().(*syscall.Stat_t).Uid
 		if uid != uint32(os.Getuid()) {
 			usr, err := user.LookupId(fmt.Sprint(uid))
@@ -387,6 +398,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 				return true, fmt.Errorf("Access to performance counters locked by %d", uid)
 			}
 		}
+		// Add the lock file to the watcher
 		err = watcher.Add(m.config.LockfilePath)
 		if err != nil {
 			cclog.ComponentError(m.name, err.Error())
