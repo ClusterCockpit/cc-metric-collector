@@ -17,15 +17,17 @@ The Redfish receiver uses the [Redfish (specification)](https://www.dmtf.org/sta
                 "host_list": "n[1,2-4]"
             },
             {
-                "host_list": "n5"
-                "disable_power_metrics": true
+                "host_list": "n5",
+                "disable_power_metrics": true,
+                "disable_processor_metrics": true,
+                "disable_thermal_metrics": true
             },
             {
                 "host_list": "n6" ],
                 "username": "<Username 2>",
                 "password": "<Password 2>",
                 "endpoint": "https://%h-BMC",
-                "disable_thermal_metrics": true
+                "disable_sensor_metrics": true
             }
         ]
     }
@@ -41,9 +43,18 @@ Global settings:
 
 Global and per redfish device settings (per redfish device settings overwrite the global settings):
 
-- `disable_power_metrics`: disable collection of power metrics
-- `disable_processor_metrics`: disable collection of processor metrics
-- `disable_thermal_metrics`: disable collection of thermal metrics
+- `disable_power_metrics`:
+  disable collection of power metrics
+  (`/redfish/v1/Chassis/{ChassisId}/Power`)
+- `disable_processor_metrics`:
+  disable collection of processor metrics
+  (`/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/ProcessorMetrics`)
+- `disable_sensors`:
+  disable collection of fan, power and thermal sensor metrics
+  (`/redfish/v1/Chassis/{ChassisId}/Sensors/{SensorId}`)
+- `disable_thermal_metrics`:
+  disable collection of thermal metrics
+  (`/redfish/v1/Chassis/{ChassisId}/Thermal`)
 - `exclude_metrics`: list of excluded metrics
 - `username`: User name to authenticate with
 - `password`: Password to use for authentication

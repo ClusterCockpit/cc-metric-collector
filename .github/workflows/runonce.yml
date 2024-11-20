@@ -11,32 +11,6 @@ on:
 jobs:
 
   #
-  # Job build-1-20
-  # Build on latest Ubuntu using golang version 1.20
-  #
-  build-1-20:
-    runs-on: ubuntu-latest
-    steps:
-    # See: https://github.com/marketplace/actions/checkout
-    # Checkout git repository and submodules
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    - name: Setup Golang
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.20'
-
-    - name: Build MetricCollector
-      run: make
-
-    - name: Run MetricCollector once
-      run: ./cc-metric-collector --once --config .github/ci-config.json
-
-  #
   # Job build-1-21
   # Build on latest Ubuntu using golang version 1.21
   #
@@ -55,6 +29,32 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
+
+    - name: Build MetricCollector
+      run: make
+
+    - name: Run MetricCollector once
+      run: ./cc-metric-collector --once --config .github/ci-config.json
+
+  #
+  # Job build-1-22
+  # Build on latest Ubuntu using golang version 1.22
+  #
+  build-1-22:
+    runs-on: ubuntu-latest
+    steps:
+    # See: https://github.com/marketplace/actions/checkout
+    # Checkout git repository and submodules
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
 
     - name: Build MetricCollector
       run: make
@@ -98,6 +98,7 @@ jobs:
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
 
   #
@@ -133,6 +134,7 @@ jobs:
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
 
   #
@@ -157,11 +159,13 @@ jobs:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
+
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
+
     - name: DEB build MetricCollector
       id: dpkg-build
       run: |
