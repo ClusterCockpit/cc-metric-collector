@@ -49,6 +49,8 @@ func intToFloat64(input interface{}) (float64, error) {
 		return float64(value), nil
 	case int64:
 		return float64(value), nil
+	case uint64:
+		return float64(value), nil
 	}
 	return 0, errors.New("cannot cast value to float64")
 }
