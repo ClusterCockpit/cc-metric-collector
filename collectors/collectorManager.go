@@ -20,6 +20,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"netstat":         new(NetstatCollector),
 	"ibstat":          new(InfinibandCollector),
 	"lustrestat":      new(LustreCollector),
+	"lustre_jobstat":  new(LustreJobstatCollector),
 	"cpustat":         new(CpustatCollector),
 	"topprocs":        new(TopProcsCollector),
 	"nvidia":          new(NvidiaCollector),
