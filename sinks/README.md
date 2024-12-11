@@ -17,7 +17,7 @@ This folder contains the SinkManager and sink implementations for the cc-metric-
 The configuration file for the sinks is a list of configurations. The `type` field in each specifies which sink to initialize.
 
 ```json
-[
+{
   "mystdout" : {
     "type" : "stdout",
     "meta_as_tags" : [
@@ -31,7 +31,7 @@ The configuration file for the sinks is a list of configurations. The `type` fie
     "database" : "ccmetric",
     "password" : "<jwt token>"
   }
-]
+}
 ```
 
 
