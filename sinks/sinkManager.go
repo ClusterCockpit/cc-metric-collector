@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const SINK_MAX_FORWARD = 50
@@ -26,7 +26,7 @@ var AvailableSinks = map[string]func(name string, config json.RawMessage) (Sink,
 
 // Metric collector manager data structure
 type sinkManager struct {
-	input      chan lp.CCMetric // input channel
+	input      chan lp.CCMessage // input channel
 	done       chan bool        // channel to finish / stop metric sink manager
 	wg         *sync.WaitGroup  // wait group for all goroutines in cc-metric-collector
 	sinks      map[string]Sink  // Mapping sink name to sink
@@ -36,7 +36,7 @@ type sinkManager struct {
 // Sink manager access functions
 type SinkManager interface {
 	Init(wg *sync.WaitGroup, sinkConfigFile string) error
-	AddInput(input chan lp.CCMetric)
+	AddInput(input chan lp.CCMessage)
 	AddOutput(name string, config json.RawMessage) error
 	Start()
 	Close()
@@ -108,7 +108,7 @@ func (sm *sinkManager) Start() {
 			cclog.ComponentDebug("SinkManager", "DONE")
 		}
 
-		toTheSinks := func(p lp.CCMetric) {
+		toTheSinks := func(p lp.CCMessage) {
 			// Send received metric to all outputs
 			cclog.ComponentDebug("SinkManager", "WRITE", p)
 			for _, s := range sm.sinks {
@@ -139,7 +139,7 @@ func (sm *sinkManager) Start() {
 }
 
 // AddInput adds the input channel to the sink manager
-func (sm *sinkManager) AddInput(input chan lp.CCMetric) {
+func (sm *sinkManager) AddInput(input chan lp.CCMessage) {
 	sm.input = input
 }
 

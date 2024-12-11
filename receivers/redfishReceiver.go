@@ -14,7 +14,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
 
 	// See: https://pkg.go.dev/github.com/stmcginnis/gofish
@@ -83,7 +83,7 @@ func (r *RedfishReceiver) sendMetric(name string, tags map[string]string, meta m
 
 	deleteEmptyTags(tags)
 	deleteEmptyTags(meta)
-	y, err := lp.New(name, tags, meta, setMetricValue(value), timestamp)
+	y, err := lp.NewMessage(name, tags, meta, setMetricValue(value), timestamp)
 	if err == nil {
 		r.sink <- y
 	}

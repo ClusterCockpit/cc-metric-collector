@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
@@ -206,7 +206,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_fb_mem_total"] || !device.excludeMetrics["nv_fb_mem_used"] || !device.excludeMetrics["nv_fb_mem_reserved"] {
 		var total uint64
 		var used uint64
@@ -222,7 +222,7 @@ func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 
 		if !device.excludeMetrics["nv_fb_mem_total"] {
 			t := float64(total) / (1024 * 1024)
-			y, err := lp.New("nv_fb_mem_total", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_fb_mem_total", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MByte")
 				output <- y
@@ -231,7 +231,7 @@ func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 
 		if !device.excludeMetrics["nv_fb_mem_used"] {
 			f := float64(used) / (1024 * 1024)
-			y, err := lp.New("nv_fb_mem_used", device.tags, device.meta, map[string]interface{}{"value": f}, time.Now())
+			y, err := lp.NewMessage("nv_fb_mem_used", device.tags, device.meta, map[string]interface{}{"value": f}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MByte")
 				output <- y
@@ -240,7 +240,7 @@ func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 
 		if v2 && !device.excludeMetrics["nv_fb_mem_reserved"] {
 			r := float64(reserved) / (1024 * 1024)
-			y, err := lp.New("nv_fb_mem_reserved", device.tags, device.meta, map[string]interface{}{"value": r}, time.Now())
+			y, err := lp.NewMessage("nv_fb_mem_reserved", device.tags, device.meta, map[string]interface{}{"value": r}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MByte")
 				output <- y
@@ -250,7 +250,7 @@ func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 	return nil
 }
 
-func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_bar1_mem_total"] || !device.excludeMetrics["nv_bar1_mem_used"] {
 		meminfo, ret := nvml.DeviceGetBAR1MemoryInfo(device.device)
 		if ret != nvml.SUCCESS {
@@ -259,7 +259,7 @@ func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 		}
 		if !device.excludeMetrics["nv_bar1_mem_total"] {
 			t := float64(meminfo.Bar1Total) / (1024 * 1024)
-			y, err := lp.New("nv_bar1_mem_total", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_bar1_mem_total", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MByte")
 				output <- y
@@ -267,7 +267,7 @@ func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 		}
 		if !device.excludeMetrics["nv_bar1_mem_used"] {
 			t := float64(meminfo.Bar1Used) / (1024 * 1024)
-			y, err := lp.New("nv_bar1_mem_used", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_bar1_mem_used", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MByte")
 				output <- y
@@ -277,7 +277,7 @@ func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 	return nil
 }
 
-func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	isMig, ret := nvml.DeviceIsMigDeviceHandle(device.device)
 	if ret != nvml.SUCCESS {
 		err := errors.New(nvml.ErrorString(ret))
@@ -301,14 +301,14 @@ func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 		util, ret := nvml.DeviceGetUtilizationRates(device.device)
 		if ret == nvml.SUCCESS {
 			if !device.excludeMetrics["nv_util"] {
-				y, err := lp.New("nv_util", device.tags, device.meta, map[string]interface{}{"value": float64(util.Gpu)}, time.Now())
+				y, err := lp.NewMessage("nv_util", device.tags, device.meta, map[string]interface{}{"value": float64(util.Gpu)}, time.Now())
 				if err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
 				}
 			}
 			if !device.excludeMetrics["nv_mem_util"] {
-				y, err := lp.New("nv_mem_util", device.tags, device.meta, map[string]interface{}{"value": float64(util.Memory)}, time.Now())
+				y, err := lp.NewMessage("nv_mem_util", device.tags, device.meta, map[string]interface{}{"value": float64(util.Memory)}, time.Now())
 				if err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
@@ -319,7 +319,7 @@ func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 	return nil
 }
 
-func readTemp(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readTemp(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_temp"] {
 		// Retrieves the current temperature readings for the device, in degrees C.
 		//
@@ -328,7 +328,7 @@ func readTemp(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 		// * NVML_TEMPERATURE_COUNT
 		temp, ret := nvml.DeviceGetTemperature(device.device, nvml.TEMPERATURE_GPU)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_temp", device.tags, device.meta, map[string]interface{}{"value": float64(temp)}, time.Now())
+			y, err := lp.NewMessage("nv_temp", device.tags, device.meta, map[string]interface{}{"value": float64(temp)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "degC")
 				output <- y
@@ -338,7 +338,7 @@ func readTemp(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	return nil
 }
 
-func readFan(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readFan(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_fan"] {
 		// Retrieves the intended operating speed of the device's fan.
 		//
@@ -351,7 +351,7 @@ func readFan(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 		// This value may exceed 100% in certain cases.
 		fan, ret := nvml.DeviceGetFanSpeed(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_fan", device.tags, device.meta, map[string]interface{}{"value": float64(fan)}, time.Now())
+			y, err := lp.NewMessage("nv_fan", device.tags, device.meta, map[string]interface{}{"value": float64(fan)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "%")
 				output <- y
@@ -361,14 +361,14 @@ func readFan(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	return nil
 }
 
-// func readFans(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+// func readFans(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 // 	if !device.excludeMetrics["nv_fan"] {
 // 		numFans, ret := nvml.DeviceGetNumFans(device.device)
 // 		if ret == nvml.SUCCESS {
 // 			for i := 0; i < numFans; i++ {
 // 				fan, ret := nvml.DeviceGetFanSpeed_v2(device.device, i)
 // 				if ret == nvml.SUCCESS {
-// 					y, err := lp.New("nv_fan", device.tags, device.meta, map[string]interface{}{"value": float64(fan)}, time.Now())
+// 					y, err := lp.NewMessage("nv_fan", device.tags, device.meta, map[string]interface{}{"value": float64(fan)}, time.Now())
 // 					if err == nil {
 // 						y.AddMeta("unit", "%")
 // 						y.AddTag("stype", "fan")
@@ -382,7 +382,7 @@ func readFan(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 // 	return nil
 // }
 
-func readEccMode(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readEccMode(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_ecc_mode"] {
 		// Retrieves the current and pending ECC modes for the device.
 		//
@@ -393,21 +393,21 @@ func readEccMode(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 		// The "pending" ECC mode refers to the target mode following the next reboot.
 		_, ecc_pend, ret := nvml.DeviceGetEccMode(device.device)
 		if ret == nvml.SUCCESS {
-			var y lp.CCMetric
+			var y lp.CCMessage
 			var err error
 			switch ecc_pend {
 			case nvml.FEATURE_DISABLED:
-				y, err = lp.New("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "OFF"}, time.Now())
+				y, err = lp.NewMessage("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "OFF"}, time.Now())
 			case nvml.FEATURE_ENABLED:
-				y, err = lp.New("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "ON"}, time.Now())
+				y, err = lp.NewMessage("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "ON"}, time.Now())
 			default:
-				y, err = lp.New("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "UNKNOWN"}, time.Now())
+				y, err = lp.NewMessage("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "UNKNOWN"}, time.Now())
 			}
 			if err == nil {
 				output <- y
 			}
 		} else if ret == nvml.ERROR_NOT_SUPPORTED {
-			y, err := lp.New("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "N/A"}, time.Now())
+			y, err := lp.NewMessage("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "N/A"}, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -416,7 +416,7 @@ func readEccMode(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	return nil
 }
 
-func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_perf_state"] {
 		// Retrieves the current performance state for the device.
 		//
@@ -427,7 +427,7 @@ func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 		// 32: Unknown performance state.
 		pState, ret := nvml.DeviceGetPerformanceState(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_perf_state", device.tags, device.meta, map[string]interface{}{"value": fmt.Sprintf("P%d", int(pState))}, time.Now())
+			y, err := lp.NewMessage("nv_perf_state", device.tags, device.meta, map[string]interface{}{"value": fmt.Sprintf("P%d", int(pState))}, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -436,7 +436,7 @@ func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	return nil
 }
 
-func readPowerUsage(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readPowerUsage(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_power_usage"] {
 		// Retrieves power usage for this GPU in milliwatts and its associated circuitry (e.g. memory)
 		//
@@ -450,7 +450,7 @@ func readPowerUsage(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 		if mode == nvml.FEATURE_ENABLED {
 			power, ret := nvml.DeviceGetPowerUsage(device.device)
 			if ret == nvml.SUCCESS {
-				y, err := lp.New("nv_power_usage", device.tags, device.meta, map[string]interface{}{"value": float64(power) / 1000}, time.Now())
+				y, err := lp.NewMessage("nv_power_usage", device.tags, device.meta, map[string]interface{}{"value": float64(power) / 1000}, time.Now())
 				if err == nil {
 					y.AddMeta("unit", "watts")
 					output <- y
@@ -461,7 +461,7 @@ func readPowerUsage(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 	return nil
 }
 
-func readClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	// Retrieves the current clock speeds for the device.
 	//
 	// Available clock information:
@@ -471,7 +471,7 @@ func readClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	if !device.excludeMetrics["nv_graphics_clock"] {
 		graphicsClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_GRAPHICS)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_graphics_clock", device.tags, device.meta, map[string]interface{}{"value": float64(graphicsClock)}, time.Now())
+			y, err := lp.NewMessage("nv_graphics_clock", device.tags, device.meta, map[string]interface{}{"value": float64(graphicsClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -482,7 +482,7 @@ func readClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	if !device.excludeMetrics["nv_sm_clock"] {
 		smCock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_SM)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_sm_clock", device.tags, device.meta, map[string]interface{}{"value": float64(smCock)}, time.Now())
+			y, err := lp.NewMessage("nv_sm_clock", device.tags, device.meta, map[string]interface{}{"value": float64(smCock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -493,7 +493,7 @@ func readClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	if !device.excludeMetrics["nv_mem_clock"] {
 		memClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_MEM)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_mem_clock", device.tags, device.meta, map[string]interface{}{"value": float64(memClock)}, time.Now())
+			y, err := lp.NewMessage("nv_mem_clock", device.tags, device.meta, map[string]interface{}{"value": float64(memClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -503,7 +503,7 @@ func readClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	if !device.excludeMetrics["nv_video_clock"] {
 		memClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_VIDEO)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_video_clock", device.tags, device.meta, map[string]interface{}{"value": float64(memClock)}, time.Now())
+			y, err := lp.NewMessage("nv_video_clock", device.tags, device.meta, map[string]interface{}{"value": float64(memClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -513,7 +513,7 @@ func readClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
 	return nil
 }
 
-func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	// Retrieves the maximum clock speeds for the device.
 	//
 	// Available clock information:
@@ -528,7 +528,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	if !device.excludeMetrics["nv_max_graphics_clock"] {
 		max_gclk, ret := nvml.DeviceGetMaxClockInfo(device.device, nvml.CLOCK_GRAPHICS)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_max_graphics_clock", device.tags, device.meta, map[string]interface{}{"value": float64(max_gclk)}, time.Now())
+			y, err := lp.NewMessage("nv_max_graphics_clock", device.tags, device.meta, map[string]interface{}{"value": float64(max_gclk)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -539,7 +539,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	if !device.excludeMetrics["nv_max_sm_clock"] {
 		maxSmClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_SM)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_max_sm_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxSmClock)}, time.Now())
+			y, err := lp.NewMessage("nv_max_sm_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxSmClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -550,7 +550,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	if !device.excludeMetrics["nv_max_mem_clock"] {
 		maxMemClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_MEM)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_max_mem_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxMemClock)}, time.Now())
+			y, err := lp.NewMessage("nv_max_mem_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxMemClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -561,7 +561,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	if !device.excludeMetrics["nv_max_video_clock"] {
 		maxMemClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_VIDEO)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_max_video_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxMemClock)}, time.Now())
+			y, err := lp.NewMessage("nv_max_video_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxMemClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
@@ -571,7 +571,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	return nil
 }
 
-func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_ecc_uncorrected_error"] {
 		// Retrieves the total ECC error counts for the device.
 		//
@@ -584,7 +584,7 @@ func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 		// i.e. the total set of errors across the entire device.
 		ecc_db, ret := nvml.DeviceGetTotalEccErrors(device.device, nvml.MEMORY_ERROR_TYPE_UNCORRECTED, nvml.AGGREGATE_ECC)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_ecc_uncorrected_error", device.tags, device.meta, map[string]interface{}{"value": float64(ecc_db)}, time.Now())
+			y, err := lp.NewMessage("nv_ecc_uncorrected_error", device.tags, device.meta, map[string]interface{}{"value": float64(ecc_db)}, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -593,7 +593,7 @@ func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	if !device.excludeMetrics["nv_ecc_corrected_error"] {
 		ecc_sb, ret := nvml.DeviceGetTotalEccErrors(device.device, nvml.MEMORY_ERROR_TYPE_CORRECTED, nvml.AGGREGATE_ECC)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_ecc_corrected_error", device.tags, device.meta, map[string]interface{}{"value": float64(ecc_sb)}, time.Now())
+			y, err := lp.NewMessage("nv_ecc_corrected_error", device.tags, device.meta, map[string]interface{}{"value": float64(ecc_sb)}, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -602,7 +602,7 @@ func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMetric) error 
 	return nil
 }
 
-func readPowerLimit(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readPowerLimit(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_power_max_limit"] {
 		// Retrieves the power management limit associated with this device.
 		//
@@ -612,7 +612,7 @@ func readPowerLimit(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 		// If the card's total power draw reaches this limit the power management algorithm kicks in.
 		pwr_limit, ret := nvml.DeviceGetPowerManagementLimit(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_power_max_limit", device.tags, device.meta, map[string]interface{}{"value": float64(pwr_limit) / 1000}, time.Now())
+			y, err := lp.NewMessage("nv_power_max_limit", device.tags, device.meta, map[string]interface{}{"value": float64(pwr_limit) / 1000}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "watts")
 				output <- y
@@ -622,7 +622,7 @@ func readPowerLimit(device NvidiaCollectorDevice, output chan lp.CCMetric) error
 	return nil
 }
 
-func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	isMig, ret := nvml.DeviceIsMigDeviceHandle(device.device)
 	if ret != nvml.SUCCESS {
 		err := errors.New(nvml.ErrorString(ret))
@@ -639,7 +639,7 @@ func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		// Note: On MIG-enabled GPUs, querying encoder utilization is not currently supported.
 		enc_util, _, ret := nvml.DeviceGetEncoderUtilization(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_encoder_util", device.tags, device.meta, map[string]interface{}{"value": float64(enc_util)}, time.Now())
+			y, err := lp.NewMessage("nv_encoder_util", device.tags, device.meta, map[string]interface{}{"value": float64(enc_util)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "%")
 				output <- y
@@ -649,7 +649,7 @@ func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 	return nil
 }
 
-func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	isMig, ret := nvml.DeviceIsMigDeviceHandle(device.device)
 	if ret != nvml.SUCCESS {
 		err := errors.New(nvml.ErrorString(ret))
@@ -666,7 +666,7 @@ func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		// Note: On MIG-enabled GPUs, querying encoder utilization is not currently supported.
 		dec_util, _, ret := nvml.DeviceGetDecoderUtilization(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_decoder_util", device.tags, device.meta, map[string]interface{}{"value": float64(dec_util)}, time.Now())
+			y, err := lp.NewMessage("nv_decoder_util", device.tags, device.meta, map[string]interface{}{"value": float64(dec_util)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "%")
 				output <- y
@@ -676,7 +676,7 @@ func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 	return nil
 }
 
-func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_remapped_rows_corrected"] ||
 		!device.excludeMetrics["nv_remapped_rows_uncorrected"] ||
 		!device.excludeMetrics["nv_remapped_rows_pending"] ||
@@ -693,13 +693,13 @@ func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMetric) err
 		corrected, uncorrected, pending, failure, ret := nvml.DeviceGetRemappedRows(device.device)
 		if ret == nvml.SUCCESS {
 			if !device.excludeMetrics["nv_remapped_rows_corrected"] {
-				y, err := lp.New("nv_remapped_rows_corrected", device.tags, device.meta, map[string]interface{}{"value": float64(corrected)}, time.Now())
+				y, err := lp.NewMessage("nv_remapped_rows_corrected", device.tags, device.meta, map[string]interface{}{"value": float64(corrected)}, time.Now())
 				if err == nil {
 					output <- y
 				}
 			}
 			if !device.excludeMetrics["nv_remapped_rows_uncorrected"] {
-				y, err := lp.New("nv_remapped_rows_corrected", device.tags, device.meta, map[string]interface{}{"value": float64(uncorrected)}, time.Now())
+				y, err := lp.NewMessage("nv_remapped_rows_corrected", device.tags, device.meta, map[string]interface{}{"value": float64(uncorrected)}, time.Now())
 				if err == nil {
 					output <- y
 				}
@@ -709,7 +709,7 @@ func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMetric) err
 				if pending {
 					p = 1
 				}
-				y, err := lp.New("nv_remapped_rows_pending", device.tags, device.meta, map[string]interface{}{"value": p}, time.Now())
+				y, err := lp.NewMessage("nv_remapped_rows_pending", device.tags, device.meta, map[string]interface{}{"value": p}, time.Now())
 				if err == nil {
 					output <- y
 				}
@@ -719,7 +719,7 @@ func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMetric) err
 				if failure {
 					f = 1
 				}
-				y, err := lp.New("nv_remapped_rows_failure", device.tags, device.meta, map[string]interface{}{"value": f}, time.Now())
+				y, err := lp.NewMessage("nv_remapped_rows_failure", device.tags, device.meta, map[string]interface{}{"value": f}, time.Now())
 				if err == nil {
 					output <- y
 				}
@@ -729,7 +729,7 @@ func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMetric) err
 	return nil
 }
 
-func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_compute_processes"] {
 		// Get information about processes with a compute context on a device
 		//
@@ -753,7 +753,7 @@ func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 		//        Querying per-instance information using MIG device handles is not supported if the device is in vGPU Host virtualization mode.
 		procList, ret := nvml.DeviceGetComputeRunningProcesses(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_compute_processes", device.tags, device.meta, map[string]interface{}{"value": len(procList)}, time.Now())
+			y, err := lp.NewMessage("nv_compute_processes", device.tags, device.meta, map[string]interface{}{"value": len(procList)}, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -782,7 +782,7 @@ func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 		//       Querying per-instance information using MIG device handles is not supported if the device is in vGPU Host virtualization mode.
 		procList, ret := nvml.DeviceGetGraphicsRunningProcesses(device.device)
 		if ret == nvml.SUCCESS {
-			y, err := lp.New("nv_graphics_processes", device.tags, device.meta, map[string]interface{}{"value": len(procList)}, time.Now())
+			y, err := lp.NewMessage("nv_graphics_processes", device.tags, device.meta, map[string]interface{}{"value": len(procList)}, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -812,7 +812,7 @@ func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 	// 	//       Querying per-instance information using MIG device handles is not supported if the device is in vGPU Host virtualization mode.
 	// 	procList, ret := nvml.DeviceGetMPSComputeRunningProcesses(device.device)
 	// 	if ret == nvml.SUCCESS {
-	// 		y, err := lp.New("nv_mps_compute_processes", device.tags, device.meta, map[string]interface{}{"value": len(procList)}, time.Now())
+	// 		y, err := lp.NewMessage("nv_mps_compute_processes", device.tags, device.meta, map[string]interface{}{"value": len(procList)}, time.Now())
 	// 		if err == nil {
 	// 			output <- y
 	// 		}
@@ -821,7 +821,7 @@ func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMetric) er
 	return nil
 }
 
-func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	var violTime nvml.ViolationTime
 	var ret nvml.Return
 
@@ -840,7 +840,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_POWER)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_power", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_power", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -852,7 +852,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_THERMAL)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_thermal", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_thermal", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -864,7 +864,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_SYNC_BOOST)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_sync_boost", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_sync_boost", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -876,7 +876,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_BOARD_LIMIT)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_board_limit", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_board_limit", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -888,7 +888,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_LOW_UTILIZATION)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_low_util", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_low_util", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -900,7 +900,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_RELIABILITY)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_reliability", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_reliability", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -912,7 +912,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_TOTAL_APP_CLOCKS)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_below_app_clock", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_below_app_clock", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -924,7 +924,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 		violTime, ret = nvml.DeviceGetViolationStatus(device.device, nvml.PERF_POLICY_TOTAL_BASE_CLOCKS)
 		if ret == nvml.SUCCESS {
 			t := float64(violTime.ViolationTime) * 1e-9
-			y, err := lp.New("nv_violation_below_base_clock", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
+			y, err := lp.NewMessage("nv_violation_below_base_clock", device.tags, device.meta, map[string]interface{}{"value": t}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "sec")
 				output <- y
@@ -935,7 +935,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMetric) e
 	return nil
 }
 
-func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) error {
+func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	// Retrieves the specified error counter value
 	// Please refer to \a nvmlNvLinkErrorCounter_t for error counters that are available
 	//
@@ -956,7 +956,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_CRC_DATA)
 					aggregate_crc_errors = aggregate_crc_errors + count
 					if ret == nvml.SUCCESS {
-						y, err := lp.New("nv_nvlink_crc_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
+						y, err := lp.NewMessage("nv_nvlink_crc_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
 						if err == nil {
 							y.AddTag("stype", "nvlink")
 							y.AddTag("stype-id", fmt.Sprintf("%d", i))
@@ -969,7 +969,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_ECC_DATA)
 					aggregate_ecc_errors = aggregate_ecc_errors + count
 					if ret == nvml.SUCCESS {
-						y, err := lp.New("nv_nvlink_ecc_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
+						y, err := lp.NewMessage("nv_nvlink_ecc_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
 						if err == nil {
 							y.AddTag("stype", "nvlink")
 							y.AddTag("stype-id", fmt.Sprintf("%d", i))
@@ -982,7 +982,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_REPLAY)
 					aggregate_replay_errors = aggregate_replay_errors + count
 					if ret == nvml.SUCCESS {
-						y, err := lp.New("nv_nvlink_replay_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
+						y, err := lp.NewMessage("nv_nvlink_replay_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
 						if err == nil {
 							y.AddTag("stype", "nvlink")
 							y.AddTag("stype-id", fmt.Sprintf("%d", i))
@@ -995,7 +995,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_RECOVERY)
 					aggregate_recovery_errors = aggregate_recovery_errors + count
 					if ret == nvml.SUCCESS {
-						y, err := lp.New("nv_nvlink_recovery_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
+						y, err := lp.NewMessage("nv_nvlink_recovery_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
 						if err == nil {
 							y.AddTag("stype", "nvlink")
 							y.AddTag("stype-id", fmt.Sprintf("%d", i))
@@ -1008,7 +1008,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_CRC_FLIT)
 					aggregate_crc_flit_errors = aggregate_crc_flit_errors + count
 					if ret == nvml.SUCCESS {
-						y, err := lp.New("nv_nvlink_crc_flit_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
+						y, err := lp.NewMessage("nv_nvlink_crc_flit_errors", device.tags, device.meta, map[string]interface{}{"value": count}, time.Now())
 						if err == nil {
 							y.AddTag("stype", "nvlink")
 							y.AddTag("stype-id", fmt.Sprintf("%d", i))
@@ -1064,13 +1064,13 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMetric) erro
 	return nil
 }
 
-func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	var err error
 	if !m.init {
 		return
 	}
 
-	readAll := func(device NvidiaCollectorDevice, output chan lp.CCMetric) {
+	readAll := func(device NvidiaCollectorDevice, output chan lp.CCMessage) {
 		name, ret := nvml.DeviceGetName(device.device)
 		if ret != nvml.SUCCESS {
 			name = "NoName"

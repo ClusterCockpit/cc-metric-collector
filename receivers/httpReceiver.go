@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 )
 
@@ -191,7 +191,7 @@ func (r *HttpReceiver) ServerHttp(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		y, _ := lp.New(
+		y, _ := lp.NewMessage(
 			string(measurement),
 			tags,
 			r.meta,

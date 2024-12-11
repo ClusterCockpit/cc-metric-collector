@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	"golang.org/x/exp/slices"
 )
@@ -75,7 +75,7 @@ type HttpSink struct {
 }
 
 // Write sends metric m as http message
-func (s *HttpSink) Write(m lp.CCMetric) error {
+func (s *HttpSink) Write(m lp.CCMessage) error {
 
 	// Lock for encoder usage
 	s.encoderLock.Lock()

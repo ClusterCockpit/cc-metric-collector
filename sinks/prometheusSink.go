@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -55,7 +55,7 @@ func intToFloat64(input interface{}) (float64, error) {
 	return 0, errors.New("cannot cast value to float64")
 }
 
-func getLabelValue(metric lp.CCMetric) []string {
+func getLabelValue(metric lp.CCMessage) []string {
 	labelValues := []string{}
 	if tid, tidok := metric.GetTag("type-id"); tidok && metric.HasTag("type") {
 		labelValues = append(labelValues, tid)
@@ -68,7 +68,7 @@ func getLabelValue(metric lp.CCMetric) []string {
 	return labelValues
 }
 
-func getLabelNames(metric lp.CCMetric) []string {
+func getLabelNames(metric lp.CCMessage) []string {
 	labelNames := []string{}
 	if t, tok := metric.GetTag("type"); tok && metric.HasTag("type-id") {
 		labelNames = append(labelNames, t)
@@ -81,7 +81,7 @@ func getLabelNames(metric lp.CCMetric) []string {
 	return labelNames
 }
 
-func (s *PrometheusSink) newMetric(metric lp.CCMetric) error {
+func (s *PrometheusSink) newMetric(metric lp.CCMessage) error {
 	var value float64 = 0
 	name := metric.Name()
 	opts := prometheus.GaugeOpts{
@@ -119,7 +119,7 @@ func (s *PrometheusSink) newMetric(metric lp.CCMetric) error {
 	return nil
 }
 
-func (s *PrometheusSink) updateMetric(metric lp.CCMetric) error {
+func (s *PrometheusSink) updateMetric(metric lp.CCMessage) error {
 	var value float64 = 0.0
 	name := metric.Name()
 	labelValues := getLabelValue(metric)
@@ -152,7 +152,7 @@ func (s *PrometheusSink) updateMetric(metric lp.CCMetric) error {
 	return nil
 }
 
-func (s *PrometheusSink) Write(m lp.CCMetric) error {
+func (s *PrometheusSink) Write(m lp.CCMessage) error {
 	return s.updateMetric(m)
 }
 

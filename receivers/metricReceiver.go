@@ -1,7 +1,7 @@
 package receivers
 
 import (
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 type defaultReceiverConfig struct {
@@ -19,14 +19,14 @@ type ReceiverConfig struct {
 
 type receiver struct {
 	name string
-	sink chan lp.CCMetric
+	sink chan lp.CCMessage
 }
 
 type Receiver interface {
 	Start()
 	Close()                        // Close / finish metric receiver
 	Name() string                  // Name of the metric receiver
-	SetSink(sink chan lp.CCMetric) // Set sink channel
+	SetSink(sink chan lp.CCMessage) // Set sink channel
 }
 
 // Name returns the name of the metric receiver
@@ -35,6 +35,6 @@ func (r *receiver) Name() string {
 }
 
 // SetSink set the sink channel
-func (r *receiver) SetSink(sink chan lp.CCMetric) {
+func (r *receiver) SetSink(sink chan lp.CCMessage) {
 	r.sink = sink
 }

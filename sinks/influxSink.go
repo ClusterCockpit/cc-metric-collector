@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
@@ -224,7 +224,7 @@ func (s *InfluxSink) connect() error {
 }
 
 // Write sends metric m in influxDB line protocol
-func (s *InfluxSink) Write(m lp.CCMetric) error {
+func (s *InfluxSink) Write(m lp.CCMessage) error {
 
 	// Lock for encoder usage
 	s.encoderLock.Lock()

@@ -1,8 +1,11 @@
 module github.com/ClusterCockpit/cc-metric-collector
 
-go 1.21
+go 1.21.1
+
+toolchain go1.22.1
 
 require (
+	github.com/ClusterCockpit/cc-energy-manager v0.0.0-20240709142550-dd446f7ab900
 	github.com/ClusterCockpit/cc-units v0.4.0
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
 	github.com/NVIDIA/go-nvml v0.12.0-2
@@ -12,12 +15,12 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
 	github.com/influxdata/line-protocol/v2 v2.2.1
-	github.com/nats-io/nats.go v1.33.1
+	github.com/nats-io/nats.go v1.36.0
 	github.com/prometheus/client_golang v1.19.0
 	github.com/stmcginnis/gofish v0.15.0
 	github.com/tklauser/go-sysconf v0.3.13
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 	golang.org/x/sys v0.18.0
 )
 

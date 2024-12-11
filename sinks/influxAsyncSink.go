@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	influxdb2ApiHttp "github.com/influxdata/influxdb-client-go/v2/api/http"
@@ -112,7 +112,7 @@ func (s *InfluxAsyncSink) connect() error {
 	return nil
 }
 
-func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
+func (s *InfluxAsyncSink) Write(m lp.CCMessage) error {
 	if s.customFlushInterval != 0 && s.flushTimer == nil {
 		// Run a batched flush for all lines that have arrived in the defined interval
 		s.flushTimer = time.AfterFunc(s.customFlushInterval, func() {
