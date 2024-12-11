@@ -10,6 +10,7 @@ require (
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
 	github.com/NVIDIA/go-nvml v0.12.0-2
 	github.com/PaesslerAG/gval v1.2.2
+	github.com/expr-lang/expr v1.16.9
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gorilla/mux v1.8.1
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0
