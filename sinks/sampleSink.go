@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 )
 
 type SampleSinkConfig struct {
@@ -30,7 +31,12 @@ type SampleSink struct {
 // Code to submit a single CCMetric to the sink
 func (s *SampleSink) Write(point lp.CCMessage) error {
 	// based on s.meta_as_tags use meta infos as tags
-	log.Print(point)
+	// moreover, submit the point to the message processor
+	// to apply drop/modify rules
+	msg, err := s.mp.ProcessMessage(point)
+	if err == nil && msg != nil {
+		log.Print(msg)
+	}
 	return nil
 }
 
@@ -66,10 +72,24 @@ func NewSampleSink(name string, config json.RawMessage) (Sink, error) {
 		}
 	}
 
-	// Create lookup map to use meta infos as tags in the output metric
-	s.meta_as_tags = make(map[string]bool)
+	// Initialize and configure the message processor
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
+
+	// Add message processor configuration
+	if len(s.config.MessageProcessor) > 0 {
+		err = p.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
+	// Add rules to move meta information to tag space
+	// Replacing the legacy 'meta_as_tags' configuration
 	for _, k := range s.config.MetaAsTags {
-		s.meta_as_tags[k] = true
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 
 	// Check if all required fields in the config are set

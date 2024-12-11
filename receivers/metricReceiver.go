@@ -1,11 +1,15 @@
 package receivers
 
 import (
+	"encoding/json"
+
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 )
 
 type defaultReceiverConfig struct {
-	Type string `json:"type"`
+	Type             string          `json:"type"`
+	MessageProcessor json.RawMessage `json:"process_messages,omitempty"`
 }
 
 // Receiver configuration: Listen address, port
@@ -20,12 +24,13 @@ type ReceiverConfig struct {
 type receiver struct {
 	name string
 	sink chan lp.CCMessage
+	mp   mp.MessageProcessor
 }
 
 type Receiver interface {
 	Start()
-	Close()                        // Close / finish metric receiver
-	Name() string                  // Name of the metric receiver
+	Close()                         // Close / finish metric receiver
+	Name() string                   // Name of the metric receiver
 	SetSink(sink chan lp.CCMessage) // Set sink channel
 }
 

@@ -13,9 +13,10 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 )
 
 type IPMIReceiverClientConfig struct {
@@ -31,11 +32,13 @@ type IPMIReceiverClientConfig struct {
 	Password         string            // Password to use for authentication
 	CLIOptions       []string          // Additional command line options for ipmi-sensors
 	isExcluded       map[string]bool   // is metric excluded
+	mp               mp.MessageProcessor
 }
 
 type IPMIReceiver struct {
 	receiver
 	config struct {
+		defaultReceiverConfig
 		Interval time.Duration
 
 		// Client config for each IPMI hosts
@@ -43,10 +46,11 @@ type IPMIReceiver struct {
 	}
 
 	// Storage for static information
-	meta map[string]string
+	//meta map[string]string
 
 	done chan bool      // channel to finish / stop IPMI receiver
 	wg   sync.WaitGroup // wait group for IPMI receiver
+	mp   mp.MessageProcessor
 }
 
 // doReadMetrics reads metrics from all configure IPMI hosts.
@@ -230,7 +234,14 @@ func (r *IPMIReceiver) doReadMetric() {
 					},
 					time.Now())
 				if err == nil {
-					r.sink <- y
+					mc, err := clientConfig.mp.ProcessMessage(y)
+					if err == nil && mc != nil {
+						m, err := r.mp.ProcessMessage(mc)
+						if err == nil && m != nil {
+							r.sink <- m
+						}
+					}
+
 				}
 			}
 
@@ -296,11 +307,12 @@ func (r *IPMIReceiver) Close() {
 // NewIPMIReceiver creates a new instance of the redfish receiver
 // Initialize the receiver by giving it a name and reading in the config JSON
 func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
+	var err error
 	r := new(IPMIReceiver)
 
 	// Config options from config file
 	configJSON := struct {
-		Type string `json:"type"`
+		defaultReceiverConfig
 
 		// How often the IPMI sensor metrics should be read and send to the sink (default: 30 s)
 		IntervalString string `json:"interval,omitempty"`
@@ -331,7 +343,8 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
 
 			// Additional command line options for ipmi-sensors
-			CLIOptions []string `json:"cli_options,omitempty"`
+			CLIOptions       []string        `json:"cli_options,omitempty"`
+			MessageProcessor json.RawMessage `json:"process_messages,omitempty"`
 		} `json:"client_config"`
 	}{
 		// Set defaults values
@@ -347,8 +360,15 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 	// Create done channel
 	r.done = make(chan bool)
 
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	r.mp = p
+
 	// Set static information
-	r.meta = map[string]string{"source": r.name}
+	//r.meta = map[string]string{"source": r.name}
+	r.mp.AddAddMetaByCondition("true", "source", r.name)
 
 	// Read the IPMI receiver specific JSON config
 	if len(config) > 0 {
@@ -360,12 +380,18 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 		}
 	}
 
+	if len(r.config.MessageProcessor) > 0 {
+		err = r.mp.FromConfigJSON(r.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 	// Convert interval string representation to duration
-	var err error
+
 	r.config.Interval, err = time.ParseDuration(configJSON.IntervalString)
 	if err != nil {
 		err := fmt.Errorf(
-			"Failed to parse duration string interval='%s': %w",
+			"failed to parse duration string interval='%s': %w",
 			configJSON.IntervalString,
 			err,
 		)
@@ -506,6 +532,16 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 		for _, key := range configJSON.ExcludeMetrics {
 			isExcluded[key] = true
 		}
+		p, err := mp.NewMessageProcessor()
+		if err != nil {
+			return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+		}
+		if len(clientConfigJSON.MessageProcessor) > 0 {
+			err = p.FromConfigJSON(clientConfigJSON.MessageProcessor)
+			if err != nil {
+				return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+			}
+		}
 
 		r.config.ClientConfigs = append(
 			r.config.ClientConfigs,
@@ -520,6 +556,7 @@ func NewIPMIReceiver(name string, config json.RawMessage) (Receiver, error) {
 				Password:         password,
 				CLIOptions:       cliOptions,
 				isExcluded:       isExcluded,
+				mp:               p,
 			})
 	}
 

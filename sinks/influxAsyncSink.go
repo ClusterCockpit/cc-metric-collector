@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	influxdb2ApiHttp "github.com/influxdata/influxdb-client-go/v2/api/http"
@@ -121,9 +122,10 @@ func (s *InfluxAsyncSink) Write(m lp.CCMessage) error {
 			}
 		})
 	}
-	s.writeApi.WritePoint(
-		m.ToPoint(s.meta_as_tags),
-	)
+	msg, err := s.mp.ProcessMessage(m)
+	if err == nil && msg != nil {
+		s.writeApi.WritePoint(msg.ToPoint(nil))
+	}
 	return nil
 }
 
@@ -200,10 +202,24 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 	if len(s.config.Password) == 0 {
 		return nil, errors.New("missing password configuration required by InfluxSink")
 	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
+	if len(s.config.MessageProcessor) > 0 {
+		err = s.mp.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 	// Create lookup map to use meta infos as tags in the output metric
-	s.meta_as_tags = make(map[string]bool)
+	// s.meta_as_tags = make(map[string]bool)
+	// for _, k := range s.config.MetaAsTags {
+	// 	s.meta_as_tags[k] = true
+	// }
 	for _, k := range s.config.MetaAsTags {
-		s.meta_as_tags[k] = true
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 
 	toUint := func(duration string, def uint) uint {

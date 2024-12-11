@@ -10,8 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -153,7 +154,11 @@ func (s *PrometheusSink) updateMetric(metric lp.CCMessage) error {
 }
 
 func (s *PrometheusSink) Write(m lp.CCMessage) error {
-	return s.updateMetric(m)
+	msg, err := s.mp.ProcessMessage(m)
+	if err == nil && msg != nil {
+		err = s.updateMetric(m)
+	}
+	return err
 }
 
 func (s *PrometheusSink) Flush() error {
@@ -181,6 +186,20 @@ func NewPrometheusSink(name string, config json.RawMessage) (Sink, error) {
 		err := errors.New("not all configuration variables set required by PrometheusSink")
 		cclog.ComponentError(s.name, err.Error())
 		return nil, err
+	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
+	if len(s.config.MessageProcessor) > 0 {
+		err = p.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
+	for _, k := range s.config.MetaAsTags {
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 	s.labelMetrics = make(map[string]*prometheus.GaugeVec)
 	s.nodeMetrics = make(map[string]prometheus.Gauge)

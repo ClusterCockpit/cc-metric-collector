@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 )
 
 // SampleReceiver configuration: receiver type, listen address, port
+// The defaultReceiverConfig contains the keys 'type' and 'process_messages'
 type SampleReceiverConfig struct {
-	Type string `json:"type"`
+	defaultReceiverConfig
 	Addr string `json:"address"`
 	Port string `json:"port"`
 }
@@ -19,7 +21,6 @@ type SampleReceiver struct {
 	config SampleReceiverConfig
 
 	// Storage for static information
-	meta map[string]string
 	// Use in case of own go routine
 	// done chan bool
 	// wg   sync.WaitGroup
@@ -79,8 +80,19 @@ func NewSampleReceiver(name string, config json.RawMessage) (Receiver, error) {
 	// The name should be chosen in such a way that different instances of SampleReceiver can be distinguished
 	r.name = fmt.Sprintf("SampleReceiver(%s)", name)
 
+	// create new message processor
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		cclog.ComponentError(r.name, "Initialization of message processor failed:", err.Error())
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	r.mp = p
 	// Set static information
-	r.meta = map[string]string{"source": r.name}
+	err = r.mp.AddAddMetaByCondition("true", "source", r.name)
+	if err != nil {
+		cclog.ComponentError(r.name, fmt.Sprintf("Failed to add static information source=%s:", r.name), err.Error())
+		return nil, fmt.Errorf("failed to add static information source=%s: %v", r.name, err.Error())
+	}
 
 	// Set defaults in r.config
 	// Allow overwriting these defaults by reading config JSON
@@ -91,6 +103,15 @@ func NewSampleReceiver(name string, config json.RawMessage) (Receiver, error) {
 		if err != nil {
 			cclog.ComponentError(r.name, "Error reading config:", err.Error())
 			return nil, err
+		}
+	}
+
+	// Add message processor config
+	if len(r.config.MessageProcessor) > 0 {
+		err = r.mp.FromConfigJSON(r.config.MessageProcessor)
+		if err != nil {
+			cclog.ComponentError(r.name, "Failed parsing JSON for message processor:", err.Error())
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
 		}
 	}
 

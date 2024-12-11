@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	influx "github.com/influxdata/line-protocol"
 	nats "github.com/nats-io/nats.go"
 )
@@ -60,12 +61,15 @@ func (s *NatsSink) connect() error {
 }
 
 func (s *NatsSink) Write(m lp.CCMessage) error {
-	s.lock.Lock()
-	_, err := s.encoder.Encode(m.ToPoint(s.meta_as_tags))
-	s.lock.Unlock()
-	if err != nil {
-		cclog.ComponentError(s.name, "Write:", err.Error())
-		return err
+	msg, err := s.mp.ProcessMessage(m)
+	if err == nil && msg != nil {
+		s.lock.Lock()
+		_, err := s.encoder.Encode(msg.ToPoint(nil))
+		s.lock.Unlock()
+		if err != nil {
+			cclog.ComponentError(s.name, "Write:", err.Error())
+			return err
+		}
 	}
 
 	if s.flushDelay == 0 {
@@ -120,11 +124,25 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 		len(s.config.Subject) == 0 {
 		return nil, errors.New("not all configuration variables set required by NatsSink")
 	}
-	// Create lookup map to use meta infos as tags in the output metric
-	s.meta_as_tags = make(map[string]bool)
-	for _, k := range s.config.MetaAsTags {
-		s.meta_as_tags[k] = true
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
 	}
+	s.mp = p
+	if len(s.config.MessageProcessor) > 0 {
+		err = s.mp.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
+	// Create lookup map to use meta infos as tags in the output metric
+	for _, k := range s.config.MetaAsTags {
+		s.mp.AddMoveMetaToTags("true", k, k)
+	}
+	// s.meta_as_tags = make(map[string]bool)
+	// for _, k := range s.config.MetaAsTags {
+	// 	s.meta_as_tags[k] = true
+	// }
 	// Setup Influx line protocol
 	s.buffer = &bytes.Buffer{}
 	s.buffer.Grow(1025)

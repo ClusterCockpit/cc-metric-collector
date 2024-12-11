@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	nats "github.com/nats-io/nats.go"
 )
 
 type NatsReceiverConfig struct {
-	Type    string `json:"type"`
+	defaultReceiverConfig
 	Addr    string `json:"address"`
 	Port    string `json:"port"`
 	Subject string `json:"subject"`
@@ -21,8 +22,8 @@ type NatsReceiverConfig struct {
 
 type NatsReceiver struct {
 	receiver
-	nc     *nats.Conn
-	meta   map[string]string
+	nc *nats.Conn
+	//meta   map[string]string
 	config NatsReceiverConfig
 }
 
@@ -36,65 +37,68 @@ func (r *NatsReceiver) Start() {
 // _NatsReceive receives subscribed messages from the NATS server
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 
-	d := influx.NewDecoderWithBytes(m.Data)
-	for d.Next() {
+	if r.sink != nil {
+		d := influx.NewDecoderWithBytes(m.Data)
+		for d.Next() {
 
-		// Decode measurement name
-		measurement, err := d.Measurement()
-		if err != nil {
-			msg := "_NatsReceive: Failed to decode measurement: " + err.Error()
-			cclog.ComponentError(r.name, msg)
-			return
-		}
-
-		// Decode tags
-		tags := make(map[string]string)
-		for {
-			key, value, err := d.NextTag()
+			// Decode measurement name
+			measurement, err := d.Measurement()
 			if err != nil {
-				msg := "_NatsReceive: Failed to decode tag: " + err.Error()
+				msg := "_NatsReceive: Failed to decode measurement: " + err.Error()
 				cclog.ComponentError(r.name, msg)
 				return
 			}
-			if key == nil {
-				break
-			}
-			tags[string(key)] = string(value)
-		}
 
-		// Decode fields
-		fields := make(map[string]interface{})
-		for {
-			key, value, err := d.NextField()
+			// Decode tags
+			tags := make(map[string]string)
+			for {
+				key, value, err := d.NextTag()
+				if err != nil {
+					msg := "_NatsReceive: Failed to decode tag: " + err.Error()
+					cclog.ComponentError(r.name, msg)
+					return
+				}
+				if key == nil {
+					break
+				}
+				tags[string(key)] = string(value)
+			}
+
+			// Decode fields
+			fields := make(map[string]interface{})
+			for {
+				key, value, err := d.NextField()
+				if err != nil {
+					msg := "_NatsReceive: Failed to decode field: " + err.Error()
+					cclog.ComponentError(r.name, msg)
+					return
+				}
+				if key == nil {
+					break
+				}
+				fields[string(key)] = value.Interface()
+			}
+
+			// Decode time stamp
+			t, err := d.Time(influx.Nanosecond, time.Time{})
 			if err != nil {
-				msg := "_NatsReceive: Failed to decode field: " + err.Error()
+				msg := "_NatsReceive: Failed to decode time: " + err.Error()
 				cclog.ComponentError(r.name, msg)
 				return
 			}
-			if key == nil {
-				break
+
+			y, _ := lp.NewMessage(
+				string(measurement),
+				tags,
+				nil,
+				fields,
+				t,
+			)
+
+			m, err := r.mp.ProcessMessage(y)
+			if err == nil && m != nil {
+				r.sink <- m
 			}
-			fields[string(key)] = value.Interface()
-		}
-
-		// Decode time stamp
-		t, err := d.Time(influx.Nanosecond, time.Time{})
-		if err != nil {
-			msg := "_NatsReceive: Failed to decode time: " + err.Error()
-			cclog.ComponentError(r.name, msg)
-			return
-		}
-
-		y, _ := lp.NewMessage(
-			string(measurement),
-			tags,
-			r.meta,
-			fields,
-			t,
-		)
-
-		if r.sink != nil {
-			r.sink <- y
 		}
 	}
 }
@@ -127,11 +131,23 @@ func NewNatsReceiver(name string, config json.RawMessage) (Receiver, error) {
 		len(r.config.Subject) == 0 {
 		return nil, errors.New("not all configuration variables set required by NatsReceiver")
 	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	r.mp = p
+	if len(r.config.MessageProcessor) > 0 {
+		err = r.mp.FromConfigJSON(r.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 
 	// Set metadata
-	r.meta = map[string]string{
-		"source": r.name,
-	}
+	// r.meta = map[string]string{
+	// 	"source": r.name,
+	// }
+	r.mp.AddAddMetaByCondition("true", "source", r.name)
 
 	// Connect to NATS server
 	url := fmt.Sprintf("nats://%s:%s", r.config.Addr, r.config.Port)
