@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
@@ -1023,7 +1023,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) err
 	// Export aggegated values
 	if !device.excludeMetrics["nv_nvlink_crc_errors"] {
 		// Data link receive data CRC error counter
-		y, err := lp.New("nv_nvlink_crc_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_crc_errors}, time.Now())
+		y, err := lp.NewMessage("nv_nvlink_crc_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_crc_errors}, time.Now())
 		if err == nil {
 			y.AddTag("stype", "nvlink")
 			output <- y
@@ -1031,7 +1031,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) err
 	}
 	if !device.excludeMetrics["nv_nvlink_ecc_errors"] {
 		// Data link receive data ECC error counter
-		y, err := lp.New("nv_nvlink_ecc_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_ecc_errors}, time.Now())
+		y, err := lp.NewMessage("nv_nvlink_ecc_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_ecc_errors}, time.Now())
 		if err == nil {
 			y.AddTag("stype", "nvlink")
 			output <- y
@@ -1039,7 +1039,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) err
 	}
 	if !device.excludeMetrics["nv_nvlink_replay_errors"] {
 		// Data link transmit replay error counter
-		y, err := lp.New("nv_nvlink_replay_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_replay_errors}, time.Now())
+		y, err := lp.NewMessage("nv_nvlink_replay_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_replay_errors}, time.Now())
 		if err == nil {
 			y.AddTag("stype", "nvlink")
 			output <- y
@@ -1047,7 +1047,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) err
 	}
 	if !device.excludeMetrics["nv_nvlink_recovery_errors"] {
 		// Data link transmit recovery error counter
-		y, err := lp.New("nv_nvlink_recovery_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_recovery_errors}, time.Now())
+		y, err := lp.NewMessage("nv_nvlink_recovery_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_recovery_errors}, time.Now())
 		if err == nil {
 			y.AddTag("stype", "nvlink")
 			output <- y
@@ -1055,7 +1055,7 @@ func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) err
 	}
 	if !device.excludeMetrics["nv_nvlink_crc_flit_errors"] {
 		// Data link receive flow control digit CRC error counter
-		y, err := lp.New("nv_nvlink_crc_flit_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_crc_flit_errors}, time.Now())
+		y, err := lp.NewMessage("nv_nvlink_crc_flit_errors_sum", device.tags, device.meta, map[string]interface{}{"value": aggregate_crc_flit_errors}, time.Now())
 		if err == nil {
 			y.AddTag("stype", "nvlink")
 			output <- y
