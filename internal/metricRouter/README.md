@@ -1,8 +1,11 @@
 # CC Metric Router
 
-The CCMetric router sits in between the collectors and the sinks and can be used to add and remove tags to/from traversing [CCMetrics](../ccMetric/README.md).
+The CCMetric router sits in between the collectors and the sinks and can be used to add and remove tags to/from traversing [CCMessages](https://pkg.go.dev/github.com/ClusterCockpit/cc-energy-manager@v0.0.0-20240919152819-92a17f2da4f7/pkg/cc-message.
+
 
 # Configuration
+
+**Note**: Use the [message processor configuration](../../pkg/messageProcessor/README.md) with option `process_messages`.
 
 ```json
 {
@@ -10,6 +13,9 @@ The CCMetric router sits in between the collectors and the sinks and can be used
     "interval_timestamp" : true,
     "hostname_tag" : "hostname",
     "max_forward" : 50,
+    "process_messages": {
+      "see": "pkg/messageProcessor/README.md"
+    },
     "add_tags" : [
         {
             "key" : "cluster",
@@ -63,6 +69,8 @@ The CCMetric router sits in between the collectors and the sinks and can be used
 
 There are three main options `add_tags`, `delete_tags` and `interval_timestamp`. `add_tags` and `delete_tags` are lists consisting of dicts with `key`, `value` and `if`. The `value` can be omitted in the `delete_tags` part as it only uses the `key` for removal. The `interval_timestamp` setting means that a unique timestamp is applied to all metrics traversing the router during an interval.
 
+**Note**: Use the [message processor configuration](../../pkg/messageProcessor/README.md) (option `process_messages`) instead of `add_tags`, `delete_tags`, `drop_metrics`, `drop_metrics_if`, `rename_metrics`, `normalize_units` and `change_unit_prefix`. These options are deprecated and will be removed in future versions. Until then, they are added to the message processor.
+
 # Processing order in the router
 
 - Add the `hostname_tag` tag (if sent by collectors or cache)
@@ -96,6 +104,8 @@ Every time the router receives a metric through any of the channels, it tries to
 
 # The `rename_metrics` option
 
+__deprecated__
+
 In the ClusterCockpit world we specified a set of standard metrics. Since some collectors determine the metric names based on files, execuables and libraries, they might change from system to system (or installation to installtion, OS to OS, ...). In order to get the common names, you can rename incoming metrics before sending them to the sink. If the metric name matches the `oldname`, it is changed to `newname`
 
 ```json
@@ -106,6 +116,8 @@ In the ClusterCockpit world we specified a set of standard metrics. Since some c
 ```
 
 # Conditional manipulation of tags (`add_tags` and `del_tags`)
+
+__deprecated__
 
 Common config format:
 ```json
@@ -118,6 +130,8 @@ Common config format:
 
 ## The `del_tags` option
 
+__deprecated__
+
 The collectors are free to add whatever `key=value` pair to the metric tags (although the usage of tags should be minimized). If you want to delete a tag afterwards, you can do that. When the `if` condition matches on a metric, the `key` is removed from the metric's tags.
 
 If you want to remove a tag for all metrics, use the condition wildcard `*`. The `value` field can be omitted in the `del_tags` case.
@@ -128,6 +142,8 @@ Never delete tags:
 - `type-id`
 
 ## The `add_tags` option
+
+__deprecated__
 
 In some cases, metrics should be tagged or an existing tag changed based on some condition. This can be done in the `add_tags` section. When the `if` condition evaluates to `true`, the tag `key` is added or gets changed to the new `value`.
 
@@ -170,6 +186,8 @@ In some cases, you want to drop a metric and don't get it forwarded to the sinks
 
 ## The `drop_metrics` section
 
+__deprecated__
+
 The argument is a list of metric names. No futher checks are performed, only a comparison of the metric name
 
 ```json
@@ -184,6 +202,8 @@ The argument is a list of metric names. No futher checks are performed, only a c
 The example drops all metrics with the name `drop_metric_1` and `drop_metric_2`.
 
 ## The `drop_metrics_if` section
+
+__deprecated__
 
 This option takes a list of evaluable conditions and performs them one after the other on **all** metrics incoming from the collectors and the metric cache (aka `interval_aggregates`).
 
@@ -200,15 +220,22 @@ The first line is comparable with the example in `drop_metrics`, it drops all me
 # Manipulating the metric units
 
 ## The `normalize_units` option
+
+__deprecated__
+
+
 The cc-metric-collector tries to read the data from the system as it is reported. If available, it tries to read the metric unit from the system as well (e.g. from `/proc/meminfo`). The problem is that, depending on the source, the metric units are named differently. Just think about `byte`, `Byte`, `B`, `bytes`, ...
 The [cc-units](https://github.com/ClusterCockpit/cc-units) package provides us a normalization option to use the same metric unit name for all metrics. It this option is set to true, all `unit` meta tags are normalized.
 
 ## The `change_unit_prefix` section
+
+__deprecated__
+
 It is often the case that metrics are reported by the system using a rather outdated unit prefix (like `/proc/meminfo` still uses kByte despite current memory sizes are in the GByte range). If you want to change the prefix of a unit, you can do that with the help of [cc-units](https://github.com/ClusterCockpit/cc-units). The setting works on the metric name and requires the new prefix for the metric. The cc-units package determines the scaling factor.
 
 # Aggregate metric values of the current interval with the `interval_aggregates` option
 
-**Note:** `interval_aggregates` works only if `num_cache_intervals` > 0
+**Note:** `interval_aggregates` works only if `num_cache_intervals` > 0 and is **experimental**
 
 In some cases, you need to derive new metrics based on the metrics arriving during an interval. This can be done in the `interval_aggregates` section. The logic is similar to the other metric manipulation and filtering options. A cache stores all metrics that arrive during an interval. At the beginning of the *next* interval, the list of metrics is submitted to the MetricAggregator. It derives new metrics and submits them back to the MetricRouter, so they are sent in the next interval but have the timestamp of the previous interval beginning.
 
