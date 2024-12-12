@@ -243,7 +243,8 @@ Accessible for operations are
 
 Generally, all tags are accessible with `tag_<tagkey>`, `tags_<tagkey>` or `tags.<tagkey>`. Similarly for all fields with `field[s]?[_.]<fieldkey>`. For meta information `meta[_.]<metakey>` (there is no `metas[_.]<metakey>`).
 
-- Comparing strings: `==`, `!=`, `match(str, regex)` (use `%` instead of `\`!)
+The [syntax of `expr`](https://expr-lang.org/docs/language-definition) is accepted with some additions:
+- Comparing strings: `==`, `!=`, `str matches regex` (use `%` instead of `\`!)
 - Combining conditions: `&&`, `||`
 - Comparing numbers: `==`, `!=`, `<`, `>`, `<=`, `>=`
 - Test lists: `<value> in <list>`
