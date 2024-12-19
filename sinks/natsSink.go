@@ -103,7 +103,6 @@ func (s *NatsSink) Flush() error {
 	if len(buf) == 0 {
 		return nil
 	}
-
 	if err := s.client.Publish(s.config.Subject, buf); err != nil {
 		cclog.ComponentError(s.name, "Flush:", err.Error())
 		return err
@@ -120,6 +119,7 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 	s := new(NatsSink)
 	s.name = fmt.Sprintf("NatsSink(%s)", name)
 	s.flushDelay = 10 * time.Second
+	s.config.Port = "4222"
 	if len(config) > 0 {
 		d := json.NewDecoder(bytes.NewReader(config))
 		d.DisallowUnknownFields()
