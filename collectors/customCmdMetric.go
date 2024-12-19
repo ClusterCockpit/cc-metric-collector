@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	influx "github.com/influxdata/line-protocol"
 )
 
@@ -75,7 +75,7 @@ var DefaultTime = func() time.Time {
 	return time.Unix(42, 0)
 }
 
-func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}

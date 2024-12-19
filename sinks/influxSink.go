@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
@@ -58,6 +59,8 @@ type InfluxSink struct {
 		InfluxMaxRetryTime string `json:"max_retry_time,omitempty"`
 		// Specify whether to use GZip compression in write requests
 		InfluxUseGzip bool `json:"use_gzip"`
+		// Timestamp precision
+		Precision string `json:"precision,omitempty"`
 	}
 
 	// influx line protocol encoder
@@ -206,7 +209,20 @@ func (s *InfluxSink) connect() error {
 	)
 
 	// Set time precision
-	clientOptions.SetPrecision(time.Nanosecond)
+	precision := time.Second
+	if len(s.config.Precision) > 0 {
+		switch s.config.Precision {
+		case "s":
+			precision = time.Second
+		case "ms":
+			precision = time.Millisecond
+		case "us":
+			precision = time.Microsecond
+		case "ns":
+			precision = time.Nanosecond
+		}
+	}
+	clientOptions.SetPrecision(precision)
 
 	// Create new writeAPI
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
@@ -224,28 +240,19 @@ func (s *InfluxSink) connect() error {
 }
 
 // Write sends metric m in influxDB line protocol
-func (s *InfluxSink) Write(m lp.CCMetric) error {
+func (s *InfluxSink) Write(msg lp.CCMessage) error {
 
-	// Lock for encoder usage
-	s.encoderLock.Lock()
+	m, err := s.mp.ProcessMessage(msg)
+	if err == nil && m != nil {
+		// Lock for encoder usage
+		s.encoderLock.Lock()
 
-	// Encode measurement name
-	s.encoder.StartLine(m.Name())
+		// Encode measurement name
+		s.encoder.StartLine(m.Name())
 
-	// copy tags and meta data which should be used as tags
-	s.extended_tag_list = s.extended_tag_list[:0]
-	for key, value := range m.Tags() {
-		s.extended_tag_list =
-			append(
-				s.extended_tag_list,
-				key_value_pair{
-					key:   key,
-					value: value,
-				},
-			)
-	}
-	for _, key := range s.config.MetaAsTags {
-		if value, ok := m.GetMeta(key); ok {
+		// copy tags and meta data which should be used as tags
+		s.extended_tag_list = s.extended_tag_list[:0]
+		for key, value := range m.Tags() {
 			s.extended_tag_list =
 				append(
 					s.extended_tag_list,
@@ -255,44 +262,56 @@ func (s *InfluxSink) Write(m lp.CCMetric) error {
 					},
 				)
 		}
-	}
+		// for _, key := range s.config.MetaAsTags {
+		// 	if value, ok := m.GetMeta(key); ok {
+		// 		s.extended_tag_list =
+		// 			append(
+		// 				s.extended_tag_list,
+		// 				key_value_pair{
+		// 					key:   key,
+		// 					value: value,
+		// 				},
+		// 			)
+		// 	}
+		// }
 
-	// Encode tags (they musts be in lexical order)
-	slices.SortFunc(
-		s.extended_tag_list,
-		func(a key_value_pair, b key_value_pair) int {
-			if a.key < b.key {
-				return -1
-			}
-			if a.key > b.key {
-				return +1
-			}
-			return 0
-		},
-	)
-	for i := range s.extended_tag_list {
-		s.encoder.AddTag(
-			s.extended_tag_list[i].key,
-			s.extended_tag_list[i].value,
+		// Encode tags (they musts be in lexical order)
+		slices.SortFunc(
+			s.extended_tag_list,
+			func(a key_value_pair, b key_value_pair) int {
+				if a.key < b.key {
+					return -1
+				}
+				if a.key > b.key {
+					return +1
+				}
+				return 0
+			},
 		)
+		for i := range s.extended_tag_list {
+			s.encoder.AddTag(
+				s.extended_tag_list[i].key,
+				s.extended_tag_list[i].value,
+			)
+		}
+
+		// Encode fields
+		for key, value := range m.Fields() {
+			s.encoder.AddField(key, influx.MustNewValue(value))
+		}
+
+		// Encode time stamp
+		s.encoder.EndLine(m.Time())
+
+		// Check for encoder errors
+		if err := s.encoder.Err(); err != nil {
+			// Unlock encoder usage
+			s.encoderLock.Unlock()
+
+			return fmt.Errorf("encoding failed: %v", err)
+		}
+		s.numRecordsInEncoder++
 	}
-
-	// Encode fields
-	for key, value := range m.Fields() {
-		s.encoder.AddField(key, influx.MustNewValue(value))
-	}
-
-	// Encode time stamp
-	s.encoder.EndLine(m.Time())
-
-	// Check for encoder errors
-	if err := s.encoder.Err(); err != nil {
-		// Unlock encoder usage
-		s.encoderLock.Unlock()
-
-		return fmt.Errorf("Encoding failed: %v", err)
-	}
-	s.numRecordsInEncoder++
 
 	if s.config.flushDelay == 0 {
 		// Unlock encoder usage
@@ -417,6 +436,7 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	// Set config default values
 	s.config.BatchSize = 1000
 	s.config.FlushInterval = "1s"
+	s.config.Precision = "s"
 
 	// Read config
 	if len(config) > 0 {
@@ -443,11 +463,20 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	if len(s.config.Password) == 0 {
 		return s, errors.New("missing password configuration required by InfluxSink")
 	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
 
-	// Create lookup map to use meta infos as tags in the output metric
-	s.meta_as_tags = make(map[string]bool)
+	if len(s.config.MessageProcessor) > 0 {
+		err = p.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 	for _, k := range s.config.MetaAsTags {
-		s.meta_as_tags[k] = true
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 
 	// Configure flush delay duration

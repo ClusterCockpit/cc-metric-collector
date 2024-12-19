@@ -15,18 +15,23 @@ The `libganglia` sink has probably less overhead compared to the `ganglia` sink 
     "cluster_name": "MyCluster",
     "add_ganglia_group" : true,
     "add_type_to_name": true,
-    "add_units" : true
+    "add_units" : true,
+    "process_messages" : {
+      "see" : "docs of message processor for valid fields"
+    },
+    "meta_as_tags" : []
   }
 }
 ```
 
 - `type`: makes the sink an `libganglia` sink
-- `meta_as_tags`: print all meta information as tags in the output (optional)
 - `gmond_config`: Path to the Ganglia configuration file `gmond.conf` (default: `/etc/ganglia/gmond.conf`)
 - `cluster_name`: Set a cluster name for the metric. If not set, it is taken from `gmond_config`
 - `add_ganglia_group`: Add a Ganglia metric group based on meta information. Some old versions of `gmetric` do not support the `--group` option
 - `add_type_to_name`: Ganglia commonly uses only node-level metrics but with cc-metric-collector, there are metrics for cpus, memory domains, CPU sockets and the whole node. In order to get  eeng, this option prefixes the metric name with `<type><type-id>_` or `device_` depending on the metric tags and meta information. For metrics of the whole node `type=node`, no prefix is added
 - `add_units`: Add metric value unit if there is a `unit` entry in the metric tags or meta information
+- `process_messages`: Process messages with given rules before progressing or dropping, see [here](../pkg/messageProcessor/README.md)  (optional)
+- `meta_as_tags`: print all meta information as tags in the output (deprecated, optional)
 
 ### Ganglia Installation
 

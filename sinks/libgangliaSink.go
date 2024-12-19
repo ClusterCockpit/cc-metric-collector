@@ -72,8 +72,9 @@ import (
 	"fmt"
 	"unsafe"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 )
 
@@ -110,99 +111,102 @@ type LibgangliaSink struct {
 	cstrCache      map[string]*C.char
 }
 
-func (s *LibgangliaSink) Write(point lp.CCMetric) error {
+func (s *LibgangliaSink) Write(msg lp.CCMessage) error {
 	var err error = nil
 	var c_name *C.char
 	var c_value *C.char
 	var c_type *C.char
 	var c_unit *C.char
 
-	// helper function for looking up C strings in the cache
-	lookup := func(key string) *C.char {
-		if _, exist := s.cstrCache[key]; !exist {
-			s.cstrCache[key] = C.CString(key)
+	point, err := s.mp.ProcessMessage(msg)
+	if err == nil && point != nil {
+		// helper function for looking up C strings in the cache
+		lookup := func(key string) *C.char {
+			if _, exist := s.cstrCache[key]; !exist {
+				s.cstrCache[key] = C.CString(key)
+			}
+			return s.cstrCache[key]
 		}
-		return s.cstrCache[key]
-	}
 
-	conf := GetCommonGangliaConfig(point)
-	if len(conf.Type) == 0 {
-		conf = GetGangliaConfig(point)
-	}
-	if len(conf.Type) == 0 {
-		return fmt.Errorf("metric %q (Ganglia name %q) has no 'value' field", point.Name(), conf.Name)
-	}
+		conf := GetCommonGangliaConfig(point)
+		if len(conf.Type) == 0 {
+			conf = GetGangliaConfig(point)
+		}
+		if len(conf.Type) == 0 {
+			return fmt.Errorf("metric %q (Ganglia name %q) has no 'value' field", point.Name(), conf.Name)
+		}
 
-	if s.config.AddTypeToName {
-		conf.Name = GangliaMetricName(point)
-	}
+		if s.config.AddTypeToName {
+			conf.Name = GangliaMetricName(point)
+		}
 
-	c_value = C.CString(conf.Value)
-	c_type = lookup(conf.Type)
-	c_name = lookup(conf.Name)
+		c_value = C.CString(conf.Value)
+		c_type = lookup(conf.Type)
+		c_name = lookup(conf.Name)
 
-	// Add unit
-	unit := ""
-	if s.config.AddUnits {
-		unit = conf.Unit
-	}
-	c_unit = lookup(unit)
+		// Add unit
+		unit := ""
+		if s.config.AddUnits {
+			unit = conf.Unit
+		}
+		c_unit = lookup(unit)
 
-	// Determine the slope of the metric. Ganglia's own collector mostly use
-	// 'both' but the mem and swap total uses 'zero'.
-	slope_type := C.GANGLIA_SLOPE_BOTH
-	switch conf.Slope {
-	case "zero":
-		slope_type = C.GANGLIA_SLOPE_ZERO
-	case "both":
-		slope_type = C.GANGLIA_SLOPE_BOTH
-	}
+		// Determine the slope of the metric. Ganglia's own collector mostly use
+		// 'both' but the mem and swap total uses 'zero'.
+		slope_type := C.GANGLIA_SLOPE_BOTH
+		switch conf.Slope {
+		case "zero":
+			slope_type = C.GANGLIA_SLOPE_ZERO
+		case "both":
+			slope_type = C.GANGLIA_SLOPE_BOTH
+		}
 
-	// Create a new Ganglia metric
-	gmetric := C.Ganglia_metric_create(s.global_context)
-	// Set name, value, type and unit in the Ganglia metric
-	// The default slope_type is both directions, so up and down. Some metrics want 'zero' slope, probably constant.
-	// The 'tmax' value is by default 300.
-	rval := C.int(0)
-	rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), C.uint(conf.Tmax), 0)
-	switch rval {
-	case 1:
+		// Create a new Ganglia metric
+		gmetric := C.Ganglia_metric_create(s.global_context)
+		// Set name, value, type and unit in the Ganglia metric
+		// The default slope_type is both directions, so up and down. Some metrics want 'zero' slope, probably constant.
+		// The 'tmax' value is by default 300.
+		rval := C.int(0)
+		rval = C.Ganglia_metric_set(gmetric, c_name, c_value, c_type, c_unit, C.uint(slope_type), C.uint(conf.Tmax), 0)
+		switch rval {
+		case 1:
+			C.free(unsafe.Pointer(c_value))
+			return errors.New("invalid parameters")
+		case 2:
+			C.free(unsafe.Pointer(c_value))
+			return errors.New("one of your parameters has an invalid character '\"'")
+		case 3:
+			C.free(unsafe.Pointer(c_value))
+			return fmt.Errorf("the type parameter \"%s\" is not a valid type", conf.Type)
+		case 4:
+			C.free(unsafe.Pointer(c_value))
+			return fmt.Errorf("the value parameter \"%s\" does not represent a number", conf.Value)
+		default:
+		}
+
+		// Set the cluster name, otherwise it takes it from the configuration file
+		if len(s.config.ClusterName) > 0 {
+			C.Ganglia_metadata_add(gmetric, lookup("CLUSTER"), lookup(s.config.ClusterName))
+		}
+		// Set the group metadata in the Ganglia metric if configured
+		if s.config.AddGangliaGroup {
+			c_group := lookup(conf.Group)
+			C.Ganglia_metadata_add(gmetric, lookup("GROUP"), c_group)
+		}
+
+		// Now we send the metric
+		// gmetric does provide some more options like description and other options
+		// but they are not provided by the collectors
+		rval = C.Ganglia_metric_send(gmetric, s.send_channels)
+		if rval != 0 {
+			err = fmt.Errorf("there was an error sending metric %s to %d of the send channels ", point.Name(), rval)
+			// fall throuph to use Ganglia_metric_destroy from common cleanup
+		}
+		// Cleanup Ganglia metric
+		C.Ganglia_metric_destroy(gmetric)
+		// Free the value C string, the only one not stored in the cache
 		C.free(unsafe.Pointer(c_value))
-		return errors.New("invalid parameters")
-	case 2:
-		C.free(unsafe.Pointer(c_value))
-		return errors.New("one of your parameters has an invalid character '\"'")
-	case 3:
-		C.free(unsafe.Pointer(c_value))
-		return fmt.Errorf("the type parameter \"%s\" is not a valid type", conf.Type)
-	case 4:
-		C.free(unsafe.Pointer(c_value))
-		return fmt.Errorf("the value parameter \"%s\" does not represent a number", conf.Value)
-	default:
 	}
-
-	// Set the cluster name, otherwise it takes it from the configuration file
-	if len(s.config.ClusterName) > 0 {
-		C.Ganglia_metadata_add(gmetric, lookup("CLUSTER"), lookup(s.config.ClusterName))
-	}
-	// Set the group metadata in the Ganglia metric if configured
-	if s.config.AddGangliaGroup {
-		c_group := lookup(conf.Group)
-		C.Ganglia_metadata_add(gmetric, lookup("GROUP"), c_group)
-	}
-
-	// Now we send the metric
-	// gmetric does provide some more options like description and other options
-	// but they are not provided by the collectors
-	rval = C.Ganglia_metric_send(gmetric, s.send_channels)
-	if rval != 0 {
-		err = fmt.Errorf("there was an error sending metric %s to %d of the send channels ", point.Name(), rval)
-		// fall throuph to use Ganglia_metric_destroy from common cleanup
-	}
-	// Cleanup Ganglia metric
-	C.Ganglia_metric_destroy(gmetric)
-	// Free the value C string, the only one not stored in the cache
-	C.free(unsafe.Pointer(c_value))
 	return err
 }
 
@@ -240,6 +244,20 @@ func NewLibgangliaSink(name string, config json.RawMessage) (Sink, error) {
 			cclog.ComponentError(s.name, "Error reading config:", err.Error())
 			return nil, err
 		}
+	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
+	if len(s.config.MessageProcessor) > 0 {
+		err = s.mp.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
+	for _, k := range s.config.MetaAsTags {
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 	lib := dl.New(s.config.GangliaLib, GANGLIA_LIB_DL_FLAGS)
 	if lib == nil {

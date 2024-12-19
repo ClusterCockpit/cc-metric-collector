@@ -13,9 +13,10 @@ import (
 	"sync"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/hostlist"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 
 	// See: https://pkg.go.dev/github.com/stmcginnis/gofish
 	"github.com/stmcginnis/gofish"
@@ -42,6 +43,8 @@ type RedfishReceiverClientConfig struct {
 	readSensorURLs map[string][]string
 
 	gofish gofish.ClientConfig
+
+	mp mp.MessageProcessor
 }
 
 // RedfishReceiver configuration:
@@ -49,6 +52,7 @@ type RedfishReceiver struct {
 	receiver
 
 	config struct {
+		defaultReceiverConfig
 		fanout      int
 		Interval    time.Duration
 		HttpTimeout time.Duration
@@ -79,13 +83,19 @@ func setMetricValue(value any) map[string]interface{} {
 }
 
 // sendMetric sends the metric through the sink channel
-func (r *RedfishReceiver) sendMetric(name string, tags map[string]string, meta map[string]string, value any, timestamp time.Time) {
+func (r *RedfishReceiver) sendMetric(mp mp.MessageProcessor, name string, tags map[string]string, meta map[string]string, value any, timestamp time.Time) {
 
 	deleteEmptyTags(tags)
 	deleteEmptyTags(meta)
-	y, err := lp.New(name, tags, meta, setMetricValue(value), timestamp)
+	y, err := lp.NewMessage(name, tags, meta, setMetricValue(value), timestamp)
 	if err == nil {
-		r.sink <- y
+		mc, err := mp.ProcessMessage(y)
+		if err == nil && mc != nil {
+			m, err := r.mp.ProcessMessage(mc)
+			if err == nil && m != nil {
+				r.sink <- m
+			}
+		}
 	}
 }
 
@@ -119,7 +129,7 @@ func (r *RedfishReceiver) readSensors(
 			"unit":   "degC",
 		}
 
-		r.sendMetric("temperature", tags, meta, sensor.Reading, time.Now())
+		r.sendMetric(clientConfig.mp, "temperature", tags, meta, sensor.Reading, time.Now())
 	}
 
 	writeFanSpeedSensor := func(sensor *redfish.Sensor) {
@@ -145,7 +155,7 @@ func (r *RedfishReceiver) readSensors(
 			"unit":   string(sensor.ReadingUnits),
 		}
 
-		r.sendMetric("fan_speed", tags, meta, sensor.Reading, time.Now())
+		r.sendMetric(clientConfig.mp, "fan_speed", tags, meta, sensor.Reading, time.Now())
 	}
 
 	writePowerSensor := func(sensor *redfish.Sensor) {
@@ -172,7 +182,7 @@ func (r *RedfishReceiver) readSensors(
 			"unit":   "watts",
 		}
 
-		r.sendMetric("power", tags, meta, sensor.Reading, time.Now())
+		r.sendMetric(clientConfig.mp, "power", tags, meta, sensor.Reading, time.Now())
 	}
 
 	if _, ok := clientConfig.readSensorURLs[chassis.ID]; !ok {
@@ -340,7 +350,7 @@ func (r *RedfishReceiver) readThermalMetrics(
 		// ReadingCelsius shall be the current value of the temperature sensor's reading.
 		value := temperature.ReadingCelsius
 
-		r.sendMetric("temperature", tags, meta, value, timestamp)
+		r.sendMetric(clientConfig.mp, "temperature", tags, meta, value, timestamp)
 	}
 
 	for _, fan := range thermal.Fans {
@@ -381,7 +391,7 @@ func (r *RedfishReceiver) readThermalMetrics(
 			"unit":   string(fan.ReadingUnits),
 		}
 
-		r.sendMetric("fan_speed", tags, meta, fan.Reading, timestamp)
+		r.sendMetric(clientConfig.mp, "fan_speed", tags, meta, fan.Reading, timestamp)
 	}
 
 	return nil
@@ -479,7 +489,7 @@ func (r *RedfishReceiver) readPowerMetrics(
 		}
 
 		for name, value := range metrics {
-			r.sendMetric(name, tags, meta, value, timestamp)
+			r.sendMetric(clientConfig.mp, name, tags, meta, value, timestamp)
 		}
 	}
 
@@ -561,7 +571,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 	if !clientConfig.isExcluded[namePower] &&
 		// Some servers return "ConsumedPowerWatt":65535 instead of "ConsumedPowerWatt":null
 		processorMetrics.ConsumedPowerWatt != 65535 {
-		r.sendMetric(namePower, tags, metaPower, processorMetrics.ConsumedPowerWatt, timestamp)
+		r.sendMetric(clientConfig.mp, namePower, tags, metaPower, processorMetrics.ConsumedPowerWatt, timestamp)
 	}
 	// Set meta data tags
 	metaThermal := map[string]string{
@@ -573,7 +583,7 @@ func (r *RedfishReceiver) readProcessorMetrics(
 	nameThermal := "temperature"
 
 	if !clientConfig.isExcluded[nameThermal] {
-		r.sendMetric(nameThermal, tags, metaThermal, processorMetrics.TemperatureCelsius, timestamp)
+		r.sendMetric(clientConfig.mp, nameThermal, tags, metaThermal, processorMetrics.TemperatureCelsius, timestamp)
 	}
 	return nil
 }
@@ -776,11 +786,13 @@ func (r *RedfishReceiver) Close() {
 // NewRedfishReceiver creates a new instance of the redfish receiver
 // Initialize the receiver by giving it a name and reading in the config JSON
 func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
+	var err error
 	r := new(RedfishReceiver)
 
 	// Config options from config file
 	configJSON := struct {
-		Type string `json:"type"`
+		Type             string          `json:"type"`
+		MessageProcessor json.RawMessage `json:"process_messages,omitempty"`
 
 		// Maximum number of simultaneous redfish connections (default: 64)
 		Fanout int `json:"fanout,omitempty"`
@@ -820,7 +832,8 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			DisableThermalMetrics   bool `json:"disable_thermal_metrics"`
 
 			// Per client excluded metrics
-			ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+			ExcludeMetrics   []string        `json:"exclude_metrics,omitempty"`
+			MessageProcessor json.RawMessage `json:"process_messages,omitempty"`
 		} `json:"client_config"`
 	}{
 		// Set defaults values
@@ -846,13 +859,24 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 			return nil, err
 		}
 	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	r.mp = p
+	if len(r.config.MessageProcessor) > 0 {
+		err = r.mp.FromConfigJSON(r.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 
 	// Convert interval string representation to duration
-	var err error
+
 	r.config.Interval, err = time.ParseDuration(configJSON.IntervalString)
 	if err != nil {
 		err := fmt.Errorf(
-			"Failed to parse duration string interval='%s': %w",
+			"failed to parse duration string interval='%s': %w",
 			configJSON.IntervalString,
 			err,
 		)
@@ -864,7 +888,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 	r.config.HttpTimeout, err = time.ParseDuration(configJSON.HttpTimeoutString)
 	if err != nil {
 		err := fmt.Errorf(
-			"Failed to parse duration string http_timeout='%s': %w",
+			"failed to parse duration string http_timeout='%s': %w",
 			configJSON.HttpTimeoutString,
 			err,
 		)
@@ -948,6 +972,18 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 		for _, key := range configJSON.ExcludeMetrics {
 			isExcluded[key] = true
 		}
+		p, err = mp.NewMessageProcessor()
+		if err != nil {
+			cclog.ComponentError(r.name, err.Error())
+			return nil, err
+		}
+		if len(clientConfigJSON.MessageProcessor) > 0 {
+			err = p.FromConfigJSON(clientConfigJSON.MessageProcessor)
+			if err != nil {
+				cclog.ComponentError(r.name, err.Error())
+				return nil, err
+			}
+		}
 
 		hostList, err := hostlist.Expand(clientConfigJSON.HostList)
 		if err != nil {
@@ -978,6 +1014,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 						Endpoint:   endpoint,
 						HTTPClient: httpClient,
 					},
+					mp: p,
 				})
 		}
 
@@ -1002,7 +1039,7 @@ func NewRedfishReceiver(name string, config json.RawMessage) (Receiver, error) {
 	for i := range r.config.ClientConfigs {
 		host := r.config.ClientConfigs[i].Hostname
 		if isDuplicate[host] {
-			err := fmt.Errorf("Found duplicate client config for host %s", host)
+			err := fmt.Errorf("found duplicate client config for host %s", host)
 			cclog.ComponentError(r.name, err)
 			return nil, err
 		}

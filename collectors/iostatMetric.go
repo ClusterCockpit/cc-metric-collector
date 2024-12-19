@@ -5,7 +5,7 @@ import (
 	"os"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 
 	//	"log"
 	"encoding/json"
@@ -107,7 +107,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	return err
 }
 
-func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -139,7 +139,7 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 				x, err := strconv.ParseInt(linefields[idx], 0, 64)
 				if err == nil {
 					diff := x - entry.lastValues[name]
-					y, err := lp.New(name, entry.tags, m.meta, map[string]interface{}{"value": int(diff)}, time.Now())
+					y, err := lp.NewMessage(name, entry.tags, m.meta, map[string]interface{}{"value": int(diff)}, time.Now())
 					if err == nil {
 						output <- y
 					}

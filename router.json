@@ -1,22 +1,23 @@
 {
-    "add_tags" : [
-        {
-            "key" : "cluster",
-            "value" : "testcluster",
-            "if" : "*"
-        },
-        {
-            "key" : "test",
-            "value" : "testing",
-            "if" : "name == 'temp_package_id_0'"
-        }
-    ],
-    "delete_tags" : [
-        {
-            "key" : "unit",
-            "value" : "*",
-            "if" : "*"
-        }
-    ],
+    "process_messages" : {
+        "add_tag_if": [
+            {
+                "key" : "cluster",
+                "value" : "testcluster",
+                "if" : "true"
+            },
+            {
+                "key" : "test",
+                "value" : "testing",
+                "if" : "name == 'temp_package_id_0'"
+            }
+        ],
+        "delete_tag_if": [
+            {
+                "key" : "unit",
+                "if" : "true"
+            }
+        ]
+    },
     "interval_timestamp" : true
 }

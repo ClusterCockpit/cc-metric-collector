@@ -8,18 +8,16 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
-//
 // LoadavgCollector collects:
 // * load average of last 1, 5 & 15 minutes
 // * number of processes currently runnable
 // * total number of processes in system
 //
 // See: https://www.kernel.org/doc/html/latest/filesystems/proc.html
-//
 const LOADAVGFILE = "/proc/loadavg"
 
 type LoadavgCollector struct {
@@ -68,17 +66,15 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
 	buffer, err := os.ReadFile(LOADAVGFILE)
 	if err != nil {
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to read file '%s': %v", LOADAVGFILE, err))
-		}
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to read file '%s': %v", LOADAVGFILE, err))
 		return
 	}
 	now := time.Now()
@@ -96,7 +92,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		if m.load_skips[i] {
 			continue
 		}
-		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
+		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
 		if err == nil {
 			output <- y
 		}
@@ -115,7 +111,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		if m.proc_skips[i] {
 			continue
 		}
-		y, err := lp.New(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
+		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
 		if err == nil {
 			output <- y
 		}

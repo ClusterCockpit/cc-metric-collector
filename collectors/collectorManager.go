@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
@@ -47,7 +47,7 @@ var AvailableCollectors = map[string]MetricCollector{
 type collectorManager struct {
 	collectors   []MetricCollector          // List of metric collectors to read in parallel
 	serial       []MetricCollector          // List of metric collectors to read serially
-	output       chan lp.CCMetric           // Output channels
+	output       chan lp.CCMessage          // Output channels
 	done         chan bool                  // channel to finish / stop metric collector manager
 	ticker       mct.MultiChanTicker        // periodically ticking once each interval
 	duration     time.Duration              // duration (for metrics that measure over a given duration)
@@ -60,7 +60,7 @@ type collectorManager struct {
 // Metric collector manager access functions
 type CollectorManager interface {
 	Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) error
-	AddOutput(output chan lp.CCMetric)
+	AddOutput(output chan lp.CCMessage)
 	Start()
 	Close()
 }
@@ -187,7 +187,7 @@ func (cm *collectorManager) Start() {
 }
 
 // AddOutput adds the output channel to the metric collector manager
-func (cm *collectorManager) AddOutput(output chan lp.CCMetric) {
+func (cm *collectorManager) AddOutput(output chan lp.CCMessage) {
 	cm.output = output
 }
 

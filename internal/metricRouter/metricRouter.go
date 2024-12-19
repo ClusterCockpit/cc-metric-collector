@@ -2,6 +2,7 @@ package metricRouter
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -9,10 +10,10 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
-	units "github.com/ClusterCockpit/cc-units"
 )
 
 const ROUTER_MAX_FORWARD = 50
@@ -38,16 +39,17 @@ type metricRouterConfig struct {
 	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
 	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
 	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
-	dropMetrics       map[string]bool                      // Internal map for O(1) lookup
+	// dropMetrics       map[string]bool                      // Internal map for O(1) lookup
+	MessageProcessor json.RawMessage `json:"process_message,omitempty"`
 }
 
 // Metric router data structure
 type metricRouter struct {
 	hostname    string              // Hostname used in tags
-	coll_input  chan lp.CCMetric    // Input channel from CollectorManager
-	recv_input  chan lp.CCMetric    // Input channel from ReceiveManager
-	cache_input chan lp.CCMetric    // Input channel from MetricCache
-	outputs     []chan lp.CCMetric  // List of all output channels
+	coll_input  chan lp.CCMessage   // Input channel from CollectorManager
+	recv_input  chan lp.CCMessage   // Input channel from ReceiveManager
+	cache_input chan lp.CCMessage   // Input channel from MetricCache
+	outputs     []chan lp.CCMessage // List of all output channels
 	done        chan bool           // channel to finish / stop metric router
 	wg          *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
 	timestamp   time.Time           // timestamp periodically updated by ticker each interval
@@ -56,14 +58,15 @@ type metricRouter struct {
 	cache       MetricCache         // pointer to MetricCache
 	cachewg     sync.WaitGroup      // wait group for MetricCache
 	maxForward  int                 // number of metrics to forward maximally in one iteration
+	mp          mp.MessageProcessor
 }
 
 // MetricRouter access functions
 type MetricRouter interface {
 	Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error
-	AddCollectorInput(input chan lp.CCMetric)
-	AddReceiverInput(input chan lp.CCMetric)
-	AddOutput(output chan lp.CCMetric)
+	AddCollectorInput(input chan lp.CCMessage)
+	AddReceiverInput(input chan lp.CCMessage)
+	AddOutput(output chan lp.CCMessage)
 	Start()
 	Close()
 }
@@ -75,9 +78,9 @@ type MetricRouter interface {
 // * ticker (from variable ticker)
 // * configuration (read from config file in variable routerConfigFile)
 func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, routerConfigFile string) error {
-	r.outputs = make([]chan lp.CCMetric, 0)
+	r.outputs = make([]chan lp.CCMessage, 0)
 	r.done = make(chan bool)
-	r.cache_input = make(chan lp.CCMetric)
+	r.cache_input = make(chan lp.CCMessage)
 	r.wg = wg
 	r.ticker = ticker
 	r.config.MaxForward = ROUTER_MAX_FORWARD
@@ -119,14 +122,56 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 			r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
 		}
 	}
-	r.config.dropMetrics = make(map[string]bool)
-	for _, mname := range r.config.DropMetrics {
-		r.config.dropMetrics[mname] = true
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return fmt.Errorf("initialization of message processor failed: %v", err.Error())
 	}
+	r.mp = p
+
+	if len(r.config.MessageProcessor) > 0 {
+		err = r.mp.FromConfigJSON(r.config.MessageProcessor)
+		if err != nil {
+			return fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
+	for _, mname := range r.config.DropMetrics {
+		r.mp.AddDropMessagesByName(mname)
+	}
+	for _, cond := range r.config.DropMetricsIf {
+		r.mp.AddDropMessagesByCondition(cond)
+	}
+	for _, data := range r.config.AddTags {
+		cond := data.Condition
+		if cond == "*" {
+			cond = "true"
+		}
+		r.mp.AddAddTagsByCondition(cond, data.Key, data.Value)
+	}
+	for _, data := range r.config.DelTags {
+		cond := data.Condition
+		if cond == "*" {
+			cond = "true"
+		}
+		r.mp.AddDeleteTagsByCondition(cond, data.Key, data.Value)
+	}
+	for oldname, newname := range r.config.RenameMetrics {
+		r.mp.AddRenameMetricByName(oldname, newname)
+	}
+	for metricName, prefix := range r.config.ChangeUnitPrefix {
+		r.mp.AddChangeUnitPrefix(fmt.Sprintf("name == '%s'", metricName), prefix)
+	}
+	r.mp.SetNormalizeUnits(r.config.NormalizeUnits)
+
+	r.mp.AddAddTagsByCondition("true", r.config.HostnameTagName, r.hostname)
+
+	// r.config.dropMetrics = make(map[string]bool)
+	// for _, mname := range r.config.DropMetrics {
+	// 	r.config.dropMetrics[mname] = true
+	// }
 	return nil
 }
 
-func getParamMap(point lp.CCMetric) map[string]interface{} {
+func getParamMap(point lp.CCMessage) map[string]interface{} {
 	params := make(map[string]interface{})
 	params["metric"] = point
 	params["name"] = point.Name()
@@ -144,7 +189,7 @@ func getParamMap(point lp.CCMetric) map[string]interface{} {
 }
 
 // DoAddTags adds a tag when condition is fullfiled
-func (r *metricRouter) DoAddTags(point lp.CCMetric) {
+func (r *metricRouter) DoAddTags(point lp.CCMessage) {
 	var conditionMatches bool
 	for _, m := range r.config.AddTags {
 		if m.Condition == "*" {
@@ -166,81 +211,81 @@ func (r *metricRouter) DoAddTags(point lp.CCMetric) {
 }
 
 // DoDelTags removes a tag when condition is fullfiled
-func (r *metricRouter) DoDelTags(point lp.CCMetric) {
-	var conditionMatches bool
-	for _, m := range r.config.DelTags {
-		if m.Condition == "*" {
-			// Condition is always matched
-			conditionMatches = true
-		} else {
-			// Evaluate condition
-			var err error
-			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
-			if err != nil {
-				cclog.ComponentError("MetricRouter", err.Error())
-				conditionMatches = false
-			}
-		}
-		if conditionMatches {
-			point.RemoveTag(m.Key)
-		}
-	}
-}
+// func (r *metricRouter) DoDelTags(point lp.CCMessage) {
+// 	var conditionMatches bool
+// 	for _, m := range r.config.DelTags {
+// 		if m.Condition == "*" {
+// 			// Condition is always matched
+// 			conditionMatches = true
+// 		} else {
+// 			// Evaluate condition
+// 			var err error
+// 			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
+// 			if err != nil {
+// 				cclog.ComponentError("MetricRouter", err.Error())
+// 				conditionMatches = false
+// 			}
+// 		}
+// 		if conditionMatches {
+// 			point.RemoveTag(m.Key)
+// 		}
+// 	}
+// }
 
 // Conditional test whether a metric should be dropped
-func (r *metricRouter) dropMetric(point lp.CCMetric) bool {
-	// Simple drop check
-	if conditionMatches, ok := r.config.dropMetrics[point.Name()]; ok {
-		return conditionMatches
-	}
+// func (r *metricRouter) dropMetric(point lp.CCMessage) bool {
+// 	// Simple drop check
+// 	if conditionMatches, ok := r.config.dropMetrics[point.Name()]; ok {
+// 		return conditionMatches
+// 	}
 
-	// Checking the dropping conditions
-	for _, m := range r.config.DropMetricsIf {
-		conditionMatches, err := agg.EvalBoolCondition(m, getParamMap(point))
-		if err != nil {
-			cclog.ComponentError("MetricRouter", err.Error())
-			conditionMatches = false
-		}
-		if conditionMatches {
-			return conditionMatches
-		}
-	}
+// 	// Checking the dropping conditions
+// 	for _, m := range r.config.DropMetricsIf {
+// 		conditionMatches, err := agg.EvalBoolCondition(m, getParamMap(point))
+// 		if err != nil {
+// 			cclog.ComponentError("MetricRouter", err.Error())
+// 			conditionMatches = false
+// 		}
+// 		if conditionMatches {
+// 			return conditionMatches
+// 		}
+// 	}
 
-	// No dropping condition met
-	return false
-}
+// 	// No dropping condition met
+// 	return false
+// }
 
-func (r *metricRouter) prepareUnit(point lp.CCMetric) bool {
-	if r.config.NormalizeUnits {
-		if in_unit, ok := point.GetMeta("unit"); ok {
-			u := units.NewUnit(in_unit)
-			if u.Valid() {
-				point.AddMeta("unit", u.Short())
-			}
-		}
-	}
-	if newP, ok := r.config.ChangeUnitPrefix[point.Name()]; ok {
+// func (r *metricRouter) prepareUnit(point lp.CCMessage) bool {
+// 	if r.config.NormalizeUnits {
+// 		if in_unit, ok := point.GetMeta("unit"); ok {
+// 			u := units.NewUnit(in_unit)
+// 			if u.Valid() {
+// 				point.AddMeta("unit", u.Short())
+// 			}
+// 		}
+// 	}
+// 	if newP, ok := r.config.ChangeUnitPrefix[point.Name()]; ok {
 
-		newPrefix := units.NewPrefix(newP)
+// 		newPrefix := units.NewPrefix(newP)
 
-		if in_unit, ok := point.GetMeta("unit"); ok && newPrefix != units.InvalidPrefix {
-			u := units.NewUnit(in_unit)
-			if u.Valid() {
-				cclog.ComponentDebug("MetricRouter", "Change prefix to", newP, "for metric", point.Name())
-				conv, out_unit := units.GetUnitPrefixFactor(u, newPrefix)
-				if conv != nil && out_unit.Valid() {
-					if val, ok := point.GetField("value"); ok {
-						point.AddField("value", conv(val))
-						point.AddMeta("unit", out_unit.Short())
-					}
-				}
-			}
+// 		if in_unit, ok := point.GetMeta("unit"); ok && newPrefix != units.InvalidPrefix {
+// 			u := units.NewUnit(in_unit)
+// 			if u.Valid() {
+// 				cclog.ComponentDebug("MetricRouter", "Change prefix to", newP, "for metric", point.Name())
+// 				conv, out_unit := units.GetUnitPrefixFactor(u, newPrefix)
+// 				if conv != nil && out_unit.Valid() {
+// 					if val, ok := point.GetField("value"); ok {
+// 						point.AddField("value", conv(val))
+// 						point.AddMeta("unit", out_unit.Short())
+// 					}
+// 				}
+// 			}
 
-		}
-	}
+// 		}
+// 	}
 
-	return true
-}
+// 	return true
+// }
 
 // Start starts the metric router
 func (r *metricRouter) Start() {
@@ -259,59 +304,75 @@ func (r *metricRouter) Start() {
 
 	// Forward takes a received metric, adds or deletes tags
 	// and forwards it to the output channels
-	forward := func(point lp.CCMetric) {
-		cclog.ComponentDebug("MetricRouter", "FORWARD", point)
-		r.DoAddTags(point)
-		r.DoDelTags(point)
-		name := point.Name()
-		if new, ok := r.config.RenameMetrics[name]; ok {
-			point.SetName(new)
-			point.AddMeta("oldname", name)
-			r.DoAddTags(point)
-			r.DoDelTags(point)
-		}
+	// forward := func(point lp.CCMessage) {
+	// 	cclog.ComponentDebug("MetricRouter", "FORWARD", point)
+	// 	r.DoAddTags(point)
+	// 	r.DoDelTags(point)
+	// 	name := point.Name()
+	// 	if new, ok := r.config.RenameMetrics[name]; ok {
+	// 		point.SetName(new)
+	// 		point.AddMeta("oldname", name)
+	// 		r.DoAddTags(point)
+	// 		r.DoDelTags(point)
+	// 	}
 
-		r.prepareUnit(point)
+	// 	r.prepareUnit(point)
 
-		for _, o := range r.outputs {
-			o <- point
-		}
-	}
+	// 	for _, o := range r.outputs {
+	// 		o <- point
+	// 	}
+	// }
 
 	// Foward message received from collector channel
-	coll_forward := func(p lp.CCMetric) {
+	coll_forward := func(p lp.CCMessage) {
 		// receive from metric collector
-		p.AddTag(r.config.HostnameTagName, r.hostname)
+		//p.AddTag(r.config.HostnameTagName, r.hostname)
 		if r.config.IntervalStamp {
 			p.SetTime(r.timestamp)
 		}
-		if !r.dropMetric(p) {
-			forward(p)
+		m, err := r.mp.ProcessMessage(p)
+		if err == nil && m != nil {
+			for _, o := range r.outputs {
+				o <- m
+			}
 		}
+		// if !r.dropMetric(p) {
+		// 	for _, o := range r.outputs {
+		// 		o <- point
+		// 	}
+		// }
 		// even if the metric is dropped, it is stored in the cache for
 		// aggregations
 		if r.config.NumCacheIntervals > 0 {
-			r.cache.Add(p)
+			r.cache.Add(m)
 		}
 	}
 
 	// Forward message received from receivers channel
-	recv_forward := func(p lp.CCMetric) {
+	recv_forward := func(p lp.CCMessage) {
 		// receive from receive manager
 		if r.config.IntervalStamp {
 			p.SetTime(r.timestamp)
 		}
-		if !r.dropMetric(p) {
-			forward(p)
+		m, err := r.mp.ProcessMessage(p)
+		if err == nil && m != nil {
+			for _, o := range r.outputs {
+				o <- m
+			}
 		}
+		// if !r.dropMetric(p) {
+		// 	forward(p)
+		// }
 	}
 
 	// Forward message received from cache channel
-	cache_forward := func(p lp.CCMetric) {
+	cache_forward := func(p lp.CCMessage) {
 		// receive from metric collector
-		if !r.dropMetric(p) {
-			p.AddTag(r.config.HostnameTagName, r.hostname)
-			forward(p)
+		m, err := r.mp.ProcessMessage(p)
+		if err == nil && m != nil {
+			for _, o := range r.outputs {
+				o <- m
+			}
 		}
 	}
 
@@ -358,17 +419,17 @@ func (r *metricRouter) Start() {
 }
 
 // AddCollectorInput adds a channel between metric collector and metric router
-func (r *metricRouter) AddCollectorInput(input chan lp.CCMetric) {
+func (r *metricRouter) AddCollectorInput(input chan lp.CCMessage) {
 	r.coll_input = input
 }
 
 // AddReceiverInput adds a channel between metric receiver and metric router
-func (r *metricRouter) AddReceiverInput(input chan lp.CCMetric) {
+func (r *metricRouter) AddReceiverInput(input chan lp.CCMessage) {
 	r.recv_input = input
 }
 
 // AddOutput adds a output channel to the metric router
-func (r *metricRouter) AddOutput(output chan lp.CCMetric) {
+func (r *metricRouter) AddOutput(output chan lp.CCMessage) {
 	r.outputs = append(r.outputs, output)
 }
 

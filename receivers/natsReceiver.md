@@ -10,7 +10,10 @@ The `nats` receiver can be used receive metrics from the NATS network. The `nats
     "type": "nats",
     "address" : "nats-server.example.org",
     "port" : "4222",
-    "subject" : "subject"
+    "subject" : "subject",
+    "user": "natsuser",
+    "password": "natssecret",
+    "nkey_file": "/path/to/nkey_file"
   }
 }
 ```
@@ -19,6 +22,9 @@ The `nats` receiver can be used receive metrics from the NATS network. The `nats
 - `address`: Address of the NATS control server
 - `port`: Port of the NATS control server
 - `subject`: Subscribes to this subject and receive metrics
+- `user`: Connect to nats using this user
+- `password`: Connect to nats using this password
+- `nkey_file`: Path to credentials file with NKEY
 
 ### Debugging
 

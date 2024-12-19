@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	//	"time"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 )
 
 type StdoutSink struct {
@@ -21,11 +22,14 @@ type StdoutSink struct {
 	}
 }
 
-func (s *StdoutSink) Write(m lp.CCMetric) error {
-	fmt.Fprint(
-		s.output,
-		m.ToLineProtocol(s.meta_as_tags),
-	)
+func (s *StdoutSink) Write(m lp.CCMessage) error {
+	msg, err := s.mp.ProcessMessage(m)
+	if err == nil && msg != nil {
+		fmt.Fprint(
+			s.output,
+			msg.ToLineProtocol(s.meta_as_tags),
+		)
+	}
 	return nil
 }
 
@@ -41,6 +45,7 @@ func (s *StdoutSink) Close() {
 }
 
 func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
+
 	s := new(StdoutSink)
 	s.name = fmt.Sprintf("StdoutSink(%s)", name)
 	if len(config) > 0 {
@@ -51,6 +56,11 @@ func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
 			return nil, err
 		}
 	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
 
 	s.output = os.Stdout
 	if len(s.config.Output) > 0 {
@@ -67,10 +77,21 @@ func NewStdoutSink(name string, config json.RawMessage) (Sink, error) {
 			s.output = f
 		}
 	}
+
+	// Add message processor configuration
+	if len(s.config.MessageProcessor) > 0 {
+		err = s.mp.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 	// Create lookup map to use meta infos as tags in the output metric
-	s.meta_as_tags = make(map[string]bool)
+	// s.meta_as_tags = make(map[string]bool)
+	// for _, k := range s.config.MetaAsTags {
+	// 	s.meta_as_tags[k] = true
+	// }
 	for _, k := range s.config.MetaAsTags {
-		s.meta_as_tags[k] = true
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 
 	return s, nil

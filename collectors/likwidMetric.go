@@ -24,9 +24,9 @@ import (
 	"time"
 	"unsafe"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 	"github.com/fsnotify/fsnotify"
@@ -43,7 +43,7 @@ const (
 type LikwidCollectorMetricConfig struct {
 	Name               string `json:"name"` // Name of the metric
 	Calc               string `json:"calc"` // Calculation for the metric using
-	Type               string `json:"type"` // Metric type (aka node, socket, cpu, ...)
+	Type               string `json:"type"` // Metric type (aka node, socket, hwthread, ...)
 	Publish            bool   `json:"publish"`
 	SendCoreTotalVal   bool   `json:"send_core_total_values,omitempty"`
 	SendSocketTotalVal bool   `json:"send_socket_total_values,omitempty"`
@@ -91,6 +91,8 @@ type LikwidCollector struct {
 	running       bool
 	initialized   bool
 	needs_reinit  bool
+	myuid         int
+	lock_err_once bool
 	likwidGroups  map[C.int]LikwidEventsetConfig
 	lock          sync.Mutex
 	measureThread thread.Thread
@@ -204,6 +206,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.initialized = false
 	m.needs_reinit = true
 	m.running = false
+	m.myuid = os.Getuid()
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
 	m.config.LibraryPath = LIKWID_LIB_NAME
 	m.config.LockfilePath = LIKWID_DEF_LOCKFILE
@@ -390,14 +393,24 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		}
 		// Check file ownership
 		uid := info.Sys().(*syscall.Stat_t).Uid
-		if uid != uint32(os.Getuid()) {
+		if uid != uint32(m.myuid) {
 			usr, err := user.LookupId(fmt.Sprint(uid))
 			if err == nil {
-				return true, fmt.Errorf("Access to performance counters locked by %s", usr.Username)
+				err = fmt.Errorf("access to performance counters locked by %s", usr.Username)
 			} else {
-				return true, fmt.Errorf("Access to performance counters locked by %d", uid)
+				err = fmt.Errorf("access to performance counters locked by %d", uid)
 			}
+			// delete error if we already returned the error once.
+			if !m.lock_err_once {
+				m.lock_err_once = true
+			} else {
+				err = nil
+			}
+			return true, err
 		}
+		// reset lock_err_once
+		m.lock_err_once = false
+
 		// Add the lock file to the watcher
 		err = watcher.Add(m.config.LockfilePath)
 		if err != nil {
@@ -436,9 +449,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		gid = C.perfmon_addEventSet(evset.estr)
 	}
 	if gid < 0 {
-		return true, fmt.Errorf("failed to add events %s, error %d", evset.go_estr, gid)
-	} else {
-		evset.gid = gid
+		return true, fmt.Errorf("failed to add events %s, id %d, error %d", evset.go_estr, evidx, gid)
 	}
 
 	// Setup all performance monitoring counters of an eventSet
@@ -549,11 +560,12 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 }
 
 // Get all measurement results for an event set, derive the metric values out of the measurement results and send it
-func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interval time.Duration, output chan lp.CCMetric) error {
+func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interval time.Duration, output chan lp.CCMessage) error {
 	invClock := float64(1.0 / m.basefreq)
 
 	for _, tid := range m.cpu2tid {
 		evset.results[tid]["inverseClock"] = invClock
+		evset.results[tid]["gotime"] = interval.Seconds()
 	}
 
 	// Go over the event set metrics, derive the value out of the event:counter values and send it
@@ -582,7 +594,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				if !math.IsNaN(value) && metric.Publish {
 					fields := map[string]interface{}{"value": value}
 					y, err :=
-						lp.New(
+						lp.NewMessage(
 							metric.Name,
 							map[string]string{
 								"type": metric.Type,
@@ -619,7 +631,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 			for coreID, value := range totalCoreValues {
 				y, err :=
-					lp.New(
+					lp.NewMessage(
 						metric.Name,
 						map[string]string{
 							"type":    "core",
@@ -656,7 +668,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 
 			for socketID, value := range totalSocketValues {
 				y, err :=
-					lp.New(
+					lp.NewMessage(
 						metric.Name,
 						map[string]string{
 							"type":    "socket",
@@ -691,7 +703,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 			}
 
 			y, err :=
-				lp.New(
+				lp.NewMessage(
 					metric.Name,
 					map[string]string{
 						"type": "node",
@@ -716,7 +728,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 }
 
 // Go over the global metrics, derive the value out of the event sets' metric values and send it
-func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, interval time.Duration, output chan lp.CCMetric) error {
+func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, interval time.Duration, output chan lp.CCMessage) error {
 	// Send all metrics with same time stamp
 	// This function does only computiation, counter measurement is done before
 	now := time.Now()
@@ -737,6 +749,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 						params[mname] = mres
 					}
 				}
+				params["gotime"] = interval.Seconds()
 				// Evaluate the metric
 				value, err := agg.EvalFloat64Condition(metric.Calc, params)
 				if err != nil {
@@ -750,7 +763,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				if !math.IsNaN(value) {
 					if metric.Publish {
 						y, err :=
-							lp.New(
+							lp.NewMessage(
 								metric.Name,
 								map[string]string{
 									"type": metric.Type,
@@ -778,7 +791,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 	return nil
 }
 
-func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMetric) {
+func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMessage) {
 	var err error = nil
 	groups := make([]LikwidEventsetConfig, 0)
 
@@ -798,15 +811,17 @@ func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMe
 		if !skip {
 			// read measurements and derive event set metrics
 			m.calcEventsetMetrics(e, interval, output)
+			groups = append(groups, e)
 		}
-		groups = append(groups, e)
 	}
-	// calculate global metrics
-	m.calcGlobalMetrics(groups, interval, output)
+	if len(groups) > 0 {
+		// calculate global metrics
+		m.calcGlobalMetrics(groups, interval, output)
+	}
 }
 
 // main read function taking multiple measurement rounds, each 'interval' seconds long
-func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *LikwidCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}

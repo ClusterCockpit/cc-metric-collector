@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 	sysconf "github.com/tklauser/go-sysconf"
 )
 
@@ -34,7 +34,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "CPU", "unit": "Percent"}
+	m.meta = map[string]string{"source": m.name, "group": "CPU"}
 	m.nodetags = map[string]string{"type": "node"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
@@ -105,7 +105,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]string, output chan lp.CCMetric, now time.Time, tsdelta time.Duration) {
+func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]string, output chan lp.CCMessage, now time.Time, tsdelta time.Duration) {
 	values := make(map[string]float64)
 	clktck, _ := sysconf.Sysconf(sysconf.SC_CLK_TCK)
 	for match, index := range m.matches {
@@ -122,21 +122,23 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 	sum := float64(0)
 	for name, value := range values {
 		sum += value
-		y, err := lp.New(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
+		y, err := lp.NewMessage(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
 		if err == nil {
+			y.AddTag("unit", "Percent")
 			output <- y
 		}
 	}
 	if v, ok := values["cpu_idle"]; ok {
 		sum -= v
-		y, err := lp.New("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
+		y, err := lp.NewMessage("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
 		if err == nil {
+			y.AddTag("unit", "Percent")
 			output <- y
 		}
 	}
 }
 
-func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -162,7 +164,7 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMetric)
 		}
 	}
 
-	num_cpus_metric, err := lp.New("num_cpus",
+	num_cpus_metric, err := lp.NewMessage("num_cpus",
 		m.nodetags,
 		m.meta,
 		map[string]interface{}{"value": int(num_cpus)},

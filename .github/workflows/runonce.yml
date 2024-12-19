@@ -159,7 +159,6 @@ jobs:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
-
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
       uses: actions/setup-go@v4

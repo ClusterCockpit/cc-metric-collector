@@ -13,7 +13,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 type PrometheusReceiverConfig struct {
@@ -74,7 +74,7 @@ func (r *PrometheusReceiver) Start() {
 					}
 					value, err := strconv.ParseFloat(lineSplit[1], 64)
 					if err == nil {
-						y, err := lp.New(name, tags, r.meta, map[string]interface{}{"value": value}, t)
+						y, err := lp.NewMessage(name, tags, r.meta, map[string]interface{}{"value": value}, t)
 						if err == nil {
 							r.sink <- y
 						}

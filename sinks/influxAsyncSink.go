@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	influxdb2Api "github.com/influxdata/influxdb-client-go/v2/api"
 	influxdb2ApiHttp "github.com/influxdata/influxdb-client-go/v2/api/http"
@@ -36,6 +37,8 @@ type InfluxAsyncSinkConfig struct {
 	InfluxMaxRetryTime    string `json:"max_retry_time,omitempty"`
 	CustomFlushInterval   string `json:"custom_flush_interval,omitempty"`
 	MaxRetryAttempts      uint   `json:"max_retry_attempts,omitempty"`
+	// Timestamp precision
+	Precision string `json:"precision,omitempty"`
 }
 
 type InfluxAsyncSink struct {
@@ -93,7 +96,22 @@ func (s *InfluxAsyncSink) connect() error {
 		&tls.Config{
 			InsecureSkipVerify: true,
 		},
-	).SetPrecision(time.Second)
+	)
+
+	precision := time.Second
+	if len(s.config.Precision) > 0 {
+		switch s.config.Precision {
+		case "s":
+			precision = time.Second
+		case "ms":
+			precision = time.Millisecond
+		case "us":
+			precision = time.Microsecond
+		case "ns":
+			precision = time.Nanosecond
+		}
+	}
+	clientOptions.SetPrecision(precision)
 
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
@@ -112,7 +130,7 @@ func (s *InfluxAsyncSink) connect() error {
 	return nil
 }
 
-func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
+func (s *InfluxAsyncSink) Write(m lp.CCMessage) error {
 	if s.customFlushInterval != 0 && s.flushTimer == nil {
 		// Run a batched flush for all lines that have arrived in the defined interval
 		s.flushTimer = time.AfterFunc(s.customFlushInterval, func() {
@@ -121,9 +139,10 @@ func (s *InfluxAsyncSink) Write(m lp.CCMetric) error {
 			}
 		})
 	}
-	s.writeApi.WritePoint(
-		m.ToPoint(s.meta_as_tags),
-	)
+	msg, err := s.mp.ProcessMessage(m)
+	if err == nil && msg != nil {
+		s.writeApi.WritePoint(msg.ToPoint(nil))
+	}
 	return nil
 }
 
@@ -158,6 +177,7 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.CustomFlushInterval = ""
 	s.customFlushInterval = time.Duration(0)
 	s.config.MaxRetryAttempts = 1
+	s.config.Precision = "s"
 
 	// Default retry intervals (in seconds)
 	// 1 2
@@ -200,10 +220,24 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 	if len(s.config.Password) == 0 {
 		return nil, errors.New("missing password configuration required by InfluxSink")
 	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
+	if len(s.config.MessageProcessor) > 0 {
+		err = s.mp.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
 	// Create lookup map to use meta infos as tags in the output metric
-	s.meta_as_tags = make(map[string]bool)
+	// s.meta_as_tags = make(map[string]bool)
+	// for _, k := range s.config.MetaAsTags {
+	// 	s.meta_as_tags[k] = true
+	// }
 	for _, k := range s.config.MetaAsTags {
-		s.meta_as_tags[k] = true
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 
 	toUint := func(duration string, def uint) uint {

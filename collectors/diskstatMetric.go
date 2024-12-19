@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 //	"log"
@@ -48,7 +48,7 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
@@ -92,13 +92,13 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 		}
 		tags := map[string]string{"type": "node", "device": linefields[0]}
 		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
-		y, err := lp.New("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
+		y, err := lp.NewMessage("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
 		if err == nil {
 			y.AddMeta("unit", "GBytes")
 			output <- y
 		}
 		free := (stat.Bfree * uint64(stat.Bsize)) / uint64(1000000000)
-		y, err = lp.New("disk_free", tags, m.meta, map[string]interface{}{"value": free}, time.Now())
+		y, err = lp.NewMessage("disk_free", tags, m.meta, map[string]interface{}{"value": free}, time.Now())
 		if err == nil {
 			y.AddMeta("unit", "GBytes")
 			output <- y
@@ -110,7 +110,7 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMetric
 			}
 		}
 	}
-	y, err := lp.New("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())
+	y, err := lp.NewMessage("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())
 	if err == nil {
 		y.AddMeta("unit", "percent")
 		output <- y

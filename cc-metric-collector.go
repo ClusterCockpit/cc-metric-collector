@@ -17,7 +17,7 @@ import (
 
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
@@ -54,7 +54,7 @@ type RuntimeConfig struct {
 	ReceiveManager  receivers.ReceiveManager
 	MultiChanTicker mct.MultiChanTicker
 
-	Channels []chan lp.CCMetric
+	Channels []chan lp.CCMessage
 	Sync     sync.WaitGroup
 }
 
@@ -242,7 +242,7 @@ func mainFunc() int {
 	}
 
 	// Connect metric router to sink manager
-	RouterToSinksChannel := make(chan lp.CCMetric, 200)
+	RouterToSinksChannel := make(chan lp.CCMessage, 200)
 	rcfg.SinkManager.AddInput(RouterToSinksChannel)
 	rcfg.MetricRouter.AddOutput(RouterToSinksChannel)
 
@@ -254,7 +254,7 @@ func mainFunc() int {
 	}
 
 	// Connect collector manager to metric router
-	CollectToRouterChannel := make(chan lp.CCMetric, 200)
+	CollectToRouterChannel := make(chan lp.CCMessage, 200)
 	rcfg.CollectManager.AddOutput(CollectToRouterChannel)
 	rcfg.MetricRouter.AddCollectorInput(CollectToRouterChannel)
 
@@ -267,7 +267,7 @@ func mainFunc() int {
 		}
 
 		// Connect receive manager to metric router
-		ReceiveToRouterChannel := make(chan lp.CCMetric, 200)
+		ReceiveToRouterChannel := make(chan lp.CCMessage, 200)
 		rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
 		rcfg.MetricRouter.AddReceiverInput(ReceiveToRouterChannel)
 		use_recv = true

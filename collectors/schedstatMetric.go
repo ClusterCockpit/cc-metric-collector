@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const SCHEDSTATFILE = `/proc/schedstat`
@@ -96,7 +96,7 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 	return err
 }
 
-func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]string, output chan lp.CCMetric, now time.Time, tsdelta time.Duration) {
+func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]string, output chan lp.CCMessage, now time.Time, tsdelta time.Duration) {
 	running, _ := strconv.ParseInt(linefields[7], 10, 64)
 	waiting, _ := strconv.ParseInt(linefields[8], 10, 64)
 	diff_running := running - m.olddata[linefields[0]]["running"]
@@ -109,7 +109,7 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 	m.olddata[linefields[0]]["waiting"] = waiting
 	value := l_running + l_waiting
 
-	y, err := lp.New("cpu_load_core", tags, m.meta, map[string]interface{}{"value": value}, now)
+	y, err := lp.NewMessage("cpu_load_core", tags, m.meta, map[string]interface{}{"value": value}, now)
 	if err == nil {
 		// Send it to output channel
 		output <- y
@@ -118,7 +118,7 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 
 // Read collects all metrics belonging to the sample collector
 // and sends them through the output channel to the collector manager
-func (m *SchedstatCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *SchedstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}

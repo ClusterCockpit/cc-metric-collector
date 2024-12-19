@@ -1,5 +1,5 @@
 # LIKWID version
-LIKWID_VERSION := 5.2.2
+LIKWID_VERSION := 5.4.1
 LIKWID_INSTALLED_FOLDER := $(shell dirname $$(which likwid-topology 2>/dev/null) 2>/dev/null)
 
 LIKWID_FOLDER := $(CURDIR)/likwid
@@ -23,7 +23,7 @@ likwid:
 	    mkdir --parents --verbose  "$${BUILD_FOLDER}"
 	    wget --output-document=- http://ftp.rrze.uni-erlangen.de/mirrors/likwid/likwid-$(LIKWID_VERSION).tar.gz |
 	        tar --directory="$${BUILD_FOLDER}" --extract --gz
-		install -D --verbose --preserve-timestamps --mode=0644 --target-directory="$(LIKWID_FOLDER)" "$${BUILD_FOLDER}/likwid-$(LIKWID_VERSION)/src/includes"/likwid*.h "$${BUILD_FOLDER}/likwid-$(LIKWID_VERSION)/src/includes"/bstrlib.h
+		install -D --verbose --preserve-timestamps --mode=0644 --target-directory="$(LIKWID_FOLDER)" "$${BUILD_FOLDER}/likwid-$(LIKWID_VERSION)/src/includes"/likwid*.h
 	    rm --recursive "$${BUILD_FOLDER}"
 	fi
 

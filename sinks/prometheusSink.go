@@ -10,8 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -49,11 +50,13 @@ func intToFloat64(input interface{}) (float64, error) {
 		return float64(value), nil
 	case int64:
 		return float64(value), nil
+	case uint64:
+		return float64(value), nil
 	}
 	return 0, errors.New("cannot cast value to float64")
 }
 
-func getLabelValue(metric lp.CCMetric) []string {
+func getLabelValue(metric lp.CCMessage) []string {
 	labelValues := []string{}
 	if tid, tidok := metric.GetTag("type-id"); tidok && metric.HasTag("type") {
 		labelValues = append(labelValues, tid)
@@ -66,7 +69,7 @@ func getLabelValue(metric lp.CCMetric) []string {
 	return labelValues
 }
 
-func getLabelNames(metric lp.CCMetric) []string {
+func getLabelNames(metric lp.CCMessage) []string {
 	labelNames := []string{}
 	if t, tok := metric.GetTag("type"); tok && metric.HasTag("type-id") {
 		labelNames = append(labelNames, t)
@@ -79,7 +82,7 @@ func getLabelNames(metric lp.CCMetric) []string {
 	return labelNames
 }
 
-func (s *PrometheusSink) newMetric(metric lp.CCMetric) error {
+func (s *PrometheusSink) newMetric(metric lp.CCMessage) error {
 	var value float64 = 0
 	name := metric.Name()
 	opts := prometheus.GaugeOpts{
@@ -117,7 +120,7 @@ func (s *PrometheusSink) newMetric(metric lp.CCMetric) error {
 	return nil
 }
 
-func (s *PrometheusSink) updateMetric(metric lp.CCMetric) error {
+func (s *PrometheusSink) updateMetric(metric lp.CCMessage) error {
 	var value float64 = 0.0
 	name := metric.Name()
 	labelValues := getLabelValue(metric)
@@ -150,8 +153,12 @@ func (s *PrometheusSink) updateMetric(metric lp.CCMetric) error {
 	return nil
 }
 
-func (s *PrometheusSink) Write(m lp.CCMetric) error {
-	return s.updateMetric(m)
+func (s *PrometheusSink) Write(m lp.CCMessage) error {
+	msg, err := s.mp.ProcessMessage(m)
+	if err == nil && msg != nil {
+		err = s.updateMetric(m)
+	}
+	return err
 }
 
 func (s *PrometheusSink) Flush() error {
@@ -179,6 +186,20 @@ func NewPrometheusSink(name string, config json.RawMessage) (Sink, error) {
 		err := errors.New("not all configuration variables set required by PrometheusSink")
 		cclog.ComponentError(s.name, err.Error())
 		return nil, err
+	}
+	p, err := mp.NewMessageProcessor()
+	if err != nil {
+		return nil, fmt.Errorf("initialization of message processor failed: %v", err.Error())
+	}
+	s.mp = p
+	if len(s.config.MessageProcessor) > 0 {
+		err = p.FromConfigJSON(s.config.MessageProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+		}
+	}
+	for _, k := range s.config.MetaAsTags {
+		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 	s.labelMetrics = make(map[string]*prometheus.GaugeVec)
 	s.nodeMetrics = make(map[string]prometheus.Gauge)

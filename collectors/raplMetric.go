@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // running average power limit (RAPL) monitoring attributes for a zone
@@ -214,7 +214,7 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 
 // Read reads running average power limit (RAPL) monitoring attributes for all initialized zones
 // See: https://www.kernel.org/doc/html/latest/power/powercap/powercap.html#monitoring-attributes
-func (m *RAPLCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *RAPLCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 	for i := range m.RAPLZoneInfo {
 		p := &m.RAPLZoneInfo[i]
@@ -237,7 +237,7 @@ func (m *RAPLCollector) Read(interval time.Duration, output chan lp.CCMetric) {
 				timeDiff := energyTimestamp.Sub(p.energyTimestamp)
 				averagePower := float64(energyDiff) / float64(timeDiff.Microseconds())
 
-				y, err := lp.New(
+				y, err := lp.NewMessage(
 					"rapl_average_power",
 					p.tags,
 					m.meta,

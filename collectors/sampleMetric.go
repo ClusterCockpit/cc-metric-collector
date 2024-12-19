@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
 )
 
 // These are the fields we read from the JSON configuration
@@ -32,7 +32,7 @@ type SampleCollector struct {
 func (m *SampleCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	// Always set the name early in Init() to use it in cclog.Component* functions
-	m.name = "InternalCollector"
+	m.name = "SampleCollector"
 	// This is for later use, also call it early
 	m.setup()
 	// Tell whether the collector should be run in parallel with others (reading files, ...)
@@ -74,7 +74,7 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 
 // Read collects all metrics belonging to the sample collector
 // and sends them through the output channel to the collector manager
-func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	// Create a sample metric
 	timestamp := time.Now()
 
@@ -85,7 +85,7 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMetric) 
 	// stop := readState()
 	// value = (stop - start) / interval.Seconds()
 
-	y, err := lp.New("sample_metric", m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
+	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
 	if err == nil {
 		// Send it to output channel
 		output <- y
