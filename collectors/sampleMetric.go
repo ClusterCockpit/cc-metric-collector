@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 
 // These are the fields we read from the JSON configuration
@@ -32,7 +32,7 @@ type SampleCollector struct {
 func (m *SampleCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	// Always set the name early in Init() to use it in cclog.Component* functions
-	m.name = "InternalCollector"
+	m.name = "SampleCollector"
 	// This is for later use, also call it early
 	m.setup()
 	// Tell whether the collector should be run in parallel with others (reading files, ...)

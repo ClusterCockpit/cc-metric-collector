@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 
 // These are the fields we read from the JSON configuration
@@ -25,7 +25,7 @@ type SampleTimerCollector struct {
 	config   SampleTimerCollectorConfig // the configuration structure
 	interval time.Duration              // the interval parsed from configuration
 	ticker   *time.Ticker               // own timer
-	output   chan lp.CCMessage           // own internal output channel
+	output   chan lp.CCMessage          // own internal output channel
 }
 
 func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
