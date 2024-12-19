@@ -43,7 +43,7 @@ const (
 type LikwidCollectorMetricConfig struct {
 	Name               string `json:"name"` // Name of the metric
 	Calc               string `json:"calc"` // Calculation for the metric using
-	Type               string `json:"type"` // Metric type (aka node, socket, cpu, ...)
+	Type               string `json:"type"` // Metric type (aka node, socket, hwthread, ...)
 	Publish            bool   `json:"publish"`
 	SendCoreTotalVal   bool   `json:"send_core_total_values,omitempty"`
 	SendSocketTotalVal bool   `json:"send_socket_total_values,omitempty"`
@@ -91,6 +91,8 @@ type LikwidCollector struct {
 	running       bool
 	initialized   bool
 	needs_reinit  bool
+	myuid         int
+	lock_err_once bool
 	likwidGroups  map[C.int]LikwidEventsetConfig
 	lock          sync.Mutex
 	measureThread thread.Thread
@@ -204,6 +206,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.initialized = false
 	m.needs_reinit = true
 	m.running = false
+	m.myuid = os.Getuid()
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
 	m.config.LibraryPath = LIKWID_LIB_NAME
 	m.config.LockfilePath = LIKWID_DEF_LOCKFILE
@@ -390,14 +393,24 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 		}
 		// Check file ownership
 		uid := info.Sys().(*syscall.Stat_t).Uid
-		if uid != uint32(os.Getuid()) {
+		if uid != uint32(m.myuid) {
 			usr, err := user.LookupId(fmt.Sprint(uid))
 			if err == nil {
-				return true, fmt.Errorf("access to performance counters locked by %s", usr.Username)
+				err = fmt.Errorf("access to performance counters locked by %s", usr.Username)
 			} else {
-				return true, fmt.Errorf("access to performance counters locked by %d", uid)
+				err = fmt.Errorf("access to performance counters locked by %d", uid)
 			}
+			// delete error if we already returned the error once.
+			if !m.lock_err_once {
+				m.lock_err_once = true
+			} else {
+				err = nil
+			}
+			return true, err
 		}
+		// reset lock_err_once
+		m.lock_err_once = false
+
 		// Add the lock file to the watcher
 		err = watcher.Add(m.config.LockfilePath)
 		if err != nil {
@@ -798,11 +811,13 @@ func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMe
 		if !skip {
 			// read measurements and derive event set metrics
 			m.calcEventsetMetrics(e, interval, output)
+			groups = append(groups, e)
 		}
-		groups = append(groups, e)
 	}
-	// calculate global metrics
-	m.calcGlobalMetrics(groups, interval, output)
+	if len(groups) > 0 {
+		// calculate global metrics
+		m.calcGlobalMetrics(groups, interval, output)
+	}
 }
 
 // main read function taking multiple measurement rounds, each 'interval' seconds long
