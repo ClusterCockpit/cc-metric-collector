@@ -276,7 +276,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.Timeout = "5s"
 	s.config.FlushDelay = "5s"
 	s.config.MaxRetries = 3
-	s.config.Precision = "ns"
+	s.config.Precision = "s"
 	cclog.ComponentDebug(s.name, "Init()")
 
 	// Read config
@@ -339,7 +339,7 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 		s.mp.AddMoveMetaToTags("true", k, k)
 	}
 
-	precision := influx.Nanosecond
+	precision := influx.Second
 	if len(s.config.Precision) > 0 {
 		switch s.config.Precision {
 		case "s":

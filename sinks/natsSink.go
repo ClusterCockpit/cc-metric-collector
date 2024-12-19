@@ -12,8 +12,9 @@ import (
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
-	influx "github.com/influxdata/line-protocol"
+	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	nats "github.com/nats-io/nats.go"
+	"golang.org/x/exp/slices"
 )
 
 type NatsSinkConfig struct {
@@ -25,18 +26,23 @@ type NatsSinkConfig struct {
 	Password   string `json:"password,omitempty"`
 	FlushDelay string `json:"flush_delay,omitempty"`
 	NkeyFile   string `json:"nkey_file,omitempty"`
+	// Timestamp precision
+	Precision string `json:"precision,omitempty"`
 }
+
 
 type NatsSink struct {
 	sink
 	client  *nats.Conn
-	encoder *influx.Encoder
+	encoder influx.Encoder
 	buffer  *bytes.Buffer
 	config  NatsSinkConfig
 
 	lock       sync.Mutex
 	flushDelay time.Duration
 	flushTimer *time.Timer
+
+	extended_tag_list []key_value_pair
 }
 
 func (s *NatsSink) connect() error {
@@ -73,7 +79,52 @@ func (s *NatsSink) Write(m lp.CCMessage) error {
 	msg, err := s.mp.ProcessMessage(m)
 	if err == nil && msg != nil {
 		s.lock.Lock()
-		_, err := s.encoder.Encode(msg.ToPoint(nil))
+		// Encode measurement name
+		s.encoder.StartLine(msg.Name())
+
+		// copy tags and meta data which should be used as tags
+		s.extended_tag_list = s.extended_tag_list[:0]
+		for key, value := range m.Tags() {
+			s.extended_tag_list =
+				append(
+					s.extended_tag_list,
+					key_value_pair{
+						key:   key,
+						value: value,
+					},
+				)
+		}
+		// Encode tags (they musts be in lexical order)
+		slices.SortFunc(
+			s.extended_tag_list,
+			func(a key_value_pair, b key_value_pair) int {
+				if a.key < b.key {
+					return -1
+				}
+				if a.key > b.key {
+					return +1
+				}
+				return 0
+			},
+		)
+		for i := range s.extended_tag_list {
+			s.encoder.AddTag(
+				s.extended_tag_list[i].key,
+				s.extended_tag_list[i].value,
+			)
+		}
+
+		// Encode fields
+		for key, value := range msg.Fields() {
+			s.encoder.AddField(key, influx.MustNewValue(value))
+		}
+
+		// Encode time stamp
+		s.encoder.EndLine(msg.Time())
+
+		// Check for encoder errors
+		err := s.encoder.Err()
+
 		s.lock.Unlock()
 		if err != nil {
 			cclog.ComponentError(s.name, "Write:", err.Error())
@@ -96,8 +147,8 @@ func (s *NatsSink) Write(m lp.CCMessage) error {
 
 func (s *NatsSink) Flush() error {
 	s.lock.Lock()
-	buf := append([]byte{}, s.buffer.Bytes()...) // copy bytes
-	s.buffer.Reset()
+	buf := slices.Clone(s.encoder.Bytes())
+	s.encoder.Reset()
 	s.lock.Unlock()
 
 	if len(buf) == 0 {
@@ -120,6 +171,7 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 	s.name = fmt.Sprintf("NatsSink(%s)", name)
 	s.flushDelay = 10 * time.Second
 	s.config.Port = "4222"
+	s.config.Precision = "s"
 	if len(config) > 0 {
 		d := json.NewDecoder(bytes.NewReader(config))
 		d.DisallowUnknownFields()
@@ -148,16 +200,26 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 	for _, k := range s.config.MetaAsTags {
 		s.mp.AddMoveMetaToTags("true", k, k)
 	}
+	precision := influx.Second
+	if len(s.config.Precision) > 0 {
+		switch s.config.Precision {
+		case "s":
+			precision = influx.Second
+		case "ms":
+			precision = influx.Millisecond
+		case "us":
+			precision = influx.Microsecond
+		case "ns":
+			precision = influx.Nanosecond
+		}
+	}
+
 	// s.meta_as_tags = make(map[string]bool)
 	// for _, k := range s.config.MetaAsTags {
 	// 	s.meta_as_tags[k] = true
 	// }
 	// Setup Influx line protocol
-	s.buffer = &bytes.Buffer{}
-	s.buffer.Grow(1025)
-	s.encoder = influx.NewEncoder(s.buffer)
-	s.encoder.SetPrecision(time.Second)
-	s.encoder.SetMaxLineBytes(1024)
+	s.encoder.SetPrecision(precision)
 	// Setup infos for connection
 	if err := s.connect(); err != nil {
 		return nil, fmt.Errorf("unable to connect: %v", err)
@@ -171,6 +233,7 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 			return nil, err
 		}
 	}
+	s.extended_tag_list = make([]key_value_pair, 0)
 
 	return s, nil
 }

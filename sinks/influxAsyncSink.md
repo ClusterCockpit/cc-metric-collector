@@ -19,9 +19,13 @@ The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go
     "batch_size": 200,
     "retry_interval" : "1s",
     "retry_exponential_base" : 2,
+    "precision": "s",
     "max_retries": 20,
     "max_retry_time" : "168h",
-    "meta_as_tags" : [],
+    "process_messages" : {
+      "see" : "docs of message processor for valid fields"
+    },
+    "meta_as_tags" : []
   }
 }
 ```
@@ -39,6 +43,12 @@ The `influxasync` sink uses the official [InfluxDB golang client](https://pkg.go
 - `retry_exponential_base`: The retry interval is exponentially increased with this base, default 2
 - `max_retries`: Maximal number of retry attempts
 - `max_retry_time`: Maximal time to retry failed writes, default 168h (one week)
-- `meta_as_tags`: move meta information keys to tags (optional)
+- `precision`: Precision of the timestamp. Valid values are 's', 'ms', 'us' and 'ns'. (default is 's')
+- `process_messages`: Process messages with given rules before progressing or dropping, see [here](../pkg/messageProcessor/README.md) (optional)
+- `meta_as_tags`: print all meta information as tags in the output (deprecated, optional)
 
 For information about the calculation of the retry interval settings, see [offical influxdb-client-go documentation](https://github.com/influxdata/influxdb-client-go#handling-of-failed-async-writes)
+
+### Using `influxasync` sink for communication with cc-metric-store
+
+The cc-metric-store only accepts metrics with a timestamp precision in seconds, so it is required to use `"precision": "s"`.

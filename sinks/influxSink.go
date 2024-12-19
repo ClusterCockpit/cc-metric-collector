@@ -59,6 +59,8 @@ type InfluxSink struct {
 		InfluxMaxRetryTime string `json:"max_retry_time,omitempty"`
 		// Specify whether to use GZip compression in write requests
 		InfluxUseGzip bool `json:"use_gzip"`
+		// Timestamp precision
+		Precision string `json:"precision,omitempty"`
 	}
 
 	// influx line protocol encoder
@@ -207,7 +209,20 @@ func (s *InfluxSink) connect() error {
 	)
 
 	// Set time precision
-	clientOptions.SetPrecision(time.Nanosecond)
+	precision := time.Second
+	if len(s.config.Precision) > 0 {
+		switch s.config.Precision {
+		case "s":
+			precision = time.Second
+		case "ms":
+			precision = time.Millisecond
+		case "us":
+			precision = time.Microsecond
+		case "ns":
+			precision = time.Nanosecond
+		}
+	}
+	clientOptions.SetPrecision(precision)
 
 	// Create new writeAPI
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
@@ -421,6 +436,7 @@ func NewInfluxSink(name string, config json.RawMessage) (Sink, error) {
 	// Set config default values
 	s.config.BatchSize = 1000
 	s.config.FlushInterval = "1s"
+	s.config.Precision = "s"
 
 	// Read config
 	if len(config) > 0 {

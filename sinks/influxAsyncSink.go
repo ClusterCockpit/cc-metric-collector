@@ -37,6 +37,8 @@ type InfluxAsyncSinkConfig struct {
 	InfluxMaxRetryTime    string `json:"max_retry_time,omitempty"`
 	CustomFlushInterval   string `json:"custom_flush_interval,omitempty"`
 	MaxRetryAttempts      uint   `json:"max_retry_attempts,omitempty"`
+	// Timestamp precision
+	Precision string `json:"precision,omitempty"`
 }
 
 type InfluxAsyncSink struct {
@@ -94,7 +96,22 @@ func (s *InfluxAsyncSink) connect() error {
 		&tls.Config{
 			InsecureSkipVerify: true,
 		},
-	).SetPrecision(time.Second)
+	)
+
+	precision := time.Second
+	if len(s.config.Precision) > 0 {
+		switch s.config.Precision {
+		case "s":
+			precision = time.Second
+		case "ms":
+			precision = time.Millisecond
+		case "us":
+			precision = time.Microsecond
+		case "ns":
+			precision = time.Nanosecond
+		}
+	}
+	clientOptions.SetPrecision(precision)
 
 	s.client = influxdb2.NewClientWithOptions(uri, auth, clientOptions)
 	s.writeApi = s.client.WriteAPI(s.config.Organization, s.config.Database)
@@ -160,6 +177,7 @@ func NewInfluxAsyncSink(name string, config json.RawMessage) (Sink, error) {
 	s.config.CustomFlushInterval = ""
 	s.customFlushInterval = time.Duration(0)
 	s.config.MaxRetryAttempts = 1
+	s.config.Precision = "s"
 
 	// Default retry intervals (in seconds)
 	// 1 2
