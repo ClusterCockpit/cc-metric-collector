@@ -162,7 +162,7 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	}
 	r.mp.SetNormalizeUnits(r.config.NormalizeUnits)
 
-	r.mp.AddAddTagsByCondition("true", r.config.HostnameTagName, hostname)
+	r.mp.AddAddTagsByCondition("true", r.config.HostnameTagName, r.hostname)
 
 	// r.config.dropMetrics = make(map[string]bool)
 	// for _, mname := range r.config.DropMetrics {
