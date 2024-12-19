@@ -13,14 +13,15 @@ The `cpustat` collector reads data from `/proc/stat` and outputs a handful **nod
 
 Metrics:
 
-* `cpu_user`
-* `cpu_nice`
-* `cpu_system`
-* `cpu_idle`
-* `cpu_iowait`
-* `cpu_irq`
-* `cpu_softirq`
-* `cpu_steal`
-* `cpu_guest`
-* `cpu_guest_nice`
-* `cpu_used` = `cpu_* - cpu_idle`
+* `cpu_user` with `unit=Percent`
+* `cpu_nice` with `unit=Percent`
+* `cpu_system` with `unit=Percent`
+* `cpu_idle` with `unit=Percent`
+* `cpu_iowait` with `unit=Percent`
+* `cpu_irq` with `unit=Percent`
+* `cpu_softirq` with `unit=Percent`
+* `cpu_steal` with `unit=Percent`
+* `cpu_guest` with `unit=Percent`
+* `cpu_guest_nice` with `unit=Percent`
+* `cpu_used` = `cpu_* - cpu_idle` with `unit=Percent`
+* `num_cpus`
