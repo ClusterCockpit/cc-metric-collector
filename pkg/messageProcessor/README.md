@@ -22,6 +22,7 @@ New operations can be added to the message processor at runtime. Of course, they
 or some fields in a configuration file for the processing.
 
 The message processor uses the following configuration
+
 ```json
 {
 	"drop_messages": [
@@ -226,6 +227,7 @@ type MessageProcessor interface {
 }
 ```
 
+
 ### Syntax for evaluatable terms
 
 The message processor uses `gval` for evaluating the terms. It provides a basic set of operators like string comparison and arithmetic operations.
@@ -254,9 +256,11 @@ Often the operations are written in JSON files for loading them at startup. In J
 - use `''` instead of `""` for strings
 - for the regexes, use `%` instead of `\`
 
+
 For operations that should be applied on all messages, use the condition `true`.
 
 ### Overhead
 
 The operations taking conditions are pre-processed, which is commonly the time consuming part but, of course, with each added operation, the time to process a message
 increases. Moreover, the processing creates a copy of the message.
+

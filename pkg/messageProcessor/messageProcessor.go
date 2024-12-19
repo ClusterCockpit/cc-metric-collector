@@ -9,6 +9,7 @@ import (
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lplegacy "github.com/ClusterCockpit/cc-metric-collector/pkg/ccMetric"
+
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 )
