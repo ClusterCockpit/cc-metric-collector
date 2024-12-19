@@ -296,6 +296,25 @@ func GetTypeList(topology_type string) []int {
 	return []int{}
 }
 
+func GetTypeId(hwt HwthreadEntry, topology_type string) (int, error) {
+	var err error = nil
+	switch topology_type {
+	case "node":
+		return 0, err
+	case "socket":
+		return hwt.Socket, err
+	case "die":
+		return hwt.Die, err
+	case "memoryDomain":
+		return hwt.NumaDomain, err
+	case "core":
+		return hwt.Core, err
+	case "hwthread":
+		return hwt.CpuID, err
+	}
+	return -1, fmt.Errorf("unknown topology type '%s'", topology_type)
+}
+
 // CpuData returns CPU data for each hardware thread
 func CpuData() []HwthreadEntry {
 	// return a deep copy to protect cache data
@@ -422,4 +441,23 @@ func GetCoreHwthreads(core int) []int {
 		}
 	}
 	return cpuList
+}
+
+// GetTypeList gets the list of specified type using the naming format inside ClusterCockpit
+func GetTypeHwthreads(topology_type string, id int) []int {
+	switch topology_type {
+	case "node":
+		return HwthreadList()
+	case "socket":
+		return GetSocketHwthreads(id)
+	case "die":
+		return GetDieHwthreads(id)
+	case "memoryDomain":
+		return GetNumaDomainHwthreads(id)
+	case "core":
+		return GetCoreHwthreads(id)
+	case "hwthread":
+		return []int{id}
+	}
+	return []int{}
 }
