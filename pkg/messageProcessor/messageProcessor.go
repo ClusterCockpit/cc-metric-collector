@@ -802,45 +802,45 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 		switch s {
 		case STAGENAME_DROP_BY_NAME:
 			if len(mp.dropMessages) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Dropping by message name ", name)
+				//cclog.ComponentDebug("MessageProcessor", "Dropping by message name ", name)
 				if _, ok := mp.dropMessages[name]; ok {
-					cclog.ComponentDebug("MessageProcessor", "Drop")
+					//cclog.ComponentDebug("MessageProcessor", "Drop")
 					return nil, nil
 				}
 			}
 		case STAGENAME_DROP_BY_TYPE:
 			if len(mp.dropTypes) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Dropping by message type")
+				//cclog.ComponentDebug("MessageProcessor", "Dropping by message type")
 				if _, ok := mp.dropTypes[params["messagetype"].(string)]; ok {
-					cclog.ComponentDebug("MessageProcessor", "Drop")
+					//cclog.ComponentDebug("MessageProcessor", "Drop")
 					return nil, nil
 				}
 			}
 		case STAGENAME_DROP_IF:
 			if len(mp.dropMessagesIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Dropping by condition")
+				//cclog.ComponentDebug("MessageProcessor", "Dropping by condition")
 				drop, err := dropMessagesIf(&params, &mp.dropMessagesIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
 				}
 				if drop {
-					cclog.ComponentDebug("MessageProcessor", "Drop")
+					//cclog.ComponentDebug("MessageProcessor", "Drop")
 					return nil, nil
 				}
 			}
 		case STAGENAME_RENAME_BY_NAME:
 			if len(mp.renameMessages) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Renaming by name match")
+				//cclog.ComponentDebug("MessageProcessor", "Renaming by name match")
 				if newname, ok := mp.renameMessages[name]; ok {
-					cclog.ComponentDebug("MessageProcessor", "Rename to", newname)
+					//cclog.ComponentDebug("MessageProcessor", "Rename to", newname)
 					out.SetName(newname)
-					cclog.ComponentDebug("MessageProcessor", "Add old name as 'oldname' to meta", name)
+					//cclog.ComponentDebug("MessageProcessor", "Add old name as 'oldname' to meta", name)
 					out.AddMeta("oldname", name)
 				}
 			}
 		case STAGENAME_RENAME_IF:
 			if len(mp.renameMessagesIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Renaming by condition")
+				//cclog.ComponentDebug("MessageProcessor", "Renaming by condition")
 				_, err := renameMessagesIf(out, &params, &mp.renameMessagesIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -848,7 +848,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_ADD_TAG:
 			if len(mp.addTagsIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Adding tags")
+				//cclog.ComponentDebug("MessageProcessor", "Adding tags")
 				_, err = addTagIf(out, &params, &mp.addTagsIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -856,7 +856,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_DELETE_TAG:
 			if len(mp.deleteTagsIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Delete tags")
+				//cclog.ComponentDebug("MessageProcessor", "Delete tags")
 				_, err = deleteTagIf(out, &params, &mp.deleteTagsIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -864,7 +864,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_ADD_META:
 			if len(mp.addMetaIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Adding meta information")
+				//cclog.ComponentDebug("MessageProcessor", "Adding meta information")
 				_, err = addMetaIf(out, &params, &mp.addMetaIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -872,7 +872,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_DELETE_META:
 			if len(mp.deleteMetaIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Delete meta information")
+				//cclog.ComponentDebug("MessageProcessor", "Delete meta information")
 				_, err = deleteMetaIf(out, &params, &mp.deleteMetaIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -880,7 +880,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_ADD_FIELD:
 			if len(mp.addFieldIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Adding fields")
+				//cclog.ComponentDebug("MessageProcessor", "Adding fields")
 				_, err = addFieldIf(out, &params, &mp.addFieldIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -888,7 +888,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_DELETE_FIELD:
 			if len(mp.deleteFieldIf) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Delete fields")
+				//cclog.ComponentDebug("MessageProcessor", "Delete fields")
 				_, err = deleteFieldIf(out, &params, &mp.deleteFieldIf)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -896,7 +896,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_MOVE_TAG_META:
 			if len(mp.moveTagToMeta) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Move tag to meta")
+				//cclog.ComponentDebug("MessageProcessor", "Move tag to meta")
 				_, err := moveTagToMeta(out, &params, &mp.moveTagToMeta)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -904,7 +904,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_MOVE_TAG_FIELD:
 			if len(mp.moveTagToField) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Move tag to fields")
+				//cclog.ComponentDebug("MessageProcessor", "Move tag to fields")
 				_, err := moveTagToField(out, &params, &mp.moveTagToField)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -912,7 +912,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_MOVE_META_TAG:
 			if len(mp.moveMetaToTag) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Move meta to tags")
+				//cclog.ComponentDebug("MessageProcessor", "Move meta to tags")
 				_, err := moveMetaToTag(out, &params, &mp.moveMetaToTag)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -920,7 +920,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_MOVE_META_FIELD:
 			if len(mp.moveMetaToField) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Move meta to fields")
+				//cclog.ComponentDebug("MessageProcessor", "Move meta to fields")
 				_, err := moveMetaToField(out, &params, &mp.moveMetaToField)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -928,7 +928,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_MOVE_FIELD_META:
 			if len(mp.moveFieldToMeta) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Move field to meta")
+				//cclog.ComponentDebug("MessageProcessor", "Move field to meta")
 				_, err := moveFieldToMeta(out, &params, &mp.moveFieldToMeta)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -936,7 +936,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_MOVE_FIELD_TAG:
 			if len(mp.moveFieldToTag) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Move field to tags")
+				//cclog.ComponentDebug("MessageProcessor", "Move field to tags")
 				_, err := moveFieldToTag(out, &params, &mp.moveFieldToTag)
 				if err != nil {
 					return out, fmt.Errorf("failed to evaluate: %v", err.Error())
@@ -944,7 +944,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 			}
 		case STAGENAME_NORMALIZE_UNIT:
 			if mp.normalizeUnits {
-				cclog.ComponentDebug("MessageProcessor", "Normalize units")
+				//cclog.ComponentDebug("MessageProcessor", "Normalize units")
 				if lp.IsMetric(out) {
 					_, err := normalizeUnits(out)
 					if err != nil {
@@ -957,7 +957,7 @@ func (mp *messageProcessor) ProcessMessage(m lp.CCMessage) (lp.CCMessage, error)
 
 		case STAGENAME_CHANGE_UNIT_PREFIX:
 			if len(mp.changeUnitPrefix) > 0 {
-				cclog.ComponentDebug("MessageProcessor", "Change unit prefix")
+				//cclog.ComponentDebug("MessageProcessor", "Change unit prefix")
 				if lp.IsMetric(out) {
 					_, err := changeUnitPrefix(out, &params, &mp.changeUnitPrefix)
 					if err != nil {
