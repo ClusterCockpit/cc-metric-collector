@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	sysconf "github.com/tklauser/go-sysconf"
 )
 
@@ -34,7 +34,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	m.setup()
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "CPU", "unit": "Percent"}
+	m.meta = map[string]string{"source": m.name, "group": "CPU"}
 	m.nodetags = map[string]string{"type": "node"}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
@@ -124,6 +124,7 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 		sum += value
 		y, err := lp.NewMessage(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
 		if err == nil {
+			y.AddTag("unit", "Percent")
 			output <- y
 		}
 	}
@@ -131,6 +132,7 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 		sum -= v
 		y, err := lp.NewMessage("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
 		if err == nil {
+			y.AddTag("unit", "Percent")
 			output <- y
 		}
 	}
