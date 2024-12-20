@@ -26,7 +26,7 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.21'
 
@@ -52,9 +52,35 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.22'
+
+    - name: Build MetricCollector
+      run: make
+
+    - name: Run MetricCollector once
+      run: ./cc-metric-collector --once --config .github/ci-config.json
+
+  #
+  # Job build-1-23
+  # Build on latest Ubuntu using golang version 1.23
+  #
+  build-1-23:
+    runs-on: ubuntu-latest
+    steps:
+    # See: https://github.com/marketplace/actions/checkout
+    # Checkout git repository and submodules
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
 
     - name: Build MetricCollector
       run: make
@@ -90,7 +116,7 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.21'
 
@@ -126,7 +152,7 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.21'
 
@@ -161,7 +187,7 @@ jobs:
     # Use official golang package
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.21'
 

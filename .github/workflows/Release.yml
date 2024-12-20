@@ -15,7 +15,7 @@ jobs:
   #
   # Build on AlmaLinux 8 using go-toolset
   #
-  AlmaLinux-RPM-build:
+  AlmaLinux8-RPM-build:
     runs-on: ubuntu-latest
     # See: https://hub.docker.com/_/almalinux
     container: almalinux:8
@@ -41,19 +41,15 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # Use dnf to install build dependencies
-    - name: Install build dependencies
-      run: |
-          wget -q https://go.dev/dl/go1.22.4.linux-amd64.tar.gz --output-document=- | \
-          tar --directory=/usr/local --extract --gzip
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
-          go version
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
 
     - name: RPM build MetricCollector
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
 
     # AlmaLinux 8 is a derivate of RedHat Enterprise Linux 8 (UBI8),
@@ -70,19 +66,88 @@ jobs:
         NEW_SRPM=${OLD_SRPM/el8/alma8}
         mv "${OLD_RPM}" "${NEW_RPM}"
         mv "${OLD_SRPM}" "${NEW_SRPM}"
-        echo "::set-output name=SRPM::${NEW_SRPM}"
-        echo "::set-output name=RPM::${NEW_RPM}"
+        echo "SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
+        echo "RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.RPM }}
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
+        path: ${{ steps.rpmrename.outputs.SRPM }}
+
+  #
+  # Build on AlmaLinux 9 using go-toolset
+  #
+  AlmaLinux8-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://hub.docker.com/_/almalinux
+    container: almalinux:9
+    # The job outputs link to the outputs of the 'rpmrename' step
+    # Only job outputs can be used in child jobs
+    outputs:
+      rpm : ${{steps.rpmrename.outputs.RPM}}
+      srpm : ${{steps.rpmrename.outputs.SRPM}}
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: |
+          dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+          dnf --assumeyes install wget openssl-devel diffutils delve which
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
+
+    # AlmaLinux 9 is a derivate of RedHat Enterprise Linux 8 (UBI8),
+    # so the created RPM both contain the substring 'el9' in the RPM file names
+    # This step replaces the substring 'el8' to 'alma8'. It uses the move operation
+    # because it is unclear whether the default AlmaLinux 8 container contains the
+    # 'rename' command. This way we also get the new names for output.
+    - name: Rename RPMs (s/el9/alma9/)
+      id: rpmrename
+      run: |
+        OLD_RPM="${{steps.rpmbuild.outputs.RPM}}"
+        OLD_SRPM="${{steps.rpmbuild.outputs.SRPM}}"
+        NEW_RPM="${OLD_RPM/el9/alma9}"
+        NEW_SRPM=${OLD_SRPM/el9/alma9}
+        mv "${OLD_RPM}" "${NEW_RPM}"
+        mv "${OLD_SRPM}" "${NEW_SRPM}"
+        echo "SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
+        echo "RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
+
+    # See: https://github.com/actions/upload-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cc-metric-collector RPM for AlmaLinux 9
+        path: ${{ steps.rpmrename.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cc-metric-collector SRPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.SRPM }}
 
   #
@@ -111,29 +176,25 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # Use dnf to install build dependencies
-    - name: Install build dependencies
-      run: |
-          wget -q https://go.dev/dl/go1.22.4.linux-amd64.tar.gz --output-document=- | \
-          tar --directory=/usr/local --extract --gzip
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
-          go version
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
 
     - name: RPM build MetricCollector
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
@@ -162,17 +223,15 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0
-    # Use official golang package
-    - name: Install Golang
-      run: |
-          wget -q https://go.dev/dl/go1.22.4.linux-amd64.tar.gz --output-document=- | \
-          tar --directory=/usr/local --extract --gzip
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
-          go version
+
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
     - name: DEB build MetricCollector
       id: dpkg-build
       run: |
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make DEB
     - name: Rename DEB (add '_ubuntu22.04')
@@ -181,13 +240,63 @@ jobs:
         OLD_DEB_NAME=$(echo "${{steps.dpkg-build.outputs.DEB}}" | rev | cut -d '.' -f 2- | rev)
         NEW_DEB_FILE="${OLD_DEB_NAME}_ubuntu22.04.deb"
         mv "${{steps.dpkg-build.outputs.DEB}}" "${NEW_DEB_FILE}"
-        echo "::set-output name=DEB::${NEW_DEB_FILE}"
+        echo "DEB=${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
     # See: https://github.com/actions/upload-artifact
     - name: Save DEB as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
         path: ${{ steps.debrename.outputs.DEB }}
+
+ #
+  # Build on Ubuntu 24.04 using official go package
+  #
+  Ubuntu-noblenumbat-build:
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    # The job outputs link to the outputs of the 'debrename' step
+    # Only job outputs can be used in child jobs
+    outputs:
+      deb : ${{steps.debrename.outputs.DEB}}
+    steps:
+    # Use apt to install development packages
+    - name: Install development packages
+      run: |
+          apt update && apt --assume-yes upgrade
+          apt --assume-yes install build-essential sed git wget bash
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: DEB build MetricCollector
+      id: dpkg-build
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make DEB
+    - name: Rename DEB (add '_ubuntu24.04')
+      id: debrename
+      run: |
+        OLD_DEB_NAME=$(echo "${{steps.dpkg-build.outputs.DEB}}" | rev | cut -d '.' -f 2- | rev)
+        NEW_DEB_FILE="${OLD_DEB_NAME}_ubuntu24.04.deb"
+        mv "${{steps.dpkg-build.outputs.DEB}}" "${NEW_DEB_FILE}"
+        echo "DEB=${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
+    # See: https://github.com/actions/upload-artifact
+    - name: Save DEB as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cc-metric-collector DEB for Ubuntu 24.04
+        path: ${{ steps.debrename.outputs.DEB }}
+
 
   #
   # Create release with fresh RPMs
@@ -195,32 +304,46 @@ jobs:
   Release:
     runs-on: ubuntu-latest
     # We need the RPMs, so add dependency
-    needs: [AlmaLinux-RPM-build, UBI-8-RPM-build, Ubuntu-jammy-build]
+    needs: [AlmaLinux8-RPM-build, AlmaLinux9-RPM-build, UBI-8-RPM-build, Ubuntu-jammy-build, Ubuntu-noblenumbat-build]
 
     steps:
     # See: https://github.com/actions/download-artifact
     - name: Download AlmaLinux 8 RPM
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
     - name: Download AlmaLinux 8 SRPM
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
 
+    - name: Download AlmaLinux 9 RPM
+      uses: actions/download-artifact@v4
+      with:
+        name: cc-metric-collector RPM for AlmaLinux 9
+    - name: Download AlmaLinux 9 SRPM
+      uses: actions/download-artifact@v4
+      with:
+        name: cc-metric-collector SRPM for AlmaLinux 9
+
     - name: Download UBI 8 RPM
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: cc-metric-collector RPM for UBI 8
     - name: Download UBI 8 SRPM
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: cc-metric-collector SRPM for UBI 8
 
     - name: Download Ubuntu 22.04 DEB
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
+
+    - name: Download Ubuntu 24.04 DEB
+      uses: actions/download-artifact@v4
+      with:
+        name: cc-metric-collector DEB for Ubuntu 24.04
 
     # The download actions do not publish the name of the downloaded file,
     # so we re-use the job outputs of the parent jobs. The files are all
@@ -231,21 +354,24 @@ jobs:
     - name: Set RPM variables
       id: files
       run: |
-        ALMA_8_RPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.rpm}}")
-        ALMA_8_SRPM=$(basename "${{ needs.AlmaLinux-RPM-build.outputs.srpm}}")
+        ALMA_8_RPM=$(basename "${{ needs.AlmaLinux8-RPM-build.outputs.rpm}}")
+        ALMA_8_SRPM=$(basename "${{ needs.AlmaLinux8-RPM-build.outputs.srpm}}")
         UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
         UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
-        U_2004_DEB=$(basename "${{ needs.Ubuntu-focal-build.outputs.deb}}")
+        U_2204_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
+        U_2404_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
         echo "ALMA_8_RPM::${ALMA_8_RPM}"
         echo "ALMA_8_SRPM::${ALMA_8_SRPM}"
         echo "UBI_8_RPM::${UBI_8_RPM}"
         echo "UBI_8_SRPM::${UBI_8_SRPM}"
-        echo "U_2004_DEB::${U_2004_DEB}"
-        echo "::set-output name=ALMA_8_RPM::${ALMA_8_RPM}"
-        echo "::set-output name=ALMA_8_SRPM::${ALMA_8_SRPM}"
-        echo "::set-output name=UBI_8_RPM::${UBI_8_RPM}"
-        echo "::set-output name=UBI_8_SRPM::${UBI_8_SRPM}"
-        echo "::set-output name=U_2004_DEB::${U_2004_DEB}"
+        echo "U_2204_DEB::${U_2204_DEB}"
+        echo "U_2404_DEB::${U_2404_DEB}"
+        echo "ALMA_8_RPM=${ALMA_8_RPM}" >> $GITHUB_OUTPUT
+        echo "ALMA_8_SRPM=${ALMA_8_SRPM}" >> $GITHUB_OUTPUT
+        echo "UBI_8_RPM=${UBI_8_RPM}" >> $GITHUB_OUTPUT
+        echo "UBI_8_SRPM=${UBI_8_SRPM}" >> $GITHUB_OUTPUT
+        echo "U_2204_DEB=${U_2204_DEB}" >> $GITHUB_OUTPUT
+        echo "U_2404_DEB=${U_2404_DEB}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/softprops/action-gh-release
     - name: Release
@@ -258,4 +384,5 @@ jobs:
          ${{ steps.files.outputs.ALMA_8_SRPM }}
          ${{ steps.files.outputs.UBI_8_RPM }}
          ${{ steps.files.outputs.UBI_8_SRPM }}
-         ${{ steps.files.outputs.U_2004_DEB }}
+         ${{ steps.files.outputs.U_2204_DEB }}
+         ${{ steps.files.outputs.U_2404_DEB }}
