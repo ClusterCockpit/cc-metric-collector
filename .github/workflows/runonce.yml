@@ -26,7 +26,7 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.21'
 
@@ -52,7 +52,7 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.22'
 
@@ -63,9 +63,35 @@ jobs:
       run: ./cc-metric-collector --once --config .github/ci-config.json
 
   #
-  # Build on AlmaLinux 8 using go-toolset
+  # Job build-1-23
+  # Build on latest Ubuntu using golang version 1.23
   #
-  AlmaLinux-RPM-build:
+  build-1-23:
+    runs-on: ubuntu-latest
+    steps:
+    # See: https://github.com/marketplace/actions/checkout
+    # Checkout git repository and submodules
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Build MetricCollector
+      run: make
+
+    - name: Run MetricCollector once
+      run: ./cc-metric-collector --once --config .github/ci-config.json
+
+  #
+  # Build on AlmaLinux 8
+  #
+  AlmaLinux8-RPM-build:
     runs-on: ubuntu-latest
     # See: https://hub.docker.com/_/almalinux
     container: almalinux:8
@@ -90,16 +116,54 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: 'stable'
 
     - name: RPM build MetricCollector
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make RPM
+
+  #
+  # Build on AlmaLinux 9
+  #
+  AlmaLinux9-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://hub.docker.com/_/almalinux
+    container: almalinux:9
+    # The job outputs link to the outputs of the 'rpmrename' step
+    # Only job outputs can be used in child jobs
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: |
+          dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+          dnf --assumeyes install wget openssl-devel diffutils delve which
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
+
 
   #
   # Build on UBI 8 using go-toolset
@@ -107,7 +171,7 @@ jobs:
   UBI-8-RPM-build:
     runs-on: ubuntu-latest
     # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
-    container: registry.access.redhat.com/ubi8/ubi:8.8-1032.1692772289
+    container: redhat/ubi8
     # The job outputs link to the outputs of the 'rpmbuild' step
     steps:
 
@@ -126,15 +190,49 @@ jobs:
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: 'stable'
 
     - name: RPM build MetricCollector
       id: rpmbuild
       run: |
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
-          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
+          make RPM
+
+  #
+  # Build on UBI 9 using go-toolset
+  #
+  UBI-9-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    container: redhat/ubi9
+    # The job outputs link to the outputs of the 'rpmbuild' step
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make RPM
 
   #
@@ -161,13 +259,46 @@ jobs:
     # Use official golang package
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: 'stable'
 
     - name: DEB build MetricCollector
       id: dpkg-build
       run: |
           export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
-          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make DEB
+
+  #
+  # Build on Ubuntu 24.04 using official go package
+  #
+  Ubuntu-noblenumbat-build:
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+
+    steps:
+    # Use apt to install development packages
+    - name: Install development packages
+      run: |
+          apt update && apt --assume-yes upgrade
+          apt --assume-yes install build-essential sed git wget bash
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+    # Use official golang package
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: DEB build MetricCollector
+      id: dpkg-build
+      run: |
+          export PATH=/usr/local/go/bin:/usr/local/go/pkg/tool/linux_amd64:$PATH
           make DEB
