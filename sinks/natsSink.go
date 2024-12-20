@@ -30,19 +30,16 @@ type NatsSinkConfig struct {
 	Precision string `json:"precision,omitempty"`
 }
 
-
 type NatsSink struct {
 	sink
-	client  *nats.Conn
-	encoder influx.Encoder
-	buffer  *bytes.Buffer
-	config  NatsSinkConfig
+	client      *nats.Conn
+	encoder     influx.Encoder
+	encoderLock sync.Mutex
+	config      NatsSinkConfig
 
-	lock       sync.Mutex
 	flushDelay time.Duration
 	flushTimer *time.Timer
-
-	extended_tag_list []key_value_pair
+	//timerLock  sync.Mutex
 }
 
 func (s *NatsSink) connect() error {
@@ -78,54 +75,11 @@ func (s *NatsSink) connect() error {
 func (s *NatsSink) Write(m lp.CCMessage) error {
 	msg, err := s.mp.ProcessMessage(m)
 	if err == nil && msg != nil {
-		s.lock.Lock()
-		// Encode measurement name
-		s.encoder.StartLine(msg.Name())
+		s.encoderLock.Lock()
 
-		// copy tags and meta data which should be used as tags
-		s.extended_tag_list = s.extended_tag_list[:0]
-		for key, value := range m.Tags() {
-			s.extended_tag_list =
-				append(
-					s.extended_tag_list,
-					key_value_pair{
-						key:   key,
-						value: value,
-					},
-				)
-		}
-		// Encode tags (they musts be in lexical order)
-		slices.SortFunc(
-			s.extended_tag_list,
-			func(a key_value_pair, b key_value_pair) int {
-				if a.key < b.key {
-					return -1
-				}
-				if a.key > b.key {
-					return +1
-				}
-				return 0
-			},
-		)
-		for i := range s.extended_tag_list {
-			s.encoder.AddTag(
-				s.extended_tag_list[i].key,
-				s.extended_tag_list[i].value,
-			)
-		}
+		err = EncoderAdd(&s.encoder, msg)
 
-		// Encode fields
-		for key, value := range msg.Fields() {
-			s.encoder.AddField(key, influx.MustNewValue(value))
-		}
-
-		// Encode time stamp
-		s.encoder.EndLine(msg.Time())
-
-		// Check for encoder errors
-		err := s.encoder.Err()
-
-		s.lock.Unlock()
+		s.encoderLock.Unlock()
 		if err != nil {
 			cclog.ComponentError(s.name, "Write:", err.Error())
 			return err
@@ -146,10 +100,10 @@ func (s *NatsSink) Write(m lp.CCMessage) error {
 }
 
 func (s *NatsSink) Flush() error {
-	s.lock.Lock()
+	s.encoderLock.Lock()
 	buf := slices.Clone(s.encoder.Bytes())
 	s.encoder.Reset()
-	s.lock.Unlock()
+	s.encoderLock.Unlock()
 
 	if len(buf) == 0 {
 		return nil
@@ -233,7 +187,6 @@ func NewNatsSink(name string, config json.RawMessage) (Sink, error) {
 			return nil, err
 		}
 	}
-	s.extended_tag_list = make([]key_value_pair, 0)
 
 	return s, nil
 }

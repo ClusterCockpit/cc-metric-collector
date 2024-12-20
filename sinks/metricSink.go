@@ -5,6 +5,8 @@ import (
 
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
+	"golang.org/x/exp/slices"
 )
 
 type defaultSinkConfig struct {
@@ -29,4 +31,58 @@ type Sink interface {
 // Name returns the name of the metric sink
 func (s *sink) Name() string {
 	return s.name
+}
+
+type key_value_pair struct {
+	key   string
+	value string
+}
+
+func EncoderAdd(encoder *influx.Encoder, msg lp.CCMessage) error {
+	// Encode measurement name
+	encoder.StartLine(msg.Name())
+
+	tag_list := make([]key_value_pair, 0, 10)
+
+	// copy tags and meta data which should be used as tags
+	for key, value := range msg.Tags() {
+		tag_list =
+			append(
+				tag_list,
+				key_value_pair{
+					key:   key,
+					value: value,
+				},
+			)
+	}
+	// Encode tags (they musts be in lexical order)
+	slices.SortFunc(
+		tag_list,
+		func(a key_value_pair, b key_value_pair) int {
+			if a.key < b.key {
+				return -1
+			}
+			if a.key > b.key {
+				return +1
+			}
+			return 0
+		},
+	)
+	for i := range tag_list {
+		encoder.AddTag(
+			tag_list[i].key,
+			tag_list[i].value,
+		)
+	}
+
+	// Encode fields
+	for key, value := range msg.Fields() {
+		encoder.AddField(key, influx.MustNewValue(value))
+	}
+
+	// Encode time stamp
+	encoder.EndLine(msg.Time())
+
+	// Return encoder errors
+	return encoder.Err()
 }
