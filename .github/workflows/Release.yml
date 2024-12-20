@@ -274,13 +274,13 @@ jobs:
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: cc-metric-collector RPM for UBI 8
+        name: cc-metric-collector RPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: cc-metric-collector SRPM for UBI 8
+        name: cc-metric-collector SRPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.SRPM }}
         overwrite: true
 
