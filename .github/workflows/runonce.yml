@@ -212,7 +212,7 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros rpm-build-libs rpm-libs gcc make python38 git wget openssl-devel diffutils delve which
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
