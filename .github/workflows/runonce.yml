@@ -170,7 +170,8 @@ jobs:
               https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.22.7-2.el9_5.x86_64.rpm \
               https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.22.7-2.el9_5.x86_64.rpm \
               https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.22.7-2.el9_5.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.22.7-2.el9_5.noarch.rpm
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.22.7-2.el9_5.noarch.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.22.7-2.el9_5.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -255,7 +256,8 @@ jobs:
               https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.22.7-2.el9_5.x86_64.rpm \
               https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.22.7-2.el9_5.x86_64.rpm \
               https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.22.7-2.el9_5.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.22.7-2.el9_5.noarch.rpm
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.22.7-2.el9_5.noarch.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.22.7-2.el9_5.x86_64.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
