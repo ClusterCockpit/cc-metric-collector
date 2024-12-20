@@ -73,21 +73,21 @@ jobs:
         NEW_SRPM=${OLD_SRPM/el8/alma8}
         mv "${OLD_RPM}" "${NEW_RPM}"
         mv "${OLD_SRPM}" "${NEW_SRPM}"
-        echo "SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
-        echo "RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
+        echo "EL8_SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
+        echo "EL8_RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
-        path: ${{ steps.rpmrename.outputs.RPM }}
+        path: ${{ steps.rpmrename.outputs.EL8_RPM }}
         overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
-        path: ${{ steps.rpmrename.outputs.SRPM }}
+        path: ${{ steps.rpmrename.outputs.EL8_SRPM }}
         overwrite: true
 
   #
@@ -152,21 +152,21 @@ jobs:
         NEW_SRPM=${OLD_SRPM/el9/alma9}
         mv "${OLD_RPM}" "${NEW_RPM}"
         mv "${OLD_SRPM}" "${NEW_SRPM}"
-        echo "SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
-        echo "RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
+        echo "EL9_SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
+        echo "EL9_RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
-        path: ${{ steps.rpmrename.outputs.RPM }}
+        path: ${{ steps.rpmrename.outputs.EL9_RPM }}
         overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
-        path: ${{ steps.rpmrename.outputs.SRPM }}
+        path: ${{ steps.rpmrename.outputs.EL9_SRPM }}
         overwrite: true
 
   #
@@ -456,8 +456,10 @@ jobs:
         ALMA_9_SRPM=$(basename "${{ needs.AlmaLinux9-RPM-build.outputs.srpm}}")
         UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
         UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
+        UBI_9_RPM=$(basename "${{ needs.UBI-9-RPM-build.outputs.rpm}}")
+        UBI_9_SRPM=$(basename "${{ needs.UBI-9-RPM-build.outputs.srpm}}")
         U_2204_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
-        U_2404_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
+        U_2404_DEB=$(basename "${{ needs.Ubuntu-noblenumbat-build.outputs.deb}}")
         echo "ALMA_8_RPM::${ALMA_8_RPM}"
         echo "ALMA_8_SRPM::${ALMA_8_SRPM}"
         echo "ALMA_9_RPM::${ALMA_9_RPM}"
@@ -470,6 +472,8 @@ jobs:
         echo "U_2404_DEB::${U_2404_DEB}"
         echo "ALMA_8_RPM=${ALMA_8_RPM}" >> $GITHUB_OUTPUT
         echo "ALMA_8_SRPM=${ALMA_8_SRPM}" >> $GITHUB_OUTPUT
+        echo "ALMA_9_RPM=${ALMA_9_RPM}" >> $GITHUB_OUTPUT
+        echo "ALMA_9_SRPM=${ALMA_9_SRPM}" >> $GITHUB_OUTPUT
         echo "UBI_8_RPM=${UBI_8_RPM}" >> $GITHUB_OUTPUT
         echo "UBI_8_SRPM=${UBI_8_SRPM}" >> $GITHUB_OUTPUT
         echo "UBI_9_RPM=${UBI_9_RPM}" >> $GITHUB_OUTPUT
