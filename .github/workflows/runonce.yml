@@ -115,10 +115,12 @@ jobs:
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -153,10 +155,12 @@ jobs:
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -189,10 +193,12 @@ jobs:
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -224,10 +230,12 @@ jobs:
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
