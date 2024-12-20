@@ -73,8 +73,8 @@ jobs:
         NEW_SRPM=${OLD_SRPM/el8/alma8}
         mv "${OLD_RPM}" "${NEW_RPM}"
         mv "${OLD_SRPM}" "${NEW_SRPM}"
-        echo "EL8_SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
-        echo "EL8_RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
+        echo "SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
+        echo "RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
@@ -152,8 +152,8 @@ jobs:
         NEW_SRPM=${OLD_SRPM/el9/alma9}
         mv "${OLD_RPM}" "${NEW_RPM}"
         mv "${OLD_SRPM}" "${NEW_SRPM}"
-        echo "EL9_SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
-        echo "EL9_RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
+        echo "SRPM=${NEW_SRPM}" >> $GITHUB_OUTPUT
+        echo "RPM=${NEW_RPM}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
@@ -235,6 +235,10 @@ jobs:
     # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
     container: redhat/ubi9
     # The job outputs link to the outputs of the 'rpmbuild' step
+    # The job outputs link to the outputs of the 'rpmbuild' step
+    outputs:
+      rpm : ${{steps.rpmbuild.outputs.RPM}}
+      srpm : ${{steps.rpmbuild.outputs.SRPM}}
     steps:
 
     # Use dnf to install development packages
