@@ -82,11 +82,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on AlmaLinux 9 using go-toolset
@@ -159,11 +161,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on UBI 8 using go-toolset
@@ -215,11 +219,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on UBI 9 using go-toolset
@@ -270,11 +276,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on Ubuntu 22.04 using official go package
@@ -324,6 +332,7 @@ jobs:
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
         path: ${{ steps.debrename.outputs.DEB }}
+        overwrite: true
 
  #
   # Build on Ubuntu 24.04 using official go package
@@ -373,6 +382,7 @@ jobs:
       with:
         name: cc-metric-collector DEB for Ubuntu 24.04
         path: ${{ steps.debrename.outputs.DEB }}
+        overwrite: true
 
 
   #
