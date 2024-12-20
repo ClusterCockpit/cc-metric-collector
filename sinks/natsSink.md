@@ -31,7 +31,7 @@ The `nats` sink publishes all metrics into a NATS network. The publishing key is
 - `user`: Username for basic authentication
 - `password`: Password for basic authentication
 - `nkey_file`: Path to credentials file with NKEY
-- `flush_delay`: Maximum time until metrics are sent out
+- `flush_delay`: Maximum time until metrics are sent out (default '5s')
 - `precision`: Precision of the timestamp. Valid values are 's', 'ms', 'us' and 'ns'. (default is 's')
 - `process_messages`: Process messages with given rules before progressing or dropping, see [here](../pkg/messageProcessor/README.md)  (optional)
 - `meta_as_tags`: print all meta information as tags in the output (deprecated, optional)
