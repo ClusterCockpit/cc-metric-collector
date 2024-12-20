@@ -84,7 +84,7 @@ jobs:
   #
   # Build on AlmaLinux 9 using go-toolset
   #
-  AlmaLinux8-RPM-build:
+  AlmaLinux9-RPM-build:
     runs-on: ubuntu-latest
     # See: https://hub.docker.com/_/almalinux
     container: almalinux:9
