@@ -51,11 +51,6 @@ type HttpSinkConfig struct {
 	Precision string `json:"precision,omitempty"`
 }
 
-type key_value_pair struct {
-	key   string
-	value string
-}
-
 type HttpSink struct {
 	sink
 	client *http.Client
@@ -84,64 +79,7 @@ func (s *HttpSink) Write(msg lp.CCMessage) error {
 		// Lock for encoder usage
 		s.encoderLock.Lock()
 
-		// Encode measurement name
-		s.encoder.StartLine(m.Name())
-
-		// copy tags and meta data which should be used as tags
-		s.extended_tag_list = s.extended_tag_list[:0]
-		for key, value := range m.Tags() {
-			s.extended_tag_list =
-				append(
-					s.extended_tag_list,
-					key_value_pair{
-						key:   key,
-						value: value,
-					},
-				)
-		}
-		// for _, key := range s.config.MetaAsTags {
-		// 	if value, ok := m.GetMeta(key); ok {
-		// 		s.extended_tag_list =
-		// 			append(
-		// 				s.extended_tag_list,
-		// 				key_value_pair{
-		// 					key:   key,
-		// 					value: value,
-		// 				},
-		// 			)
-		// 	}
-		// }
-
-		// Encode tags (they musts be in lexical order)
-		slices.SortFunc(
-			s.extended_tag_list,
-			func(a key_value_pair, b key_value_pair) int {
-				if a.key < b.key {
-					return -1
-				}
-				if a.key > b.key {
-					return +1
-				}
-				return 0
-			},
-		)
-		for i := range s.extended_tag_list {
-			s.encoder.AddTag(
-				s.extended_tag_list[i].key,
-				s.extended_tag_list[i].value,
-			)
-		}
-
-		// Encode fields
-		for key, value := range m.Fields() {
-			s.encoder.AddField(key, influx.MustNewValue(value))
-		}
-
-		// Encode time stamp
-		s.encoder.EndLine(m.Time())
-
-		// Check for encoder errors
-		err := s.encoder.Err()
+		err = EncoderAdd(&s.encoder, m)
 
 		// Unlock encoder usage
 		s.encoderLock.Unlock()
