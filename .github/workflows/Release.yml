@@ -81,13 +81,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
-        path: ${{ steps.rpmrename.outputs.EL8_RPM }}
+        path: ${{ steps.rpmrename.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
-        path: ${{ steps.rpmrename.outputs.EL8_SRPM }}
+        path: ${{ steps.rpmrename.outputs.SRPM }}
         overwrite: true
 
   #
@@ -160,13 +160,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
-        path: ${{ steps.rpmrename.outputs.EL9_RPM }}
+        path: ${{ steps.rpmrename.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
-        path: ${{ steps.rpmrename.outputs.EL9_SRPM }}
+        path: ${{ steps.rpmrename.outputs.SRPM }}
         overwrite: true
 
   #
