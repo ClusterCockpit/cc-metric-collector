@@ -56,8 +56,7 @@ type HttpSink struct {
 	client *http.Client
 	// influx line protocol encoder
 	encoder influx.Encoder
-	// List of tags and meta data tags which should be used as tags
-	extended_tag_list []key_value_pair
+
 	// Flush() runs in another goroutine and accesses the influx line protocol encoder,
 	// so this encoderLock has to protect the encoder
 	encoderLock sync.Mutex
@@ -302,7 +301,6 @@ func NewHttpSink(name string, config json.RawMessage) (Sink, error) {
 
 	// Configure influx line protocol encoder
 	s.encoder.SetPrecision(precision)
-	s.extended_tag_list = make([]key_value_pair, 0)
 
 	return s, nil
 }
