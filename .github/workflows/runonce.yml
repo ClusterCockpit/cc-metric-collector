@@ -164,22 +164,20 @@ jobs:
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make RPM
 
-#
-  # Build on AlmaLinux 9
+
   #
-  AlmaLinux10-RPM-build:
+  # Build on UBI 8 using go-toolset
+  #
+  UBI-8-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://hub.docker.com/_/almalinux
-    container: almalinux:10
-    # The job outputs link to the outputs of the 'rpmrename' step
-    # Only job outputs can be used in child jobs
+    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    container: redhat/ubi8
+    # The job outputs link to the outputs of the 'rpmbuild' step
     steps:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: |
-          dnf --assumeyes group install "Development Tools" "RPM Development Tools"
-          dnf --assumeyes install wget openssl-devel diffutils delve which
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros rpm-build-libs rpm-libs gcc make python38 git wget openssl-devel diffutils delve which
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
@@ -203,12 +201,12 @@ jobs:
           make RPM
 
   #
-  # Build on UBI 8 using go-toolset
+  # Build on UBI 9 using go-toolset
   #
-  UBI-8-RPM-build:
+  UBI-9-RPM-build:
     runs-on: ubuntu-latest
     # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
-    container: registry.access.redhat.com/ubi8/ubi:8.8-1032.1692772289
+    container: redhat/ubi9
     # The job outputs link to the outputs of the 'rpmbuild' step
     steps:
 
