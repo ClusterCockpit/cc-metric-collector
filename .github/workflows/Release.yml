@@ -200,6 +200,53 @@ jobs:
         path: ${{ steps.rpmbuild.outputs.SRPM }}
 
   #
+  # Build on UBI 9 using go-toolset
+  #
+  UBI-9-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    container: redhat/ubi9
+    # The job outputs link to the outputs of the 'rpmbuild' step
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    # See: https://github.com/marketplace/actions/setup-go-environment
+    - name: Setup Golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
+
+    # See: https://github.com/actions/upload-artifact
+    - name: Save RPM as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cc-metric-collector RPM for UBI 8
+        path: ${{ steps.rpmbuild.outputs.RPM }}
+    - name: Save SRPM as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cc-metric-collector SRPM for UBI 8
+        path: ${{ steps.rpmbuild.outputs.SRPM }}
+
+  #
   # Build on Ubuntu 22.04 using official go package
   #
   Ubuntu-jammy-build:
@@ -304,7 +351,7 @@ jobs:
   Release:
     runs-on: ubuntu-latest
     # We need the RPMs, so add dependency
-    needs: [AlmaLinux8-RPM-build, AlmaLinux9-RPM-build, UBI-8-RPM-build, Ubuntu-jammy-build, Ubuntu-noblenumbat-build]
+    needs: [AlmaLinux8-RPM-build, AlmaLinux9-RPM-build, UBI-8-RPM-build, UBI-9-RPM-build, Ubuntu-jammy-build, Ubuntu-noblenumbat-build]
 
     steps:
     # See: https://github.com/actions/download-artifact
@@ -335,6 +382,15 @@ jobs:
       with:
         name: cc-metric-collector SRPM for UBI 8
 
+    - name: Download UBI 9 RPM
+      uses: actions/download-artifact@v4
+      with:
+        name: cc-metric-collector RPM for UBI 9
+    - name: Download UBI 9 SRPM
+      uses: actions/download-artifact@v4
+      with:
+        name: cc-metric-collector SRPM for UBI 9
+
     - name: Download Ubuntu 22.04 DEB
       uses: actions/download-artifact@v4
       with:
@@ -356,33 +412,45 @@ jobs:
       run: |
         ALMA_8_RPM=$(basename "${{ needs.AlmaLinux8-RPM-build.outputs.rpm}}")
         ALMA_8_SRPM=$(basename "${{ needs.AlmaLinux8-RPM-build.outputs.srpm}}")
+        ALMA_9_RPM=$(basename "${{ needs.AlmaLinux9-RPM-build.outputs.rpm}}")
+        ALMA_9_SRPM=$(basename "${{ needs.AlmaLinux9-RPM-build.outputs.srpm}}")
         UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
         UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
         U_2204_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
         U_2404_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
         echo "ALMA_8_RPM::${ALMA_8_RPM}"
         echo "ALMA_8_SRPM::${ALMA_8_SRPM}"
+        echo "ALMA_9_RPM::${ALMA_9_RPM}"
+        echo "ALMA_9_SRPM::${ALMA_9_SRPM}"
         echo "UBI_8_RPM::${UBI_8_RPM}"
         echo "UBI_8_SRPM::${UBI_8_SRPM}"
+        echo "UBI_9_RPM::${UBI_9_RPM}"
+        echo "UBI_9_SRPM::${UBI_9_SRPM}"
         echo "U_2204_DEB::${U_2204_DEB}"
         echo "U_2404_DEB::${U_2404_DEB}"
         echo "ALMA_8_RPM=${ALMA_8_RPM}" >> $GITHUB_OUTPUT
         echo "ALMA_8_SRPM=${ALMA_8_SRPM}" >> $GITHUB_OUTPUT
         echo "UBI_8_RPM=${UBI_8_RPM}" >> $GITHUB_OUTPUT
         echo "UBI_8_SRPM=${UBI_8_SRPM}" >> $GITHUB_OUTPUT
+        echo "UBI_9_RPM=${UBI_9_RPM}" >> $GITHUB_OUTPUT
+        echo "UBI_9_SRPM=${UBI_9_SRPM}" >> $GITHUB_OUTPUT
         echo "U_2204_DEB=${U_2204_DEB}" >> $GITHUB_OUTPUT
         echo "U_2404_DEB=${U_2404_DEB}" >> $GITHUB_OUTPUT
 
     # See: https://github.com/softprops/action-gh-release
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
         name: cc-metric-collector-${{github.ref_name}}
         files: |
          ${{ steps.files.outputs.ALMA_8_RPM }}
          ${{ steps.files.outputs.ALMA_8_SRPM }}
+         ${{ steps.files.outputs.ALMA_9_RPM }}
+         ${{ steps.files.outputs.ALMA_9_SRPM }}
          ${{ steps.files.outputs.UBI_8_RPM }}
          ${{ steps.files.outputs.UBI_8_SRPM }}
+         ${{ steps.files.outputs.UBI_9_RPM }}
+         ${{ steps.files.outputs.UBI_9_SRPM }}
          ${{ steps.files.outputs.U_2204_DEB }}
          ${{ steps.files.outputs.U_2404_DEB }}
