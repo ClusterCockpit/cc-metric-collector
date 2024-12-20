@@ -41,10 +41,12 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -110,10 +112,12 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -176,10 +180,12 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -211,7 +217,7 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve  go-toolkit
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
@@ -223,10 +229,12 @@ jobs:
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
+    # - name: Setup Golang
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version: 'stable'
     - name: Setup Golang
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
+      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -310,7 +318,7 @@ jobs:
     - name: Install development packages
       run: |
           apt update && apt --assume-yes upgrade
-          apt --assume-yes install build-essential sed git wget bash
+          apt --assume-yes install build-essential sed git wget bash go
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout

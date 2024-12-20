@@ -6,9 +6,7 @@ Summary:        Metric collection daemon from the ClusterCockpit suite
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 
-%if "%{getenv:CI}" != "1"
 BuildRequires:  go-toolset
-%endif
 BuildRequires:  systemd-rpm-macros
 # for header downloads
 BuildRequires:  wget
