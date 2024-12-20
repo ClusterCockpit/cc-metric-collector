@@ -46,7 +46,12 @@ jobs:
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
-      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager install \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.22.9-1.module_el8.10.0+3938+8c723e16.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.22.9-1.module_el8.10.0+3938+8c723e16.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.22.9-1.module_el8.10.0+3938+8c723e16.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.22.9-1.module_el8.10.0+3938+8c723e16.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -117,7 +122,12 @@ jobs:
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
-      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager install \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.22.7-2.el9_5.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.22.7-2.el9_5.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.22.7-2.el9_5.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.22.7-2.el9_5.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -185,7 +195,12 @@ jobs:
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
-      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager install \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.22.9-1.module_el8.10.0+3938+8c723e16.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.22.9-1.module_el8.10.0+3938+8c723e16.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.22.9-1.module_el8.10.0+3938+8c723e16.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.22.9-1.module_el8.10.0+3938+8c723e16.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -234,7 +249,12 @@ jobs:
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
-      run: dnf --assumeyes --disableplugin=subscription-manager install go-toolkit
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager install \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.22.7-2.el9_5.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.22.7-2.el9_5.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.22.7-2.el9_5.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.22.7-2.el9_5.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
