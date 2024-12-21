@@ -82,11 +82,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on AlmaLinux 9 using go-toolset
@@ -159,11 +161,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on UBI 8 using go-toolset
@@ -215,11 +219,13 @@ jobs:
       with:
         name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on UBI 9 using go-toolset
@@ -229,6 +235,10 @@ jobs:
     # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
     container: redhat/ubi9
     # The job outputs link to the outputs of the 'rpmbuild' step
+    # The job outputs link to the outputs of the 'rpmbuild' step
+    outputs:
+      rpm : ${{steps.rpmbuild.outputs.RPM}}
+      srpm : ${{steps.rpmbuild.outputs.SRPM}}
     steps:
 
     # Use dnf to install development packages
@@ -268,13 +278,15 @@ jobs:
     - name: Save RPM as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: cc-metric-collector RPM for UBI 8
+        name: cc-metric-collector RPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.RPM }}
+        overwrite: true
     - name: Save SRPM as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: cc-metric-collector SRPM for UBI 8
+        name: cc-metric-collector SRPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.SRPM }}
+        overwrite: true
 
   #
   # Build on Ubuntu 22.04 using official go package
@@ -324,6 +336,7 @@ jobs:
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
         path: ${{ steps.debrename.outputs.DEB }}
+        overwrite: true
 
  #
   # Build on Ubuntu 24.04 using official go package
@@ -373,6 +386,7 @@ jobs:
       with:
         name: cc-metric-collector DEB for Ubuntu 24.04
         path: ${{ steps.debrename.outputs.DEB }}
+        overwrite: true
 
 
   #
@@ -446,8 +460,10 @@ jobs:
         ALMA_9_SRPM=$(basename "${{ needs.AlmaLinux9-RPM-build.outputs.srpm}}")
         UBI_8_RPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.rpm}}")
         UBI_8_SRPM=$(basename "${{ needs.UBI-8-RPM-build.outputs.srpm}}")
+        UBI_9_RPM=$(basename "${{ needs.UBI-9-RPM-build.outputs.rpm}}")
+        UBI_9_SRPM=$(basename "${{ needs.UBI-9-RPM-build.outputs.srpm}}")
         U_2204_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
-        U_2404_DEB=$(basename "${{ needs.Ubuntu-jammy-build.outputs.deb}}")
+        U_2404_DEB=$(basename "${{ needs.Ubuntu-noblenumbat-build.outputs.deb}}")
         echo "ALMA_8_RPM::${ALMA_8_RPM}"
         echo "ALMA_8_SRPM::${ALMA_8_SRPM}"
         echo "ALMA_9_RPM::${ALMA_9_RPM}"
@@ -460,6 +476,8 @@ jobs:
         echo "U_2404_DEB::${U_2404_DEB}"
         echo "ALMA_8_RPM=${ALMA_8_RPM}" >> $GITHUB_OUTPUT
         echo "ALMA_8_SRPM=${ALMA_8_SRPM}" >> $GITHUB_OUTPUT
+        echo "ALMA_9_RPM=${ALMA_9_RPM}" >> $GITHUB_OUTPUT
+        echo "ALMA_9_SRPM=${ALMA_9_SRPM}" >> $GITHUB_OUTPUT
         echo "UBI_8_RPM=${UBI_8_RPM}" >> $GITHUB_OUTPUT
         echo "UBI_8_SRPM=${UBI_8_SRPM}" >> $GITHUB_OUTPUT
         echo "UBI_9_RPM=${UBI_9_RPM}" >> $GITHUB_OUTPUT
