@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,9 +16,9 @@ import (
 	"sync"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
@@ -40,6 +41,27 @@ func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
 	jsonParser := json.NewDecoder(configFile)
 	err = jsonParser.Decode(config)
 	return err
+}
+
+func ConfigFileCheck(file string) error {
+
+	info, err := os.Stat(file)
+	if err != nil {
+		cclog.Error("Cannot access file", file)
+		return err
+	}
+	uid := info.Sys().(*syscall.Stat_t).Uid
+	perm := info.Mode().Perm()
+	if uid != uint32(os.Getuid()) {
+		err = fmt.Errorf("file %s has a different owner", file)
+		return err
+	}
+	if perm != 0600 {
+		err = fmt.Errorf("file %s has a invalid permissions", file)
+		return err
+	}
+
+	return nil
 }
 
 type RuntimeConfig struct {
@@ -167,6 +189,12 @@ func mainFunc() int {
 		CliArgs:        ReadCli(),
 	}
 
+	err = ConfigFileCheck(rcfg.CliArgs["configfile"])
+	if err != nil {
+		cclog.Error(err.Error())
+		return 1
+	}
+
 	// Load and check configuration
 	err = LoadCentralConfiguration(rcfg.CliArgs["configfile"], &rcfg.ConfigFile)
 	if err != nil {
@@ -208,14 +236,29 @@ func mainFunc() int {
 		cclog.Error("Metric router configuration file must be set")
 		return 1
 	}
+	err = ConfigFileCheck(rcfg.ConfigFile.RouterConfigFile)
+	if err != nil {
+		cclog.Error(err.Error())
+		return 1
+	}
 
 	if len(rcfg.ConfigFile.SinkConfigFile) == 0 {
 		cclog.Error("Sink configuration file must be set")
 		return 1
 	}
+	err = ConfigFileCheck(rcfg.ConfigFile.SinkConfigFile)
+	if err != nil {
+		cclog.Error(err.Error())
+		return 1
+	}
 
 	if len(rcfg.ConfigFile.CollectorConfigFile) == 0 {
 		cclog.Error("Metric collector configuration file must be set")
+		return 1
+	}
+	err = ConfigFileCheck(rcfg.ConfigFile.CollectorConfigFile)
+	if err != nil {
+		cclog.Error(err.Error())
 		return 1
 	}
 
@@ -260,6 +303,11 @@ func mainFunc() int {
 
 	// Create new receive manager
 	if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
+		err = ConfigFileCheck(rcfg.ConfigFile.ReceiverConfigFile)
+		if err != nil {
+			cclog.Error(err.Error())
+			return 1
+		}
 		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
 		if err != nil {
 			cclog.Error(err.Error())
