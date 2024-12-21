@@ -33,6 +33,11 @@ jobs:
     - name: Build MetricCollector
       run: make
 
+    - name: Set config file permissions
+      run: |
+        chown $USER .github/ci*.json
+        chmod 0600 .github/ci*.json
+
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
 
@@ -59,6 +64,11 @@ jobs:
     - name: Build MetricCollector
       run: make
 
+    - name: Set config file permissions
+      run: |
+        chown $USER .github/ci*.json
+        chmod 0600 .github/ci*.json
+
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
 
@@ -84,6 +94,11 @@ jobs:
 
     - name: Build MetricCollector
       run: make
+
+    - name: Set config file permissions
+      run: |
+        chown $USER .github/ci*.json
+        chmod 0600 .github/ci*.json
 
     - name: Run MetricCollector once
       run: ./cc-metric-collector --once --config .github/ci-config.json
