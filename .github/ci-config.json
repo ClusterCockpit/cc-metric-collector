@@ -1,0 +1,8 @@
+{
+  "sinks": ".github/ci-sinks.json",
+  "collectors" : ".github/ci-collectors.json",
+  "receivers" : ".github/ci-receivers.json",
+  "router" : ".github/ci-router.json",
+  "interval": "5s",
+  "duration": "1s"
+}
