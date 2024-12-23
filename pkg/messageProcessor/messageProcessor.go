@@ -22,27 +22,27 @@ type messageProcessorTagConfig struct {
 }
 
 type messageProcessorConfig struct {
-	StageOrder       []string                    `json:"stage_order,omitempty"`        // List of stages to execute them in the specified order and to skip unrequired ones
-	DropMessages     []string                    `json:"drop_messages,omitempty"`      // List of metric names to drop. For fine-grained dropping use drop_messages_if
-	DropMessagesIf   []string                    `json:"drop_messages_if,omitempty"`   // List of evaluatable terms to drop messages
-	RenameMessages   map[string]string           `json:"rename_messages,omitempty"`    // Map of metric names to rename
-	RenameMessagesIf map[string]string           `json:"rename_messages_if,omitempty"` // Map to rename metric name based on a condition
-	NormalizeUnits   bool                        `json:"normalize_units,omitempty"`    // Check unit meta flag and normalize it using cc-units
-	ChangeUnitPrefix map[string]string           `json:"change_unit_prefix,omitempty"` // Add prefix that should be applied to the messages
-	AddTagsIf        []messageProcessorTagConfig `json:"add_tags_if"`                  // List of tags that are added when the condition is met
-	DelTagsIf        []messageProcessorTagConfig `json:"delete_tags_if"`               // List of tags that are removed when the condition is met
-	AddMetaIf        []messageProcessorTagConfig `json:"add_meta_if"`                  // List of meta infos that are added when the condition is met
-	DelMetaIf        []messageProcessorTagConfig `json:"delete_meta_if"`               // List of meta infos that are removed when the condition is met
-	AddFieldIf       []messageProcessorTagConfig `json:"add_field_if"`                 // List of fields that are added when the condition is met
-	DelFieldIf       []messageProcessorTagConfig `json:"delete_field_if"`              // List of fields that are removed when the condition is met
-	DropByType       []string                    `json:"drop_by_message_type"`         // List of message types that should be dropped
-	MoveTagToMeta    []messageProcessorTagConfig `json:"move_tag_to_meta_if"`
-	MoveTagToField   []messageProcessorTagConfig `json:"move_tag_to_field_if"`
-	MoveMetaToTag    []messageProcessorTagConfig `json:"move_meta_to_tag_if"`
-	MoveMetaToField  []messageProcessorTagConfig `json:"move_meta_to_field_if"`
-	MoveFieldToTag   []messageProcessorTagConfig `json:"move_field_to_tag_if"`
-	MoveFieldToMeta  []messageProcessorTagConfig `json:"move_field_to_meta_if"`
-	AddBaseEnv       map[string]interface{}      `json:"add_base_env"`
+	StageOrder       []string                    `json:"stage_order,omitempty"`          // List of stages to execute them in the specified order and to skip unrequired ones
+	DropMessages     []string                    `json:"drop_messages,omitempty"`        // List of metric names to drop. For fine-grained dropping use drop_messages_if
+	DropMessagesIf   []string                    `json:"drop_messages_if,omitempty"`     // List of evaluatable terms to drop messages
+	RenameMessages   map[string]string           `json:"rename_messages,omitempty"`      // Map of metric names to rename
+	RenameMessagesIf map[string]string           `json:"rename_messages_if,omitempty"`   // Map to rename metric name based on a condition
+	NormalizeUnits   bool                        `json:"normalize_units,omitempty"`      // Check unit meta flag and normalize it using cc-units
+	ChangeUnitPrefix map[string]string           `json:"change_unit_prefix,omitempty"`   // Add prefix that should be applied to the messages
+	AddTagsIf        []messageProcessorTagConfig `json:"add_tags_if,omitempty"`          // List of tags that are added when the condition is met
+	DelTagsIf        []messageProcessorTagConfig `json:"delete_tags_if,omitempty"`       // List of tags that are removed when the condition is met
+	AddMetaIf        []messageProcessorTagConfig `json:"add_meta_if,omitempty"`          // List of meta infos that are added when the condition is met
+	DelMetaIf        []messageProcessorTagConfig `json:"delete_meta_if,omitempty"`       // List of meta infos that are removed when the condition is met
+	AddFieldIf       []messageProcessorTagConfig `json:"add_field_if,omitempty"`         // List of fields that are added when the condition is met
+	DelFieldIf       []messageProcessorTagConfig `json:"delete_field_if,omitempty"`      // List of fields that are removed when the condition is met
+	DropByType       []string                    `json:"drop_by_message_type,omitempty"` // List of message types that should be dropped
+	MoveTagToMeta    []messageProcessorTagConfig `json:"move_tag_to_meta_if,omitempty"`
+	MoveTagToField   []messageProcessorTagConfig `json:"move_tag_to_field_if,omitempty"`
+	MoveMetaToTag    []messageProcessorTagConfig `json:"move_meta_to_tag_if,omitempty"`
+	MoveMetaToField  []messageProcessorTagConfig `json:"move_meta_to_field_if,omitempty"`
+	MoveFieldToTag   []messageProcessorTagConfig `json:"move_field_to_tag_if,omitempty"`
+	MoveFieldToMeta  []messageProcessorTagConfig `json:"move_field_to_meta_if,omitempty"`
+	AddBaseEnv       map[string]interface{}      `json:"add_base_env,omitempty"`
 }
 
 type messageProcessor struct {
