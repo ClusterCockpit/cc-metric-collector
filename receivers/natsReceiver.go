@@ -91,17 +91,18 @@ func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 				return
 			}
 
-			y, _ := lp.NewMessage(
+			y, err := lp.NewMessage(
 				string(measurement),
 				tags,
 				nil,
 				fields,
 				t,
 			)
-
-			m, err := r.mp.ProcessMessage(y)
-			if err == nil && m != nil {
-				r.sink <- m
+			if err == nil {
+				m, err := r.mp.ProcessMessage(y)
+				if err == nil && m != nil && r.sink != nil {
+					r.sink <- m
+				}
 			}
 		}
 	}
