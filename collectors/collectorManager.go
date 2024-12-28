@@ -41,6 +41,8 @@ var AvailableCollectors = map[string]MetricCollector{
 	"self":            new(SelfCollector),
 	"schedstat":       new(SchedstatCollector),
 	"nfsiostat":       new(NfsIOStatCollector),
+	"perf_event":      new(PerfEventCollector),
+	"perf_cmd":        new(PerfCmdCollector),
 }
 
 // Metric collector manager data structure
