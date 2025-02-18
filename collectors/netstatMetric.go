@@ -98,7 +98,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.buildAliasMapping()
 
 	// Check access to net statistic file
-	file, err := os.Open(string(NETSTATFILE))
+	file, err := os.Open(NETSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return err
