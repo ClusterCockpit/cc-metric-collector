@@ -4,12 +4,17 @@
 ```json
   "iostat": {
     "exclude_metrics": [
-      "read_ms"
+      "io_read_ms"
     ],
+    "exclude_devices": [
+      "nvme0n1p1",
+      "nvme0n1p2",
+      "md127"
+    ]
   }
 ```
 
-The `iostat` collector reads data from `/proc/diskstats` and outputs a handful **node** metrics. If a metric is not required, it can be excluded from forwarding it to the sink.
+The `iostat` collector reads data from `/proc/diskstats` and outputs a handful **node** metrics. If a metric or device is not required, it can be excluded from forwarding it to the sink.
 
 Metrics:
 * `io_reads`
