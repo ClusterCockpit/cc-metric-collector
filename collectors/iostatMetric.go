@@ -2,24 +2,24 @@ package collectors
 
 import (
 	"bufio"
-	"os"
-
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
-
-	//	"log"
 	"encoding/json"
 	"errors"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
+// Konstante für den Pfad zu /proc/diskstats
 const IOSTATFILE = `/proc/diskstats`
-const IOSTAT_SYSFSPATH = `/sys/block`
 
 type IOstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+	// Neues Feld zum Ausschließen von Devices per JSON-Konfiguration
+	ExcludeDevices []string `json:"exclude_devices,omitempty"`
 }
 
 type IOstatCollectorEntry struct {
@@ -76,7 +76,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	if len(m.matches) == 0 {
 		return errors.New("no metrics to collect")
 	}
-	file, err := os.Open(string(IOSTATFILE))
+	file, err := os.Open(IOSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return err
@@ -87,8 +87,15 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		linefields := strings.Fields(line)
+		if len(linefields) < 3 {
+			continue
+		}
 		device := linefields[2]
+
 		if strings.Contains(device, "loop") {
+			continue
+		}
+		if _, skip := stringArrayContains(m.config.ExcludeDevices, device); skip {
 			continue
 		}
 		values := make(map[string]int64)
@@ -97,7 +104,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 		}
 		m.devices[device] = IOstatCollectorEntry{
 			tags: map[string]string{
-				"device": linefields[2],
+				"device": device,
 				"type":   "node",
 			},
 			lastValues: values,
@@ -112,7 +119,7 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		return
 	}
 
-	file, err := os.Open(string(IOSTATFILE))
+	file, err := os.Open(IOSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return
@@ -126,8 +133,14 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			continue
 		}
 		linefields := strings.Fields(line)
+		if len(linefields) < 3 {
+			continue
+		}
 		device := linefields[2]
 		if strings.Contains(device, "loop") {
+			continue
+		}
+		if _, skip := stringArrayContains(m.config.ExcludeDevices, device); skip {
 			continue
 		}
 		if _, ok := m.devices[device]; !ok {
