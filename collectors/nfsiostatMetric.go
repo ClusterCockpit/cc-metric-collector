@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 // These are the fields we read from the JSON configuration
@@ -18,17 +18,20 @@ type NfsIOStatCollectorConfig struct {
 	ExcludeMetrics          []string `json:"exclude_metrics,omitempty"`
 	ExcludeFilesystem       []string `json:"exclude_filesystem,omitempty"`
 	UseServerAddressAsSType bool     `json:"use_server_as_stype,omitempty"`
+	SendAbsoluteValues      bool     `json:"send_abs_values"`
+	SendDerivedValues       bool     `json:"send_derived_values"`
 }
 
 // This contains all variables we need during execution and the variables
 // defined by metricCollector (name, init, ...)
 type NfsIOStatCollector struct {
 	metricCollector
-	config NfsIOStatCollectorConfig    // the configuration structure
-	meta   map[string]string           // default meta information
-	tags   map[string]string           // default tags
-	data   map[string]map[string]int64 // data storage for difference calculation
-	key    string                      // which device info should be used as subtype ID? 'server' or 'mntpoint', see NfsIOStatCollectorConfig.UseServerAddressAsSType
+	config        NfsIOStatCollectorConfig    // the configuration structure
+	meta          map[string]string           // default meta information
+	tags          map[string]string           // default tags
+	data          map[string]map[string]int64 // data storage for difference calculation
+	key           string                      // which device info should be used as subtype ID? 'server' or 'mntpoint'
+	lastTimestamp time.Time
 }
 
 var deviceRegex = regexp.MustCompile(`device (?P<server>[^ ]+) mounted on (?P<mntpoint>[^ ]+) with fstype nfs(?P<version>\d*) statvers=[\d\.]+`)
@@ -81,7 +84,6 @@ func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 							data[current[m.key]][name] = val
 						}
 					}
-
 				}
 				current = nil
 			}
@@ -98,6 +100,9 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	m.meta = map[string]string{"source": m.name, "group": "NFS", "unit": "bytes"}
 	m.tags = map[string]string{"type": "node"}
 	m.config.UseServerAddressAsSType = false
+	// Set default configuration
+	m.config.SendAbsoluteValues = true
+	m.config.SendDerivedValues = false
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -110,12 +115,15 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 		m.key = "server"
 	}
 	m.data = m.readNfsiostats()
+	m.lastTimestamp = time.Now()
 	m.init = true
 	return err
 }
 
 func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-	timestamp := time.Now()
+	now := time.Now()
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	m.lastTimestamp = now
 
 	// Get the current values for all mountpoints
 	newdata := m.readNfsiostats()
@@ -123,21 +131,30 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 	for mntpoint, values := range newdata {
 		// Was the mount point already present in the last iteration
 		if old, ok := m.data[mntpoint]; ok {
-			// Calculate the difference of old and new values
-			for i := range values {
-				x := values[i] - old[i]
-				y, err := lp.NewMessage(fmt.Sprintf("nfsio_%s", i), m.tags, m.meta, map[string]interface{}{"value": x}, timestamp)
-				if err == nil {
-					if strings.HasPrefix(i, "page") {
-						y.AddMeta("unit", "4K_Pages")
+			for name, newVal := range values {
+				if m.config.SendAbsoluteValues {
+					msg, err := lp.NewMessage(fmt.Sprintf("nfsio_%s", name), m.tags, m.meta, map[string]interface{}{"value": newVal}, now)
+					if err == nil {
+						msg.AddTag("stype", "filesystem")
+						msg.AddTag("stype-id", mntpoint)
+						output <- msg
 					}
-					y.AddTag("stype", "filesystem")
-					y.AddTag("stype-id", mntpoint)
-					// Send it to output channel
-					output <- y
 				}
-				// Update old to the new value for the next iteration
-				old[i] = values[i]
+				if m.config.SendDerivedValues {
+					rate := float64(newVal-old[name]) / timeDiff
+					msg, err := lp.NewMessage(fmt.Sprintf("nfsio_%s_bw", name), m.tags, m.meta, map[string]interface{}{"value": rate}, now)
+					if err == nil {
+						if strings.HasPrefix(name, "page") {
+							msg.AddMeta("unit", "4K_pages/s")
+						} else {
+							msg.AddMeta("unit", "bytes/sec")
+						}
+						msg.AddTag("stype", "filesystem")
+						msg.AddTag("stype-id", mntpoint)
+						output <- msg
+					}
+				}
+				old[name] = newVal
 			}
 		} else {
 			// First time we see this mount point, store all values
@@ -157,7 +174,6 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 			m.data[mntpoint] = nil
 		}
 	}
-
 }
 
 func (m *NfsIOStatCollector) Close() {
