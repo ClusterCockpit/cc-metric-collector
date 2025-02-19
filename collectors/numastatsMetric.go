@@ -14,6 +14,11 @@ import (
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
+type NUMAStatsCollectorConfig struct {
+	SendAbsoluteValues bool `json:"send_abs_values"`
+	SendDerivedValues  bool `json:"send_derived_values"`
+}
+
 // Non-Uniform Memory Access (NUMA) policy hit/miss statistics
 //
 // numa_hit:
@@ -47,13 +52,16 @@ import (
 //
 // See: https://www.kernel.org/doc/html/latest/admin-guide/numastat.html
 type NUMAStatsCollectorTopolgy struct {
-	file   string
-	tagSet map[string]string
+	file           string
+	tagSet         map[string]string
+	previousValues map[string]int64
 }
 
 type NUMAStatsCollector struct {
 	metricCollector
-	topology []NUMAStatsCollectorTopolgy
+	topology      []NUMAStatsCollectorTopolgy
+	config        NUMAStatsCollectorConfig
+	lastTimestamp time.Time
 }
 
 func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
@@ -86,12 +94,12 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 		file := filepath.Join(dir, "numastat")
 		m.topology = append(m.topology,
 			NUMAStatsCollectorTopolgy{
-				file:   file,
-				tagSet: map[string]string{"memoryDomain": node},
+				file:           file,
+				tagSet:         map[string]string{"memoryDomain": node},
+				previousValues: make(map[string]int64),
 			})
 	}
 
-	// Initialized
 	cclog.ComponentDebug(m.name, "initialized", len(m.topology), "NUMA domains")
 	m.init = true
 	return nil
@@ -102,23 +110,26 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 		return
 	}
 
+	now := time.Now()
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	m.lastTimestamp = now
+
 	for i := range m.topology {
-		// Loop for all NUMA domains
 		t := &m.topology[i]
 
-		now := time.Now()
 		file, err := os.Open(t.file)
 		if err != nil {
 			cclog.ComponentError(
 				m.name,
 				fmt.Sprintf("Read(): Failed to open file '%s': %v", t.file, err))
-			return
+			continue
 		}
 		scanner := bufio.NewScanner(file)
 
 		// Read line by line
 		for scanner.Scan() {
-			split := strings.Fields(scanner.Text())
+			line := scanner.Text()
+			split := strings.Fields(line)
 			if len(split) != 2 {
 				continue
 			}
@@ -130,18 +141,38 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 					fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
 				continue
 			}
-			y, err := lp.NewMessage(
-				"numastats_"+key,
-				t.tagSet,
-				m.meta,
-				map[string]interface{}{"value": value},
-				now,
-			)
-			if err == nil {
-				output <- y
+
+			if m.config.SendAbsoluteValues {
+				msg, err := lp.NewMessage(
+					"numastats_"+key,
+					t.tagSet,
+					m.meta,
+					map[string]interface{}{"value": value},
+					now,
+				)
+				if err == nil {
+					output <- msg
+				}
+			}
+
+			if m.config.SendDerivedValues {
+				prev, ok := t.previousValues[key]
+				if ok {
+					rate := float64(value-prev) / timeDiff
+					msg, err := lp.NewMessage(
+						"numastats_"+key+"_rate",
+						t.tagSet,
+						m.meta,
+						map[string]interface{}{"value": rate},
+						now,
+					)
+					if err == nil {
+						output <- msg
+					}
+				}
+				t.previousValues[key] = value
 			}
 		}
-
 		file.Close()
 	}
 }
