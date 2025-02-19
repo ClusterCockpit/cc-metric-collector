@@ -13,7 +13,6 @@ import (
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
-	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 )
 
 const HTTP_RECEIVER_PORT = "8080"
@@ -151,80 +150,22 @@ func (r *HttpReceiver) ServerHttp(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	if r.sink != nil {
-		d := influx.NewDecoder(req.Body)
-		for d.Next() {
-
-			// Decode measurement name
-			measurement, err := d.Measurement()
+		buf := make([]byte, 0, req.ContentLength)
+		len, err := req.Body.Read(buf)
+		if err == nil && len > 0 {
+			messages, err := lp.FromBytes(buf)
 			if err != nil {
-				msg := "ServerHttp: Failed to decode measurement: " + err.Error()
+				msg := "ServerHttp: Failed to decode messages: " + err.Error()
 				cclog.ComponentError(r.name, msg)
 				http.Error(w, msg, http.StatusInternalServerError)
 				return
 			}
-
-			// Decode tags
-			tags := make(map[string]string)
-			for {
-				key, value, err := d.NextTag()
-				if err != nil {
-					msg := "ServerHttp: Failed to decode tag: " + err.Error()
-					cclog.ComponentError(r.name, msg)
-					http.Error(w, msg, http.StatusInternalServerError)
-					return
+			for _, y := range messages {
+				m, err := r.mp.ProcessMessage(y)
+				if err == nil && m != nil {
+					r.sink <- m
 				}
-				if key == nil {
-					break
-				}
-				tags[string(key)] = string(value)
 			}
-
-			// Decode fields
-			fields := make(map[string]interface{})
-			for {
-				key, value, err := d.NextField()
-				if err != nil {
-					msg := "ServerHttp: Failed to decode field: " + err.Error()
-					cclog.ComponentError(r.name, msg)
-					http.Error(w, msg, http.StatusInternalServerError)
-					return
-				}
-				if key == nil {
-					break
-				}
-				fields[string(key)] = value.Interface()
-			}
-
-			// Decode time stamp
-			t, err := d.Time(influx.Nanosecond, time.Time{})
-			if err != nil {
-				msg := "ServerHttp: Failed to decode time stamp: " + err.Error()
-				cclog.ComponentError(r.name, msg)
-				http.Error(w, msg, http.StatusInternalServerError)
-				return
-			}
-
-			y, _ := lp.NewMessage(
-				string(measurement),
-				tags,
-				nil,
-				fields,
-				t,
-			)
-
-			m, err := r.mp.ProcessMessage(y)
-			if err == nil && m != nil {
-				r.sink <- m
-			}
-
-		}
-		// Check for IO errors
-		err := d.Err()
-		if err != nil {
-			msg := "ServerHttp: Failed to decode: " + err.Error()
-			cclog.ComponentError(r.name, msg)
-			http.Error(w, msg, http.StatusInternalServerError)
-			return
 		}
 	}
 
