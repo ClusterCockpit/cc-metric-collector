@@ -115,7 +115,7 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 	timeDiff := now.Sub(m.lastTimestamp).Seconds()
 	m.lastTimestamp = now
 
-	for i := range m.topology {i
+	for i := range m.topology {
 		// Loop for all NUMA domains
 		t := &m.topology[i]
 
