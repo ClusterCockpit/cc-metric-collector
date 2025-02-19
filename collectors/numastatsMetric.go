@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 type NUMAStatsCollectorConfig struct {
@@ -100,6 +100,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 			})
 	}
 
+	// Initialized
 	cclog.ComponentDebug(m.name, "initialized", len(m.topology), "NUMA domains")
 	m.init = true
 	return nil
@@ -114,7 +115,8 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 	timeDiff := now.Sub(m.lastTimestamp).Seconds()
 	m.lastTimestamp = now
 
-	for i := range m.topology {
+	for i := range m.topology {i
+		// Loop for all NUMA domains
 		t := &m.topology[i]
 
 		file, err := os.Open(t.file)
