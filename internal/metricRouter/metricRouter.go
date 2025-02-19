@@ -40,7 +40,7 @@ type metricRouterConfig struct {
 	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
 	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
 	// dropMetrics       map[string]bool                      // Internal map for O(1) lookup
-	MessageProcessor json.RawMessage `json:"process_message,omitempty"`
+	MessageProcessor json.RawMessage `json:"process_messages,omitempty"`
 }
 
 // Metric router data structure

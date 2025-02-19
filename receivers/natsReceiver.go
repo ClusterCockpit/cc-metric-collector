@@ -5,20 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
-	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	nats "github.com/nats-io/nats.go"
 )
 
 type NatsReceiverConfig struct {
 	defaultReceiverConfig
-	Addr    string `json:"address"`
-	Port    string `json:"port"`
-	Subject string `json:"subject"`
+	Addr     string `json:"address"`
+	Port     string `json:"port"`
+	Subject  string `json:"subject"`
 	User     string `json:"user,omitempty"`
 	Password string `json:"password,omitempty"`
 	NkeyFile string `json:"nkey_file,omitempty"`
@@ -42,67 +40,15 @@ func (r *NatsReceiver) Start() {
 func (r *NatsReceiver) _NatsReceive(m *nats.Msg) {
 
 	if r.sink != nil {
-		d := influx.NewDecoderWithBytes(m.Data)
-		for d.Next() {
-
-			// Decode measurement name
-			measurement, err := d.Measurement()
-			if err != nil {
-				msg := "_NatsReceive: Failed to decode measurement: " + err.Error()
-				cclog.ComponentError(r.name, msg)
-				return
-			}
-
-			// Decode tags
-			tags := make(map[string]string)
-			for {
-				key, value, err := d.NextTag()
-				if err != nil {
-					msg := "_NatsReceive: Failed to decode tag: " + err.Error()
-					cclog.ComponentError(r.name, msg)
-					return
-				}
-				if key == nil {
-					break
-				}
-				tags[string(key)] = string(value)
-			}
-
-			// Decode fields
-			fields := make(map[string]interface{})
-			for {
-				key, value, err := d.NextField()
-				if err != nil {
-					msg := "_NatsReceive: Failed to decode field: " + err.Error()
-					cclog.ComponentError(r.name, msg)
-					return
-				}
-				if key == nil {
-					break
-				}
-				fields[string(key)] = value.Interface()
-			}
-
-			// Decode time stamp
-			t, err := d.Time(influx.Nanosecond, time.Time{})
-			if err != nil {
-				msg := "_NatsReceive: Failed to decode time: " + err.Error()
-				cclog.ComponentError(r.name, msg)
-				return
-			}
-
-			y, err := lp.NewMessage(
-				string(measurement),
-				tags,
-				nil,
-				fields,
-				t,
-			)
-			if err == nil {
-				m, err := r.mp.ProcessMessage(y)
-				if err == nil && m != nil && r.sink != nil {
-					r.sink <- m
-				}
+		messages, err := lp.FromBytes(m.Data)
+		if err != nil {
+			msg := "_NatsReceive: Failed to decode messages: " + err.Error()
+			cclog.ComponentError(r.name, msg)
+		}
+		for _, y := range messages {
+			m, err := r.mp.ProcessMessage(y)
+			if err == nil && m != nil && r.sink != nil {
+				r.sink <- m
 			}
 		}
 	}
