@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 func GangliaMetricName(point lp.CCMessage) string {

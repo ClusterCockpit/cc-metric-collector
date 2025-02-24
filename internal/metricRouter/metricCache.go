@@ -7,7 +7,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 

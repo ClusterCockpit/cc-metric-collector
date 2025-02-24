@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
 )
 
 const HTTP_RECEIVER_PORT = "8080"
