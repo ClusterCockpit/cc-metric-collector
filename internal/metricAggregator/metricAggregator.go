@@ -11,7 +11,7 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 
 	"github.com/PaesslerAG/gval"

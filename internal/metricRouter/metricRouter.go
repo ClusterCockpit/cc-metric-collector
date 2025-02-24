@@ -10,9 +10,9 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
-	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 

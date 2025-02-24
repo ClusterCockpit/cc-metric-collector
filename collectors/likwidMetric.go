@@ -24,7 +24,7 @@ import (
 	"time"
 	"unsafe"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"

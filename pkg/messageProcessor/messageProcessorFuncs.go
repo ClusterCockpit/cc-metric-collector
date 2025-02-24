@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	lp2 "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp2 "github.com/ClusterCockpit/cc-lib/ccMessage"
 	units "github.com/ClusterCockpit/cc-units"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"

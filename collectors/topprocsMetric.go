@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 const MAX_NUM_PROCS = 10
