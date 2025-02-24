@@ -46,5 +46,3 @@ require (
 	golang.org/x/net v0.31.0 // indirect
 	google.golang.org/protobuf v1.35.2 // indirect
 )
-
-replace github.com/ClusterCockpit/cc-lib => ../cc-lib
