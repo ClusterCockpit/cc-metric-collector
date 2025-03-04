@@ -9,21 +9,23 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	sysconf "github.com/tklauser/go-sysconf"
 )
 
 const CPUSTATFILE = `/proc/stat`
 
+// CpustatCollectorConfig for the cpustat collector.
 type CpustatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+	OnlyMetrics    []string `json:"only_metrics,omitempty"`
 }
 
 type CpustatCollector struct {
 	metricCollector
 	config        CpustatCollectorConfig
-	lastTimestamp time.Time // Store time stamp of last tick to derive values
+	lastTimestamp time.Time
 	matches       map[string]int
 	cputags       map[string]map[string]string
 	nodetags      map[string]string
@@ -36,13 +38,15 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "CPU"}
 	m.nodetags = map[string]string{"type": "node"}
+
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
+		if err := json.Unmarshal(config, &m.config); err != nil {
 			return err
 		}
 	}
-	matches := map[string]int{
+
+	// Define available metrics and their corresponding index in /proc/stat.
+	metrics := map[string]int{
 		"cpu_user":       1,
 		"cpu_nice":       2,
 		"cpu_system":     3,
@@ -54,50 +58,36 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		"cpu_guest":      9,
 		"cpu_guest_nice": 10,
 	}
+	m.matches = metrics
 
-	m.matches = make(map[string]int)
-	for match, index := range matches {
-		doExclude := false
-		for _, exclude := range m.config.ExcludeMetrics {
-			if match == exclude {
-				doExclude = true
-				break
-			}
-		}
-		if !doExclude {
-			m.matches[match] = index
-		}
-	}
-
-	// Check input file
-	file, err := os.Open(string(CPUSTATFILE))
+	// Open the file and initialize olddata and cputags.
+	file, err := os.Open(CPUSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 	}
 	defer file.Close()
 
-	// Pre-generate tags for all CPUs
-	num_cpus := 0
 	m.cputags = make(map[string]map[string]string)
 	m.olddata = make(map[string]map[string]int64)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
 		linefields := strings.Fields(line)
+		// Process the summary line "cpu" for node-level metrics.
 		if strings.Compare(linefields[0], "cpu") == 0 {
 			m.olddata["cpu"] = make(map[string]int64)
-			for k, v := range m.matches {
-				m.olddata["cpu"][k], _ = strconv.ParseInt(linefields[v], 0, 64)
+			for metric, index := range m.matches {
+				m.olddata["cpu"][metric], _ = strconv.ParseInt(linefields[index], 0, 64)
 			}
 		} else if strings.HasPrefix(linefields[0], "cpu") && strings.Compare(linefields[0], "cpu") != 0 {
+			// Process individual CPU lines for hardware thread metrics.
 			cpustr := strings.TrimLeft(linefields[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
 			m.cputags[linefields[0]] = map[string]string{"type": "hwthread", "type-id": fmt.Sprintf("%d", cpu)}
 			m.olddata[linefields[0]] = make(map[string]int64)
-			for k, v := range m.matches {
-				m.olddata[linefields[0]][k], _ = strconv.ParseInt(linefields[v], 0, 64)
+			for metric, index := range m.matches {
+				m.olddata[linefields[0]][metric], _ = strconv.ParseInt(linefields[index], 0, 64)
 			}
-			num_cpus++
 		}
 	}
 	m.lastTimestamp = time.Now()
@@ -105,35 +95,63 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
+func (m *CpustatCollector) shouldOutput(metricName string) bool {
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, name := range m.config.OnlyMetrics {
+			if name == metricName {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, ex := range m.config.ExcludeMetrics {
+		if ex == metricName {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]string, output chan lp.CCMessage, now time.Time, tsdelta time.Duration) {
-	values := make(map[string]float64)
 	clktck, _ := sysconf.Sysconf(sysconf.SC_CLK_TCK)
-	for match, index := range m.matches {
-		if len(match) > 0 {
-			x, err := strconv.ParseInt(linefields[index], 0, 64)
+	for metric, index := range m.matches {
+		currentVal, err := strconv.ParseInt(linefields[index], 0, 64)
+		if err != nil {
+			continue
+		}
+		// Calculate the delta since the last read.
+		diff := currentVal - m.olddata[linefields[0]][metric]
+		m.olddata[linefields[0]][metric] = currentVal
+		// Calculate the percentage value.
+		value := float64(diff) / tsdelta.Seconds() / float64(clktck) * 100
+		if m.shouldOutput(metric) {
+			msg, err := lp.NewMessage(metric, tags, m.meta, map[string]interface{}{"value": value}, now)
 			if err == nil {
-				vdiff := x - m.olddata[linefields[0]][match]
-				m.olddata[linefields[0]][match] = x // Store new value for next run
-				values[match] = float64(vdiff) / float64(tsdelta.Seconds()) / float64(clktck)
+				msg.AddTag("unit", "Percent")
+				output <- msg
 			}
 		}
 	}
 
+	// Compute and output 'cpu_used' as the sum of all metrics (excluding cpu_idle).
 	sum := float64(0)
-	for name, value := range values {
-		sum += value
-		y, err := lp.NewMessage(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
-		if err == nil {
-			y.AddTag("unit", "Percent")
-			output <- y
+	for metric, index := range m.matches {
+		if metric == "cpu_idle" {
+			continue
 		}
+		currentVal, err := strconv.ParseInt(linefields[index], 0, 64)
+		if err != nil {
+			continue
+		}
+		diff := currentVal - m.olddata[linefields[0]][metric]
+		sum += float64(diff) / tsdelta.Seconds() / float64(clktck)
 	}
-	if v, ok := values["cpu_idle"]; ok {
-		sum -= v
-		y, err := lp.NewMessage("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
+	if m.shouldOutput("cpu_used") {
+		msg, err := lp.NewMessage("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
 		if err == nil {
-			y.AddTag("unit", "Percent")
-			output <- y
+			msg.AddTag("unit", "Percent")
+			output <- msg
 		}
 	}
 }
@@ -142,11 +160,10 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	if !m.init {
 		return
 	}
-	num_cpus := 0
 	now := time.Now()
 	tsdelta := now.Sub(m.lastTimestamp)
 
-	file, err := os.Open(string(CPUSTATFILE))
+	file, err := os.Open(CPUSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 	}
@@ -156,24 +173,27 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	for scanner.Scan() {
 		line := scanner.Text()
 		linefields := strings.Fields(line)
+		// Process node-level metrics.
 		if strings.Compare(linefields[0], "cpu") == 0 {
 			m.parseStatLine(linefields, m.nodetags, output, now, tsdelta)
 		} else if strings.HasPrefix(linefields[0], "cpu") {
+			// Process hardware thread metrics.
 			m.parseStatLine(linefields, m.cputags[linefields[0]], output, now, tsdelta)
-			num_cpus++
 		}
 	}
-
-	num_cpus_metric, err := lp.NewMessage("num_cpus",
-		m.nodetags,
-		m.meta,
-		map[string]interface{}{"value": int(num_cpus)},
-		now,
-	)
-	if err == nil {
-		output <- num_cpus_metric
+	// Output number of CPUs as a separate metric.
+	numCPUs := len(m.cputags)
+	if m.shouldOutput("num_cpus") {
+		numCPUsMsg, err := lp.NewMessage("num_cpus",
+			m.nodetags,
+			m.meta,
+			map[string]interface{}{"value": numCPUs},
+			now,
+		)
+		if err == nil {
+			output <- numCPUsMsg
+		}
 	}
-
 	m.lastTimestamp = now
 }
 
