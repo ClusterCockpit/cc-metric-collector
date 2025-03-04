@@ -36,12 +36,12 @@ mem_usage,host=myhost,type=node,unit=MByte value=1024 1670000000000000000
 The following tags are commonly used:
 - **type:** Indicates the metric scope, e.g. "node", "socket" or "hwthread".
 - **type-id:** The identifier for the type (e.g. the specific hardware thread or socket).
-- **unit:** The unit of the metric (e.g. "MByte").  
+- **unit:** The unit of the metric (e.g. "MByte").
 
 For each metric parsed from the output:
 - If `send_abs_values` is enabled, the **absolute (raw) metric** is forwarded.
 - If `send_diff_values` is enabled and a previous value exists, the collector computes the **difference** (current value minus previous value) and forwards it as a new metric with the suffix `_diff`.
-- If `send_derived_values` is enabled and a previous value exists, the collector computes the **derived rate** (difference divided by the time interval) and forwards it as a new metric with the suffix `_rate`.  
+- If `send_derived_values` is enabled and a previous value exists, the collector computes the **derived rate** (difference divided by the time interval) and forwards it as a new metric with the suffix `_rate`.
   Additionally, if the original metric includes a unit (in its meta data or tags), the derived metric's unit is set to that unit with "/s" appended.
 
 Both filtering mechanisms are supported:
