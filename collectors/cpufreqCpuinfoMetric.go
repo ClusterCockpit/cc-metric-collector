@@ -3,26 +3,25 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
-
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 
-// CPUFreqCollector
-// a metric collector to measure the current frequency of the CPUs
-// as obtained from /proc/cpuinfo
-// Only measure on the first hyperthread
+// CPUFreqCpuInfoCollectorTopology holds topology information for each CPU.
 type CPUFreqCpuInfoCollectorTopology struct {
 	isHT   bool
 	tagSet map[string]string
 }
 
+// CPUFreqCpuInfoCollector is a metric collector to measure the current frequency of the CPUs
+// as obtained from /proc/cpuinfo.
+// Only measure on the first hyperthread.
 type CPUFreqCpuInfoCollector struct {
 	metricCollector
 	topology []CPUFreqCpuInfoCollectorTopology
@@ -51,7 +50,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	}
 	defer file.Close()
 
-	// Collect topology information from file cpuinfo
+	// Collect topology information from /proc/cpuinfo
 	foundFreq := false
 	processor := ""
 	coreID := ""
@@ -59,7 +58,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	m.topology = make([]CPUFreqCpuInfoCollectorTopology, 0)
 	coreSeenBefore := make(map[string]bool)
 
-	// Read cpuinfo file, line by line
+	// Read the cpuinfo file, line by line
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		lineSplit := strings.Split(scanner.Text(), ":")
@@ -68,7 +67,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			value := strings.TrimSpace(lineSplit[1])
 			switch key {
 			case "cpu MHz":
-				// frequency
+				// frequency detected
 				foundFreq = true
 			case "processor":
 				processor = value
@@ -79,7 +78,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			}
 		}
 
-		// were all topology information collected?
+		// Have all topology information been collected?
 		if foundFreq &&
 			len(processor) > 0 &&
 			len(coreID) > 0 &&
@@ -87,7 +86,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 
 			globalID := physicalPackageID + ":" + coreID
 
-			// store collected topology information
+			// Store collected topology information
 			m.topology = append(m.topology,
 				CPUFreqCpuInfoCollectorTopology{
 					isHT: coreSeenBefore[globalID],
@@ -99,10 +98,10 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 				},
 			)
 
-			// mark core as seen before
+			// Mark core as seen before
 			coreSeenBefore[globalID] = true
 
-			// reset topology information
+			// Reset topology information for the next CPU
 			foundFreq = false
 			processor = ""
 			coreID = ""
@@ -142,7 +141,6 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 		lineSplit := strings.Split(scanner.Text(), ":")
 		if len(lineSplit) == 2 {
 			key := strings.TrimSpace(lineSplit[0])
-
 			// frequency
 			if key == "cpu MHz" {
 				t := m.topology[processorCounter]
