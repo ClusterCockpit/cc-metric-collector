@@ -16,30 +16,44 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 
 # Available collectors
 
-* [`cpustat`](./cpustatMetric.md)
-* [`memstat`](./memstatMetric.md)
-* [`iostat`](./iostatMetric.md)
-* [`diskstat`](./diskstatMetric.md)
-* [`loadavg`](./loadavgMetric.md)
-* [`netstat`](./netstatMetric.md)
-* [`ibstat`](./infinibandMetric.md)
-* [`ibstat_perfquery`](./infinibandPerfQueryMetric.md)
-* [`tempstat`](./tempMetric.md)
-* [`lustrestat`](./lustreMetric.md)
-* [`likwid`](./likwidMetric.md)
-* [`nvidia`](./nvidiaMetric.md)
-* [`customcmd`](./customCmdMetric.md)
-* [`ipmistat`](./ipmiMetric.md)
-* [`topprocs`](./topprocsMetric.md)
-* [`nfs3stat`](./nfs3Metric.md)
-* [`nfs4stat`](./nfs4Metric.md)
-* [`cpufreq`](./cpufreqMetric.md)
-* [`cpufreq_cpuinfo`](./cpufreqCpuinfoMetric.md)
-* [`numastats`](./numastatsMetric.md)
-* [`gpfs`](./gpfsMetric.md)
-* [`beegfs_meta`](./beegfsmetaMetric.md)
-* [`beegfs_storage`](./beegfsstorageMetric.md)
-* [`rocm_smi`](./rocmsmiMetric.md)
+**CPU & Performance**
+* [`loadavg`](./loadavgMetric.md) - System load averages
+* [`cpustat`](./cpustatMetric.md) - CPU usage metrics
+* [`cpufreq`](./cpufreqMetric.md) - CPU frequency data
+* [`cpufreq_cpuinfo`](./cpufreqCpuinfoMetric.md) - CPU frequency from cpuinfo
+* [`likwid`](./likwidMetric.md) - Hardware performance via Likwid
+* [`topprocs`](./topprocsMetric.md) - Top process details
+
+**Memory**
+* [`memstat`](./memstatMetric.md) - Memory usage data
+* [`numastats`](./numastatsMetric.md) - NUMA memory allocations
+
+**Disk & I/O**
+* [`diskstat`](./diskstatMetric.md) - Disk usage metrics
+* [`iostat`](./iostatMetric.md) - I/O performance data
+
+**Filesystems**
+* [`beegfs_meta`](./beegfsmetaMetric.md) - BeeGFS metadata metrics
+* [`beegfs_storage`](./beegfsstorageMetric.md) - BeeGFS storage metrics
+* [`gpfs`](./gpfsMetric.md) - GPFS filesystem data
+* [`lustrestat`](./lustreMetric.md) - Lustre filesystem metrics
+* [`nfs3stat`](./nfs3Metric.md) - NFSv3 usage
+* [`nfs4stat`](./nfs4Metric.md) - NFSv4 usage
+
+**Network**
+* [`ibstat`](./infinibandMetric.md) - InfiniBand network metrics
+* [`netstat`](./netstatMetric.md) - Network interface data
+
+**GPU & Accelerators**
+* [`nvidia`](./nvidiaMetric.md) - NVIDIA GPU metrics
+* [`rocm_smi`](./rocmsmiMetric.md) - AMD ROCm SMI data
+
+**Hardware Monitoring**
+* [`ipmistat`](./ipmiMetric.md) - IPMI sensor readings
+* [`tempstat`](./tempMetric.md) - Temperature measurements
+
+**Custom**
+* [`customcmd`](./customCmdMetric.md) - Custom command output
 
 ## Todos
 
