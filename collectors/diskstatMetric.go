@@ -8,23 +8,38 @@ import (
 	"syscall"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
-
-//	"log"
 
 const MOUNTFILE = `/proc/self/mounts`
 
 type DiskstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+	OnlyMetrics    []string `json:"only_metrics,omitempty"`
+	ExcludeMounts  []string `json:"exclude_mounts,omitempty"`
 }
 
 type DiskstatCollector struct {
 	metricCollector
-	//matches map[string]int
-	config IOstatCollectorConfig
-	//devices map[string]IOstatCollectorEntry
+	config DiskstatCollectorConfig
+}
+
+func (m *DiskstatCollector) shouldOutput(metricName string) bool {
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, n := range m.config.OnlyMetrics {
+			if n == metricName {
+				return true
+			}
+		}
+		return false
+	}
+	for _, n := range m.config.ExcludeMetrics {
+		if n == metricName {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *DiskstatCollector) Init(config json.RawMessage) error {
@@ -33,12 +48,11 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	m.setup()
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
+		if err := json.Unmarshal(config, &m.config); err != nil {
 			return err
 		}
 	}
-	file, err := os.Open(string(MOUNTFILE))
+	file, err := os.Open(MOUNTFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return err
@@ -53,7 +67,7 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMessag
 		return
 	}
 
-	file, err := os.Open(string(MOUNTFILE))
+	file, err := os.Open(MOUNTFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return
@@ -62,6 +76,7 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMessag
 
 	part_max_used := uint64(0)
 	scanner := bufio.NewScanner(file)
+mountLoop:
 	for scanner.Scan() {
 		line := scanner.Text()
 		if len(line) == 0 {
@@ -71,37 +86,41 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMessag
 			continue
 		}
 		linefields := strings.Fields(line)
-		if strings.Contains(linefields[0], "loop") {
+		if strings.Contains(linefields[0], "loop") || strings.Contains(linefields[1], "boot") {
 			continue
 		}
-		if strings.Contains(linefields[1], "boot") {
-			continue
+
+		mountPath := strings.Replace(linefields[1], `\040`, " ", -1)
+		for _, excl := range m.config.ExcludeMounts {
+			if strings.Contains(mountPath, excl) {
+				continue mountLoop
+			}
 		}
-		path := strings.Replace(linefields[1], `\040`, " ", -1)
-		stat := syscall.Statfs_t{
-			Blocks: 0,
-			Bsize:  0,
-			Bfree:  0,
-		}
-		err := syscall.Statfs(path, &stat)
-		if err != nil {
+
+		stat := syscall.Statfs_t{}
+		if err := syscall.Statfs(mountPath, &stat); err != nil {
 			continue
 		}
 		if stat.Blocks == 0 || stat.Bsize == 0 {
 			continue
 		}
+
 		tags := map[string]string{"type": "node", "device": linefields[0]}
 		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
-		y, err := lp.NewMessage("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
-		if err == nil {
-			y.AddMeta("unit", "GBytes")
-			output <- y
+		if m.shouldOutput("disk_total") {
+			y, err := lp.NewMessage("disk_total", tags, m.meta, map[string]interface{}{"value": total}, time.Now())
+			if err == nil {
+				y.AddMeta("unit", "GBytes")
+				output <- y
+			}
 		}
 		free := (stat.Bfree * uint64(stat.Bsize)) / uint64(1000000000)
-		y, err = lp.NewMessage("disk_free", tags, m.meta, map[string]interface{}{"value": free}, time.Now())
-		if err == nil {
-			y.AddMeta("unit", "GBytes")
-			output <- y
+		if m.shouldOutput("disk_free") {
+			y, err := lp.NewMessage("disk_free", tags, m.meta, map[string]interface{}{"value": free}, time.Now())
+			if err == nil {
+				y.AddMeta("unit", "GBytes")
+				output <- y
+			}
 		}
 		if total > 0 {
 			perc := (100 * (total - free)) / total
@@ -110,10 +129,12 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMessag
 			}
 		}
 	}
-	y, err := lp.NewMessage("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())
-	if err == nil {
-		y.AddMeta("unit", "percent")
-		output <- y
+	if m.shouldOutput("part_max_used") {
+		y, err := lp.NewMessage("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": int(part_max_used)}, time.Now())
+		if err == nil {
+			y.AddMeta("unit", "percent")
+			output <- y
+		}
 	}
 }
 
