@@ -1,13 +1,11 @@
-## `cpufreq_cpuinfo` collector
+## `cpufreq` collector
 
 ```json
-  "cpufreq": {
-    "exclude_metrics": []
-  }
+  "cpufreq": {}
 ```
 
-The `cpufreq` collector reads the clock frequency from `/sys/devices/system/cpu/cpu*/cpufreq` and outputs a handful **hwthread** metrics.
+The `cpufreq` collector reads the clock frequency from `/sys/devices/system/cpu/cpu*/cpufreq` and outputs `cpufreq` as a **hwthread** metric.
 
-Metrics:
+Metric:
 
-* `cpufreq`
+- `cpufreq`

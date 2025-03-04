@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"golang.org/x/sys/unix"
 )
@@ -29,13 +29,10 @@ type CPUFreqCollectorTopology struct {
 type CPUFreqCollector struct {
 	metricCollector
 	topology []CPUFreqCollectorTopology
-	config   struct {
-		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
-	}
+	config   struct{}
 }
 
 func (m *CPUFreqCollector) Init(config json.RawMessage) error {
-	// Check if already initialized
 	if m.init {
 		return nil
 	}
@@ -43,27 +40,19 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	m.name = "CPUFreqCollector"
 	m.setup()
 	m.parallel = true
-	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
-		}
-	}
 	m.meta = map[string]string{
 		"source": m.name,
 		"group":  "CPU",
-		"unit":   "Hz",
+		"unit":   "MHz",
 	}
 
 	m.topology = make([]CPUFreqCollectorTopology, 0)
 	for _, c := range ccTopology.CpuData() {
-
-		// Skip hyper threading CPUs
+		// Only measure on the first hyper-thread
 		if c.CpuID != c.CoreCPUsList[0] {
 			continue
 		}
 
-		// Check access to current frequency file
 		scalingCurFreqFile := filepath.Join("/sys/devices/system/cpu", fmt.Sprintf("cpu%d", c.CpuID), "cpufreq/scaling_cur_freq")
 		err := unix.Access(scalingCurFreqFile, unix.R_OK)
 		if err != nil {
@@ -82,7 +71,6 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		)
 	}
 
-	// Initialized
 	cclog.ComponentDebug(
 		m.name,
 		"initialized",
@@ -92,7 +80,6 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 }
 
 func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-	// Check if already initialized
 	if !m.init {
 		return
 	}
@@ -101,7 +88,6 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage
 	for i := range m.topology {
 		t := &m.topology[i]
 
-		// Read current frequency
 		line, err := os.ReadFile(t.scalingCurFreqFile)
 		if err != nil {
 			cclog.ComponentError(
@@ -109,7 +95,7 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage
 				fmt.Sprintf("Read(): Failed to read file '%s': %v", t.scalingCurFreqFile, err))
 			continue
 		}
-		cpuFreq, err := strconv.ParseInt(strings.TrimSpace(string(line)), 10, 64)
+		cpuFreqKHz, err := strconv.ParseInt(strings.TrimSpace(string(line)), 10, 64)
 		if err != nil {
 			cclog.ComponentError(
 				m.name,
@@ -117,7 +103,9 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage
 			continue
 		}
 
-		if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreq}, now); err == nil {
+		cpuFreqMHz := cpuFreqKHz / 1000
+
+		if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": cpuFreqMHz}, now); err == nil {
 			output <- y
 		}
 	}
