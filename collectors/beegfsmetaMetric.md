@@ -26,50 +26,50 @@ in the configuration.
 
 When using the `exclude_metrics` option, the excluded metrics are summed as `other`.
 
-Important: The metrics listed below, are similar to the naming of BeeGFS. The Collector prefixes these with `beegfs_cstorage`(beegfs client storage).
+Important: The metrics listed below are similar to the naming of BeeGFS. The Collector prefixes these with `beegfs_cstorage`(beegfs client storage).
 
-For example beegfs metric `open`-> `beegfs_cstorage_open`
+For example `beegfs` metric `open`-> `beegfs_cstorage_open`
 
 Available Metrics:
 
-* sum
-* ack
-* close
-* entInf
-* fndOwn
-* mkdir
-* create
-* rddir
-* refrEnt
-* mdsInf
-* rmdir
-* rmLnk
-* mvDirIns
-* mvFiIns
-* open
-* ren
-* sChDrct
-* sAttr
-* sDirPat
-* stat
-* statfs
-* trunc
-* symlnk
-* unlnk
-* lookLI
-* statLI
-* revalLI
-* openLI
-* createLI
-* hardlnk
-* flckAp
-* flckEn
-* flckRg
-* dirparent
-* listXA
-* getXA
-* rmXA
-* setXA
-* mirror
+- sum
+- ack
+- close
+- entInf
+- fndOwn
+- mkdir
+- create
+- rddir
+- refrEnt
+- mdsInf
+- rmdir
+- rmLnk
+- mvDirIns
+- mvFiIns
+- open
+- ren
+- sChDrct
+- sAttr
+- sDirPat
+- stat
+- statfs
+- trunc
+- symlnk
+- unlnk
+- lookLI
+- statLI
+- revalLI
+- openLI
+- createLI
+- hardlnk
+- flckAp
+- flckEn
+- flckRg
+- dirparent
+- listXA
+- getXA
+- rmXA
+- setXA
+- mirror
 
 The collector adds a `filesystem` tag to all metrics
