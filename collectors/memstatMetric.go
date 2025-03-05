@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const MEMSTATFILE = "/proc/meminfo"
@@ -21,6 +21,7 @@ const NUMA_MEMSTAT_BASE = "/sys/devices/system/node"
 
 type MemstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics"`
+	OnlyMetrics    []string `json:"only_metrics,omitempty"`
 	NodeStats      bool     `json:"node_stats,omitempty"`
 	NumaStats      bool     `json:"numa_stats,omitempty"`
 }
@@ -79,10 +80,30 @@ func getStats(filename string) map[string]MemstatStats {
 	return stats
 }
 
+func (m *MemstatCollector) shouldOutput(metricName string) bool {
+	// If OnlyMetrics is set, only output these metrics.
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, n := range m.config.OnlyMetrics {
+			if n == metricName {
+				return true
+			}
+		}
+		return false
+	}
+	// Otherwise, check exclude_metrics.
+	for _, n := range m.config.ExcludeMetrics {
+		if n == metricName {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *MemstatCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "MemstatCollector"
 	m.parallel = true
+	// Standardwerte:
 	m.config.NodeStats = true
 	m.config.NumaStats = false
 	if len(config) > 0 {
@@ -166,6 +187,9 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 
 	sendStats := func(stats map[string]MemstatStats, tags map[string]string) {
 		for match, name := range m.matches {
+			if !m.shouldOutput(name) {
+				continue
+			}
 			var value float64 = 0
 			var unit string = ""
 			if v, ok := stats[match]; ok {
@@ -174,7 +198,6 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 					unit = v.unit
 				}
 			}
-
 			y, err := lp.NewMessage(name, tags, m.meta, map[string]interface{}{"value": value}, time.Now())
 			if err == nil {
 				if len(unit) > 0 {
@@ -183,7 +206,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 				output <- y
 			}
 		}
-		if m.sendMemUsed {
+		if m.sendMemUsed && m.shouldOutput("mem_used") {
 			memUsed := 0.0
 			unit := ""
 			if totalVal, total := stats["MemTotal"]; total {
