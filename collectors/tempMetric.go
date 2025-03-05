@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // See: https://www.kernel.org/doc/html/latest/hwmon/sysfs-interface.html
@@ -23,7 +23,7 @@ import (
 type TempCollectorSensor struct {
 	name         string
 	label        string
-	metricName   string // Default: name_label
+	metricName   string // Default: name_label, in lowercase with underscores
 	file         string
 	maxTempName  string
 	maxTemp      int64
@@ -32,19 +32,41 @@ type TempCollectorSensor struct {
 	tags         map[string]string
 }
 
+type TempCollectorConfig struct {
+	ExcludeMetrics     []string                     `json:"exclude_metrics,omitempty"`
+	OnlyMetrics        []string                     `json:"only_metrics,omitempty"`
+	TagOverride        map[string]map[string]string `json:"tag_override,omitempty"`
+	ReportMaxTemp      bool                         `json:"report_max_temperature"`
+	ReportCriticalTemp bool                         `json:"report_critical_temperature"`
+}
+
 type TempCollector struct {
 	metricCollector
-	config struct {
-		ExcludeMetrics     []string                     `json:"exclude_metrics"`
-		TagOverride        map[string]map[string]string `json:"tag_override"`
-		ReportMaxTemp      bool                         `json:"report_max_temperature"`
-		ReportCriticalTemp bool                         `json:"report_critical_temperature"`
-	}
+	config  TempCollectorConfig
 	sensors []*TempCollectorSensor
 }
 
+// shouldOutput returns true if the metric should be sent.
+// If OnlyMetrics is set, only metrics in that list are output.
+// Otherwise, metrics in ExcludeMetrics are skipped.
+func (m *TempCollector) shouldOutput(metricName string) bool {
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, name := range m.config.OnlyMetrics {
+			if name == metricName {
+				return true
+			}
+		}
+		return false
+	}
+	for _, name := range m.config.ExcludeMetrics {
+		if name == metricName {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *TempCollector) Init(config json.RawMessage) error {
-	// Check if already initialized
 	if m.init {
 		return nil
 	}
@@ -53,8 +75,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 	m.parallel = true
 	m.setup()
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
+		if err := json.Unmarshal(config, &m.config); err != nil {
 			return err
 		}
 	}
@@ -81,26 +102,23 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 	for _, file := range inputFiles {
 		sensor := new(TempCollectorSensor)
 
-		// sensor name
+		// Read sensor name from the "name" file
 		nameFile := filepath.Join(filepath.Dir(file), "name")
-		name, err := os.ReadFile(nameFile)
-		if err == nil {
-			sensor.name = strings.TrimSpace(string(name))
+		if data, err := os.ReadFile(nameFile); err == nil {
+			sensor.name = strings.TrimSpace(string(data))
 		}
 
-		// sensor label
+		// Read sensor label from the corresponding "_label" file
 		labelFile := strings.TrimSuffix(file, "_input") + "_label"
-		label, err := os.ReadFile(labelFile)
-		if err == nil {
-			sensor.label = strings.TrimSpace(string(label))
+		if data, err := os.ReadFile(labelFile); err == nil {
+			sensor.label = strings.TrimSpace(string(data))
 		}
 
-		// sensor metric name
+		// Determine sensor metric name
 		switch {
 		case len(sensor.name) == 0 && len(sensor.label) == 0:
 			continue
-		case sensor.name == "coretemp" && strings.HasPrefix(sensor.label, "Core ") ||
-			sensor.name == "coretemp" && strings.HasPrefix(sensor.label, "Package id "):
+		case sensor.name == "coretemp" && (strings.HasPrefix(sensor.label, "Core ") || strings.HasPrefix(sensor.label, "Package id ")):
 			sensor.metricName = "temp_" + sensor.label
 		case len(sensor.name) != 0 && len(sensor.label) != 0:
 			sensor.metricName = sensor.name + "_" + sensor.label
@@ -111,24 +129,21 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		}
 		sensor.metricName = strings.ToLower(sensor.metricName)
 		sensor.metricName = strings.Replace(sensor.metricName, " ", "_", -1)
-		// Add temperature prefix, if required
 		if !strings.Contains(sensor.metricName, "temp") {
 			sensor.metricName = "temp_" + sensor.metricName
 		}
 
-		// Sensor file
-		_, err = os.ReadFile(file)
-		if err != nil {
+		// Verify sensor file exists
+		if _, err := os.ReadFile(file); err != nil {
 			continue
 		}
 		sensor.file = file
 
-		// Sensor tags
+		// Set default sensor tags
 		sensor.tags = map[string]string{
 			"type": "node",
 		}
-
-		// Apply tag override configuration
+		// Apply tag override configuration if applicable
 		for key, newtags := range m.config.TagOverride {
 			if strings.Contains(sensor.file, key) {
 				sensor.tags = newtags
@@ -136,7 +151,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 			}
 		}
 
-		// max temperature
+		// Read max temperature if enabled
 		if m.config.ReportMaxTemp {
 			maxTempFile := strings.TrimSuffix(file, "_input") + "_max"
 			if buffer, err := os.ReadFile(maxTempFile); err == nil {
@@ -147,7 +162,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 			}
 		}
 
-		// critical temperature
+		// Read critical temperature if enabled
 		if m.config.ReportCriticalTemp {
 			criticalTempFile := strings.TrimSuffix(file, "_input") + "_crit"
 			if buffer, err := os.ReadFile(criticalTempFile); err == nil {
@@ -161,75 +176,52 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 		m.sensors = append(m.sensors, sensor)
 	}
 
-	// Empty sensors map
 	if len(m.sensors) == 0 {
 		return fmt.Errorf("no temperature sensors found")
 	}
 
-	// Finished initialization
 	m.init = true
 	return nil
 }
 
 func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-
+	// For each sensor, read temperature and send metric if allowed.
 	for _, sensor := range m.sensors {
 		// Read sensor file
 		buffer, err := os.ReadFile(sensor.file)
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to read file '%s': %v", sensor.file, err))
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to read file '%s': %v", sensor.file, err))
 			continue
 		}
 		x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64)
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert temperature '%s' to int64: %v", buffer, err))
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert temperature '%s' to int64: %v", buffer, err))
 			continue
 		}
 		x /= 1000
-		y, err := lp.NewMessage(
-			sensor.metricName,
-			sensor.tags,
-			m.meta,
-			map[string]interface{}{"value": x},
-			time.Now(),
-		)
-		if err == nil {
-			output <- y
-		}
-
-		// max temperature
-		if m.config.ReportMaxTemp && sensor.maxTemp != 0 {
-			y, err := lp.NewMessage(
-				sensor.maxTempName,
-				sensor.tags,
-				m.meta,
-				map[string]interface{}{"value": sensor.maxTemp},
-				time.Now(),
-			)
+		if m.shouldOutput(sensor.metricName) {
+			y, err := lp.NewMessage(sensor.metricName, sensor.tags, m.meta, map[string]interface{}{"value": x}, time.Now())
 			if err == nil {
 				output <- y
 			}
 		}
 
-		// critical temperature
-		if m.config.ReportCriticalTemp && sensor.critTemp != 0 {
-			y, err := lp.NewMessage(
-				sensor.critTempName,
-				sensor.tags,
-				m.meta,
-				map[string]interface{}{"value": sensor.critTemp},
-				time.Now(),
-			)
+		// Send max temperature if enabled and available
+		if m.config.ReportMaxTemp && sensor.maxTemp != 0 && m.shouldOutput(sensor.maxTempName) {
+			y, err := lp.NewMessage(sensor.maxTempName, sensor.tags, m.meta, map[string]interface{}{"value": sensor.maxTemp}, time.Now())
+			if err == nil {
+				output <- y
+			}
+		}
+
+		// Send critical temperature if enabled and available
+		if m.config.ReportCriticalTemp && sensor.critTemp != 0 && m.shouldOutput(sensor.critTempName) {
+			y, err := lp.NewMessage(sensor.critTempName, sensor.tags, m.meta, map[string]interface{}{"value": sensor.critTemp}, time.Now())
 			if err == nil {
 				output <- y
 			}
 		}
 	}
-
 }
 
 func (m *TempCollector) Close() {
