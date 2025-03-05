@@ -15,4 +15,4 @@ The Likwid metric collector provides similar functionality.
 
 ## Metrics
 
-* `rapl_average_power`: average power consumption in Watt. The average is computed over the entire runtime from the last measurement to the current measurement
+- `rapl_average_power`: average power consumption in Watt. The average is computed over the entire runtime from the last measurement to the current measurement
