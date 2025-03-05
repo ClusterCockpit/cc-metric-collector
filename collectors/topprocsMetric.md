@@ -1,4 +1,3 @@
-
 ## `topprocs` collector
 
 ```json
@@ -10,6 +9,3 @@
 The `topprocs` collector reads the TopX processes (sorted by CPU utilization, `ps -Ao comm --sort=-pcpu`). 
 
 In contrast to most other collectors, the metric value is a `string`.
-
-
-
