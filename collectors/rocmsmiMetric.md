@@ -1,4 +1,3 @@
-
 ## `rocm_smi` collector
 
 ```json
@@ -24,24 +23,24 @@ Optionally, it is possible to add the serial to the meta informations. They are 
 
 
 Metrics:
-* `rocm_gfx_util`
-* `rocm_umc_util`
-* `rocm_mm_util`
-* `rocm_avg_power`
-* `rocm_temp_mem`
-* `rocm_temp_hotspot`
-* `rocm_temp_edge`
-* `rocm_temp_vrgfx`
-* `rocm_temp_vrsoc`
-* `rocm_temp_vrmem`
-* `rocm_gfx_clock`
-* `rocm_soc_clock`
-* `rocm_u_clock`
-* `rocm_v0_clock`
-* `rocm_v1_clock`
-* `rocm_d0_clock`
-* `rocm_d1_clock`
-* `rocm_temp_hbm`
+- `rocm_gfx_util`
+- `rocm_umc_util`
+- `rocm_mm_util`
+- `rocm_avg_power`
+- `rocm_temp_mem`
+- `rocm_temp_hotspot`
+- `rocm_temp_edge`
+- `rocm_temp_vrgfx`
+- `rocm_temp_vrsoc`
+- `rocm_temp_vrmem`
+- `rocm_gfx_clock`
+- `rocm_soc_clock`
+- `rocm_u_clock`
+- `rocm_v0_clock`
+- `rocm_v1_clock`
+- `rocm_d0_clock`
+- `rocm_d1_clock`
+- `rocm_temp_hbm`
 
 
 Some metrics add the additional sub type tag (`stype`) like the `rocm_temp_hbm` metrics set `stype=device,stype-id=<HBM_slice_number>`. 
