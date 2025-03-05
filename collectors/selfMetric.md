@@ -9,10 +9,10 @@
   }
 ```
 
-The `self` collector reads the data from the `runtime` and `syscall` packages, so monitors the execution of the cc-metric-collector itself.
+The `self` collector reads the data from the `runtime` and `syscall` packages, so it monitors the execution of the cc-metric-collector itself.
 
 Metrics:
-* If `read_mem_stats == true`:
+- If `read_mem_stats == true`:
   * `total_alloc`: The metric reports cumulative bytes allocated for heap objects.
   * `heap_alloc`: The metric reports bytes of allocated heap objects.
   * `heap_sys`: The metric reports bytes of heap memory obtained from the OS.
@@ -20,11 +20,11 @@ Metrics:
   * `heap_inuse`: The metric reports bytes in in-use spans.
   * `heap_released`: The metric reports bytes of physical memory returned to the OS.
   * `heap_objects`: The metric reports the number of allocated heap objects.
-* If `read_goroutines == true`:
+- If `read_goroutines == true`:
   * `num_goroutines`: The metric reports the number of goroutines that currently exist.
-* If `read_cgo_calls == true`:
+- If `read_cgo_calls == true`:
   * `num_cgo_calls`: The metric reports the number of cgo calls made by the current process.
-* If `read_rusage == true`:
+- If `read_rusage == true`:
   * `rusage_user_time`: The metric reports the amount of time that this process has been scheduled in user mode.
   * `rusage_system_time`: The metric reports the amount of time that this process has been scheduled in kernel mode.
   * `rusage_vol_ctx_switch`: The metric reports the amount of voluntary context switches.
