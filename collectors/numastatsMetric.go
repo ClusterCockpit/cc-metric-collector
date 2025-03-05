@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 // Non-Uniform Memory Access (NUMA) policy hit/miss statistics
@@ -46,18 +46,53 @@ import (
 //	and succeeded.
 //
 // See: https://www.kernel.org/doc/html/latest/admin-guide/numastat.html
-type NUMAStatsCollectorTopolgy struct {
-	file   string
-	tagSet map[string]string
+type NUMAStatsCollectorConfig struct {
+	SendAbsoluteValues bool     `json:"send_abs_values"`     // Defaults to true if not provided.
+	SendDiffValues     bool     `json:"send_diff_values"`    // If true, diff metrics are sent.
+	SendDerivedValues  bool     `json:"send_derived_values"` // If true, derived (rate) metrics are sent.
+	ExcludeMetrics     []string `json:"exclude_metrics,omitempty"`
+	OnlyMetrics        []string `json:"only_metrics,omitempty"`
 }
 
+// NUMAStatsCollectorTopology represents a single NUMA domain.
+type NUMAStatsCollectorTopolgy struct {
+	file           string
+	tagSet         map[string]string
+	previousValues map[string]int64
+}
+
+// NUMAStatsCollector collects NUMA statistics from /sys/devices/system/node/node*/numastat.
 type NUMAStatsCollector struct {
 	metricCollector
-	topology []NUMAStatsCollectorTopolgy
+	topology      []NUMAStatsCollectorTopolgy
+	config        NUMAStatsCollectorConfig
+	lastTimestamp time.Time
+}
+
+type NUMAMetricDefinition struct {
+	name string
+	unit string
+}
+
+// shouldOutput returns true if a metric should be forwarded based on only_metrics and exclude_metrics.
+func (m *NUMAStatsCollector) shouldOutput(metricName string) bool {
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, n := range m.config.OnlyMetrics {
+			if n == metricName {
+				return true
+			}
+		}
+		return false
+	}
+	for _, n := range m.config.ExcludeMetrics {
+		if n == metricName {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
-	// Check if already initialized
 	if m.init {
 		return nil
 	}
@@ -69,8 +104,13 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 		"source": m.name,
 		"group":  "NUMA",
 	}
-
-	// Loop for all NUMA node directories
+	// Default configuration: send_abs_values defaults to true.
+	m.config.SendAbsoluteValues = true
+	if len(config) > 0 {
+		if err := json.Unmarshal(config, &m.config); err != nil {
+			return err
+		}
+	}
 	base := "/sys/devices/system/node/node"
 	globPattern := base + "[0-9]*"
 	dirs, err := filepath.Glob(globPattern)
@@ -84,15 +124,14 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	for _, dir := range dirs {
 		node := strings.TrimPrefix(dir, base)
 		file := filepath.Join(dir, "numastat")
-		m.topology = append(m.topology,
-			NUMAStatsCollectorTopolgy{
-				file:   file,
-				tagSet: map[string]string{"memoryDomain": node},
-			})
+		m.topology = append(m.topology, NUMAStatsCollectorTopolgy{
+			file:           file,
+			tagSet:         map[string]string{"memoryDomain": node},
+			previousValues: make(map[string]int64),
+		})
 	}
-
-	// Initialized
 	cclog.ComponentDebug(m.name, "initialized", len(m.topology), "NUMA domains")
+	m.lastTimestamp = time.Now()
 	m.init = true
 	return nil
 }
@@ -102,46 +141,62 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 		return
 	}
 
-	for i := range m.topology {
-		// Loop for all NUMA domains
-		t := &m.topology[i]
+	now := time.Now()
+	timeDiff := now.Sub(m.lastTimestamp).Seconds()
+	m.lastTimestamp = now
 
-		now := time.Now()
+	for i := range m.topology {
+		t := &m.topology[i]
 		file, err := os.Open(t.file)
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to open file '%s': %v", t.file, err))
-			return
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to open file '%s': %v", t.file, err))
+			continue
 		}
 		scanner := bufio.NewScanner(file)
-
-		// Read line by line
 		for scanner.Scan() {
-			split := strings.Fields(scanner.Text())
+			line := scanner.Text()
+			split := strings.Fields(line)
 			if len(split) != 2 {
 				continue
 			}
 			key := split[0]
 			value, err := strconv.ParseInt(split[1], 10, 64)
 			if err != nil {
-				cclog.ComponentError(
-					m.name,
-					fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
+				cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert %s='%s' to int64: %v", key, split[1], err))
 				continue
 			}
-			y, err := lp.NewMessage(
-				"numastats_"+key,
-				t.tagSet,
-				m.meta,
-				map[string]interface{}{"value": value},
-				now,
-			)
-			if err == nil {
-				output <- y
-			}
-		}
+			baseName := "numastats_" + key
 
+			// Send absolute value if enabled.
+			if m.config.SendAbsoluteValues && m.shouldOutput(baseName) {
+				msg, err := lp.NewMessage(baseName, t.tagSet, m.meta, map[string]interface{}{"value": value}, now)
+				if err == nil {
+					msg.AddMeta("unit", "count")
+					output <- msg
+				}
+			}
+
+			// If a previous value exists, compute diff and derived.
+			if prev, ok := t.previousValues[key]; ok {
+				diff := value - prev
+				if m.config.SendDiffValues && m.shouldOutput(baseName+"_diff") {
+					msg, err := lp.NewMessage(baseName+"_diff", t.tagSet, m.meta, map[string]interface{}{"value": diff}, now)
+					if err == nil {
+						msg.AddMeta("unit", "count")
+						output <- msg
+					}
+				}
+				if m.config.SendDerivedValues && m.shouldOutput(baseName+"_rate") {
+					rate := float64(value-prev) / timeDiff
+					msg, err := lp.NewMessage(baseName+"_rate", t.tagSet, m.meta, map[string]interface{}{"value": rate}, now)
+					if err == nil {
+						msg.AddMeta("unit", "counts/s")
+						output <- msg
+					}
+				}
+			}
+			t.previousValues[key] = value
+		}
 		file.Close()
 	}
 }
