@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const LUSTRE_SYSFS = `/sys/fs/lustre`
@@ -21,6 +21,7 @@ const LCTL_OPTION = `get_param`
 type LustreCollectorConfig struct {
 	LCtlCommand        string   `json:"lctl_command,omitempty"`
 	ExcludeMetrics     []string `json:"exclude_metrics,omitempty"`
+	OnlyMetrics        []string `json:"only_metrics,omitempty"`
 	Sudo               bool     `json:"use_sudo,omitempty"`
 	SendAbsoluteValues bool     `json:"send_abs_values,omitempty"`
 	SendDerivedValues  bool     `json:"send_derived_values,omitempty"`
@@ -41,9 +42,26 @@ type LustreCollector struct {
 	config        LustreCollectorConfig
 	lctl          string
 	sudoCmd       string
-	lastTimestamp time.Time                   // Store time stamp of last tick to derive bandwidths
+	lastTimestamp time.Time                   // Timestamp of last tick for diff/derivative calculations
 	definitions   []LustreMetricDefinition    // Combined list without excluded metrics
-	stats         map[string]map[string]int64 // Data for last value per device and metric
+	stats         map[string]map[string]int64 // Last measurement per device and metric
+}
+
+func (m *LustreCollector) shouldOutput(metricName string) bool {
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, n := range m.config.OnlyMetrics {
+			if n == metricName {
+				return true
+			}
+		}
+		return false
+	}
+	for _, n := range m.config.ExcludeMetrics {
+		if n == metricName {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *LustreCollector) getDeviceDataCommand(device string) []string {
@@ -61,20 +79,7 @@ func (m *LustreCollector) getDeviceDataCommand(device string) []string {
 
 func (m *LustreCollector) getDevices() []string {
 	devices := make([]string, 0)
-
-	// //Version reading devices from sysfs
-	// globPattern := filepath.Join(LUSTRE_SYSFS, "llite/*/stats")
-	// files, err := filepath.Glob(globPattern)
-	// if err != nil {
-	// 	return devices
-	// }
-	// for _, f := range files {
-	// 	pathlist := strings.Split(f, "/")
-	// 	devices = append(devices, pathlist[4])
-	// }
-
 	data := m.getDeviceDataCommand("*")
-
 	for _, line := range data {
 		if strings.HasPrefix(line, "llite") {
 			linefields := strings.Split(line, ".")
@@ -95,18 +100,6 @@ func getMetricData(lines []string, prefix string, offset int) (int64, error) {
 	}
 	return 0, errors.New("no such line in data")
 }
-
-// //Version reading the stats data of a device from sysfs
-// func (m *LustreCollector) getDeviceDataSysfs(device string) []string {
-// 	llitedir := filepath.Join(LUSTRE_SYSFS, "llite")
-// 	devdir := filepath.Join(llitedir, device)
-// 	statsfile := filepath.Join(devdir, "stats")
-// 	buffer, err := os.ReadFile(statsfile)
-// 	if err != nil {
-// 		return make([]string, 0)
-// 	}
-// 	return strings.Split(string(buffer), "\n")
-// }
 
 var LustreAbsMetrics = []LustreMetricDefinition{
 	{
@@ -308,7 +301,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 			return err
 		}
 		if user.Uid != "0" {
-			cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root")
+			cclog.ComponentError(m.name, "Lustre statistics can only be queried by root")
 			return err
 		}
 	} else {
@@ -332,23 +325,26 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	m.definitions = []LustreMetricDefinition{}
 	if m.config.SendAbsoluteValues {
 		for _, def := range LustreAbsMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
-				m.definitions = append(m.definitions, def)
+			if !m.shouldOutput(def.name) {
+				continue
 			}
+			m.definitions = append(m.definitions, def)
 		}
 	}
 	if m.config.SendDiffValues {
 		for _, def := range LustreDiffMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
-				m.definitions = append(m.definitions, def)
+			if !m.shouldOutput(def.name) {
+				continue
 			}
+			m.definitions = append(m.definitions, def)
 		}
 	}
 	if m.config.SendDerivedValues {
 		for _, def := range LustreDeriveMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
-				m.definitions = append(m.definitions, def)
+			if !m.shouldOutput(def.name) {
+				continue
 			}
+			m.definitions = append(m.definitions, def)
 		}
 	}
 	if len(m.definitions) == 0 {
@@ -418,7 +414,9 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMessage)
 				if len(def.unit) > 0 {
 					y.AddMeta("unit", def.unit)
 				}
-				output <- y
+				if m.shouldOutput(y.Name()) {
+					output <- y
+				}
 			}
 			devData[def.name] = use_x
 		}
