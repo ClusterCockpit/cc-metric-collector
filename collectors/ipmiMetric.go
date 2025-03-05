@@ -13,25 +13,46 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 )
 
 const IPMISENSORS_PATH = `ipmi-sensors`
 
+type IpmiCollectorConfig struct {
+	ExcludeDevices  []string `json:"exclude_devices"`
+	IpmitoolPath    string   `json:"ipmitool_path"`
+	IpmisensorsPath string   `json:"ipmisensors_path"`
+	ExcludeMetrics  []string `json:"exclude_metrics,omitempty"`
+	OnlyMetrics     []string `json:"only_metrics,omitempty"`
+}
+
 type IpmiCollector struct {
 	metricCollector
-	config struct {
-		ExcludeDevices  []string `json:"exclude_devices"`
-		IpmitoolPath    string   `json:"ipmitool_path"`
-		IpmisensorsPath string   `json:"ipmisensors_path"`
-	}
+	config      IpmiCollectorConfig
 	ipmitool    string
 	ipmisensors string
 }
 
+// shouldOutput checks whether a metric should be forwarded based on only_metrics/exclude_metrics.
+func (m *IpmiCollector) shouldOutput(metricName string) bool {
+	if len(m.config.OnlyMetrics) > 0 {
+		for _, name := range m.config.OnlyMetrics {
+			if name == metricName {
+				return true
+			}
+		}
+		return false
+	}
+	for _, name := range m.config.ExcludeMetrics {
+		if name == metricName {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *IpmiCollector) Init(config json.RawMessage) error {
-	// Check if already initialized
 	if m.init {
 		return nil
 	}
@@ -43,7 +64,7 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 		"source": m.name,
 		"group":  "IPMI",
 	}
-	// default path to IPMI tools
+	// Default paths:
 	m.config.IpmitoolPath = "ipmitool"
 	m.config.IpmisensorsPath = "ipmi-sensors"
 	if len(config) > 0 {
@@ -52,18 +73,19 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	// Check if executables ipmitool or ipmisensors are found
+	// Check ipmitool: test with "-V" to verify its existence.
 	p, err := exec.LookPath(m.config.IpmitoolPath)
 	if err == nil {
-		command := exec.Command(p)
+		command := exec.Command(p, "-V")
 		err := command.Run()
 		if err != nil {
-			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %v", p, err.Error()))
+			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s -V: %v", p, err.Error()))
 			m.ipmitool = ""
 		} else {
 			m.ipmitool = p
 		}
 	}
+	// Check ipmi-sensors executable.
 	p, err = exec.LookPath(m.config.IpmisensorsPath)
 	if err == nil {
 		command := exec.Command(p)
@@ -84,23 +106,16 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 }
 
 func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
-
-	// Setup ipmitool command
 	command := exec.Command(cmd, "sensor")
 	stdout, _ := command.StdoutPipe()
 	errBuf := new(bytes.Buffer)
 	command.Stderr = errBuf
 
-	// start command
 	if err := command.Start(); err != nil {
-		cclog.ComponentError(
-			m.name,
-			fmt.Sprintf("readIpmiTool(): Failed to start command \"%s\": %v", command.String(), err),
-		)
+		cclog.ComponentError(m.name, fmt.Sprintf("readIpmiTool(): Failed to start command \"%s\": %v", command.String(), err))
 		return
 	}
 
-	// Read command output
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		lv := strings.Split(scanner.Text(), "|")
@@ -110,7 +125,11 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 		v, err := strconv.ParseFloat(strings.TrimSpace(lv[1]), 64)
 		if err == nil {
 			name := strings.ToLower(strings.Replace(strings.TrimSpace(lv[0]), " ", "_", -1))
+			if !m.shouldOutput(name) {
+				continue
+			}
 			unit := strings.TrimSpace(lv[2])
+			// Standardize unit names.
 			if unit == "Volts" {
 				unit = "Volts"
 			} else if unit == "degrees C" {
@@ -120,7 +139,6 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 			} else if unit == "Watts" {
 				unit = "Watts"
 			}
-
 			y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", unit)
@@ -129,20 +147,15 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 		}
 	}
 
-	// Wait for command end
 	if err := command.Wait(); err != nil {
 		errMsg, _ := io.ReadAll(errBuf)
-		cclog.ComponentError(
-			m.name,
-			fmt.Sprintf("readIpmiTool(): Failed to wait for the end of command \"%s\": %v\n", command.String(), err),
-		)
+		cclog.ComponentError(m.name, fmt.Sprintf("readIpmiTool(): Failed to wait for command \"%s\": %v\n", command.String(), err))
 		cclog.ComponentError(m.name, fmt.Sprintf("readIpmiTool(): command stderr: \"%s\"\n", strings.TrimSpace(string(errMsg))))
 		return
 	}
 }
 
 func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
-
 	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
 	command.Wait()
 	stdout, err := command.Output()
@@ -152,13 +165,15 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 	}
 
 	ll := strings.Split(string(stdout), "\n")
-
 	for _, line := range ll {
 		lv := strings.Split(line, ",")
 		if len(lv) > 3 {
 			v, err := strconv.ParseFloat(lv[3], 64)
 			if err == nil {
 				name := strings.ToLower(strings.Replace(lv[1], " ", "_", -1))
+				if !m.shouldOutput(name) {
+					continue
+				}
 				y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 				if err == nil {
 					if len(lv) > 4 {
@@ -172,8 +187,6 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 }
 
 func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-
-	// Check if already initialized
 	if !m.init {
 		return
 	}
