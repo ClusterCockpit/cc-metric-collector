@@ -1,4 +1,3 @@
-
 ## `likwid` collector
 
 The `likwid` collector is probably the most complicated collector. The LIKWID library is included as static library with *direct* access mode. The *direct* access mode is suitable if the daemon is executed by a root user. The static library does not contain the performance groups, so all information needs to be provided in the configuration.
@@ -48,7 +47,7 @@ The `likwid` configuration consists of two parts, the `eventsets` and `globalmet
 Additional options:
 
 - `force_overwrite`: Same as setting `LIKWID_FORCE=1`. In case counters are already in-use, LIKWID overwrites their configuration to do its measurements
-- `invalid_to_zero`: In some cases, the calculations result in `NaN` or `Inf`. With this option, all `NaN` and `Inf` values are replaces with `0.0`. See below in [seperate section](./likwidMetric.md#invalid_to_zero-option)
+- `invalid_to_zero`: In some cases, the calculations result in `NaN` or `Inf`. With this option, all `NaN` and `Inf` values are replaced with `0.0`. See below in [seperate section](./likwidMetric.md#invalid_to_zero-option)
 - `access_mode`: Specify LIKWID access mode: `direct` for direct register access as root user or `accessdaemon`. The access mode `perf_event` is current untested.
 - `accessdaemon_path`: Folder of the accessDaemon `likwid-accessD` (like `/usr/local/sbin`)
 - `liblikwid_path`: Location of `liblikwid.so` including file name like `/usr/local/lib/liblikwid.so`
