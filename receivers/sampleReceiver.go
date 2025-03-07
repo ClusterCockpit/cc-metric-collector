@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
 )
 
 // SampleReceiver configuration: receiver type, listen address, port

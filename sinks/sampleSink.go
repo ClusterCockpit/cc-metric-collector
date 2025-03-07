@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
 )
 
 type SampleSinkConfig struct {

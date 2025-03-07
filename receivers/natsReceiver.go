@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	nats "github.com/nats-io/nats.go"
 )

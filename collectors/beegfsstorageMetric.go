@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-lib/pkg/ccMessage"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 

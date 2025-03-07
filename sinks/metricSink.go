@@ -3,8 +3,8 @@ package sinks
 import (
 	"encoding/json"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
-	mp "github.com/ClusterCockpit/cc-metric-collector/pkg/messageProcessor"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
 	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
 	"golang.org/x/exp/slices"
 )
