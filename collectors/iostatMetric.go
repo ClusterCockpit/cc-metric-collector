@@ -154,8 +154,15 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 			continue
 		}
 		values := make(map[string]int64)
-		for mname := range m.matches {
-			values[mname] = 0
+		for mname, idx := range m.matches {
+			if idx < len(linefields) {
+				x, err := strconv.ParseInt(linefields[idx], 0, 64)
+				if err == nil {
+					values[mname] = x
+				}
+			} else {
+				values[mname] = 0
+			}
 		}
 		m.devices[device] = IOstatCollectorEntry{
 			tags: map[string]string{
