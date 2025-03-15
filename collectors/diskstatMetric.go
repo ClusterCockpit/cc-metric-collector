@@ -8,15 +8,15 @@ import (
 	"syscall"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 const MOUNTFILE = `/proc/self/mounts`
 
 type DiskstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
-	ExcludeMounts []string `json:"exclude_mounts,omitempty"`
+	ExcludeMounts  []string `json:"exclude_mounts,omitempty"`
 }
 
 type DiskstatCollector struct {
