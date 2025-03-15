@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 )
 
 // These are the fields we read from the JSON configuration
@@ -171,7 +171,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 			}
 		}
 		if !found {
-			m.data[mntpoint] = nil
+			delete(m.data, mntpoint)
 		}
 	}
 }
