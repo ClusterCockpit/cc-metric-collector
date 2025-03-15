@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
+	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
 	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 const NETSTATFILE = "/proc/net/dev"
 
 type NetstatCollectorConfig struct {
-	IncludeDevices     []string              `json:"include_devices"`
-	SendAbsoluteValues bool                  `json:"send_abs_values"`
-	SendDerivedValues  bool                  `json:"send_derived_values"`
-	InterfaceAliases   map[string][]string   `json:"interface_aliases,omitempty"`
+	IncludeDevices     []string            `json:"include_devices"`
+	SendAbsoluteValues bool                `json:"send_abs_values"`
+	SendDerivedValues  bool                `json:"send_derived_values"`
+	InterfaceAliases   map[string][]string `json:"interface_aliases,omitempty"`
 }
 
 type NetstatCollectorMetric struct {
