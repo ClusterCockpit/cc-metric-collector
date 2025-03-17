@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	"golang.org/x/sys/unix"
 
 	"encoding/json"
