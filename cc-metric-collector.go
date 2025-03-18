@@ -7,39 +7,24 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ClusterCockpit/cc-lib/receivers"
+	"github.com/ClusterCockpit/cc-lib/sinks"
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
-	"github.com/ClusterCockpit/cc-metric-collector/receivers"
-	"github.com/ClusterCockpit/cc-metric-collector/sinks"
 
 	//	"strings"
 	"sync"
 	"time"
 
-	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
 type CentralConfigFile struct {
-	Interval            string `json:"interval"`
-	Duration            string `json:"duration"`
-	CollectorConfigFile string `json:"collectors"`
-	RouterConfigFile    string `json:"router"`
-	SinkConfigFile      string `json:"sinks"`
-	ReceiverConfigFile  string `json:"receivers,omitempty"`
-}
-
-func LoadCentralConfiguration(file string, config *CentralConfigFile) error {
-	configFile, err := os.Open(file)
-	if err != nil {
-		cclog.Error(err.Error())
-		return err
-	}
-	defer configFile.Close()
-	jsonParser := json.NewDecoder(configFile)
-	err = jsonParser.Decode(config)
-	return err
+	Interval string `json:"interval"`
+	Duration string `json:"duration"`
 }
 
 type RuntimeConfig struct {
@@ -87,7 +72,7 @@ func ReadCli() map[string]string {
 	cfg := flag.String("config", "./config.json", "Path to configuration file")
 	logfile := flag.String("log", "stderr", "Path for logfile")
 	once := flag.Bool("once", false, "Run all collectors only once")
-	debug := flag.Bool("debug", false, "Activate debug output")
+	loglevel := flag.String("loglevel", "info", "Set log level")
 	flag.Parse()
 	m = make(map[string]string)
 	m["configfile"] = *cfg
@@ -97,12 +82,7 @@ func ReadCli() map[string]string {
 	} else {
 		m["once"] = "false"
 	}
-	if *debug {
-		m["debug"] = "true"
-		cclog.SetDebug()
-	} else {
-		m["debug"] = "false"
-	}
+	m["loglevel"] = *loglevel
 	return m
 }
 
@@ -167,8 +147,15 @@ func mainFunc() int {
 		CliArgs:        ReadCli(),
 	}
 
+	// Set loglevel based on command line input.
+	cclog.Init(rcfg.CliArgs["loglevel"], false)
+
+	// Init ccConfig with configuration file
+	ccconf.Init(rcfg.CliArgs["configfile"])
+
 	// Load and check configuration
-	err = LoadCentralConfiguration(rcfg.CliArgs["configfile"], &rcfg.ConfigFile)
+	main := ccconf.GetPackageConfig("main")
+	err = json.Unmarshal(main, &rcfg.ConfigFile)
 	if err != nil {
 		cclog.Error("Error reading configuration file ", rcfg.CliArgs["configfile"], ": ", err.Error())
 		return 1
@@ -204,38 +191,41 @@ func mainFunc() int {
 		return 1
 	}
 
-	if len(rcfg.ConfigFile.RouterConfigFile) == 0 {
+	routerConf := ccconf.GetPackageConfig("router")
+	if len(routerConf) == 0 {
 		cclog.Error("Metric router configuration file must be set")
 		return 1
 	}
 
-	if len(rcfg.ConfigFile.SinkConfigFile) == 0 {
+	sinkConf := ccconf.GetPackageConfig("sinks")
+	if len(sinkConf) == 0 {
 		cclog.Error("Sink configuration file must be set")
 		return 1
 	}
 
-	if len(rcfg.ConfigFile.CollectorConfigFile) == 0 {
+	collectorConf := ccconf.GetPackageConfig("collectors")
+	if len(collectorConf) == 0 {
 		cclog.Error("Metric collector configuration file must be set")
 		return 1
 	}
 
 	// Set log file
-	if logfile := rcfg.CliArgs["logfile"]; logfile != "stderr" {
-		cclog.SetOutput(logfile)
-	}
+	// if logfile := rcfg.CliArgs["logfile"]; logfile != "stderr" {
+	// 	cclog.SetOutput(logfile)
+	// }
 
 	// Creat new multi channel ticker
 	rcfg.MultiChanTicker = mct.NewTicker(rcfg.Interval)
 
 	// Create new metric router
-	rcfg.MetricRouter, err = mr.New(rcfg.MultiChanTicker, &rcfg.Sync, rcfg.ConfigFile.RouterConfigFile)
+	rcfg.MetricRouter, err = mr.New(rcfg.MultiChanTicker, &rcfg.Sync, routerConf)
 	if err != nil {
 		cclog.Error(err.Error())
 		return 1
 	}
 
 	// Create new sink
-	rcfg.SinkManager, err = sinks.New(&rcfg.Sync, rcfg.ConfigFile.SinkConfigFile)
+	rcfg.SinkManager, err = sinks.New(&rcfg.Sync, sinkConf)
 	if err != nil {
 		cclog.Error(err.Error())
 		return 1
@@ -247,7 +237,7 @@ func mainFunc() int {
 	rcfg.MetricRouter.AddOutput(RouterToSinksChannel)
 
 	// Create new collector manager
-	rcfg.CollectManager, err = collectors.New(rcfg.MultiChanTicker, rcfg.Duration, &rcfg.Sync, rcfg.ConfigFile.CollectorConfigFile)
+	rcfg.CollectManager, err = collectors.New(rcfg.MultiChanTicker, rcfg.Duration, &rcfg.Sync, collectorConf)
 	if err != nil {
 		cclog.Error(err.Error())
 		return 1
@@ -259,8 +249,9 @@ func mainFunc() int {
 	rcfg.MetricRouter.AddCollectorInput(CollectToRouterChannel)
 
 	// Create new receive manager
-	if len(rcfg.ConfigFile.ReceiverConfigFile) > 0 {
-		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, rcfg.ConfigFile.ReceiverConfigFile)
+	receiveConf := ccconf.GetPackageConfig("receivers")
+	if len(receiveConf) > 0 {
+		rcfg.ReceiveManager, err = receivers.New(&rcfg.Sync, receiveConf)
 		if err != nil {
 			cclog.Error(err.Error())
 			return 1
