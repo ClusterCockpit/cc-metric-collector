@@ -3,7 +3,7 @@ package multiChanTicker
 import (
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 )
 
 type multiChanTicker struct {

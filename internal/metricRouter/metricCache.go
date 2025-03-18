@@ -4,10 +4,10 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 
-	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 

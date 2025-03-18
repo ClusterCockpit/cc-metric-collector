@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	"golang.org/x/sys/unix"
 

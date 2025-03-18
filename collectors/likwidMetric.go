@@ -24,9 +24,9 @@ import (
 	"time"
 	"unsafe"
 
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"
 	"github.com/fsnotify/fsnotify"
