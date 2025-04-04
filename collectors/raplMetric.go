@@ -22,15 +22,24 @@ import (
 )
 
 // running average power limit (RAPL) monitoring attributes for a zone
+// Only for Intel systems
+
 type RAPLZoneInfo struct {
+	energy            int64     // current reading of the energy counter in micro joules
+	maxEnergyRange    int64     // Range of the above energy counter in micro-joules
+	energyTimestamp   time.Time // timestamp when energy counter was read
+	energyFilepath    string    // path to a file containing the zones current energy counter in micro joules
+	shortTermFilepath string    // path to short term power limit
+	longTermFilepath  string    // path to long term power limit
+	enabledFilepath   string    // path to check whether limits are enabled
+	name              string
+
 	// tags describing the RAPL zone:
 	// * zone_name, subzone_name: e.g. psys, dram, core, uncore, package-0
 	// * zone_id: e.g. 0:1 (zone 0 sub zone 1)
-	tags            map[string]string
-	energyFilepath  string    // path to a file containing the zones current energy counter in micro joules
-	energy          int64     // current reading of the energy counter in micro joules
-	energyTimestamp time.Time // timestamp when energy counter was read
-	maxEnergyRange  int64     // Range of the above energy counter in micro-joules
+	// type=socket for dram, core, uncore, package-* and type=node for psys
+	// type-id=socket id
+	tags map[string]string
 }
 
 type RAPLCollector struct {
@@ -42,10 +51,38 @@ type RAPLCollector struct {
 		// * 0:1 for zone 0 subzone 1
 		ExcludeByID []string `json:"exclude_device_by_id,omitempty"`
 		// Exclude names for RAPL zones, e.g. psys, dram, core, uncore, package-0
-		ExcludeByName []string `json:"exclude_device_by_name,omitempty"`
+		ExcludeByName     []string `json:"exclude_device_by_name,omitempty"`
+		SkipEnergyReading bool     `json:"skip_energy_reading,omitempty"`
+		SkipLimitsReading bool     `json:"skip_limits_reading,omitempty"`
+		OnlyEnabledLimits bool     `json:"only_enabled_limits,omitempty"`
 	}
-	RAPLZoneInfo []RAPLZoneInfo
+	raplZoneInfo []RAPLZoneInfo
 	meta         map[string]string // default meta information
+}
+
+// Get the path to the power limit file for zone selectable by limit name
+// Common limit names for Intel systems are
+// - long_term
+// - short_term
+// Does not support AMD as AMD systems do not provide the power limits
+// through sysfs
+func ZoneLimitFile(folder string, limit_name string) string {
+	nameGlob := filepath.Join(folder, "constraint_*_name")
+	candidates, err := filepath.Glob(nameGlob)
+	if err == nil {
+		for _, c := range candidates {
+			if v, err := os.ReadFile(c); err == nil {
+				if strings.TrimSpace(string(v)) == limit_name {
+					var i int
+					n, err := fmt.Sscanf(filepath.Base(c), "constraint_%d_name", &i)
+					if err == nil && n == 1 {
+						return filepath.Join(folder, fmt.Sprintf("constraint_%d_power_limit_uw", i))
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // Init initializes the running average power limit (RAPL) collector
@@ -67,6 +104,9 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 	}
 
 	// Read in the JSON configuration
+	m.config.SkipEnergyReading = false
+	m.config.SkipLimitsReading = false
+	m.config.OnlyEnabledLimits = true
 	if len(config) > 0 {
 		d := json.NewDecoder(bytes.NewReader(config))
 		d.DisallowUnknownFields()
@@ -93,48 +133,62 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 	// See: https://www.kernel.org/doc/html/latest/power/powercap/powercap.html#monitoring-attributes
 	readZoneInfo := func(zonePath string) (
 		z struct {
-			name            string    // zones name e.g. psys, dram, core, uncore, package-0
-			energyFilepath  string    // path to a file containing the zones current energy counter in micro joules
-			energy          int64     // current reading of the energy counter in micro joules
-			energyTimestamp time.Time // timestamp when energy counter was read
-			maxEnergyRange  int64     // Range of the above energy counter in micro-joules
-			ok              bool      // Are all information available?
+			name              string    // zones name e.g. psys, dram, core, uncore, package-0
+			energyFilepath    string    // path to a file containing the zones current energy counter in micro joules
+			energy            int64     // current reading of the energy counter in micro joules
+			energyTimestamp   time.Time // timestamp when energy counter was read
+			maxEnergyRange    int64     // Range of the above energy counter in micro-joules
+			shortTermFilepath string
+			longTermFilepath  string
+			enabledFilepath   string
 		},
 	) {
 		// zones name e.g. psys, dram, core, uncore, package-0
-		foundName := false
-		if v, err := os.ReadFile(
-			filepath.Join(zonePath, "name")); err == nil {
-			foundName = true
+
+		if v, err :=
+			os.ReadFile(
+				filepath.Join(zonePath, "name")); err == nil {
 			z.name = strings.TrimSpace(string(v))
 		}
 
-		// path to a file containing the zones current energy counter in micro joules
-		z.energyFilepath = filepath.Join(zonePath, "energy_uj")
-
-		// current reading of the energy counter in micro joules
-		foundEnergy := false
-		if v, err := os.ReadFile(z.energyFilepath); err == nil {
-			// timestamp when energy counter was read
-			z.energyTimestamp = time.Now()
-			if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
-				foundEnergy = true
-				z.energy = i
+		if !m.config.SkipEnergyReading {
+			// path to a file containing the zones current energy counter in micro joules
+			z.energyFilepath = filepath.Join(zonePath, "energy_uj")
+			// current reading of the energy counter in micro joules
+			if v, err := os.ReadFile(z.energyFilepath); err == nil {
+				if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
+					z.energy = i
+					// timestamp when energy counter was read
+					z.energyTimestamp = time.Now()
+				}
+			} else {
+				cclog.ComponentErrorf(m.name, "Cannot read energy file for %s: %v", z.name, err.Error())
 			}
+			// Range of the above energy counter in micro-joules
+			if v, err :=
+				os.ReadFile(
+					filepath.Join(zonePath, "max_energy_range_uj")); err == nil {
+				if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
+					z.maxEnergyRange = i
+				}
+			}
+		} else {
+			cclog.ComponentDebugf(m.name, "Energy readings for %s disabled", zonePath)
 		}
 
-		// Range of the above energy counter in micro-joules
-		foundMaxEnergyRange := false
-		if v, err := os.ReadFile(
-			filepath.Join(zonePath, "max_energy_range_uj")); err == nil {
-			if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
-				foundMaxEnergyRange = true
-				z.maxEnergyRange = i
+		if !m.config.SkipLimitsReading {
+			z.shortTermFilepath = ZoneLimitFile(zonePath, "short_term")
+			if _, err := os.Stat(z.shortTermFilepath); err != nil {
+				z.shortTermFilepath = ""
 			}
+			z.longTermFilepath = ZoneLimitFile(zonePath, "long_term")
+			if _, err := os.Stat(z.longTermFilepath); err != nil {
+				z.longTermFilepath = ""
+			}
+			z.enabledFilepath = filepath.Join(zonePath, "enabled")
+		} else {
+			cclog.ComponentDebugf(m.name, "Power limit readings for %s disabled", zonePath)
 		}
-
-		// Are all information available?
-		z.ok = foundName && foundEnergy && foundMaxEnergyRange
 
 		return
 	}
@@ -152,14 +206,36 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 
 	for _, zonePath := range zonesPath {
 		zoneID := strings.TrimPrefix(zonePath, zonePrefix)
+
 		z := readZoneInfo(zonePath)
-		if z.ok &&
-			!isIDExcluded[zoneID] &&
+		if !isIDExcluded[zoneID] &&
 			!isNameExcluded[z.name] {
 
+			si := RAPLZoneInfo{
+				tags:              make(map[string]string),
+				energyFilepath:    z.energyFilepath,
+				energy:            z.energy,
+				energyTimestamp:   z.energyTimestamp,
+				maxEnergyRange:    z.maxEnergyRange,
+				shortTermFilepath: z.shortTermFilepath,
+				longTermFilepath:  z.longTermFilepath,
+				enabledFilepath:   z.enabledFilepath,
+				name:              z.name,
+			}
+			si.tags["type"] = "node"
+			si.tags["type-id"] = "0"
+			var pid int = 0
+			if strings.HasPrefix(z.name, "package-") {
+				n, err := fmt.Sscanf(z.name, "package-%d", &pid)
+				if err == nil && n == 1 {
+					si.tags["type-id"] = fmt.Sprintf("%d", pid)
+					si.tags["type"] = "socket"
+				}
+				si.name = "pkg"
+			}
 			// Add RAPL monitoring attributes for a zone
-			m.RAPLZoneInfo = append(
-				m.RAPLZoneInfo,
+			m.raplZoneInfo = append(
+				m.raplZoneInfo,
 				RAPLZoneInfo{
 					tags: map[string]string{
 						"id":        zoneID,
@@ -182,37 +258,40 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 		for _, subZonePath := range subZonesPath {
 			subZoneID := strings.TrimPrefix(subZonePath, subZonePrefix)
 			sz := readZoneInfo(subZonePath)
+
 			if len(zoneID) > 0 && len(z.name) > 0 &&
-				sz.ok &&
 				!isIDExcluded[zoneID+":"+subZoneID] &&
 				!isNameExcluded[sz.name] {
-				m.RAPLZoneInfo = append(
-					m.RAPLZoneInfo,
+				m.raplZoneInfo = append(
+					m.raplZoneInfo,
 					RAPLZoneInfo{
 						tags: map[string]string{
 							"id":            zoneID + ":" + subZoneID,
 							"zone_name":     z.name,
 							"sub_zone_name": sz.name,
 						},
-						energyFilepath:  sz.energyFilepath,
-						energy:          sz.energy,
-						energyTimestamp: sz.energyTimestamp,
-						maxEnergyRange:  sz.maxEnergyRange,
+						energyFilepath:    sz.energyFilepath,
+						energy:            sz.energy,
+						energyTimestamp:   sz.energyTimestamp,
+						maxEnergyRange:    sz.maxEnergyRange,
+						shortTermFilepath: sz.shortTermFilepath,
+						longTermFilepath:  sz.longTermFilepath,
+						enabledFilepath:   sz.enabledFilepath,
+						name:              sz.name,
 					})
 			}
 		}
 	}
 
-	if m.RAPLZoneInfo == nil {
+	if m.raplZoneInfo == nil {
 		return fmt.Errorf("no running average power limit (RAPL) device found in %s", controlTypePath)
 	}
 
 	// Initialized
 	cclog.ComponentDebug(
 		m.name,
-		"initialized",
-		len(m.RAPLZoneInfo),
-		"zones with running average power limit (RAPL) monitoring attributes")
+		"initialized %d zones with running average power limit (RAPL) monitoring attributes",
+		len(m.raplZoneInfo))
 	m.init = true
 
 	return err
@@ -221,35 +300,89 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 // Read reads running average power limit (RAPL) monitoring attributes for all initialized zones
 // See: https://www.kernel.org/doc/html/latest/power/powercap/powercap.html#monitoring-attributes
 func (m *RAPLCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-	for i := range m.RAPLZoneInfo {
-		p := &m.RAPLZoneInfo[i]
+	for i := range m.raplZoneInfo {
+		p := &m.raplZoneInfo[i]
 
-		// Read current value of the energy counter in micro joules
-		if v, err := os.ReadFile(p.energyFilepath); err == nil {
-			energyTimestamp := time.Now()
-			if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
-				energy := i
+		if !m.config.SkipEnergyReading {
+			// Read current value of the energy counter in micro joules
+			if v, err := os.ReadFile(p.energyFilepath); err == nil {
+				energyTimestamp := time.Now()
+				if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
+					energy := i
 
-				// Compute average power (Δ energy / Δ time)
-				energyDiff := energy - p.energy
-				if energyDiff < 0 {
-					// Handle overflow:
-					// ( p.maxEnergyRange - p.energy ) + energy
-					// = p.maxEnergyRange + ( energy - p.energy )
-					// = p.maxEnergyRange + diffEnergy
-					energyDiff += p.maxEnergyRange
+					// Compute average power (Δ energy / Δ time)
+					energyDiff := energy - p.energy
+					if energyDiff < 0 {
+						// Handle overflow:
+						// ( p.maxEnergyRange - p.energy ) + energy
+						// = p.maxEnergyRange + ( energy - p.energy )
+						// = p.maxEnergyRange + diffEnergy
+						energyDiff += p.maxEnergyRange
+					}
+					timeDiff := energyTimestamp.Sub(p.energyTimestamp)
+					averagePower := float64(energyDiff) / float64(timeDiff.Microseconds())
+
+					y, err := lp.NewMetric(
+						fmt.Sprintf("rapl_%s_average_power", p.name),
+						p.tags,
+						m.meta,
+						averagePower,
+						energyTimestamp)
+					if err == nil {
+						output <- y
+					}
+
+					e, err := lp.NewMetric(
+						fmt.Sprintf("rapl_%s_energy", p.name),
+						p.tags,
+						m.meta,
+						float64(energyDiff)*1e-3,
+						energyTimestamp)
+					if err == nil {
+						e.AddMeta("unit", "Joules")
+						output <- e
+					}
+
+					// Save current energy counter state
+					p.energy = energy
+					p.energyTimestamp = energyTimestamp
 				}
-				timeDiff := energyTimestamp.Sub(p.energyTimestamp)
-				averagePower := float64(energyDiff) / float64(timeDiff.Microseconds())
-
-				y, err := lp.NewMetric("rapl_average_power", p.tags, m.meta, averagePower, energyTimestamp)
-				if err == nil {
-					output <- y
+			}
+		}
+		// https://www.kernel.org/doc/html/latest/power/powercap/powercap.html#constraints
+		if !m.config.SkipLimitsReading {
+			skip := false
+			if m.config.OnlyEnabledLimits {
+				if v, err := os.ReadFile(p.enabledFilepath); err == nil {
+					if strings.TrimSpace(string(v)) == "0" {
+						skip = true
+					}
+				}
+			}
+			if !skip {
+				if len(p.shortTermFilepath) > 0 {
+					if v, err := os.ReadFile(p.shortTermFilepath); err == nil {
+						if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
+							name := fmt.Sprintf("rapl_%s_limit_short_term", p.name)
+							y, err := lp.NewMetric(name, p.tags, m.meta, i/1e6, time.Now())
+							if err == nil {
+								output <- y
+							}
+						}
+					}
 				}
 
-				// Save current energy counter state
-				p.energy = energy
-				p.energyTimestamp = energyTimestamp
+				if len(p.longTermFilepath) > 0 {
+					if v, err := os.ReadFile(p.longTermFilepath); err == nil {
+						if i, err := strconv.ParseInt(strings.TrimSpace(string(v)), 10, 64); err == nil {
+							name := fmt.Sprintf("rapl_%s_limit_long_term", p.name)
+							y, err := lp.NewMetric(name, p.tags, m.meta, i/1e6, time.Now())
+							if err == nil {
+								output <- y
+							}
+						}
+					}
+				}
 			}
 		}
 	}
