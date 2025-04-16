@@ -171,7 +171,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 			}
 		}
 		if !found {
-			m.data[mntpoint] = nil
+			delete(m.data, mntpoint)
 		}
 	}
 }
