@@ -190,12 +190,8 @@ func getBaseFreq() float64 {
 	}
 
 	if math.IsNaN(freq) {
-		C.power_init(0)
-		info := C.get_powerInfo()
-		if float64(info.baseFrequency) != 0 {
-			freq = float64(info.baseFrequency)
-		}
-		C.power_finalize()
+		C.timer_init()
+		freq = float64(C.timer_getCycleClock()) / 1e3
 	}
 	return freq * 1e3
 }
