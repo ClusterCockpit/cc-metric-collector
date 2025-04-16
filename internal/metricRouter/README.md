@@ -1,11 +1,22 @@
+<!--
+---
+title: Message Router
+description: Routing component inside cc-metric-collector
+categories: [cc-metric-collector]
+tags: ['Developer']
+weight: 1
+hugo_path: docs/reference/cc-metric-collector/internal/metricrouter/_index.md
+---
+-->
+
 # CC Metric Router
 
-The CCMetric router sits in between the collectors and the sinks and can be used to add and remove tags to/from traversing [CCMessages](https://pkg.go.dev/github.com/ClusterCockpit/cc-energy-manager@v0.0.0-20240919152819-92a17f2da4f7/pkg/cc-message.
+The CCMetric router sits in between the collectors and the sinks and can be used to add and remove tags to/from traversing [CCMessages](https://pkg.go.dev/github.com/ClusterCockpit/cc-lib/ccMessage).
 
 
 # Configuration
 
-**Note**: Use the [message processor configuration](../../pkg/messageProcessor/README.md) with option `process_messages`.
+**Note**: Use the [message processor configuration](https://github.com/ClusterCockpit/cc-lib/blob/main/messageProcessor/README.md) with option `process_messages`.
 
 ```json
 {
@@ -69,7 +80,7 @@ The CCMetric router sits in between the collectors and the sinks and can be used
 
 There are three main options `add_tags`, `delete_tags` and `interval_timestamp`. `add_tags` and `delete_tags` are lists consisting of dicts with `key`, `value` and `if`. The `value` can be omitted in the `delete_tags` part as it only uses the `key` for removal. The `interval_timestamp` setting means that a unique timestamp is applied to all metrics traversing the router during an interval.
 
-**Note**: Use the [message processor configuration](../../pkg/messageProcessor/README.md) (option `process_messages`) instead of `add_tags`, `delete_tags`, `drop_metrics`, `drop_metrics_if`, `rename_metrics`, `normalize_units` and `change_unit_prefix`. These options are deprecated and will be removed in future versions. Until then, they are added to the message processor.
+**Note**: Use the [message processor configuration](https://github.com/ClusterCockpit/cc-lib/blob/main/messageProcessor/README.md) (option `process_messages`) instead of `add_tags`, `delete_tags`, `drop_metrics`, `drop_metrics_if`, `rename_metrics`, `normalize_units` and `change_unit_prefix`. These options are deprecated and will be removed in future versions. Until then, they are added to the message processor.
 
 # Processing order in the router
 
@@ -263,7 +274,7 @@ The above configuration, collects all metric values for metrics evaluating `if` 
 If you are not interested in the input metrics `sub_metric_%d+` at all, you can add the same condition used here to the `drop_metrics_if` section to drop them.
 
 Use cases for `interval_aggregates`:
-- Combine multiple metrics of the a collector to a new one like the [MemstatCollector](../../collectors/memstatMetric.md) does it for `mem_used`)):
+- Combine multiple metrics of the a collector to a new one like the [MemstatCollector](../../collectors/memstatMetric.md) does it for `mem_used`:
 ```json
   {
     "name" : "mem_used",

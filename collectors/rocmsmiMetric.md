@@ -1,3 +1,14 @@
+<!--
+---
+title: "ROCm SMI metric collector"
+description: Collect metrics for AMD GPUs using the SMI library
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/rocmsmi.md
+---
+-->
+
 
 ## `rocm_smi` collector
 

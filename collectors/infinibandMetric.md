@@ -1,3 +1,13 @@
+<!--
+---
+title: InfiniBand Metric collector
+description: Collect metrics for InfiniBand devices
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/infiniband.md
+---
+-->
 
 ## `ibstat` collector
 

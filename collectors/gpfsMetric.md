@@ -1,3 +1,14 @@
+<!--
+---
+title: GPFS collector
+description: Collect infos about GPFS filesystems
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/gpfs.md
+---
+-->
+
 ## `gpfs` collector
 
 ```json

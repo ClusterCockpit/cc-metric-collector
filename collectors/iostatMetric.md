@@ -1,3 +1,13 @@
+<!--
+---
+title: IOStat Metric collector
+description: Collect metrics from `/proc/diskstats`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/iostat.md
+---
+-->
 
 ## `iostat` collector
 

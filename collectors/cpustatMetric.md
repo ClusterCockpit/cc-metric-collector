@@ -1,3 +1,14 @@
+<!--
+---
+title: CPU usage metric collector
+description: Collect CPU metrics from `/proc/stat`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/cpustat.md
+---
+-->
+
 
 ## `cpustat` collector
 
