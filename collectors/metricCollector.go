@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 type MetricCollector interface {
@@ -14,7 +14,7 @@ type MetricCollector interface {
 	Initialized() bool                 // Is metric collector initialized?
 	Parallel() bool
 	Read(duration time.Duration, output chan lp.CCMessage) // Read metrics from metric collector
-	Close()                                               // Close / finish metric collector
+	Close()                                                // Close / finish metric collector
 }
 
 type metricCollector struct {

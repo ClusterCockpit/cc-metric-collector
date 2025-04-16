@@ -2,12 +2,11 @@ package collectors
 
 import (
 	"encoding/json"
-	"os"
 	"sync"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
@@ -59,7 +58,7 @@ type collectorManager struct {
 
 // Metric collector manager access functions
 type CollectorManager interface {
-	Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) error
+	Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfig json.RawMessage) error
 	AddOutput(output chan lp.CCMessage)
 	Start()
 	Close()
@@ -72,7 +71,7 @@ type CollectorManager interface {
 // * ticker (from variable ticker)
 // * configuration (read from config file in variable collectConfigFile)
 // Initialization is done for all configured collectors
-func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) error {
+func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfig json.RawMessage) error {
 	cm.collectors = make([]MetricCollector, 0)
 	cm.serial = make([]MetricCollector, 0)
 	cm.output = nil
@@ -81,15 +80,7 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	cm.ticker = ticker
 	cm.duration = duration
 
-	// Read collector config file
-	configFile, err := os.Open(collectConfigFile)
-	if err != nil {
-		cclog.Error(err.Error())
-		return err
-	}
-	defer configFile.Close()
-	jsonParser := json.NewDecoder(configFile)
-	err = jsonParser.Decode(&cm.config)
+	err := json.Unmarshal(collectConfig, &cm.config)
 	if err != nil {
 		cclog.Error(err.Error())
 		return err
@@ -200,9 +191,9 @@ func (cm *collectorManager) Close() {
 }
 
 // New creates a new initialized metric collector manager
-func New(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfigFile string) (CollectorManager, error) {
+func New(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfig json.RawMessage) (CollectorManager, error) {
 	cm := new(collectorManager)
-	err := cm.Init(ticker, duration, wg, collectConfigFile)
+	err := cm.Init(ticker, duration, wg, collectConfig)
 	if err != nil {
 		return nil, err
 	}

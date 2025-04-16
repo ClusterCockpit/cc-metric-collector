@@ -1,8 +1,10 @@
 {
-  "sinks": ".github/ci-sinks.json",
-  "collectors" : ".github/ci-collectors.json",
-  "receivers" : ".github/ci-receivers.json",
-  "router" : ".github/ci-router.json",
-  "interval": "5s",
-  "duration": "1s"
+  "sinks-file": ".github/ci-sinks.json",
+  "collectors-file" : ".github/ci-collectors.json",
+  "receivers-file" : ".github/ci-receivers.json",
+  "router-file" : ".github/ci-router.json",
+  "main" : {
+    "interval": "5s",
+    "duration": "1s"
+  }
 }
