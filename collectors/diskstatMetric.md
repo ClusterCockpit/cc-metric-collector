@@ -6,10 +6,13 @@
     "exclude_metrics": [
       "disk_total"
     ],
+    "exclude_mounts": [
+      "slurm-tmpfs"
+    ]
   }
 ```
 
-The `diskstat` collector reads data from `/proc/self/mounts` and outputs a handful **node** metrics. If a metric is not required, it can be excluded from forwarding it to the sink.
+The `diskstat` collector reads data from `/proc/self/mounts` and outputs a handful **node** metrics. If a metric is not required, it can be excluded from forwarding it to the sink. Additionally, any mount point containing one of the strings specified in `exclude_mounts` will be skipped during metric collection.
 
 Metrics per device (with `device` tag):
 * `disk_total` (unit `GBytes`)

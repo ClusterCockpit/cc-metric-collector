@@ -9,16 +9,17 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
-	lp "github.com/ClusterCockpit/cc-energy-manager/pkg/cc-message"
+	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
 const NETSTATFILE = "/proc/net/dev"
 
 type NetstatCollectorConfig struct {
-	IncludeDevices     []string `json:"include_devices"`
-	SendAbsoluteValues bool     `json:"send_abs_values"`
-	SendDerivedValues  bool     `json:"send_derived_values"`
+	IncludeDevices     []string            `json:"include_devices"`
+	SendAbsoluteValues bool                `json:"send_abs_values"`
+	SendDerivedValues  bool                `json:"send_derived_values"`
+	InterfaceAliases   map[string][]string `json:"interface_aliases,omitempty"`
 }
 
 type NetstatCollectorMetric struct {
@@ -32,9 +33,26 @@ type NetstatCollectorMetric struct {
 
 type NetstatCollector struct {
 	metricCollector
-	config        NetstatCollectorConfig
-	matches       map[string][]NetstatCollectorMetric
-	lastTimestamp time.Time
+	config           NetstatCollectorConfig
+	aliasToCanonical map[string]string
+	matches          map[string][]NetstatCollectorMetric
+	lastTimestamp    time.Time
+}
+
+func (m *NetstatCollector) buildAliasMapping() {
+	m.aliasToCanonical = make(map[string]string)
+	for canon, aliases := range m.config.InterfaceAliases {
+		for _, alias := range aliases {
+			m.aliasToCanonical[alias] = canon
+		}
+	}
+}
+
+func getCanonicalName(raw string, aliasToCanonical map[string]string) string {
+	if canon, ok := aliasToCanonical[raw]; ok {
+		return canon
+	}
+	return raw
 }
 
 func (m *NetstatCollector) Init(config json.RawMessage) error {
@@ -77,6 +95,8 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		}
 	}
 
+	m.buildAliasMapping()
+
 	// Check access to net statistic file
 	file, err := os.Open(NETSTATFILE)
 	if err != nil {
@@ -97,18 +117,20 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		// Split line into fields
 		f := strings.Fields(l)
 
-		// Get net device entry
-		dev := strings.Trim(f[0], ": ")
+		// Get raw and canonical names
+		raw := strings.Trim(f[0], ": ")
+		canonical := getCanonicalName(raw, m.aliasToCanonical)
 
 		// Check if device is a included device
-		if _, ok := stringArrayContains(m.config.IncludeDevices, dev); ok {
-			tags := map[string]string{"stype": "network", "stype-id": dev, "type": "node"}
+		if _, ok := stringArrayContains(m.config.IncludeDevices, canonical); ok {
+			// Tag will contain original device name (raw).
+			tags := map[string]string{"stype": "network", "stype-id": raw, "type": "node"}
 			meta_unit_byte := map[string]string{"source": m.name, "group": "Network", "unit": "bytes"}
 			meta_unit_byte_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "bytes/sec"}
 			meta_unit_pkts := map[string]string{"source": m.name, "group": "Network", "unit": "packets"}
 			meta_unit_pkts_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "packets/sec"}
 
-			m.matches[dev] = []NetstatCollectorMetric{
+			m.matches[canonical] = []NetstatCollectorMetric{
 				{
 					name:       "net_bytes_in",
 					index:      fieldReceiveBytes,
@@ -143,7 +165,6 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 				},
 			}
 		}
-
 	}
 
 	if len(m.matches) == 0 {
@@ -164,7 +185,7 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	// Save current timestamp
 	m.lastTimestamp = now
 
-	file, err := os.Open(string(NETSTATFILE))
+	file, err := os.Open(NETSTATFILE)
 	if err != nil {
 		cclog.ComponentError(m.name, err.Error())
 		return
@@ -183,11 +204,12 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 		// Split line into fields
 		f := strings.Fields(l)
 
-		// Get net device entry
-		dev := strings.Trim(f[0], ":")
+		// Get raw and canonical names
+		raw := strings.Trim(f[0], ":")
+		canonical := getCanonicalName(raw, m.aliasToCanonical)
 
 		// Check if device is a included device
-		if devmetrics, ok := m.matches[dev]; ok {
+		if devmetrics, ok := m.matches[canonical]; ok {
 			for i := range devmetrics {
 				metric := &devmetrics[i]
 
