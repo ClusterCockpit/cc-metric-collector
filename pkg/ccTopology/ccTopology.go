@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	cclogger "github.com/ClusterCockpit/cc-metric-collector/pkg/ccLogger"
+	cclogger "github.com/ClusterCockpit/cc-lib/ccLogger"
 	"golang.org/x/exp/slices"
 )
 
