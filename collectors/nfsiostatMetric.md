@@ -1,3 +1,14 @@
+<!--
+---
+title: NFS network filesystem metrics from procfs
+description: Collect NFS network filesystem metrics for mounts from `/proc/self/mountstats`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/nfsio.md
+---
+-->
+
 ## `nfsiostat` collector
 
 ```json

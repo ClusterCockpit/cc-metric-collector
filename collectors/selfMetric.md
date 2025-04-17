@@ -1,3 +1,14 @@
+<!--
+---
+title: Self-monitoring metric collector
+description: Collect metrics from the execution of cc-metric-collector itself
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/self.md
+---
+-->
+
 ## `self` collector
 
 ```json

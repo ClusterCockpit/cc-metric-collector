@@ -1,3 +1,13 @@
+<!--
+---
+title: Disk usage statistics metric collector
+description: Collect metrics for various filesystems from `/proc/self/mounts`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/diskstat.md
+---
+-->
 
 ## `diskstat` collector
 

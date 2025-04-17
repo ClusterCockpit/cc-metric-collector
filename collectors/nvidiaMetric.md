@@ -1,3 +1,13 @@
+<!--
+---
+title: "Nvidia NVML metric collector"
+description: Collect metrics for Nvidia GPUs using the NVML
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/nvidia.md
+---
+-->
 
 ## `nvidia` collector
 

@@ -1,3 +1,14 @@
+<!--
+---
+title: Lustre filesystem metric collector
+description: Collect metrics for Lustre filesystems
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/lustre.md
+---
+-->
+
 
 ## `lustrestat` collector
 

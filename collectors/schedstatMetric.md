@@ -1,3 +1,13 @@
+<!--
+---
+title: SchedStat Metric collector
+description: Collect metrics from `/proc/schedstat`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/schedstat.md
+---
+-->
 
 ## `schedstat` collector
 ```json
