@@ -1,5 +1,17 @@
+<!--
+---
+title: BeeGFS metadata metric collector
+description: Collect metadata clientstats for `BeeGFS on Demand`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/beegfsmeta.md
+---
+-->
+
+
 ## `BeeGFS on Demand` collector
-This Collector is to collect BeeGFS on Demand (BeeOND) metadata clientstats.
+This Collector is to collect `BeeGFS on Demand` (BeeOND) metadata clientstats.
 
 ```json
   "beegfs_meta": {

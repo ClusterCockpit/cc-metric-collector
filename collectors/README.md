@@ -1,3 +1,14 @@
+<!--
+---
+title: Metric Collectors
+description: Metric collectors for cc-metric-collector
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/_index.md
+---
+-->
+
 # CCMetric collectors
 
 This folder contains the collectors for the cc-metric-collector.
@@ -23,7 +34,6 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`loadavg`](./loadavgMetric.md)
 * [`netstat`](./netstatMetric.md)
 * [`ibstat`](./infinibandMetric.md)
-* [`ibstat_perfquery`](./infinibandPerfQueryMetric.md)
 * [`tempstat`](./tempMetric.md)
 * [`lustrestat`](./lustreMetric.md)
 * [`likwid`](./likwidMetric.md)
@@ -53,7 +63,7 @@ A collector reads data from any source, parses it to metrics and submits these m
 * `Name() string`: Return the name of the collector
 * `Init(config json.RawMessage) error`: Initializes the collector using the given collector-specific config in JSON. Check if needed files/commands exists, ...
 * `Initialized() bool`: Check if a collector is successfully initialized
-* `Read(duration time.Duration, output chan ccMetric.CCMetric)`: Read, parse and submit data to the `output` channel as [`CCMetric`](../internal/ccMetric/README.md). If the collector has to measure anything for some duration, use the provided function argument `duration`.
+* `Read(duration time.Duration, output chan ccMessage.CCMessage)`: Read, parse and submit data to the `output` channel as [`CCMessage`](https://github.com/ClusterCockpit/cc-lib/blob/main/ccMessage/README.md). If the collector has to measure anything for some duration, use the provided function argument `duration`.
 * `Close()`: Closes down the collector.
 
 It is recommanded to call `setup()` in the `Init()` function.

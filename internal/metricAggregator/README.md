@@ -1,3 +1,14 @@
+<!--
+---
+title: Metric Aggregator
+description: Subsystem for evaluating expressions on metrics (deprecated)
+categories: [cc-metric-collector]
+tags: ['Developer']
+weight: 1
+hugo_path: docs/reference/cc-metric-collector/internal/metricaggregator/_index.md
+---
+-->
+
 # The MetricAggregator
 
 In some cases, further combination of metrics or raw values is required. For that strings like `foo + 1` with runtime dependent `foo` need to be evaluated. The MetricAggregator relies on the [`gval`](https://github.com/PaesslerAG/gval) Golang package to perform all expression evaluation. The `gval` package provides the basic arithmetic operations but the MetricAggregator defines additional ones.

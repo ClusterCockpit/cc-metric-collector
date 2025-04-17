@@ -1,6 +1,17 @@
+<!--
+---
+title: cc-metric-collector
+description: Metric collecting node agent
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/_index.md
+---
+-->
+
 # cc-metric-collector
 
-A node agent for measuring, processing and forwarding node level metrics. It is part of the [ClusterCockpit ecosystem](./docs/introduction.md).
+A node agent for measuring, processing and forwarding node level metrics. It is part of the [ClusterCockpit ecosystem](https://clustercockpit.org/docs/overview/).
 
 The metric collector sends (and receives) metric in the [InfluxDB line protocol](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) as it provides flexibility while providing a separation between tags (like index columns in relational databases) and fields (like data columns).
 
@@ -35,8 +46,8 @@ The `interval` defines how often the metrics should be read and send to the sink
 See the component READMEs for their configuration:
 
 * [`collectors`](./collectors/README.md)
-* [`sinks`](./sinks/README.md)
-* [`receivers`](./receivers/README.md)
+* [`sinks`](https://github.com/ClusterCockpit/cc-lib/blob/main/sinks/README.md)
+* [`receivers`](https://github.com/ClusterCockpit/cc-lib/blob/main/receivers/README.md)
 * [`router`](./internal/metricRouter/README.md)
 
 # Installation

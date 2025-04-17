@@ -1,3 +1,13 @@
+<!--
+---
+title: CustomCommand metric collector
+description: Collect messages from custom command or files
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/customcmd.md
+---
+-->
 
 ## `customcmd` collector
 

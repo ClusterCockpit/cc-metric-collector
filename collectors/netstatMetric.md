@@ -1,3 +1,13 @@
+<!--
+---
+title: Network device metric collector
+description: Collect metrics for network devices through procfs
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/netstat.md
+---
+-->
 
 ## `netstat` collector
 
