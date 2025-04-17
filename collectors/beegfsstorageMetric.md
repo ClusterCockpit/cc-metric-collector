@@ -1,3 +1,14 @@
+<!--
+---
+title: "BeeGFS on Demand metric collector"
+description: Collect performance metrics for BeeGFS filesystems
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/beegfsstorage.md
+---
+-->
+
 ## `BeeGFS on Demand` collector
 This Collector is to collect BeeGFS on Demand (BeeOND) storage stats.
 

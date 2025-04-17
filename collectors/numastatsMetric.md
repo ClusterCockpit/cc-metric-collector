@@ -1,3 +1,13 @@
+<!--
+---
+title: NUMAStat collector
+description: Collect infos about NUMA domains
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/numastat.md
+---
+-->
 
 ## `numastat` collector
 

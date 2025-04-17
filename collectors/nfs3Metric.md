@@ -1,3 +1,14 @@
+<!--
+---
+title: NFS network filesystem (v3) metric collector
+description: Collect metrics for NFS network filesystems in version 3
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/nfs3.md
+---
+-->
+
 
 ## `nfs3stat` collector
 

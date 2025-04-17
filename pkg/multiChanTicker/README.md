@@ -1,3 +1,14 @@
+<!--
+---
+title: Multi-channel Ticker
+description: Timer ticker that sends out the tick to multiple channels
+categories: [cc-metric-collector]
+tags: ['Developer']
+weight: 1
+hugo_path: docs/reference/cc-metric-collector/pkg/multichanticker/_index.md
+---
+-->
+
 # MultiChanTicker
 
 The idea of this ticker is to multiply the output channels. The original Golang `time.Ticker` provides only a single output channel, so the signal can only be received by a single other class. This ticker allows to add multiple channels which get all notified about the time tick.

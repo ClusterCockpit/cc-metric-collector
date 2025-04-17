@@ -1,3 +1,14 @@
+<!--
+---
+title: Memory statistics metric collector
+description: Collect metrics from `/proc/meminfo`
+categories: [cc-metric-collector]
+tags: ['Admin']
+weight: 2
+hugo_path: docs/reference/cc-metric-collector/collectors/memstat.md
+---
+-->
+
 
 ## `memstat` collector
 
