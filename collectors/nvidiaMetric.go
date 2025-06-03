@@ -537,7 +537,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error
 	}
 
 	if !device.excludeMetrics["nv_max_sm_clock"] {
-		maxSmClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_SM)
+		maxSmClock, ret := nvml.DeviceGetMaxClockInfo(device.device, nvml.CLOCK_SM)
 		if ret == nvml.SUCCESS {
 			y, err := lp.NewMessage("nv_max_sm_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxSmClock)}, time.Now())
 			if err == nil {
@@ -548,7 +548,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error
 	}
 
 	if !device.excludeMetrics["nv_max_mem_clock"] {
-		maxMemClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_MEM)
+		maxMemClock, ret := nvml.DeviceGetMaxClockInfo(device.device, nvml.CLOCK_MEM)
 		if ret == nvml.SUCCESS {
 			y, err := lp.NewMessage("nv_max_mem_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxMemClock)}, time.Now())
 			if err == nil {
@@ -559,9 +559,9 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error
 	}
 
 	if !device.excludeMetrics["nv_max_video_clock"] {
-		maxMemClock, ret := nvml.DeviceGetClockInfo(device.device, nvml.CLOCK_VIDEO)
+		maxVideoClock, ret := nvml.DeviceGetMaxClockInfo(device.device, nvml.CLOCK_VIDEO)
 		if ret == nvml.SUCCESS {
-			y, err := lp.NewMessage("nv_max_video_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxMemClock)}, time.Now())
+			y, err := lp.NewMessage("nv_max_video_clock", device.tags, device.meta, map[string]interface{}{"value": float64(maxVideoClock)}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", "MHz")
 				output <- y
