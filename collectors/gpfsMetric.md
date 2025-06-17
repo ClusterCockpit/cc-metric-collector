@@ -12,7 +12,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/gpfs.md
 ## `gpfs` collector
 
 ```json
-  "ibstat": {
+  "gpfs": {
     "mmpmon_path": "/path/to/mmpmon",
     "exclude_filesystem": [
       "fs1"
