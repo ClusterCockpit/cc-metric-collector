@@ -1,4 +1,6 @@
 Package: cc-metric-collector
+Section: misc
+Priority: optional
 Version: {VERSION}
 Installed-Size: {INSTALLED_SIZE}
 Architecture: {ARCH}
