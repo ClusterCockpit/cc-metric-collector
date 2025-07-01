@@ -82,5 +82,8 @@ Metrics:
 * `nv_nvlink_ecc_errors`
 * `nv_nvlink_replay_errors`
 * `nv_nvlink_recovery_errors`
+* `nv_energy`
+* `nv_energy_abs`
+* `nv_average_power`
 
 Some metrics add the additional sub type tag (`stype`) like the `nv_nvlink_*` metrics set `stype=nvlink,stype-id=<link_number>`. 

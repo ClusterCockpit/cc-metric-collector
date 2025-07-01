@@ -78,6 +78,14 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 		"group":  "NUMA",
 	}
 
+	m.config.SendAbsoluteValues = true
+	if len(config) > 0 {
+		err := json.Unmarshal(config, &m.config)
+		if err != nil {
+			return fmt.Errorf("unable to unmarshal numastat configuration: %s", err.Error())
+		}
+	}
+
 	// Loop for all NUMA node directories
 	base := "/sys/devices/system/node/node"
 	globPattern := base + "[0-9]*"
@@ -145,11 +153,11 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 			}
 
 			if m.config.SendAbsoluteValues {
-				msg, err := lp.NewMessage(
+				msg, err := lp.NewMetric(
 					"numastats_"+key,
 					t.tagSet,
 					m.meta,
-					map[string]interface{}{"value": value},
+					value,
 					now,
 				)
 				if err == nil {
@@ -161,11 +169,11 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 				prev, ok := t.previousValues[key]
 				if ok {
 					rate := float64(value-prev) / timeDiff
-					msg, err := lp.NewMessage(
+					msg, err := lp.NewMetric(
 						"numastats_"+key+"_rate",
 						t.tagSet,
 						m.meta,
-						map[string]interface{}{"value": rate},
+						rate,
 						now,
 					)
 					if err == nil {
