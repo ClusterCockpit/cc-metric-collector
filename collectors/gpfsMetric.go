@@ -278,7 +278,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			output <- y
 		}
 		if m.config.SendBandwidths {
-			if lastBytesWritten := m.lastState[filesystem].bytesRead; lastBytesWritten >= 0 {
+			if lastBytesWritten := m.lastState[filesystem].bytesWritten; lastBytesWritten >= 0 {
 				bwWrite := float64(bytesWritten-lastBytesWritten) / timeDiff
 				if y, err :=
 					lp.NewMessage(
