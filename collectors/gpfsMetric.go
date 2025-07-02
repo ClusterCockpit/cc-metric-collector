@@ -27,8 +27,17 @@ import (
 const DEFAULT_GPFS_CMD = "mmpmon"
 
 type GpfsCollectorLastState struct {
-	bytesRead    int64
-	bytesWritten int64
+	numOpens    	int64
+	numCloses 		int64
+	numReads		int64
+	numWrites		int64
+	numReaddirs		int64
+	numInodeUpdates int64
+	bytesRead    	int64
+	bytesWritten 	int64
+	bytesTotal		int64
+	iops			int64
+	metaops			int64
 }
 
 type GpfsCollector struct {
@@ -39,6 +48,7 @@ type GpfsCollector struct {
 		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
 		SendBandwidths    bool     `json:"send_bandwidths"`
 		SendTotalValues   bool     `json:"send_total_values"`
+		SendDerivedValues bool     `json:"send_derived_values"`
 	}
 	skipFS        map[string]struct{}
 	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
@@ -185,6 +195,22 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			}
 		}
 
+		if m.config.SendDerivedValues {
+			if _, ok := m.lastState[filesystem]; !ok {
+				m.lastState[filesystem] = GpfsCollectorLastState{
+					numReads:    -1,
+					numWrites: -1,
+					numOpens: -1,
+					numCloses: -1,
+					numReaddirs: -1,
+					numInodeUpdates: -1,
+					bytesTotal: -1,
+					iops: -1,
+					metaops: -1,
+				}
+			}		
+		}
+
 		// return code
 		rc, err := strconv.Atoi(key_value["_rc_"])
 		if err != nil {
@@ -296,13 +322,6 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			}
 		}
 
-		if m.config.SendBandwidths {
-			m.lastState[filesystem] = GpfsCollectorLastState{
-				bytesRead:    bytesRead,
-				bytesWritten: bytesWritten,
-			}
-		}
-
 		// number of opens
 		numOpens, err := strconv.ParseInt(key_value["_oc_"], 10, 64)
 		if err != nil {
@@ -313,6 +332,24 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		}
 		if y, err := lp.NewMessage("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp); err == nil {
 			output <- y
+		}
+		if m.config.SendDerivedValues {
+			if lastNumOpens := m.lastState[filesystem].numOpens; lastNumOpens >= 0 {
+				opensRate := float64(numOpens-lastNumOpens) / timeDiff
+				if y, err :=
+					lp.NewMessage(
+						"gpfs_opens_rate",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": opensRate,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "requests/sec")
+					output <- y
+				}
+			}
 		}
 
 		// number of closes
@@ -326,6 +363,24 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		if y, err := lp.NewMessage("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp); err == nil {
 			output <- y
 		}
+		if m.config.SendDerivedValues {
+			if lastNumCloses := m.lastState[filesystem].numCloses; lastNumCloses >= 0 {
+				closesRate := float64(numCloses-lastNumCloses) / timeDiff
+				if y, err :=
+					lp.NewMessage(
+						"gpfs_closes_rate",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": closesRate,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "requests/sec")
+					output <- y
+				}
+			}
+		}
 
 		// number of reads
 		numReads, err := strconv.ParseInt(key_value["_rdc_"], 10, 64)
@@ -337,6 +392,24 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		}
 		if y, err := lp.NewMessage("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp); err == nil {
 			output <- y
+		}
+		if m.config.SendDerivedValues {
+			if lastNumReads := m.lastState[filesystem].numReads; lastNumReads >= 0 {
+				readsRate := float64(numOpens-lastNumReads) / timeDiff
+				if y, err :=
+					lp.NewMessage(
+						"gpfs_reads_rate",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": readsRate,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "requests/sec")
+					output <- y
+				}
+			}
 		}
 
 		// number of writes
@@ -350,6 +423,24 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		if y, err := lp.NewMessage("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp); err == nil {
 			output <- y
 		}
+		if m.config.SendDerivedValues {
+			if lastNumWrites := m.lastState[filesystem].numWrites; lastNumWrites >= 0 {
+				writesRate := float64(numWrites-lastNumWrites) / timeDiff
+				if y, err :=
+					lp.NewMessage(
+						"gpfs_writes_rate",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": writesRate,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "requests/sec")
+					output <- y
+				}
+			}
+		}
 
 		// number of read directories
 		numReaddirs, err := strconv.ParseInt(key_value["_dir_"], 10, 64)
@@ -361,6 +452,24 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		}
 		if y, err := lp.NewMessage("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp); err == nil {
 			output <- y
+		}
+		if m.config.SendDerivedValues {
+			if lastNumReaddirs := m.lastState[filesystem].numReaddirs; lastNumReaddirs >= 0 {
+				readdirsRate := float64(numReaddirs-lastNumReaddirs) / timeDiff
+				if y, err :=
+					lp.NewMessage(
+						"gpfs_readdirs_rate",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": readdirsRate,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "requests/sec")
+					output <- y
+				}
+			}
 		}
 
 		// Number of inode updates
@@ -374,10 +483,31 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		if y, err := lp.NewMessage("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
 			output <- y
 		}
+		if m.config.SendDerivedValues {
+			if lastNumInodeUpdates := m.lastState[filesystem].numInodeUpdates; lastNumInodeUpdates >= 0 {
+				inodeUpdatesRate := float64(numInodeUpdates-lastNumInodeUpdates) / timeDiff
+				if y, err :=
+					lp.NewMessage(
+						"gpfs_inode_updates_rate",
+						m.tags,
+						m.meta,
+						map[string]interface{}{
+							"value": inodeUpdatesRate,
+						},
+						timestamp,
+					); err == nil {
+					y.AddMeta("unit", "requests/sec")
+					output <- y
+				}
+			}
+		}
 
 		// Total values
+		bytesTotal := int64(-1);
+		iops := int64(-1);
+		metaops := int64(-1);
 		if m.config.SendTotalValues {
-			bytesTotal := bytesRead + bytesWritten
+			bytesTotal = bytesRead + bytesWritten
 			if y, err :=
 				lp.NewMessage("gpfs_bytes_total",
 					m.tags,
@@ -390,7 +520,26 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				y.AddMeta("unit", "bytes")
 				output <- y
 			}
-			iops := numReads + numWrites
+			if m.config.SendBandwidths {
+				if lastBytesTotal := m.lastState[filesystem].bytesTotal; lastBytesTotal >= 0 {
+					bwTotal := float64(bytesTotal-lastBytesTotal) / timeDiff
+					if y, err :=
+						lp.NewMessage(
+							"gpfs_bw_total",
+							m.tags,
+							m.meta,
+							map[string]interface{}{
+								"value": bwTotal,
+							},
+							timestamp,
+						); err == nil {
+						y.AddMeta("unit", "bytes/sec")
+						output <- y
+					}
+				}
+			}
+
+			iops = numReads + numWrites
 			if y, err :=
 				lp.NewMessage("gpfs_iops",
 					m.tags,
@@ -402,7 +551,26 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				); err == nil {
 				output <- y
 			}
-			metaops := numInodeUpdates + numCloses + numOpens + numReaddirs
+			if m.config.SendDerivedValues {
+				if lastIops := m.lastState[filesystem].iops; lastIops >= 0 {
+					iopsRate := float64(iops-lastIops) / timeDiff
+					if y, err :=
+						lp.NewMessage(
+							"gpfs_iops_rate",
+							m.tags,
+							m.meta,
+							map[string]interface{}{
+								"value": iopsRate,
+							},
+							timestamp,
+						); err == nil {
+						y.AddMeta("unit", "requests/sec")
+						output <- y
+					}
+				}
+			}
+	
+			metaops = numInodeUpdates + numCloses + numOpens + numReaddirs
 			if y, err :=
 				lp.NewMessage("gpfs_metaops",
 					m.tags,
@@ -414,7 +582,41 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				); err == nil {
 				output <- y
 			}
+			if m.config.SendDerivedValues {
+				if lastMetaops := m.lastState[filesystem].metaops; lastMetaops >= 0 {
+					metaopsRate := float64(metaops-lastMetaops) / timeDiff
+					if y, err :=
+						lp.NewMessage(
+							"gpfs_metaops_rate",
+							m.tags,
+							m.meta,
+							map[string]interface{}{
+								"value": metaopsRate,
+							},
+							timestamp,
+						); err == nil {
+						y.AddMeta("unit", "requests/sec")
+						output <- y
+					}
+				}
+			}
 		}
+
+		// Save last state
+		m.lastState[filesystem] = GpfsCollectorLastState{
+			bytesRead:    bytesRead,
+			bytesWritten: bytesWritten,
+			numOpens: numOpens,
+			numCloses: numCloses,
+			numReads: numReads,
+			numWrites: numWrites,
+			numReaddirs: numReaddirs,
+			numInodeUpdates: numInodeUpdates,
+			bytesTotal: bytesTotal,
+			iops: iops,
+			metaops: metaops,
+		}
+
 	}
 }
 
