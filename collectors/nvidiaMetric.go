@@ -1,3 +1,10 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-lib.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+// additional authors:
+// Holger Obermaier (NHR@KIT)
+
 package collectors
 
 import (
@@ -27,10 +34,12 @@ type NvidiaCollectorConfig struct {
 }
 
 type NvidiaCollectorDevice struct {
-	device         nvml.Device
-	excludeMetrics map[string]bool
-	tags           map[string]string
-	meta           map[string]string
+	device              nvml.Device
+	excludeMetrics      map[string]bool
+	tags                map[string]string
+	meta                map[string]string
+	lastEnergyReading   uint64
+	lastEnergyTimestamp time.Time
 }
 
 type NvidiaCollector struct {
@@ -149,6 +158,8 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 
 		// Add device handle
 		g.device = device
+		g.lastEnergyReading = 0
+		g.lastEnergyTimestamp = time.Now()
 
 		// Add tags
 		g.tags = map[string]string{
@@ -206,7 +217,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	return nil
 }
 
-func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readMemoryInfo(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_fb_mem_total"] || !device.excludeMetrics["nv_fb_mem_used"] || !device.excludeMetrics["nv_fb_mem_reserved"] {
 		var total uint64
 		var used uint64
@@ -250,7 +261,7 @@ func readMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMessage) erro
 	return nil
 }
 
-func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readBarMemoryInfo(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_bar1_mem_total"] || !device.excludeMetrics["nv_bar1_mem_used"] {
 		meminfo, ret := nvml.DeviceGetBAR1MemoryInfo(device.device)
 		if ret != nvml.SUCCESS {
@@ -277,7 +288,7 @@ func readBarMemoryInfo(device NvidiaCollectorDevice, output chan lp.CCMessage) e
 	return nil
 }
 
-func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readUtilization(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	isMig, ret := nvml.DeviceIsMigDeviceHandle(device.device)
 	if ret != nvml.SUCCESS {
 		err := errors.New(nvml.ErrorString(ret))
@@ -319,7 +330,7 @@ func readUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) err
 	return nil
 }
 
-func readTemp(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readTemp(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_temp"] {
 		// Retrieves the current temperature readings for the device, in degrees C.
 		//
@@ -338,7 +349,7 @@ func readTemp(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	return nil
 }
 
-func readFan(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readFan(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_fan"] {
 		// Retrieves the intended operating speed of the device's fan.
 		//
@@ -361,7 +372,7 @@ func readFan(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	return nil
 }
 
-// func readFans(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+// func readFans(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 // 	if !device.excludeMetrics["nv_fan"] {
 // 		numFans, ret := nvml.DeviceGetNumFans(device.device)
 // 		if ret == nvml.SUCCESS {
@@ -382,7 +393,7 @@ func readFan(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 // 	return nil
 // }
 
-func readEccMode(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readEccMode(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_ecc_mode"] {
 		// Retrieves the current and pending ECC modes for the device.
 		//
@@ -416,7 +427,7 @@ func readEccMode(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	return nil
 }
 
-func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readPerfState(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_perf_state"] {
 		// Retrieves the current performance state for the device.
 		//
@@ -436,13 +447,16 @@ func readPerfState(device NvidiaCollectorDevice, output chan lp.CCMessage) error
 	return nil
 }
 
-func readPowerUsage(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readPowerUsage(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_power_usage"] {
 		// Retrieves power usage for this GPU in milliwatts and its associated circuitry (e.g. memory)
 		//
 		// On Fermi and Kepler GPUs the reading is accurate to within +/- 5% of current power draw.
+		// On Ampere (except GA100) or newer GPUs, the API returns power averaged over 1 sec interval.
+		// On GA100 and older architectures, instantaneous power is returned.
 		//
-		// It is only available if power management mode is supported
+		// It is only available if power management mode is supported.
+
 		mode, ret := nvml.DeviceGetPowerManagementMode(device.device)
 		if ret != nvml.SUCCESS {
 			return nil
@@ -461,7 +475,54 @@ func readPowerUsage(device NvidiaCollectorDevice, output chan lp.CCMessage) erro
 	return nil
 }
 
-func readClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readEnergyConsumption(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
+	// Retrieves total energy consumption for this GPU in millijoules (mJ) since the driver was last reloaded
+
+	// For Volta or newer fully supported devices.
+	if (!device.excludeMetrics["nv_energy"]) && (!device.excludeMetrics["nv_energy_abs"]) && (!device.excludeMetrics["nv_average_power"]) {
+		now := time.Now()
+		mode, ret := nvml.DeviceGetPowerManagementMode(device.device)
+		if ret != nvml.SUCCESS {
+			return nil
+		}
+		if mode == nvml.FEATURE_ENABLED {
+			energy, ret := nvml.DeviceGetTotalEnergyConsumption(device.device)
+			if ret == nvml.SUCCESS {
+				if device.lastEnergyReading != 0 {
+					if !device.excludeMetrics["nv_energy"] {
+						y, err := lp.NewMetric("nv_energy", device.tags, device.meta, (energy-device.lastEnergyReading)/1000, now)
+						if err == nil {
+							y.AddMeta("unit", "Joules")
+							output <- y
+						}
+					}
+					if !device.excludeMetrics["nv_average_power"] {
+
+						energyDiff := (energy - device.lastEnergyReading) / 1000
+						timeDiff := now.Sub(device.lastEnergyTimestamp)
+						y, err := lp.NewMetric("nv_average_power", device.tags, device.meta, energyDiff/uint64(timeDiff.Seconds()), now)
+						if err == nil {
+							y.AddMeta("unit", "watts")
+							output <- y
+						}
+					}
+				}
+				if !device.excludeMetrics["nv_energy_abs"] {
+					y, err := lp.NewMetric("nv_energy_abs", device.tags, device.meta, energy/1000, now)
+					if err == nil {
+						y.AddMeta("unit", "Joules")
+						output <- y
+					}
+				}
+				device.lastEnergyReading = energy
+				device.lastEnergyTimestamp = time.Now()
+			}
+		}
+	}
+	return nil
+}
+
+func readClocks(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	// Retrieves the current clock speeds for the device.
 	//
 	// Available clock information:
@@ -513,7 +574,7 @@ func readClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	return nil
 }
 
-func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readMaxClocks(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	// Retrieves the maximum clock speeds for the device.
 	//
 	// Available clock information:
@@ -571,7 +632,7 @@ func readMaxClocks(device NvidiaCollectorDevice, output chan lp.CCMessage) error
 	return nil
 }
 
-func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readEccErrors(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_ecc_uncorrected_error"] {
 		// Retrieves the total ECC error counts for the device.
 		//
@@ -602,7 +663,7 @@ func readEccErrors(device NvidiaCollectorDevice, output chan lp.CCMessage) error
 	return nil
 }
 
-func readPowerLimit(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readPowerLimit(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_power_max_limit"] {
 		// Retrieves the power management limit associated with this device.
 		//
@@ -622,7 +683,7 @@ func readPowerLimit(device NvidiaCollectorDevice, output chan lp.CCMessage) erro
 	return nil
 }
 
-func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readEncUtilization(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	isMig, ret := nvml.DeviceIsMigDeviceHandle(device.device)
 	if ret != nvml.SUCCESS {
 		err := errors.New(nvml.ErrorString(ret))
@@ -649,7 +710,7 @@ func readEncUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) 
 	return nil
 }
 
-func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readDecUtilization(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	isMig, ret := nvml.DeviceIsMigDeviceHandle(device.device)
 	if ret != nvml.SUCCESS {
 		err := errors.New(nvml.ErrorString(ret))
@@ -676,7 +737,7 @@ func readDecUtilization(device NvidiaCollectorDevice, output chan lp.CCMessage) 
 	return nil
 }
 
-func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readRemappedRows(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_remapped_rows_corrected"] ||
 		!device.excludeMetrics["nv_remapped_rows_uncorrected"] ||
 		!device.excludeMetrics["nv_remapped_rows_pending"] ||
@@ -729,7 +790,7 @@ func readRemappedRows(device NvidiaCollectorDevice, output chan lp.CCMessage) er
 	return nil
 }
 
-func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readProcessCounts(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	if !device.excludeMetrics["nv_compute_processes"] {
 		// Get information about processes with a compute context on a device
 		//
@@ -821,7 +882,7 @@ func readProcessCounts(device NvidiaCollectorDevice, output chan lp.CCMessage) e
 	return nil
 }
 
-func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readViolationStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	var violTime nvml.ViolationTime
 	var ret nvml.Return
 
@@ -935,7 +996,7 @@ func readViolationStats(device NvidiaCollectorDevice, output chan lp.CCMessage) 
 	return nil
 }
 
-func readNVLinkStats(device NvidiaCollectorDevice, output chan lp.CCMessage) error {
+func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
 	// Retrieves the specified error counter value
 	// Please refer to \a nvmlNvLinkErrorCounter_t for error counters that are available
 	//
@@ -1070,7 +1131,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		return
 	}
 
-	readAll := func(device NvidiaCollectorDevice, output chan lp.CCMessage) {
+	readAll := func(device *NvidiaCollectorDevice, output chan lp.CCMessage) {
 		name, ret := nvml.DeviceGetName(device.device)
 		if ret != nvml.SUCCESS {
 			name = "NoName"
@@ -1108,6 +1169,11 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		err = readPowerUsage(device, output)
 		if err != nil {
 			cclog.ComponentDebug(m.name, "readPowerUsage for device", name, "failed")
+		}
+
+		err = readEnergyConsumption(device, output)
+		if err != nil {
+			cclog.ComponentDebug(m.name, "readEnergyConsumption for device", name, "failed")
 		}
 
 		err = readClocks(device, output)
@@ -1169,7 +1235,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 	// Actual read loop over all attached Nvidia GPUs
 	for i := 0; i < m.num_gpus; i++ {
 
-		readAll(m.gpus[i], output)
+		readAll(&m.gpus[i], output)
 
 		// Iterate over all MIG devices if any
 		if m.config.ProcessMigDevices {
@@ -1243,7 +1309,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 					}
 				}
 
-				readAll(migDevice, output)
+				readAll(&migDevice, output)
 			}
 		}
 	}
