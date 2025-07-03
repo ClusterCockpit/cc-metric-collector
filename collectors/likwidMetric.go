@@ -428,9 +428,13 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	case e := <-watcher.Events:
 		ret = -1
 		if e.Op != fsnotify.Chmod {
+			C.HPMfinalize()
+			C.HPMinit()
 			ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
 		}
 	default:
+		C.HPMfinalize()
+		C.HPMinit()
 		ret = C.perfmon_init(C.int(len(m.cpulist)), &m.cpulist[0])
 	}
 	if ret != 0 {
