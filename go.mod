@@ -5,16 +5,16 @@ go 1.23.4
 toolchain go1.23.7
 
 require (
-	github.com/ClusterCockpit/cc-lib v0.2.0
+	github.com/ClusterCockpit/cc-lib v0.3.0
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
-	github.com/NVIDIA/go-nvml v0.12.9-0
+	github.com/NVIDIA/go-nvml v0.12.4-1
 	github.com/PaesslerAG/gval v1.2.2
-	github.com/fsnotify/fsnotify v1.7.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
 	github.com/tklauser/go-sysconf v0.3.13
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
-	golang.org/x/sys v0.32.0
+	golang.org/x/sys v0.33.0
 )
 
 require (
