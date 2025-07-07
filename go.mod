@@ -11,7 +11,7 @@ require (
 	github.com/PaesslerAG/gval v1.2.2
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
-	github.com/tklauser/go-sysconf v0.3.13
+	github.com/tklauser/go-sysconf v0.3.15
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/sys v0.32.0
@@ -39,7 +39,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/stmcginnis/gofish v0.20.0 // indirect
-	github.com/tklauser/numcpus v0.7.0 // indirect
+	github.com/tklauser/numcpus v0.10.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/net v0.39.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
