@@ -52,6 +52,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [`beegfs_meta`](./beegfsmetaMetric.md)
 * [`beegfs_storage`](./beegfsstorageMetric.md)
 * [`rocm_smi`](./rocmsmiMetric.md)
+* [`slurm_cgroup`](./slurmCgroupMetric.md)
 
 ## Todos
 
