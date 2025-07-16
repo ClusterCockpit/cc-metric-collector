@@ -21,12 +21,14 @@ The `slurm_cgroup` collector reads job-specific resource metrics from the cgroup
   "exclude_metrics": [
     "job_sys_cpu",
     "job_mem_limit"
-  ]
+  ],
+  "use_sudo": false
 }
 ```
 
 * The `cgroup_base` parameter (optional) can be set to specify the root path to SLURM job cgroups. The default is `/sys/fs/cgroup/system.slice/slurmstepd.scope`.
 * The `exclude_metrics` array can be used to suppress individual metrics from being sent to the sink.
+* The cgroups metrics are only available for root users. If password-less sudo is configured, you can enable sudo in the configuration.
 
 ### Reported metrics
 

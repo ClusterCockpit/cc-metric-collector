@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,6 +27,7 @@ type SlurmJobData struct {
 type SlurmCgroupsConfig struct {
 	CgroupBase     string   `json:"cgroup_base"`
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+	UseSudo        bool     `json:"use_sudo,omitempty"`
 }
 
 type SlurmCgroupCollector struct {
@@ -36,6 +39,7 @@ type SlurmCgroupCollector struct {
 	cpuUsed        map[int]bool
 	cgroupBase     string
 	excludeMetrics map[string]struct{}
+	useSudo        bool
 }
 
 const defaultCgroupBase = "/sys/fs/cgroup/system.slice/slurmstepd.scope"
@@ -88,6 +92,14 @@ func (m *SlurmCgroupCollector) isExcluded(metric string) bool {
 	return found
 }
 
+func (m *SlurmCgroupCollector) readFile(path string) ([]byte, error) {
+	if m.useSudo {
+		cmd := exec.Command("sudo", "cat", path)
+		return cmd.Output()
+	}
+	return os.ReadFile(path)
+}
+
 func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "SlurmCgroupCollector"
@@ -96,21 +108,33 @@ func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	m.meta = map[string]string{"source": m.name, "group": "SLURM"}
 	m.tags = map[string]string{"type": "hwthread"}
 	m.cpuUsed = make(map[int]bool)
-
 	m.cgroupBase = defaultCgroupBase
 
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
-		m.excludeMetrics = make(map[string]struct{})
-		for _, metric := range m.config.ExcludeMetrics {
-			m.excludeMetrics[metric] = struct{}{}
-		}
 		if err != nil {
 			cclog.ComponentError(m.name, "Error reading config:", err.Error())
 			return err
 		}
+		m.excludeMetrics = make(map[string]struct{})
+		for _, metric := range m.config.ExcludeMetrics {
+			m.excludeMetrics[metric] = struct{}{}
+		}
 		if m.config.CgroupBase != "" {
 			m.cgroupBase = m.config.CgroupBase
+		}
+	}
+
+	m.useSudo = m.config.UseSudo
+	if !m.useSudo {
+		user, err := user.Current()
+		if err != nil {
+			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
+			return err
+		}
+		if user.Uid != "0" {
+			cclog.ComponentError(m.name, "Reading cgroup files requires root privileges (or enable use_sudo in config)")
+			return fmt.Errorf("not root")
 		}
 	}
 
@@ -136,7 +160,7 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 
 	cg := func(f string) string { return filepath.Join(m.cgroupBase, jobdir, f) }
 
-	memUsage, err := os.ReadFile(cg("memory.current"))
+	memUsage, err := m.readFile(cg("memory.current"))
 	if err == nil {
 		x, err := strconv.ParseFloat(strings.TrimSpace(string(memUsage)), 64)
 		if err == nil {
@@ -144,7 +168,7 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 		}
 	}
 
-	maxMem, err := os.ReadFile(cg("memory.peak"))
+	maxMem, err := m.readFile(cg("memory.peak"))
 	if err == nil {
 		x, err := strconv.ParseFloat(strings.TrimSpace(string(maxMem)), 64)
 		if err == nil {
@@ -152,7 +176,7 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 		}
 	}
 
-	limitMem, err := os.ReadFile(cg("memory.max"))
+	limitMem, err := m.readFile(cg("memory.max"))
 	if err == nil {
 		x, err := strconv.ParseFloat(strings.TrimSpace(string(limitMem)), 64)
 		if err == nil {
@@ -160,7 +184,7 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 		}
 	}
 
-	cpuStat, err := os.ReadFile(cg("cpu.stat"))
+	cpuStat, err := m.readFile(cg("cpu.stat"))
 	if err == nil {
 		lines := strings.Split(strings.TrimSpace(string(cpuStat)), "\n")
 		var usageUsec, userUsec, systemUsec float64
@@ -188,7 +212,7 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 		}
 	}
 
-	cpuSet, err := os.ReadFile(cg("cpuset.cpus"))
+	cpuSet, err := m.readFile(cg("cpuset.cpus"))
 	if err == nil {
 		cpus, err := ParseCPUs(strings.TrimSpace(string(cpuSet)))
 		if err == nil {
@@ -288,24 +312,28 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 					output <- y
 				}
 			}
+
 			if !m.isExcluded("job_max_mem_used") {
 				if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
+
 			if !m.isExcluded("job_mem_limit") {
 				if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
+
 			if !m.isExcluded("job_user_cpu") {
 				if y, err := lp.NewMessage("job_user_cpu", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
 				}
 			}
+
 			if !m.isExcluded("job_sys_cpu") {
 				if y, err := lp.NewMessage("job_sys_cpu", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "%")
@@ -314,8 +342,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 			}
 		}
 	}
-
 }
+
 func (m *SlurmCgroupCollector) Close() {
 	m.init = false
 }
