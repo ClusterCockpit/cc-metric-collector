@@ -5,7 +5,7 @@ go 1.23.4
 toolchain go1.23.7
 
 require (
-	github.com/ClusterCockpit/cc-lib v0.5.0
+	github.com/ClusterCockpit/cc-lib v0.6.0
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
 	github.com/NVIDIA/go-nvml v0.12.9-0
 	github.com/PaesslerAG/gval v1.2.4
