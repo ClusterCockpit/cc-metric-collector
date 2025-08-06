@@ -9,7 +9,7 @@ package collectors
 
 /*
 #cgo CFLAGS: -I./likwid
-#cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files
+#cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files -L/mnt/opt/likwid-master/lib -llikwid
 #include <stdlib.h>
 #include <likwid.h>
 */
@@ -233,6 +233,10 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		os.Setenv("LIKWID_FORCE", "1")
 	}
 	m.setup()
+	major := C.likwid_getMajorVersion()
+	minor := C.likwid_getMinorVersion()
+	bugfix := C.likwid_getBugfixVersion()
+	cclog.ComponentDebug(m.name, fmt.Sprintf("Using LIKWID library %d.%d.%d", major, minor, bugfix))
 
 	m.meta = map[string]string{"group": "PerfCounter"}
 	cclog.ComponentDebug(m.name, "Get cpulist and init maps and lists")
@@ -327,7 +331,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		for _, c := range m.cpulist {
 			m.measureThread.Call(
 				func() {
-					retCode := C.HPMaddThread(C.uint32_t(c))
+					retCode := C.HPMaddThread(c)
 					if retCode != 0 {
 						err := fmt.Errorf("C.HPMaddThread(%v) failed with return code %v", c, retCode)
 						cclog.ComponentError(m.name, err.Error())
