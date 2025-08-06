@@ -9,7 +9,7 @@ package collectors
 
 /*
 #cgo CFLAGS: -I./likwid
-#cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files -L/mnt/opt/likwid-master/lib -llikwid
+#cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 #include <likwid.h>
 */
