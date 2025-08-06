@@ -327,7 +327,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		for _, c := range m.cpulist {
 			m.measureThread.Call(
 				func() {
-					retCode := C.HPMaddThread(c)
+					retCode := C.HPMaddThread(C.uint32_t(c))
 					if retCode != 0 {
 						err := fmt.Errorf("C.HPMaddThread(%v) failed with return code %v", c, retCode)
 						cclog.ComponentError(m.name, err.Error())
