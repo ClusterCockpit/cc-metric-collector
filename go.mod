@@ -14,7 +14,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.15
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/sys v0.34.0
+	golang.org/x/sys v0.35.0
 )
 
 require (
