@@ -3,8 +3,8 @@ github.com/ClusterCockpit/cc-lib v0.7.0/go.mod h1:TD1PS8pL2RDvEWaqs8VNejoTSm5Oaw
 github.com/ClusterCockpit/go-rocm-smi v0.3.0 h1:1qZnSpG7/NyLtc7AjqnUL9Jb8xtqG1nMVgp69rJfaR8=
 github.com/ClusterCockpit/go-rocm-smi v0.3.0/go.mod h1:+I3UMeX3OlizXDf1WpGD43W4KGZZGVSGmny6rTeOnWA=
 github.com/NVIDIA/go-nvml v0.11.6-0/go.mod h1:hy7HYeQy335x6nEss0Ne3PYqleRa6Ct+VKD9RQ4nyFs=
-github.com/NVIDIA/go-nvml v0.12.9-0 h1:e344UK8ZkeMeeLkdQtRhmXRxNf+u532LDZPGMtkdus0=
-github.com/NVIDIA/go-nvml v0.12.9-0/go.mod h1:+KNA7c7gIBH7SKSJ1ntlwkfN80zdx8ovl4hrK3LmPt4=
+github.com/NVIDIA/go-nvml v0.13.0-1 h1:OLX8Jq3dONuPOQPC7rndB6+iDmDakw0XTYgzMxObkEw=
+github.com/NVIDIA/go-nvml v0.13.0-1/go.mod h1:+KNA7c7gIBH7SKSJ1ntlwkfN80zdx8ovl4hrK3LmPt4=
 github.com/PaesslerAG/gval v1.2.4 h1:rhX7MpjJlcxYwL2eTTYIOBUyEKZ+A96T9vQySWkVUiU=
 github.com/PaesslerAG/gval v1.2.4/go.mod h1:XRFLwvmkTEdYziLdaCeCa5ImcGVrfQbeNUbVR+C6xac=
 github.com/PaesslerAG/jsonpath v0.1.0 h1:gADYeifvlqK3R3i2cR5B4DGgxLXIPb3TRTH1mGi0jPI=

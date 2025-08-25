@@ -7,7 +7,7 @@ toolchain go1.23.7
 require (
 	github.com/ClusterCockpit/cc-lib v0.7.0
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
-	github.com/NVIDIA/go-nvml v0.12.9-0
+	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
