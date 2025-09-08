@@ -1,8 +1,6 @@
 module github.com/ClusterCockpit/cc-metric-collector
 
-go 1.23.4
-
-toolchain go1.23.7
+go 1.24.0
 
 require (
 	github.com/ClusterCockpit/cc-lib v0.7.0
@@ -14,7 +12,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.15
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/sys v0.35.0
+	golang.org/x/sys v0.36.0
 )
 
 require (
