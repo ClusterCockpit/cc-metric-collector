@@ -1,3 +1,10 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-lib.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+// additional authors:
+// Holger Obermaier (NHR@KIT)
+
 package collectors
 
 import (
@@ -13,18 +20,17 @@ import (
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
 )
 
-// Konstante für den Pfad zu /proc/diskstats
 const IOSTATFILE = `/proc/diskstats`
 
 type IOstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
-	// Neues Feld zum Ausschließen von Devices per JSON-Konfiguration
 	ExcludeDevices []string `json:"exclude_devices,omitempty"`
 }
 
 type IOstatCollectorEntry struct {
-	lastValues map[string]int64
-	tags       map[string]string
+	currentValues map[string]int64
+	lastValues    map[string]int64
+	tags          map[string]string
 }
 
 type IOstatCollector struct {
@@ -98,16 +104,28 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 		if _, skip := stringArrayContains(m.config.ExcludeDevices, device); skip {
 			continue
 		}
-		values := make(map[string]int64)
+		currentValues := make(map[string]int64)
+		lastValues := make(map[string]int64)
 		for m := range m.matches {
-			values[m] = 0
+			currentValues[m] = 0
+			lastValues[m] = 0
+		}
+		// Initialize currentValues with actual data from /proc/diskstats
+		for name, idx := range m.matches {
+			if idx < len(linefields) {
+				if value, err := strconv.ParseInt(linefields[idx], 0, 64); err == nil {
+					currentValues[name] = value
+					lastValues[name] = value // Set last to current for first read
+				}
+			}
 		}
 		m.devices[device] = IOstatCollectorEntry{
 			tags: map[string]string{
 				"device": device,
 				"type":   "node",
 			},
-			lastValues: values,
+			currentValues: currentValues,
+			lastValues:    lastValues,
 		}
 	}
 	m.init = true
@@ -147,17 +165,21 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			continue
 		}
 		entry := m.devices[device]
+		// Update current and last values
 		for name, idx := range m.matches {
 			if idx < len(linefields) {
 				x, err := strconv.ParseInt(linefields[idx], 0, 64)
 				if err == nil {
-					diff := x - entry.lastValues[name]
+					// Calculate difference using previous current and new value
+					diff := x - entry.currentValues[name]
 					y, err := lp.NewMessage(name, entry.tags, m.meta, map[string]interface{}{"value": int(diff)}, time.Now())
 					if err == nil {
 						output <- y
 					}
+					// Update last to previous current, and current to new value
+					entry.lastValues[name] = entry.currentValues[name]
+					entry.currentValues[name] = x
 				}
-				entry.lastValues[name] = x
 			}
 		}
 		m.devices[device] = entry
