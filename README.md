@@ -32,12 +32,14 @@ There is a main configuration file with basic settings that point to the other c
 
 ``` json
 {
-  "sinks": "sinks.json",
-  "collectors" : "collectors.json",
-  "receivers" : "receivers.json",
-  "router" : "router.json",
-  "interval": "10s",
-  "duration": "1s"
+  "sinks-file": "sinks.json",
+  "collectors-file" : "collectors.json",
+  "receivers-file" : "receivers.json",
+  "router-file" : "router.json",
+  "main": {
+    "interval": "10s",
+    "duration": "1s"
+  }
 }
 ```
 

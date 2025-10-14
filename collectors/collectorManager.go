@@ -1,3 +1,10 @@
+// Copyright (C) NHR@FAU, University Erlangen-Nuremberg.
+// All rights reserved. This file is part of cc-lib.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+// additional authors:
+// Holger Obermaier (NHR@KIT)
+
 package collectors
 
 import (
@@ -40,6 +47,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"self":            new(SelfCollector),
 	"schedstat":       new(SchedstatCollector),
 	"nfsiostat":       new(NfsIOStatCollector),
+	"slurm_cgroup":    new(SlurmCgroupCollector),
 }
 
 // Metric collector manager data structure
