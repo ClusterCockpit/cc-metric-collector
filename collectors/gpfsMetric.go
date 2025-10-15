@@ -395,7 +395,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		}
 		if m.config.SendDerivedValues {
 			if lastNumReads := m.lastState[filesystem].numReads; lastNumReads >= 0 {
-				readsRate := float64(numOpens-lastNumReads) / timeDiff
+				readsRate := float64(numReads-lastNumReads) / timeDiff
 				if y, err :=
 					lp.NewMessage(
 						"gpfs_reads_rate",
