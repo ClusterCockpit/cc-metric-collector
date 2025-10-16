@@ -46,10 +46,12 @@ type GpfsCollector struct {
 	config struct {
 		Mmpmon            string   `json:"mmpmon_path,omitempty"`
 		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
+		Sudo              bool     `json:"use_sudo,omitempty"`
 		SendBandwidths    bool     `json:"send_bandwidths"`
 		SendTotalValues   bool     `json:"send_total_values"`
 		SendDerivedValues bool     `json:"send_derived_values"`
 	}
+	sudoCmd       string
 	skipFS        map[string]struct{}
 	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
 	lastState     map[string]GpfsCollectorLastState
@@ -92,18 +94,30 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.lastState = make(map[string]GpfsCollectorLastState)
 
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
-	user, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %v", err)
-	}
-	if user.Uid != "0" {
-		return fmt.Errorf("GPFS file system statistics can only be queried by user root")
+	if !m.config.Sudo {
+		user, err := user.Current()
+		if err != nil {
+			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
+			return err
+		}
+		if user.Uid != "0" {
+			cclog.ComponentError(m.name, "GPFS file system statistics can only be queried by user root")
+			return err
+		}
+	} else {
+		p, err := exec.LookPath("sudo")
+		if err != nil {
+			cclog.ComponentError(m.name, "Cannot find 'sudo'")
+			return err
+		}
+		m.sudoCmd = p
 	}
 
 	// Check if mmpmon is in executable search path
 	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+		cclog.ComponentError(m.name, "failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+		return err
 	}
 	m.config.Mmpmon = p
 
@@ -128,7 +142,13 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	// -p: generate output that can be parsed
 	// -s: suppress the prompt on input
 	// fs_io_s: Displays I/O statistics per mounted file system
-	cmd := exec.Command(m.config.Mmpmon, "-p", "-s")
+	var cmd *exec.Cmd
+	if m.config.Sudo {
+		cmd = exec.Command(m.sudoCmd, m.config.Mmpmon, "-p", "-s")
+	} else {
+		cmd = exec.Command(m.config.Mmpmon, "-p", "-s")
+	}
+	
 	cmd.Stdin = strings.NewReader("once fs_io_s\n")
 	cmdStdout := new(bytes.Buffer)
 	cmdStderr := new(bytes.Buffer)
