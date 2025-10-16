@@ -18,6 +18,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
@@ -116,8 +117,13 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// Check if mmpmon is in executable search path
 	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		cclog.ComponentError(m.name, "failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
-		return err
+		// if using sudo, the file must only be found, but exec.lookPath will give EPERM
+		if m.config.Sudo && err == syscall.EPERM {
+			cclog.ComponentWarn(m.name, "got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err)
+		} else {
+			cclog.ComponentError(m.name, "failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+			return err
+		}
 	}
 	m.config.Mmpmon = p
 
