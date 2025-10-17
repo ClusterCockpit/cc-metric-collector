@@ -131,7 +131,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 			p = m.config.Mmpmon
 		} else {
 			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
-			return err
+			return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
 		}
 	}
 	m.config.Mmpmon = p
