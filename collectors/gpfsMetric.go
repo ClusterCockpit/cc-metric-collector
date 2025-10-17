@@ -115,26 +115,20 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		m.sudoCmd = p
 	}
 
+	// when using sudo, the full path of mmpmon must be specified because
+	// exec.LookPath will not work as mmpmon is not executable as user
+	if m.config.Sudo && !strings.StartsWith(m.config.Mmpmon, "/") {
+		return fmt.Errorf("when using sudo, mmpmon_path must be provided and an absolute path: %s", m.config.Mmpmon)
+	}
+	
 	// Check if mmpmon is in executable search path
 	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		// if using sudo, the file must be found, but exec.lookPath will give EACCES
+		// if using sudo, exec.lookPath will return EACCES (file mode r-x------), this can be ignored
 		if m.config.Sudo && errors.Is(err, syscall.EACCES) {
 			cclog.ComponentWarn(m.name, fmt.Sprintf("got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err))
-			// because of the error, p returned from exec.LookPath is the empty string
-			if strings.Contains(m.config.Mmpmon, "/") {
-				// if the file was given in the config, use that
-				p = m.config.Mmpmon
-			} else {
-				// if the file was found, retrieve filename from err, which should be of type *exec.Error
-				execerr, ok := err.(*exec.Error)
-				if ok {
-					  p = execerr.Name
-				} else {
-					cclog.ComponentError(m.name, fmt.Sprintf("failed to convert err to *exec.Error: %v", err))
-					return err
-				}
-			}
+			// the file was given in the config, use it
+			p = m.config.Mmpmon
 		} else {
 			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
 			return err
