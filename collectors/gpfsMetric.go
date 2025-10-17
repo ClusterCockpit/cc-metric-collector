@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -117,11 +118,11 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// Check if mmpmon is in executable search path
 	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
-		// if using sudo, the file must only be found, but exec.lookPath will give EPERM
-		if m.config.Sudo && err == syscall.EPERM {
-			cclog.ComponentWarn(m.name, "got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err)
+		// if using sudo, the file must be found, but exec.lookPath will give EACCES
+		if m.config.Sudo && errors.Is(err, syscall.EACCES) {
+			cclog.ComponentWarn(m.name, fmt.Sprintf("got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err))
 		} else {
-			cclog.ComponentError(m.name, "failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
 			return err
 		}
 	}
