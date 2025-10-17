@@ -117,7 +117,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 
 	// when using sudo, the full path of mmpmon must be specified because
 	// exec.LookPath will not work as mmpmon is not executable as user
-	if m.config.Sudo && !strings.StartsWith(m.config.Mmpmon, "/") {
+	if m.config.Sudo && !strings.HasPrefix(m.config.Mmpmon, "/") {
 		return fmt.Errorf("when using sudo, mmpmon_path must be provided and an absolute path: %s", m.config.Mmpmon)
 	}
 	
