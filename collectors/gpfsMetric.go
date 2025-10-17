@@ -121,6 +121,20 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		// if using sudo, the file must be found, but exec.lookPath will give EACCES
 		if m.config.Sudo && errors.Is(err, syscall.EACCES) {
 			cclog.ComponentWarn(m.name, fmt.Sprintf("got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err))
+			// because of the error, p returned from exec.LookPath is the empty string
+			if strings.Contains(m.config.Mmpmon, "/") {
+				// if the file was given in the config, use that
+				p = m.config.Mmpmon
+			} else {
+				// if the file was found, retrieve filename from err, which should be of type *exec.Error
+				execerr, ok := err.(*exec.Error)
+				if ok {
+					  p = execerr.Name
+				} else {
+					cclog.ComponentError(m.name, fmt.Sprintf("failed to convert err to *exec.Error: %v", err))
+					return err
+				}
+			}
 		} else {
 			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
 			return err
