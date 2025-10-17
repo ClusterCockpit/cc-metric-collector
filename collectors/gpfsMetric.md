@@ -14,6 +14,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/gpfs.md
 ```json
   "gpfs": {
     "mmpmon_path": "/path/to/mmpmon",
+    "use_sudo": "true",
     "exclude_filesystem": [
       "fs1"
     ],
@@ -31,6 +32,11 @@ in the configuration.
 
 The path to the `mmpmon` command can be configured with the `mmpmon_path` option
 in the configuration. If nothing is set, the collector searches in `$PATH` for `mmpmon`.
+
+If cc-metric-collector is run as non-root, `sudo` can be enabled with `use_sudo`. 
+Because `mmpmon` is by default only executable as root, the Go procedure to
+search for it in `$PATH` will fail. If you use `sudo`, you must specify the
+complete path for `mmpmon` using the parameter `mmpmon_path`.
 
 
 Metrics:
