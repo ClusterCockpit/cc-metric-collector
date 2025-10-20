@@ -102,8 +102,11 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 		file := filepath.Join(dir, "numastat")
 		m.topology = append(m.topology,
 			NUMAStatsCollectorTopolgy{
-				file:           file,
-				tagSet:         map[string]string{"memoryDomain": node},
+				file: file,
+				tagSet: map[string]string{
+					"type":    "memoryDomain",
+					"type-id": node,
+				},
 				previousValues: make(map[string]int64),
 			})
 	}
