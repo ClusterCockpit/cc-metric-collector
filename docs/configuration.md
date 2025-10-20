@@ -4,7 +4,7 @@ The configuration of the CC metric collector consists of five configuration file
 
 ## Global configuration
 
-The global file contains the paths to the other four files and some global options. 
+The global file contains the paths to the other four files and some global options. You can find examples in `example_configs`.
 
 ```json
 {
