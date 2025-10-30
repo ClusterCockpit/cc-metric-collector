@@ -28,35 +28,280 @@ import (
 
 const DEFAULT_GPFS_CMD = "mmpmon"
 
-type GpfsCollectorLastState struct {
-	numOpens    	int64
-	numCloses 		int64
-	numReads		int64
-	numWrites		int64
-	numReaddirs		int64
-	numInodeUpdates int64
-	bytesRead    	int64
-	bytesWritten 	int64
-	bytesTotal		int64
-	iops			int64
-	metaops			int64
+type GpfsCollectorState map[string]int64
+
+type GpfsCollectorConfig struct {
+	Mmpmon             string   `json:"mmpmon_path,omitempty"`
+	ExcludeFilesystem  []string `json:"exclude_filesystem,omitempty"`
+	ExcludeMetrics     []string `json:"exclude_metrics,omitempty"`
+	Sudo               bool     `json:"use_sudo,omitempty"`
+	SendAbsoluteValues bool     `json:"send_abs_values,omitempty"`
+	SendDiffValues     bool     `json:"send_diff_values,omitempty"`
+	SendDerivedValues  bool     `json:"send_derived_values,omitempty"`
+	SendTotalValues    bool     `json:"send_total_values,omitempty"`
+	SendBandwidths     bool     `json:"send_bandwidths,omitempty"`
+}
+
+type GpfsMetricDefinition struct {
+	name       string
+	desc       string
+	prefix     string
+	unit       string
+	calc       string
 }
 
 type GpfsCollector struct {
 	metricCollector
-	tags   map[string]string
-	config struct {
-		Mmpmon            string   `json:"mmpmon_path,omitempty"`
-		ExcludeFilesystem []string `json:"exclude_filesystem,omitempty"`
-		Sudo              bool     `json:"use_sudo,omitempty"`
-		SendBandwidths    bool     `json:"send_bandwidths"`
-		SendTotalValues   bool     `json:"send_total_values"`
-		SendDerivedValues bool     `json:"send_derived_values"`
-	}
+	tags          map[string]string
+	config        GpfsCollectorConfig
 	sudoCmd       string
 	skipFS        map[string]struct{}
-	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
-	lastState     map[string]GpfsCollectorLastState
+	lastTimestamp map[string]time.Time // Store timestamp of lastState to derive bandwidths
+	definitions   []GpfsMetricDefinition // all metrics to report
+	lastState     map[string]GpfsCollectorState // one GpfsCollectorState per filesystem
+}
+
+var GpfsAbsMetrics = []GpfsMetricDefinition{
+	{
+		name:       "gpfs_num_opens",
+		desc:       "number of opens",
+		prefix:     "_oc_",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_num_closes",
+		desc:       "number of closes",
+		prefix:     "_cc_",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_num_reads",
+		desc:       "number of reads",
+		prefix:     "_rdc_",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_num_writes",
+		desc:       "number of writes",
+		prefix:     "_wc_",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_num_readdirs",
+		desc:       "number of readdirs",
+		prefix:     "_dir_",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_num_inode_updates",
+		desc:       "number of Inode Updates",
+		prefix:     "_iu_",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_bytes_read",
+		desc:       "bytes read",
+		prefix:     "_br_",
+		unit:       "bytes",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_bytes_written",
+		desc:       "bytes written",
+		prefix:     "_bw_",
+		unit:       "bytes",
+		calc:       "none",
+	},
+}
+
+var GpfsDiffMetrics = []GpfsMetricDefinition{
+	{
+		name:       "gpfs_num_opens_diff",
+		desc:       "number of opens (diff)",
+		prefix:     "_oc_",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_num_closes_diff",
+		desc:       "number of closes (diff)",
+		prefix:     "_cc_",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_num_reads_diff",
+		desc:       "number of reads (diff)",
+		prefix:     "_rdc_",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_num_writes_diff",
+		desc:       "number of writes (diff)",
+		prefix:     "_wc_",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_num_readdirs_diff",
+		desc:       "number of readdirs (diff)",
+		prefix:     "_dir_",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_num_inode_updates_diff",
+		desc:       "number of Inode Updates (diff)",
+		prefix:     "_iu_",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_bytes_read_diff",
+		desc:       "bytes read (diff)",
+		prefix:     "_br_",
+		unit:       "bytes",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_bytes_written_diff",
+		desc:       "bytes written (diff)",
+		prefix:     "_bw_",
+		unit:       "bytes",
+		calc:       "difference",
+	},
+}
+
+var GpfsDeriveMetrics = []GpfsMetricDefinition{
+	{
+		name:       "gpfs_opens_rate",
+		desc:       "number of opens (rate)",
+		prefix:     "_oc_",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_closes_rate",
+		desc:       "number of closes (rate)",
+		prefix:     "_oc_",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_reads_rate",
+		desc:       "number of reads (rate)",
+		prefix:     "_rdc_",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_writes_rate",
+		desc:       "number of writes (rate)",
+		prefix:     "_wc_",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_readdirs_rate",
+		desc:       "number of readdirs (rate)",
+		prefix:     "_dir_",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_inode_updates_rate",
+		desc:       "number of Inode Updates (rate)",
+		prefix:     "_iu_",
+		unit:       "requests/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_bw_read",
+		desc:       "bytes read (rate)",
+		prefix:     "_br_",
+		unit:       "bytes/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_bw_write",
+		desc:       "bytes written (rate)",
+		prefix:     "_bw_",
+		unit:       "bytes/sec",
+		calc:       "derivative",
+	},
+}
+
+var GpfsTotalMetrics = []GpfsMetricDefinition{
+	{
+		name:       "gpfs_bytes_total",
+		desc:       "bytes total",
+		prefix:     "bytesTotal",
+		unit:       "bytes",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_bytes_total_diff",
+		desc:       "bytes total (diff)",
+		prefix:     "bytesTotal",
+		unit:       "bytes",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_bw_total",
+		desc:       "bytes total (rate)",
+		prefix:     "bytesTotal",
+		unit:       "bytes/sec",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_iops",
+		desc:       "iops",
+		prefix:     "iops",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_iops_diff",
+		desc:       "iops  (diff)",
+		prefix:     "iops",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_iops_rate",
+		desc:       "iops (rate)",
+		prefix:     "iops",
+		unit:       "requests",
+		calc:       "derivative",
+	},
+	{
+		name:       "gpfs_metaops",
+		desc:       "metaops",
+		prefix:     "metaops",
+		unit:       "requests",
+		calc:       "none",
+	},
+	{
+		name:       "gpfs_metaops_diff",
+		desc:       "metaops (diff)",
+		prefix:     "metaops",
+		unit:       "requests",
+		calc:       "difference",
+	},
+	{
+		name:       "gpfs_metaops_rate",
+		desc:       "metaops (rate)",
+		prefix:     "metaops",
+		unit:       "requests",
+		calc:       "derivative",
+	},
 }
 
 func (m *GpfsCollector) Init(config json.RawMessage) error {
@@ -93,7 +338,8 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	for _, fs := range m.config.ExcludeFilesystem {
 		m.skipFS[fs] = struct{}{}
 	}
-	m.lastState = make(map[string]GpfsCollectorLastState)
+	m.lastState = make(map[string]GpfsCollectorState)
+	m.lastTimestamp = make(map[string]time.Time)
 
 	// GPFS / IBM Spectrum Scale file system statistics can only be queried by user root
 	if !m.config.Sudo {
@@ -136,6 +382,60 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	}
 	m.config.Mmpmon = p
 
+	m.definitions = []GpfsMetricDefinition{}
+	if m.config.SendAbsoluteValues {
+		for _, def := range GpfsAbsMetrics {
+			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				m.definitions = append(m.definitions, def)
+			}
+		}
+	}
+	if m.config.SendDiffValues {
+		for _, def := range GpfsDiffMetrics {
+			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				m.definitions = append(m.definitions, def)
+			}
+		}
+	}
+	if m.config.SendDerivedValues {
+		for _, def := range GpfsDeriveMetrics {
+			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				m.definitions = append(m.definitions, def)
+			}
+		}
+	} else if m.config.SendBandwidths {
+		for _, def := range GpfsDeriveMetrics {
+			if def.unit == "bytes/sec" {
+				if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+					m.definitions = append(m.definitions, def)
+				}
+			}
+		}
+	}
+	if m.config.SendTotalValues {
+		for _, def := range GpfsTotalMetrics {
+			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				// only send total metrics of the types requested
+				if ( def.calc == "none" && m.config.SendAbsoluteValues ) ||
+				   ( def.calc == "difference" && m.config.SendDiffValues ) ||
+				   ( def.calc == "derivative" && m.config.SendDerivedValues ) {
+					m.definitions = append(m.definitions, def)
+				   }
+			}
+		}
+	} else if m.config.SendBandwidths {
+		for _, def := range GpfsTotalMetrics {
+			if def.unit == "bytes/sec" {
+				if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+					m.definitions = append(m.definitions, def)
+				}
+			}
+		}
+	}
+	if len(m.definitions) == 0 {
+		return errors.New("no metrics to collect")
+	}
+
 	m.init = true
 	return nil
 }
@@ -145,13 +445,6 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
-
-	// Current time stamp
-	now := time.Now()
-	// time difference to last time stamp
-	timeDiff := now.Sub(m.lastTimestamp).Seconds()
-	// Save current timestamp
-	m.lastTimestamp = now
 
 	// mmpmon:
 	// -p: generate output that can be parsed
@@ -206,9 +499,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 		filesystem, ok := key_value["_fs_"]
 		if !ok {
-			cclog.ComponentError(
-				m.name,
-				"Read(): Failed to get filesystem name.")
+			cclog.ComponentError(m.name, "Read(): Failed to get filesystem name.")
 			continue
 		}
 
@@ -220,438 +511,119 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		// Add filesystem tag
 		m.tags["filesystem"] = filesystem
 
-		// Create initial last state
-		if m.config.SendBandwidths {
-			if _, ok := m.lastState[filesystem]; !ok {
-				m.lastState[filesystem] = GpfsCollectorLastState{
-					bytesRead:    -1,
-					bytesWritten: -1,
-				}
-			}
+		if _, ok := m.lastState[filesystem]; !ok {
+			m.lastState[filesystem] = make(GpfsCollectorState)
 		}
 
-		if m.config.SendDerivedValues {
-			if _, ok := m.lastState[filesystem]; !ok {
-				m.lastState[filesystem] = GpfsCollectorLastState{
-					numReads:    -1,
-					numWrites: -1,
-					numOpens: -1,
-					numCloses: -1,
-					numReaddirs: -1,
-					numInodeUpdates: -1,
-					bytesTotal: -1,
-					iops: -1,
-					metaops: -1,
-				}
-			}		
-		}
-
+		// read the new values from mmpmon
 		// return code
 		rc, err := strconv.Atoi(key_value["_rc_"])
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert return code '%s' to int: %v", key_value["_rc_"], err))
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert return code '%s' to int: %v", key_value["_rc_"], err))
 			continue
 		}
 		if rc != 0 {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Filesystem '%s' is not ok.", filesystem))
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Filesystem '%s' is not ok.", filesystem))
 			continue
 		}
 
+		// timestamp
 		sec, err := strconv.ParseInt(key_value["_t_"], 10, 64)
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err))
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err))
 			continue
 		}
 		msec, err := strconv.ParseInt(key_value["_tu_"], 10, 64)
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err))
+			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err))
 			continue
 		}
 		timestamp := time.Unix(sec, msec*1000)
 
-		// bytes read
-		bytesRead, err := strconv.ParseInt(key_value["_br_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert bytes read '%s' to int64: %v", key_value["_br_"], err))
-			continue
-		}
-		if y, err :=
-			lp.NewMessage(
-				"gpfs_bytes_read",
-				m.tags,
-				m.meta,
-				map[string]interface{}{
-					"value": bytesRead,
-				},
-				timestamp,
-			); err == nil {
-			y.AddMeta("unit", "bytes")
-			output <- y
-		}
-		if m.config.SendBandwidths {
-			if lastBytesRead := m.lastState[filesystem].bytesRead; lastBytesRead >= 0 {
-				bwRead := float64(bytesRead-lastBytesRead) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_bw_read",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": bwRead,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "bytes/sec")
-					output <- y
-				}
-			}
+		// time difference to last time stamp
+		var timeDiff float64 = 0
+		if _, ok := m.lastTimestamp[filesystem]; !ok {
+			m.lastTimestamp[filesystem] = time.Time{}
+		} else {
+			timeDiff = timestamp.Sub(m.lastTimestamp[filesystem]).Seconds()
 		}
 
-		// bytes written
-		bytesWritten, err := strconv.ParseInt(key_value["_bw_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert bytes written '%s' to int64: %v", key_value["_bw_"], err))
-			continue
-		}
-		if y, err :=
-			lp.NewMessage(
-				"gpfs_bytes_written",
-				m.tags,
-				m.meta,
-				map[string]interface{}{
-					"value": bytesWritten,
-				},
-				timestamp,
-			); err == nil {
-			y.AddMeta("unit", "bytes")
-			output <- y
-		}
-		if m.config.SendBandwidths {
-			if lastBytesWritten := m.lastState[filesystem].bytesWritten; lastBytesWritten >= 0 {
-				bwWrite := float64(bytesWritten-lastBytesWritten) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_bw_write",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": bwWrite,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "bytes/sec")
-					output <- y
-				}
+		// get values of all abs metrics
+		newstate := make(GpfsCollectorState)
+		for _, metric := range GpfsAbsMetrics {
+			value, err := strconv.ParseInt(key_value[metric.prefix], 10, 64)
+			if err != nil {
+				cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert %s '%s' to int64: %v", metric.desc, key_value[metric.prefix], err))
+				continue
 			}
+			newstate[metric.prefix] = value
 		}
 
-		// number of opens
-		numOpens, err := strconv.ParseInt(key_value["_oc_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert number of opens '%s' to int64: %v", key_value["_oc_"], err))
-			continue
-		}
-		if y, err := lp.NewMessage("gpfs_num_opens", m.tags, m.meta, map[string]interface{}{"value": numOpens}, timestamp); err == nil {
-			output <- y
-		}
-		if m.config.SendDerivedValues {
-			if lastNumOpens := m.lastState[filesystem].numOpens; lastNumOpens >= 0 {
-				opensRate := float64(numOpens-lastNumOpens) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_opens_rate",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": opensRate,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "requests/sec")
-					output <- y
-				}
-			}
-		}
+		// compute total metrics
+		newstate["bytesTotal"] = newstate["_br_"] + newstate["_bw_"]
+		newstate["iops"] = newstate["_rdc_"] + newstate["_wc_"]
+		newstate["metaops"] = newstate["_oc_"] + newstate["_cc_"] + newstate["_dir_"] + newstate["_iu_"]
 
-		// number of closes
-		numCloses, err := strconv.ParseInt(key_value["_cc_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert number of closes: '%s' to int64: %v", key_value["_cc_"], err))
-			continue
-		}
-		if y, err := lp.NewMessage("gpfs_num_closes", m.tags, m.meta, map[string]interface{}{"value": numCloses}, timestamp); err == nil {
-			output <- y
-		}
-		if m.config.SendDerivedValues {
-			if lastNumCloses := m.lastState[filesystem].numCloses; lastNumCloses >= 0 {
-				closesRate := float64(numCloses-lastNumCloses) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_closes_rate",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": closesRate,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "requests/sec")
-					output <- y
+		// send desired metrics for this filesystem
+		for _, metric := range m.definitions {
+			vold, vold_ok := m.lastState[filesystem][metric.prefix]
+			vnew, vnew_ok := newstate[metric.prefix]
+			var value interface{}
+			value_ok := false
+			switch metric.calc {
+			case "none":
+				if vnew_ok {
+					value = vnew
+					value_ok = true
+				} else if vold_ok {
+					// for absolute values, if the new value is not available, report no change
+					value = vold
+					value_ok = true
 				}
-			}
-		}
-
-		// number of reads
-		numReads, err := strconv.ParseInt(key_value["_rdc_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert number of reads: '%s' to int64: %v", key_value["_rdc_"], err))
-			continue
-		}
-		if y, err := lp.NewMessage("gpfs_num_reads", m.tags, m.meta, map[string]interface{}{"value": numReads}, timestamp); err == nil {
-			output <- y
-		}
-		if m.config.SendDerivedValues {
-			if lastNumReads := m.lastState[filesystem].numReads; lastNumReads >= 0 {
-				readsRate := float64(numReads-lastNumReads) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_reads_rate",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": readsRate,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "requests/sec")
-					output <- y
-				}
-			}
-		}
-
-		// number of writes
-		numWrites, err := strconv.ParseInt(key_value["_wc_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert number of writes: '%s' to int64: %v", key_value["_wc_"], err))
-			continue
-		}
-		if y, err := lp.NewMessage("gpfs_num_writes", m.tags, m.meta, map[string]interface{}{"value": numWrites}, timestamp); err == nil {
-			output <- y
-		}
-		if m.config.SendDerivedValues {
-			if lastNumWrites := m.lastState[filesystem].numWrites; lastNumWrites >= 0 {
-				writesRate := float64(numWrites-lastNumWrites) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_writes_rate",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": writesRate,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "requests/sec")
-					output <- y
-				}
-			}
-		}
-
-		// number of read directories
-		numReaddirs, err := strconv.ParseInt(key_value["_dir_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert number of read directories: '%s' to int64: %v", key_value["_dir_"], err))
-			continue
-		}
-		if y, err := lp.NewMessage("gpfs_num_readdirs", m.tags, m.meta, map[string]interface{}{"value": numReaddirs}, timestamp); err == nil {
-			output <- y
-		}
-		if m.config.SendDerivedValues {
-			if lastNumReaddirs := m.lastState[filesystem].numReaddirs; lastNumReaddirs >= 0 {
-				readdirsRate := float64(numReaddirs-lastNumReaddirs) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_readdirs_rate",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": readdirsRate,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "requests/sec")
-					output <- y
-				}
-			}
-		}
-
-		// Number of inode updates
-		numInodeUpdates, err := strconv.ParseInt(key_value["_iu_"], 10, 64)
-		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert number of inode updates: '%s' to int: %v", key_value["_iu_"], err))
-			continue
-		}
-		if y, err := lp.NewMessage("gpfs_num_inode_updates", m.tags, m.meta, map[string]interface{}{"value": numInodeUpdates}, timestamp); err == nil {
-			output <- y
-		}
-		if m.config.SendDerivedValues {
-			if lastNumInodeUpdates := m.lastState[filesystem].numInodeUpdates; lastNumInodeUpdates >= 0 {
-				inodeUpdatesRate := float64(numInodeUpdates-lastNumInodeUpdates) / timeDiff
-				if y, err :=
-					lp.NewMessage(
-						"gpfs_inode_updates_rate",
-						m.tags,
-						m.meta,
-						map[string]interface{}{
-							"value": inodeUpdatesRate,
-						},
-						timestamp,
-					); err == nil {
-					y.AddMeta("unit", "requests/sec")
-					output <- y
-				}
-			}
-		}
-
-		// Total values
-		bytesTotal := int64(-1);
-		iops := int64(-1);
-		metaops := int64(-1);
-		if m.config.SendTotalValues {
-			bytesTotal = bytesRead + bytesWritten
-			if y, err :=
-				lp.NewMessage("gpfs_bytes_total",
-					m.tags,
-					m.meta,
-					map[string]interface{}{
-						"value": bytesTotal,
-					},
-					timestamp,
-				); err == nil {
-				y.AddMeta("unit", "bytes")
-				output <- y
-			}
-			if m.config.SendBandwidths {
-				if lastBytesTotal := m.lastState[filesystem].bytesTotal; lastBytesTotal >= 0 {
-					bwTotal := float64(bytesTotal-lastBytesTotal) / timeDiff
-					if y, err :=
-						lp.NewMessage(
-							"gpfs_bw_total",
-							m.tags,
-							m.meta,
-							map[string]interface{}{
-								"value": bwTotal,
-							},
-							timestamp,
-						); err == nil {
-						y.AddMeta("unit", "bytes/sec")
-						output <- y
+			case "difference":
+				if vnew_ok && vold_ok {
+					value = vnew - vold
+					if value.(int64) < 0 {
+						value = 0
 					}
+					value_ok = true
+				} else if vold_ok {
+					// if the difference is not computable, return 0
+					value = 0
+					value_ok = true
 				}
-			}
-
-			iops = numReads + numWrites
-			if y, err :=
-				lp.NewMessage("gpfs_iops",
-					m.tags,
-					m.meta,
-					map[string]interface{}{
-						"value": iops,
-					},
-					timestamp,
-				); err == nil {
-				output <- y
-			}
-			if m.config.SendDerivedValues {
-				if lastIops := m.lastState[filesystem].iops; lastIops >= 0 {
-					iopsRate := float64(iops-lastIops) / timeDiff
-					if y, err :=
-						lp.NewMessage(
-							"gpfs_iops_rate",
-							m.tags,
-							m.meta,
-							map[string]interface{}{
-								"value": iopsRate,
-							},
-							timestamp,
-						); err == nil {
-						y.AddMeta("unit", "requests/sec")
-						output <- y
+			case "derivative":
+				if vnew_ok && vold_ok && timeDiff > 0 {
+					value = float64(vnew - vold) / timeDiff
+					if value.(float64) < 0 {
+						value = 0
 					}
+					value_ok = true
+				} else if vold_ok {
+					// if the difference is not computable, return 0
+					value = 0
+					value_ok = true
 				}
 			}
-	
-			metaops = numInodeUpdates + numCloses + numOpens + numReaddirs
-			if y, err :=
-				lp.NewMessage("gpfs_metaops",
-					m.tags,
-					m.meta,
-					map[string]interface{}{
-						"value": metaops,
-					},
-					timestamp,
-				); err == nil {
-				output <- y
-			}
-			if m.config.SendDerivedValues {
-				if lastMetaops := m.lastState[filesystem].metaops; lastMetaops >= 0 {
-					metaopsRate := float64(metaops-lastMetaops) / timeDiff
-					if y, err :=
-						lp.NewMessage(
-							"gpfs_metaops_rate",
-							m.tags,
-							m.meta,
-							map[string]interface{}{
-								"value": metaopsRate,
-							},
-							timestamp,
-						); err == nil {
-						y.AddMeta("unit", "requests/sec")
-						output <- y
+			if value_ok {
+				y, err := lp.NewMetric(metric.name, m.tags, m.meta, value, timestamp)
+				if err == nil {
+					if len(metric.unit) > 0 {
+						y.AddMeta("unit", metric.unit)
 					}
+					output <- y
 				}
+			} else {
+				// the value could not be computed correctly
+				cclog.ComponentWarn(m.name, fmt.Sprintf("Read(): Could not compute value for filesystem %s of metric %s: vold_ok = %t, vnew_ok = %t", filesystem, metric.name, vold_ok, vnew_ok))
 			}
 		}
 
-		// Save last state
-		m.lastState[filesystem] = GpfsCollectorLastState{
-			bytesRead:    bytesRead,
-			bytesWritten: bytesWritten,
-			numOpens: numOpens,
-			numCloses: numCloses,
-			numReads: numReads,
-			numWrites: numWrites,
-			numReaddirs: numReaddirs,
-			numInodeUpdates: numInodeUpdates,
-			bytesTotal: bytesTotal,
-			iops: iops,
-			metaops: metaops,
+		// Save new state, if it contains proper values
+		if len(newstate) > 0 {
+			m.lastState[filesystem] = newstate
+			m.lastTimestamp[filesystem] = timestamp
 		}
-
 	}
 }
 
