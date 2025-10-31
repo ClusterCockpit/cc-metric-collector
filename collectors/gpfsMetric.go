@@ -542,10 +542,10 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 		// time difference to last time stamp
 		var timeDiff float64 = 0
-		if _, ok := m.lastTimestamp[filesystem]; !ok {
+		if lastTime, ok := m.lastTimestamp[filesystem]; !ok {
 			m.lastTimestamp[filesystem] = time.Time{}
 		} else {
-			timeDiff = timestamp.Sub(m.lastTimestamp[filesystem]).Seconds()
+			timeDiff = timestamp.Sub(lastTime).Seconds()
 		}
 
 		// get values of all abs metrics
