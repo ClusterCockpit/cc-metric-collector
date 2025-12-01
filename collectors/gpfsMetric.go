@@ -56,7 +56,7 @@ type GpfsCollector struct {
 	config        GpfsCollectorConfig
 	sudoCmd       string
 	skipFS        map[string]struct{}
-	lastTimestamp map[string]time.Time // Store timestamp of lastState to derive bandwidths
+	lastTimestamp map[string]time.Time // Store timestamp of lastState per filesystem to derive bandwidths
 	definitions   []GpfsMetricDefinition // all metrics to report
 	lastState     map[string]GpfsCollectorState // one GpfsCollectorState per filesystem
 }
@@ -278,7 +278,7 @@ var GpfsTotalMetrics = []GpfsMetricDefinition{
 		name:       "gpfs_iops_rate",
 		desc:       "iops (rate)",
 		prefix:     "iops",
-		unit:       "requests",
+		unit:       "requests/sec",
 		calc:       "derivative",
 	},
 	{
@@ -299,7 +299,7 @@ var GpfsTotalMetrics = []GpfsMetricDefinition{
 		name:       "gpfs_metaops_rate",
 		desc:       "metaops (rate)",
 		prefix:     "metaops",
-		unit:       "requests",
+		unit:       "requests/sec",
 		calc:       "derivative",
 	},
 }
