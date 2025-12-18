@@ -16,6 +16,7 @@ jobs:
   #
   build-latest:
     runs-on: ubuntu-latest
+    container: ubuntu:24.04
     steps:
     # Use apt to install development packages
     - name: Install development packages
