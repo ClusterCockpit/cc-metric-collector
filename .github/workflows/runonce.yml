@@ -17,12 +17,14 @@ jobs:
   build-latest:
     runs-on: ubuntu-latest
     container: ubuntu:24.04
+    env:
+      CGO_LDFLAGS : "-L/usr/lib"
     steps:
     # Use apt to install development packages
     - name: Install development packages
       run: |
-          apt update && apt --assume-yes upgrade
-          apt --assume-yes install build-essential sed git wget bash hwloc
+          apt -qq update && apt -qq --assume-yes upgrade
+          apt --assume-yes -qq install build-essential sed git wget bash hwloc libhwloc-dev
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
     - name: Checkout
