@@ -218,7 +218,7 @@ func mainFunc() int {
 	}
 
 	startupConf := ccconf.GetPackageConfig("startup")
-	if len(collectorConf) > 0 {
+	if startupConf != nil && len(startupConf) > 0 {
 		err := start.CCStartup(startupConf)
 		if err != nil {
 			cclog.Errorf("Sending startup topology failed: %s", err.Error())
