@@ -36,10 +36,9 @@ There is a main configuration file with basic settings that point to the other c
   "collectors-file" : "collectors.json",
   "receivers-file" : "receivers.json",
   "router-file" : "router.json",
-  "main": {
-    "interval": "10s",
-    "duration": "1s"
-  }
+  "startup-file": "startup.json",
+  "interval": "10s",
+  "duration": "1s"
 }
 ```
 
@@ -51,6 +50,7 @@ See the component READMEs for their configuration:
 * [`sinks`](https://github.com/ClusterCockpit/cc-lib/blob/main/sinks/README.md)
 * [`receivers`](https://github.com/ClusterCockpit/cc-lib/blob/main/receivers/README.md)
 * [`router`](./internal/metricRouter/README.md)
+* [`startup`](https://github.com/ClusterCockpit/cc-lib/blob/main/ccStartup/README.md)
 
 # Installation
 

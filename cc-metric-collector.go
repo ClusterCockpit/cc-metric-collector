@@ -25,6 +25,7 @@ import (
 	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	start "github.com/ClusterCockpit/cc-lib/ccStartup"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
@@ -214,6 +215,14 @@ func mainFunc() int {
 	if len(collectorConf) == 0 {
 		cclog.Error("Metric collector configuration file must be set")
 		return 1
+	}
+
+	startupConf := ccconf.GetPackageConfig("startup")
+	if len(collectorConf) > 0 {
+		err := start.CCStartup(startupConf)
+		if err != nil {
+			cclog.Errorf("Sending startup topology failed: %s", err.Error())
+		}
 	}
 
 	// Set log file
