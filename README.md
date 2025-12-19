@@ -32,12 +32,14 @@ There is a main configuration file with basic settings that point to the other c
 
 ``` json
 {
-  "sinks": "sinks.json",
-  "collectors" : "collectors.json",
-  "receivers" : "receivers.json",
-  "router" : "router.json",
-  "interval": "10s",
-  "duration": "1s"
+  "sinks-file": "sinks.json",
+  "collectors-file" : "collectors.json",
+  "receivers-file" : "receivers.json",
+  "router-file" : "router.json",
+  "main": {
+    "interval": "10s",
+    "duration": "1s"
+  }
 }
 ```
 
@@ -52,11 +54,14 @@ See the component READMEs for their configuration:
 
 # Installation
 
+Dependecies:
+- golang
+- hwloc
+
 ```
 $ git clone git@github.com:ClusterCockpit/cc-metric-collector.git
+$ export CGO_LDFLAGS="-L/path/to/hwloc/lib/dir"
 $ make (downloads LIKWID, builds it as static library with 'direct' accessmode and copies all required files for the collector)
-$ go get (requires at least golang 1.16)
-$ make
 ```
 
 For more information, see [here](./docs/building.md).

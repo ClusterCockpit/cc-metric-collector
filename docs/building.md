@@ -1,6 +1,15 @@
 # Building the cc-metric-collector
 
-In most cases, a simple `make` in the main folder is enough to get a `cc-metric-collector` binary. It is basically a `go build` but some collectors require additional tasks. There is currently no Golang interface to LIKWID, so it uses `cgo` to create bindings but `cgo` requires the LIKWID header files. Therefore, it checks whether LIKWID is installed and if not it downloads LIKWID and copies the headers.
+Dependencies:
+- golang
+- hwloc
+
+```
+$ export CGO_LDFLAGS="-L/path/to/hwloc/lib/dir"
+$ make
+```
+
+In most cases, a simple `make` in the main folder is enough to get a `cc-metric-collector` binary as long as hwloc is in default locations. It is basically a `go build` but some collectors require additional tasks. There is currently no Golang interface to LIKWID, so it uses `cgo` to create bindings but `cgo` requires the LIKWID header files. Therefore, it checks whether LIKWID is installed and if not it downloads LIKWID and copies the headers.
 
 ## System integration
 
