@@ -3,7 +3,7 @@ module github.com/ClusterCockpit/cc-metric-collector
 go 1.24.0
 
 require (
-	github.com/ClusterCockpit/cc-lib v0.11.0
+	github.com/ClusterCockpit/cc-lib v1.0.2
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
 	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
@@ -39,7 +39,7 @@ require (
 	github.com/stmcginnis/gofish v0.20.0 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/net v0.45.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 )
