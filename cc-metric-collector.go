@@ -14,17 +14,17 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ClusterCockpit/cc-lib/receivers"
-	"github.com/ClusterCockpit/cc-lib/sinks"
+	"github.com/ClusterCockpit/cc-lib/v2/receivers"
+	"github.com/ClusterCockpit/cc-lib/v2/sinks"
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
 
 	//	"strings"
 	"sync"
 	"time"
 
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	mr "github.com/ClusterCockpit/cc-metric-collector/internal/metricRouter"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )

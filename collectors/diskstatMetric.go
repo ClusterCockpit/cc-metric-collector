@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
 const MOUNTFILE = `/proc/self/mounts`

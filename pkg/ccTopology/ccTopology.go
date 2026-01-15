@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	cclogger "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclogger "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"golang.org/x/exp/slices"
 )
 

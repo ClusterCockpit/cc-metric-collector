@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
 type MetricCollector interface {

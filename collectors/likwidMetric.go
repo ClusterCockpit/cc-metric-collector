@@ -31,8 +31,8 @@ import (
 	"time"
 	"unsafe"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"github.com/NVIDIA/go-nvml/pkg/dl"

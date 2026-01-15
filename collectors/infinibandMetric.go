@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"os"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	"golang.org/x/sys/unix"
 
 	"encoding/json"

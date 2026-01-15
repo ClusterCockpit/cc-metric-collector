@@ -16,9 +16,9 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 
 	"github.com/PaesslerAG/gval"

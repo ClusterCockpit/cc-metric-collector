@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
 // First part contains the code for the general NfsCollector.

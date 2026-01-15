@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	"github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 	"golang.org/x/sys/unix"
 )

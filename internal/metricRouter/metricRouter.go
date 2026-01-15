@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
-	mp "github.com/ClusterCockpit/cc-lib/messageProcessor"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
+	mp "github.com/ClusterCockpit/cc-lib/v2/messageProcessor"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )

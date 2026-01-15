@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
 // These are the fields we read from the JSON configuration

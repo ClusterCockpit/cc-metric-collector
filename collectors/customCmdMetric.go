@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	influx "github.com/influxdata/line-protocol"
 )
 

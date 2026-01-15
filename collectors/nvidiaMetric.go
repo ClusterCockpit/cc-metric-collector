@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	lp "github.com/ClusterCockpit/cc-lib/ccMessage"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
@@ -228,7 +228,9 @@ func readMemoryInfo(device *NvidiaCollectorDevice, output chan lp.CCMessage) err
 			err := errors.New(nvml.ErrorString(ret))
 			return err
 		}
+		// Total physical device memory (in bytes)
 		total = meminfo.Total
+		// Sum of Reserved and Allocated device memory (in bytes)
 		used = meminfo.Used
 
 		if !device.excludeMetrics["nv_fb_mem_total"] {
