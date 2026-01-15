@@ -52,6 +52,7 @@ jobs:
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
 
     - name: RPM build MetricCollector
@@ -208,6 +209,7 @@ jobs:
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
               https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
 
     - name: RPM build MetricCollector
