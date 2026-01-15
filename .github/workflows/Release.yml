@@ -5,10 +5,10 @@ name: Release
 
 # Run on tag push
 on:
- push:
-  tags:
-  - '**'
- workflow_dispatch:
+  push:
+    tags:
+    - '**'
+  workflow_dispatch:
 
 jobs:
 
@@ -36,13 +36,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -114,13 +115,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -190,13 +192,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -243,20 +246,20 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve 
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -308,13 +311,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
-
+    # Use official golang package
+    # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
@@ -338,7 +342,7 @@ jobs:
         path: ${{ steps.debrename.outputs.DEB }}
         overwrite: true
 
- #
+  #
   # Build on Ubuntu 24.04 using official go package
   #
   Ubuntu-noblenumbat-build:
@@ -358,13 +362,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
-
+    # Use official golang package
+    # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 

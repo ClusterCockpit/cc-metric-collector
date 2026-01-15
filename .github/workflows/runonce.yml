@@ -38,7 +38,7 @@ jobs:
       run: ./cc-metric-collector --once --config .github/ci-config.json
 
   #
-  # Build on AlmaLinux 8
+  # Build on AlmaLinux 8 using go-toolset
   #
   AlmaLinux8-RPM-build:
     runs-on: ubuntu-latest
