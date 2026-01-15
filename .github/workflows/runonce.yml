@@ -20,15 +20,15 @@ jobs:
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: '1.21'
+        go-version: 'stable'
         check-latest: true
 
     - name: Build MetricCollector
@@ -58,14 +58,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -103,14 +103,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -147,14 +147,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -189,14 +189,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -231,14 +231,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
@@ -265,14 +265,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
