@@ -80,13 +80,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.SRPM }}
@@ -160,13 +160,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.SRPM }}
@@ -220,13 +220,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
@@ -281,13 +281,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.SRPM }}
@@ -338,7 +338,7 @@ jobs:
         echo "DEB=${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
     # See: https://github.com/actions/upload-artifact
     - name: Save DEB as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
         path: ${{ steps.debrename.outputs.DEB }}
@@ -389,7 +389,7 @@ jobs:
         echo "DEB=${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
     # See: https://github.com/actions/upload-artifact
     - name: Save DEB as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector DEB for Ubuntu 24.04
         path: ${{ steps.debrename.outputs.DEB }}
@@ -407,48 +407,48 @@ jobs:
     steps:
     # See: https://github.com/actions/download-artifact
     - name: Download AlmaLinux 8 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
     - name: Download AlmaLinux 8 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
 
     - name: Download AlmaLinux 9 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
     - name: Download AlmaLinux 9 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
 
     - name: Download UBI 8 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for UBI 8
     - name: Download UBI 8 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for UBI 8
 
     - name: Download UBI 9 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for UBI 9
     - name: Download UBI 9 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for UBI 9
 
     - name: Download Ubuntu 22.04 DEB
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
 
     - name: Download Ubuntu 24.04 DEB
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector DEB for Ubuntu 24.04
 
