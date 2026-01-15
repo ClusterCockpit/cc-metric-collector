@@ -5,10 +5,10 @@ name: Release
 
 # Run on tag push
 on:
- push:
-  tags:
-  - '**'
- workflow_dispatch:
+  push:
+    tags:
+    - '**'
+  workflow_dispatch:
 
 jobs:
 
@@ -36,22 +36,24 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
       run: |
           dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.noarch.rpm
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -78,13 +80,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
         path: ${{ steps.rpmrename.outputs.SRPM }}
@@ -114,13 +116,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -157,13 +160,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
         path: ${{ steps.rpmrename.outputs.SRPM }}
@@ -190,22 +193,24 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
+    # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
       run: |
           dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.noarch.rpm
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -215,13 +220,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for UBI 8
         path: ${{ steps.rpmbuild.outputs.SRPM }}
@@ -243,20 +248,20 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve 
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -276,13 +281,13 @@ jobs:
 
     # See: https://github.com/actions/upload-artifact
     - name: Save RPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector RPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.RPM }}
         overwrite: true
     - name: Save SRPM as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector SRPM for UBI 9
         path: ${{ steps.rpmbuild.outputs.SRPM }}
@@ -308,13 +313,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
-
+    # Use official golang package
+    # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
@@ -332,13 +338,13 @@ jobs:
         echo "DEB=${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
     # See: https://github.com/actions/upload-artifact
     - name: Save DEB as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
         path: ${{ steps.debrename.outputs.DEB }}
         overwrite: true
 
- #
+  #
   # Build on Ubuntu 24.04 using official go package
   #
   Ubuntu-noblenumbat-build:
@@ -358,13 +364,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
-
+    # Use official golang package
+    # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
@@ -382,7 +389,7 @@ jobs:
         echo "DEB=${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
     # See: https://github.com/actions/upload-artifact
     - name: Save DEB as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: cc-metric-collector DEB for Ubuntu 24.04
         path: ${{ steps.debrename.outputs.DEB }}
@@ -400,48 +407,48 @@ jobs:
     steps:
     # See: https://github.com/actions/download-artifact
     - name: Download AlmaLinux 8 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for AlmaLinux 8
     - name: Download AlmaLinux 8 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for AlmaLinux 8
 
     - name: Download AlmaLinux 9 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for AlmaLinux 9
     - name: Download AlmaLinux 9 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for AlmaLinux 9
 
     - name: Download UBI 8 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for UBI 8
     - name: Download UBI 8 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for UBI 8
 
     - name: Download UBI 9 RPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector RPM for UBI 9
     - name: Download UBI 9 SRPM
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector SRPM for UBI 9
 
     - name: Download Ubuntu 22.04 DEB
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector DEB for Ubuntu 22.04
 
     - name: Download Ubuntu 24.04 DEB
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: cc-metric-collector DEB for Ubuntu 24.04
 

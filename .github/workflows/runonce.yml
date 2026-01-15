@@ -20,15 +20,15 @@ jobs:
     # See: https://github.com/marketplace/actions/checkout
     # Checkout git repository and submodules
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: '1.21'
+        go-version: 'stable'
         check-latest: true
 
     - name: Build MetricCollector
@@ -38,7 +38,7 @@ jobs:
       run: ./cc-metric-collector --once --config .github/ci-config.json
 
   #
-  # Build on AlmaLinux 8
+  # Build on AlmaLinux 8 using go-toolset
   #
   AlmaLinux8-RPM-build:
     runs-on: ubuntu-latest
@@ -58,23 +58,24 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
       run: |
           dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.noarch.rpm
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -83,7 +84,7 @@ jobs:
           make RPM
 
   #
-  # Build on AlmaLinux 9
+  # Build on AlmaLinux 9 using go-toolset
   #
   AlmaLinux9-RPM-build:
     runs-on: ubuntu-latest
@@ -103,14 +104,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -147,23 +148,24 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
       run: |
           dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.23.9-1.module_el8.10.0+4000+1ad1b2cc.noarch.rpm
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
+              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -189,14 +191,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     # See: https://github.com/marketplace/actions/setup-go-environment
     # - name: Setup Golang
-    #   uses: actions/setup-go@v5
+    #   uses: actions/setup-go@v6
     #   with:
     #     go-version: 'stable'
     - name: Setup Golang
@@ -231,14 +233,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
@@ -265,14 +267,14 @@ jobs:
     # fetch-depth must be 0 to use git describe
     # See: https://github.com/marketplace/actions/checkout
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
     # Use official golang package
     # See: https://github.com/marketplace/actions/setup-go-environment
     - name: Setup Golang
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: 'stable'
 
