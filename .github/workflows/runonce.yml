@@ -109,6 +109,41 @@ jobs:
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make RPM
 
+  #
+  # Build on AlmaLinux 10 using go-toolset
+  #
+  AlmaLinux9-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://hub.docker.com/_/almalinux
+    container: almalinux:10
+    # The job outputs link to the outputs of the 'rpmrename' step
+    # Only job outputs can be used in child jobs
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: |
+          dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+          dnf --assumeyes install wget openssl-devel diffutils delve which
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Golang
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo appstream install go-toolset
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
 
   #
   # Build on Red Hat Universal Base Image 8 using go-toolset
