@@ -112,7 +112,7 @@ jobs:
   #
   # Build on AlmaLinux 10 using go-toolset
   #
-  AlmaLinux9-RPM-build:
+  AlmaLinux10-RPM-build:
     runs-on: ubuntu-latest
     # See: https://hub.docker.com/_/almalinux
     container: almalinux:10
