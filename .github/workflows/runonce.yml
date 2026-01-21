@@ -63,19 +63,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo appstream install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -109,19 +99,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.25.3-1.el9_7.noarch.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.25.3-1.el9_7.x86_64.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo appstream install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -129,13 +109,49 @@ jobs:
           git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
           make RPM
 
+  #
+  # Build on AlmaLinux 10 using go-toolset
+  #
+  AlmaLinux10-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://hub.docker.com/_/almalinux
+    container: almalinux:10
+    # The job outputs link to the outputs of the 'rpmrename' step
+    # Only job outputs can be used in child jobs
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: |
+          dnf --assumeyes group install "Development Tools" "RPM Development Tools"
+          dnf --assumeyes install wget openssl-devel diffutils delve which
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Golang
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo appstream install go-toolset
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
 
   #
-  # Build on UBI 8 using go-toolset
+  # Build on Red Hat Universal Base Image (UBI 8) using go-toolset
   #
   UBI-8-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    # See: https://catalog.redhat.com/en/search?searchType=Containers&q=Red+Hat+Universal+Base+Image+8
+    #      https://hub.docker.com/r/redhat/ubi8
     container: redhat/ubi8
     # The job outputs link to the outputs of the 'rpmbuild' step
     steps:
@@ -153,19 +169,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-8-appstream-rpms install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -174,11 +180,12 @@ jobs:
           make RPM
 
   #
-  # Build on UBI 9 using go-toolset
+  # Build on Red Hat Universal Base Image (UBI 9) using go-toolset
   #
   UBI-9-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    # See: https://catalog.redhat.com/en/search?searchType=Containers&q=Red+Hat+Universal+Base+Image+9
+    #      https://hub.docker.com/r/redhat/ubi9
     container: redhat/ubi9
     # The job outputs link to the outputs of the 'rpmbuild' step
     steps:
@@ -196,19 +203,43 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.25.3-1.el9_7.noarch.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.25.3-1.el9_7.x86_64.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-9-appstream-rpms install go-toolset
+
+    - name: RPM build MetricCollector
+      id: rpmbuild
+      run: |
+          git config --global --add safe.directory /__w/cc-metric-collector/cc-metric-collector
+          make RPM
+
+  #
+  # Build on Red Hat Universal Base Image (UBI 10) using go-toolset
+  #
+  UBI-10-RPM-build:
+    runs-on: ubuntu-latest
+    # See: https://catalog.redhat.com/en/search?searchType=Containers&q=Red+Hat+Universal+Base+Image+10
+    #      https://hub.docker.com/r/redhat/ubi10
+    container: redhat/ubi10
+    # The job outputs link to the outputs of the 'rpmbuild' step
+    steps:
+
+    # Use dnf to install development packages
+    - name: Install development packages
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python3 git wget openssl-devel diffutils delve
+
+    # Checkout git repository and submodules
+    # fetch-depth must be 0 to use git describe
+    # See: https://github.com/marketplace/actions/checkout
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup Golang
+      run: |
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-10-for-x86_64-appstream-rpms install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild

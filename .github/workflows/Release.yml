@@ -41,19 +41,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo appstream install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -121,19 +111,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.25.3-1.el9_7.noarch.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.25.3-1.el9_7.x86_64.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo appstream install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -173,12 +153,13 @@ jobs:
         overwrite: true
 
   #
-  # Build on UBI 8 using go-toolset
+  # Build on Red Hat Universal Base Image (UBI 8) using go-toolset
   #
   UBI-8-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c35984d70cc534b3a3784e?container-tabs=gti
-    container: registry.access.redhat.com/ubi8/ubi:8.8-1032.1692772289
+    # See: https://catalog.redhat.com/en/search?searchType=Containers&q=Red+Hat+Universal+Base+Image+8
+    #      https://hub.docker.com/r/redhat/ubi8
+    container: redhat/ubi8
     # The job outputs link to the outputs of the 'rpmbuild' step
     outputs:
       rpm : ${{steps.rpmbuild.outputs.RPM}}
@@ -198,19 +179,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-8-appstream-rpms install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -233,11 +204,12 @@ jobs:
         overwrite: true
 
   #
-  # Build on UBI 9 using go-toolset
+  # Build on Red Hat Universal Base Image (UBI 9) using go-toolset
   #
   UBI-9-RPM-build:
     runs-on: ubuntu-latest
-    # See: https://catalog.redhat.com/software/containers/ubi8/ubi/5c359854d70cc534b3a3784e?container-tabs=gti
+    # See: https://catalog.redhat.com/en/search?searchType=Containers&q=Red+Hat+Universal+Base+Image+9
+    #      https://hub.docker.com/r/redhat/ubi9
     container: redhat/ubi9
     # The job outputs link to the outputs of the 'rpmbuild' step
     # The job outputs link to the outputs of the 'rpmbuild' step
@@ -259,19 +231,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    # See: https://github.com/marketplace/actions/setup-go-environment
-    # - name: Setup Golang
-    #   uses: actions/setup-go@v6
-    #   with:
-    #     go-version: 'stable'
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.25.3-1.el9_7.noarch.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.25.3-1.el9_7.x86_64.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-9-appstream-rpms install go-toolset
 
     - name: RPM build MetricCollector
       id: rpmbuild
