@@ -146,12 +146,8 @@ jobs:
 
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/go-toolset-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-bin-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-race-1.25.3-2.module_el8.10.0+4074+24330916.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/golang-src-1.25.3-2.module_el8.10.0+4074+24330916.noarch.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-8-for-x86_64-appstream-rpms install \
+              go-toolset golang golang-bin golang-src
 
     - name: RPM build MetricCollector
       id: rpmbuild
@@ -185,12 +181,8 @@ jobs:
 
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/go-toolset-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-bin-1.25.3-1.el9_7.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-src-1.25.3-1.el9_7.noarch.rpm \
-              https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/golang-race-1.25.3-1.el9_7.x86_64.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-9-for-x86_64-appstream-rpms install \
+              go-toolset golang golang-bin golang-src golang-race
 
     - name: RPM build MetricCollector
       id: rpmbuild
