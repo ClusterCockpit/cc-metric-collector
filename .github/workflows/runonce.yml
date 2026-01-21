@@ -146,7 +146,7 @@ jobs:
 
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-8-for-x86_64-appstream-rpms install \
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-8-appstream-rpms install \
               go-toolset golang golang-bin golang-src
 
     - name: RPM build MetricCollector
@@ -181,7 +181,7 @@ jobs:
 
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-9-for-x86_64-appstream-rpms install \
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-9-appstream-rpms install \
               go-toolset golang golang-bin golang-src golang-race
 
     - name: RPM build MetricCollector
