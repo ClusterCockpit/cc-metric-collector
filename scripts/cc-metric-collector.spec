@@ -30,11 +30,11 @@ make
 
 %install
 install -Dpm 0750 %{name} %{buildroot}%{_bindir}/%{name}
-install -Dpm 0600 config.json %{buildroot}%{_sysconfdir}/%{name}/%{name}.json
-install -Dpm 0600 collectors.json %{buildroot}%{_sysconfdir}/%{name}/collectors.json
-install -Dpm 0600 sinks.json %{buildroot}%{_sysconfdir}/%{name}/sinks.json
-install -Dpm 0600 receivers.json %{buildroot}%{_sysconfdir}/%{name}/receivers.json
-install -Dpm 0600 router.json %{buildroot}%{_sysconfdir}/%{name}/router.json
+install -Dpm 0600 example-configs/config.json %{buildroot}%{_sysconfdir}/%{name}/%{name}.json
+install -Dpm 0600 example-configs/collectors.json %{buildroot}%{_sysconfdir}/%{name}/collectors.json
+install -Dpm 0600 example-configs/sinks.json %{buildroot}%{_sysconfdir}/%{name}/sinks.json
+install -Dpm 0600 example-configs/receivers.json %{buildroot}%{_sysconfdir}/%{name}/receivers.json
+install -Dpm 0600 example-configs/router.json %{buildroot}%{_sysconfdir}/%{name}/router.json
 install -Dpm 0644 scripts/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 install -Dpm 0600 scripts/%{name}.config %{buildroot}%{_sysconfdir}/default/%{name}
 install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.conf
