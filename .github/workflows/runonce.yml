@@ -211,7 +211,7 @@ jobs:
 
     # Use dnf to install development packages
     - name: Install development packages
-      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python39 git wget openssl-devel diffutils delve
+      run: dnf --assumeyes --disableplugin=subscription-manager install rpm-build go-srpm-macros gcc make python3 git wget openssl-devel diffutils delve
 
     # Checkout git repository and submodules
     # fetch-depth must be 0 to use git describe
@@ -224,12 +224,8 @@ jobs:
 
     - name: Setup Golang
       run: |
-          dnf --assumeyes --disableplugin=subscription-manager install \
-              https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/go-toolset-1.25.3-1.el10_1.alma.2.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/golang-1.25.3-1.el10_1.alma.2.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/golang-bin-1.25.3-1.el10_1.alma.2.x86_64.rpm \
-              https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/golang-src-1.25.3-1.el10_1.alma.2.noarch.rpm \
-              https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/golang-race-1.25.3-1.el10_1.alma.2.x86_64.rpm
+          dnf --assumeyes --disableplugin=subscription-manager --enablerepo ubi-10-for-x86_64-appstream-rpms install \
+              go-toolset golang golang-bin golang-src golang-race
 
     - name: RPM build MetricCollector
       id: rpmbuild
