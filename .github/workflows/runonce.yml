@@ -31,21 +31,23 @@ jobs:
         go-version: 1.24
         check-latest: true
 
+    - name: Build MetricCollector
+      run: make
+
+    - name: Run MetricCollector once
+      run: ./cc-metric-collector --once --config .github/ci-config.json
+
     # See: https://github.com/golangci/golangci-lint-action
+    # Running the linter requires likwid.h, which gets downloaded in the build step
     - name: Static Analysis with GolangCI-Lint
       uses: golangci/golangci-lint-action@v4
       with:
         version: latest
         args: --verbose
         
+    # Running the linter requires likwid.h, which gets downloaded in the build step
     - name: Run static analysis with go vet
       run: go vet ./...
-
-    - name: Build MetricCollector
-      run: make
-
-    - name: Run MetricCollector once
-      run: ./cc-metric-collector --once --config .github/ci-config.json
 
   #
   # Build on AlmaLinux 8 using go-toolset
