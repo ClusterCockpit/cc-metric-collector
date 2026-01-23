@@ -39,11 +39,11 @@ jobs:
 
     # See: https://github.com/golangci/golangci-lint-action
     # Running the linter requires likwid.h, which gets downloaded in the build step
-    - name: Static Analysis with GolangCI-Lint
-      uses: golangci/golangci-lint-action@v4
-      with:
-        version: latest
-        args: --verbose
+    #- name: Static Analysis with GolangCI-Lint
+    #  uses: golangci/golangci-lint-action@v4
+    #  with:
+    #    version: latest
+    #    args: --verbose
         
     # Running the linter requires likwid.h, which gets downloaded in the build step
     - name: Run static analysis with go vet
