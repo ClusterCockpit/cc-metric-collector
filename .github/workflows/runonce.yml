@@ -68,15 +68,11 @@ jobs:
         name: staticcheck-json
         path: staticcheck.json
 
-    - name: Report staticcheck results via reviewdog (use uploaded JSON)
+    - name: Report staticcheck results via reviewdog
       run: |
-        # ensure reviewdog is in PATH
-        echo "$PATH"
-        which reviewdog
-        export PATH="$PATH:$(go env GOPATH)/bin"
-        cat staticcheck.json | $(go env GOPATH)/bin/reviewdog -f=staticcheck -name=staticcheck -reporter=github-pr-check -filter-mode=nofilter || true
+        reviewdog -f=staticcheck -name=staticcheck -reporter=github-pr-check -filter-mode=nofilter < staticcheck.json|| true
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #
   # Build on AlmaLinux 8 using go-toolset
