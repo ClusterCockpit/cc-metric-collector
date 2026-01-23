@@ -46,8 +46,14 @@ jobs:
     #    args: --verbose
         
     # Running the linter requires likwid.h, which gets downloaded in the build step
-    - name: Run static analysis with go vet
+    - name: Run Static Analysis with go vet
       run: go vet ./...
+
+    # Running the linter requires likwid.h, which gets downloaded in the build step
+    - name: Run Static Analysis with staticcheck
+      run: |
+        go install honnef.co/go/tools/cmd/staticcheck@latest
+        staticcheck ./...
 
   #
   # Build on AlmaLinux 8 using go-toolset
