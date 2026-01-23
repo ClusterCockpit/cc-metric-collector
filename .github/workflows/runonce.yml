@@ -28,8 +28,16 @@ jobs:
     - name: Setup Golang
       uses: actions/setup-go@v6
       with:
-        go-version: 1.24
+        go-version: 'stable'
         check-latest: true
+
+    - name: Install reviewdog
+      run: |
+        go install github.com/reviewdog/reviewdog/cmd/reviewdog@latest
+
+    - name: Install staticcheck
+      run: |
+        go install honnef.co/go/tools/cmd/staticcheck@latest
 
     - name: Build MetricCollector
       run: make
@@ -52,7 +60,6 @@ jobs:
     # Running the linter requires likwid.h, which gets downloaded in the build step
     - name: Run Static Analysis with staticcheck
       run: |
-        go install honnef.co/go/tools/cmd/staticcheck@latest
         staticcheck -f json ./... > staticcheck.json || true
 
     - name: Upload staticcheck Report
@@ -60,10 +67,6 @@ jobs:
       with:
         name: staticcheck-json
         path: staticcheck.json
-
-    - name: Install reviewdog
-      run: |
-        go install github.com/reviewdog/reviewdog/cmd/reviewdog@latest
 
     - name: Report staticcheck results via reviewdog (use uploaded JSON)
       run: |
