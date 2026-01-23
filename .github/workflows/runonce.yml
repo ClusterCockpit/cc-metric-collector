@@ -28,7 +28,7 @@ jobs:
     - name: Setup Golang
       uses: actions/setup-go@v6
       with:
-        go-version: 'stable'
+        go-version: 1.25
         check-latest: true
 
     # See: https://github.com/golangci/golangci-lint-action
@@ -37,7 +37,7 @@ jobs:
       with:
         version: latest
         args: --verbose
-
+        
     - name: Run static analysis with go vet
       run: go vet ./...
 
