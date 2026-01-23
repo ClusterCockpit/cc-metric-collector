@@ -50,22 +50,30 @@ jobs:
       run: go vet ./...
 
     # Running the linter requires likwid.h, which gets downloaded in the build step
-    - name: Run Static Analysis with staticcheck (produce JSON)
+    - name: Run Static Analysis with staticcheck
       run: |
         go install honnef.co/go/tools/cmd/staticcheck@latest
         staticcheck -f json ./... > staticcheck.json || true
 
-    - name: Upload staticcheck JSON
+    - name: Upload staticcheck Report
       uses: actions/upload-artifact@v4
       with:
         name: staticcheck-json
         path: staticcheck.json
 
-    - name: Report staticcheck results via reviewdog
-      uses: reviewdog/action-staticcheck@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        reporter: github-pr-check
+    - name: Install reviewdog
+      run: |
+        go install github.com/reviewdog/reviewdog/cmd/reviewdog@latest
+
+    - name: Report staticcheck results via reviewdog (use uploaded JSON)
+      run: |
+        # ensure reviewdog is in PATH
+        echo "$PATH"
+        which reviewdog
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cat staticcheck.json | $(go env GOPATH)/bin/reviewdog -f=staticcheck -name=staticcheck -reporter=github-pr-check -filter-mode=nofilter || true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   #
   # Build on AlmaLinux 8 using go-toolset
