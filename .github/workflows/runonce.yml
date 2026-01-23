@@ -36,6 +36,10 @@ jobs:
       uses: golangci/golangci-lint-action@v4
       with:
         version: latest
+        args: --verbose
+
+    - name: Run static analysis with go vet
+      run: go vet ./...
 
     - name: Build MetricCollector
       run: make
