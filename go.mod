@@ -3,7 +3,7 @@ module github.com/ClusterCockpit/cc-metric-collector
 go 1.24.0
 
 require (
-	github.com/ClusterCockpit/cc-lib/v2 v2.1.0
+	github.com/ClusterCockpit/cc-lib/v2 v2.2.1
 	github.com/ClusterCockpit/go-rocm-smi v0.3.0
 	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
