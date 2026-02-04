@@ -52,8 +52,11 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	m.setup()
 	for _, c := range m.config.Commands {
 		cmdfields := strings.Fields(c)
-		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
-		command.Wait()
+		command := exec.Command(cmdfields[0], cmdfields[1:]...)
+		if err := command.Wait(); err != nil {
+			log.Print(err)
+			continue
+		}
 		_, err = command.Output()
 		if err == nil {
 			m.commands = append(m.commands, c)
@@ -88,8 +91,11 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 	}
 	for _, cmd := range m.commands {
 		cmdfields := strings.Fields(cmd)
-		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
-		command.Wait()
+		command := exec.Command(cmdfields[0], cmdfields[1:]...)
+		if err := command.Wait(); err != nil {
+			log.Print(err)
+			continue
+		}
 		stdout, err := command.Output()
 		if err != nil {
 			log.Print(err)
