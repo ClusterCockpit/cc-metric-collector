@@ -405,7 +405,8 @@ func readEccMode(device *NvidiaCollectorDevice, output chan lp.CCMessage) error 
 		// Changing ECC modes requires a reboot.
 		// The "pending" ECC mode refers to the target mode following the next reboot.
 		_, ecc_pend, ret := nvml.DeviceGetEccMode(device.device)
-		if ret == nvml.SUCCESS {
+		switch ret {
+		case nvml.SUCCESS:
 			var y lp.CCMessage
 			var err error
 			switch ecc_pend {
@@ -419,7 +420,7 @@ func readEccMode(device *NvidiaCollectorDevice, output chan lp.CCMessage) error 
 			if err == nil {
 				output <- y
 			}
-		} else if ret == nvml.ERROR_NOT_SUPPORTED {
+		case nvml.ERROR_NOT_SUPPORTED:
 			y, err := lp.NewMessage("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "N/A"}, time.Now())
 			if err == nil {
 				output <- y

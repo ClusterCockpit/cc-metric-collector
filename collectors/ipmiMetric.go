@@ -118,13 +118,14 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 		if err == nil {
 			name := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(lv[0]), " ", "_"))
 			unit := strings.TrimSpace(lv[2])
-			if unit == "Volts" {
+			switch unit {
+			case "Volts":
 				unit = "Volts"
-			} else if unit == "degrees C" {
+			case "degrees C":
 				unit = "degC"
-			} else if unit == "degrees F" {
+			case "degrees F":
 				unit = "degF"
-			} else if unit == "Watts" {
+			case "Watts":
 				unit = "Watts"
 			}
 
