@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -151,18 +150,25 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 
 func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 
+	// Setup ipmisensors command
 	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
-	command.Wait()
-	stdout, err := command.Output()
-	if err != nil {
-		log.Print(err)
+	stdout, _ := command.StdoutPipe()
+	errBuf := new(bytes.Buffer)
+	command.Stderr = errBuf
+
+	// start command
+	if err := command.Start(); err != nil {
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("readIpmiSensors(): Failed to start command \"%s\": %v", command.String(), err),
+		)
 		return
 	}
 
-	ll := strings.Split(string(stdout), "\n")
-
-	for _, line := range ll {
-		lv := strings.Split(line, ",")
+	// Read command output
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		lv := strings.Split(scanner.Text(), ",")
 		if len(lv) > 3 {
 			v, err := strconv.ParseFloat(lv[3], 64)
 			if err == nil {
@@ -177,6 +183,18 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 			}
 		}
 	}
+
+	// Wait for command end
+	if err := command.Wait(); err != nil {
+		errMsg, _ := io.ReadAll(errBuf)
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("readIpmiSensors(): Failed to wait for the end of command \"%s\": %v\n", command.String(), err),
+		)
+		cclog.ComponentError(m.name, fmt.Sprintf("readIpmiSensors(): command stderr: \"%s\"\n", strings.TrimSpace(string(errMsg))))
+		return
+	}
+
 }
 
 func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMessage) {
