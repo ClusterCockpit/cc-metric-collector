@@ -72,6 +72,11 @@ staticcheck:
 	$(GOBIN) install honnef.co/go/tools/cmd/staticcheck@latest
 	$$($(GOBIN) env GOPATH)/bin/staticcheck ./...
 
+.PHONY: golangci-lint
+golangci-lint:
+	$(GOBIN) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	$$($(GOBIN) env GOPATH)/bin/golangci-lint run
+
 .ONESHELL:
 .PHONY: RPM
 RPM: scripts/cc-metric-collector.spec
