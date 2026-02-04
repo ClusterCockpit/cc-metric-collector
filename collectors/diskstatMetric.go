@@ -93,7 +93,7 @@ mountLoop:
 			continue
 		}
 
-		mountPath := strings.Replace(linefields[1], `\040`, " ", -1)
+		mountPath := strings.ReplaceAll(linefields[1], `\040`, " ")
 
 		for _, excl := range m.config.ExcludeMounts {
 			if strings.Contains(mountPath, excl) {

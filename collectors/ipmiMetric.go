@@ -116,7 +116,7 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 		}
 		v, err := strconv.ParseFloat(strings.TrimSpace(lv[1]), 64)
 		if err == nil {
-			name := strings.ToLower(strings.Replace(strings.TrimSpace(lv[0]), " ", "_", -1))
+			name := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(lv[0]), " ", "_"))
 			unit := strings.TrimSpace(lv[2])
 			if unit == "Volts" {
 				unit = "Volts"
@@ -165,7 +165,7 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 		if len(lv) > 3 {
 			v, err := strconv.ParseFloat(lv[3], 64)
 			if err == nil {
-				name := strings.ToLower(strings.Replace(lv[1], " ", "_", -1))
+				name := strings.ToLower(strings.ReplaceAll(lv[1], " ", "_"))
 				y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
 				if err == nil {
 					if len(lv) > 4 {
