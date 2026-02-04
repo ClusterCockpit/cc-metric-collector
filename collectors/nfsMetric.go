@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
@@ -44,7 +45,12 @@ type nfsCollector struct {
 
 func (m *nfsCollector) initStats() error {
 	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
-	cmd.Wait()
+
+	// Wait for cmd end
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("initStats(): %w", err)
+	}
+
 	buffer, err := cmd.Output()
 	if err == nil {
 		for _, line := range strings.Split(string(buffer), "\n") {
@@ -71,7 +77,12 @@ func (m *nfsCollector) initStats() error {
 
 func (m *nfsCollector) updateStats() error {
 	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
-	cmd.Wait()
+
+	// Wait for cmd end
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("updateStats(): %w", err)
+	}
+
 	buffer, err := cmd.Output()
 	if err == nil {
 		for _, line := range strings.Split(string(buffer), "\n") {
@@ -119,7 +130,9 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 		return fmt.Errorf("NfsCollector.Init(): Failed to find nfsstat binary '%s': %v", m.config.Nfsstats, err)
 	}
 	m.data = make(map[string]NfsCollectorData)
-	m.initStats()
+	if err := m.initStats(); err != nil {
+		return fmt.Errorf("NfsCollector.Init(): %w", err)
+	}
 	m.init = true
 	m.parallel = true
 	return nil
@@ -131,7 +144,13 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	}
 	timestamp := time.Now()
 
-	m.updateStats()
+	if err := m.updateStats(); err != nil {
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): updateStats() failed: %v", err),
+		)
+		return
+	}
 	prefix := ""
 	switch m.version {
 	case "v3":
