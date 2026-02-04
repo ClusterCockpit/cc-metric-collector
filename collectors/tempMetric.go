@@ -117,7 +117,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 			sensor.metricName = sensor.label
 		}
 		sensor.metricName = strings.ToLower(sensor.metricName)
-		sensor.metricName = strings.Replace(sensor.metricName, " ", "_", -1)
+		sensor.metricName = strings.ReplaceAll(sensor.metricName, " ", "_")
 		// Add temperature prefix, if required
 		if !strings.Contains(sensor.metricName, "temp") {
 			sensor.metricName = "temp_" + sensor.metricName

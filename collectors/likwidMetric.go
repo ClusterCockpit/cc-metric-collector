@@ -187,7 +187,7 @@ func getBaseFreq() float64 {
 	for _, f := range files {
 		buffer, err := os.ReadFile(f)
 		if err == nil {
-			data := strings.Replace(string(buffer), "\n", "", -1)
+			data := strings.ReplaceAll(string(buffer), "\n", "")
 			x, err := strconv.ParseInt(data, 0, 64)
 			if err == nil {
 				freq = float64(x)

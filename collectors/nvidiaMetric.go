@@ -1291,8 +1291,8 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 					if ret == nvml.SUCCESS {
 						mname, ret := nvml.DeviceGetName(mdev)
 						if ret == nvml.SUCCESS {
-							x := strings.Replace(mname, name, "", -1)
-							x = strings.Replace(x, "MIG", "", -1)
+							x := strings.ReplaceAll(mname, name, "")
+							x = strings.ReplaceAll(x, "MIG", "")
 							x = strings.TrimSpace(x)
 							migDevice.tags["stype-id"] = x
 						}
