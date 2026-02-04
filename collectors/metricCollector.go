@@ -51,18 +51,6 @@ func (c *metricCollector) Initialized() bool {
 	return c.init
 }
 
-// intArrayContains scans an array of ints if the value str is present in the array
-// If the specified value is found, the corresponding array index is returned.
-// The bool value is used to signal success or failure
-func intArrayContains(array []int, str int) (int, bool) {
-	for i, a := range array {
-		if a == str {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
 // stringArrayContains scans an array of strings if the value str is present in the array
 // If the specified value is found, the corresponding array index is returned.
 // The bool value is used to signal success or failure
