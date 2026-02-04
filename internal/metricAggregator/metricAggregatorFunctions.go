@@ -169,7 +169,7 @@ func medianfunc(args interface{}) (interface{}, error) {
 
 func lenfunc(args interface{}) (interface{}, error) {
 	var err error = nil
-	var length int = 0
+	length := 0
 	switch values := args.(type) {
 	case []float64:
 		length = len(values)

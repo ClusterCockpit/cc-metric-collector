@@ -222,7 +222,7 @@ func readMemoryInfo(device *NvidiaCollectorDevice, output chan lp.CCMessage) err
 		var total uint64
 		var used uint64
 		var reserved uint64 = 0
-		var v2 bool = false
+		v2 := false
 		meminfo, ret := nvml.DeviceGetMemoryInfo(device.device)
 		if ret != nvml.SUCCESS {
 			err := errors.New(nvml.ErrorString(ret))
@@ -768,7 +768,7 @@ func readRemappedRows(device *NvidiaCollectorDevice, output chan lp.CCMessage) e
 				}
 			}
 			if !device.excludeMetrics["nv_remapped_rows_pending"] {
-				var p int = 0
+				p := 0
 				if pending {
 					p = 1
 				}
@@ -778,7 +778,7 @@ func readRemappedRows(device *NvidiaCollectorDevice, output chan lp.CCMessage) e
 				}
 			}
 			if !device.excludeMetrics["nv_remapped_rows_failure"] {
-				var f int = 0
+				f := 0
 				if failure {
 					f = 1
 				}

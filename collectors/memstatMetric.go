@@ -174,7 +174,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	sendStats := func(stats map[string]MemstatStats, tags map[string]string) {
 		for match, name := range m.matches {
 			var value float64 = 0
-			var unit string = ""
+			unit := ""
 			if v, ok := stats[match]; ok {
 				value = v.value
 				if len(v.unit) > 0 {
