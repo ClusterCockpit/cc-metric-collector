@@ -230,7 +230,9 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
-		os.Setenv("LIKWID_FORCE", "1")
+		if err := os.Setenv("LIKWID_FORCE", "1"); err != nil {
+			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %v", err)
+		}
 	}
 	m.setup()
 
@@ -316,7 +318,14 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	case "accessdaemon":
 		if len(m.config.DaemonPath) > 0 {
 			p := os.Getenv("PATH")
-			os.Setenv("PATH", m.config.DaemonPath+":"+p)
+			if len(p) > 0 {
+				p = m.config.DaemonPath + ":" + p
+			} else {
+				p = m.config.DaemonPath
+			}
+			if err := os.Setenv("PATH", p); err != nil {
+				return fmt.Errorf("error setting environment variable PATH=%s: %v", p, err)
+			}
 		}
 		C.HPMmode(1)
 		retCode := C.HPMinit()
