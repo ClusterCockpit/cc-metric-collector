@@ -51,7 +51,7 @@ type MetricCache interface {
 }
 
 func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
-	var err error = nil
+	var err error
 	c.done = make(chan bool)
 	c.wg = wg
 	c.ticker = ticker
