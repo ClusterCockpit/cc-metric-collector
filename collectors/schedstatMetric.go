@@ -11,7 +11,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -109,8 +108,8 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 	diff_running := running - m.olddata[linefields[0]]["running"]
 	diff_waiting := waiting - m.olddata[linefields[0]]["waiting"]
 
-	var l_running float64 = float64(diff_running) / tsdelta.Seconds() / (math.Pow(1000, 3))
-	var l_waiting float64 = float64(diff_waiting) / tsdelta.Seconds() / (math.Pow(1000, 3))
+	var l_running float64 = float64(diff_running) / tsdelta.Seconds() / 1000_000_000
+	var l_waiting float64 = float64(diff_waiting) / tsdelta.Seconds() / 1000_000_000
 
 	m.olddata[linefields[0]]["running"] = running
 	m.olddata[linefields[0]]["waiting"] = waiting
