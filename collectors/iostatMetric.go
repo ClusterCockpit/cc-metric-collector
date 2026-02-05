@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -45,7 +46,9 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	m.name = "IOstatCollector"
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {

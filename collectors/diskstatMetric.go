@@ -10,6 +10,7 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -36,7 +37,9 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	m.name = "DiskstatCollector"
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		if err := json.Unmarshal(config, &m.config); err != nil {
 			return err

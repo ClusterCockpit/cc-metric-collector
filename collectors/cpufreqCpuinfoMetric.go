@@ -41,9 +41,10 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 
-	m.setup()
-
 	m.name = "CPUFreqCpuInfoCollector"
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,

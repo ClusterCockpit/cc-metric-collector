@@ -103,7 +103,9 @@ func (m *SlurmCgroupCollector) readFile(path string) ([]byte, error) {
 func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "SlurmCgroupCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "SLURM"}
 	m.tags = map[string]string{"type": "hwthread"}

@@ -234,7 +234,9 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %v", err)
 		}
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 
 	m.meta = map[string]string{"group": "PerfCounter"}
 	cclog.ComponentDebug(m.name, "Get cpulist and init maps and lists")

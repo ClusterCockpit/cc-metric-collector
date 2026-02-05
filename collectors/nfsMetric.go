@@ -189,13 +189,17 @@ type Nfs4Collector struct {
 func (m *Nfs3Collector) Init(config json.RawMessage) error {
 	m.name = "Nfs3Collector"
 	m.version = `v3`
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	return m.MainInit(config)
 }
 
 func (m *Nfs4Collector) Init(config json.RawMessage) error {
 	m.name = "Nfs4Collector"
 	m.version = `v4`
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	return m.MainInit(config)
 }

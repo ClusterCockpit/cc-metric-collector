@@ -39,7 +39,9 @@ type CpustatCollector struct {
 
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "CPU"}
 	m.nodetags = map[string]string{"type": "node"}

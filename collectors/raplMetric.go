@@ -54,9 +54,10 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 
-	var err error = nil
 	m.name = "RAPLCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,
@@ -66,7 +67,7 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
+		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			cclog.ComponentError(m.name, "Error reading config:", err.Error())
 			return err

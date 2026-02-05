@@ -302,7 +302,9 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.tags = map[string]string{"type": "node"}
 	m.meta = map[string]string{"source": m.name, "group": "Lustre"}
 

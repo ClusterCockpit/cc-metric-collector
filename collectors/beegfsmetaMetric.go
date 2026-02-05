@@ -61,7 +61,9 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 		"rmXA", "setXA", "mirror"}
 
 	m.name = "BeegfsMetaCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	// Set default beegfs-ctl binary
 

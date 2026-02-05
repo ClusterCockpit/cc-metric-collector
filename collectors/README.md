@@ -67,7 +67,7 @@ A collector reads data from any source, parses it to metrics and submits these m
 * `Read(duration time.Duration, output chan ccMessage.CCMessage)`: Read, parse and submit data to the `output` channel as [`CCMessage`](https://github.com/ClusterCockpit/cc-lib/blob/main/ccMessage/README.md). If the collector has to measure anything for some duration, use the provided function argument `duration`.
 * `Close()`: Closes down the collector.
 
-It is recommanded to call `setup()` in the `Init()` function.
+It is recommended to call `setup()` in the `Init()` function.
 
 Finally, the collector needs to be registered in the `collectorManager.go`. There is a list of collectors called `AvailableCollectors` which is a map (`collector_type_string` -> `pointer to MetricCollector interface`). Add a new entry with a descriptive name and the new collector.
 
@@ -100,11 +100,12 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
     }
 
     m.name = "SampleCollector"
-    m.setup()
+    if err := m.setup(); err != nil {
+        return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+    }
     if len(config) > 0 {
-        err := json.Unmarshal(config, &m.config)
-        if err != nil {
-            return err
+        if err := json.Unmarshal(config, &m.config); err != nil {
+            return fmt.Errorf("%s Init(): json.Unmarshal() call failed: %w", m.name, err)
         }
     }
     m.meta = map[string]string{"source": m.name, "group": "Sample"}

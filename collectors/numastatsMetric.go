@@ -72,7 +72,9 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 
 	m.name = "NUMAStatsCollector"
 	m.parallel = true
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.meta = map[string]string{
 		"source": m.name,
 		"group":  "NUMA",

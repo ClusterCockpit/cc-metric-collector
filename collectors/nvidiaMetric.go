@@ -64,7 +64,9 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	m.config.ProcessMigDevices = false
 	m.config.UseUuidForMigDevices = false
 	m.config.UseSliceForMigDevices = false
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {

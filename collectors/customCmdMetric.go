@@ -10,6 +10,7 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -49,7 +50,9 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	for _, c := range m.config.Commands {
 		cmdfields := strings.Fields(c)
 		command := exec.Command(cmdfields[0], cmdfields[1:]...)

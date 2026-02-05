@@ -127,7 +127,9 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 	if len(m.matches) == 0 {
 		return errors.New("no metrics to collect")
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 
 	if m.config.NodeStats {
 		if stats := getStats(MEMSTATFILE); len(stats) == 0 {

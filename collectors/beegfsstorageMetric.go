@@ -54,7 +54,9 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 		"storInf", "unlnk"}
 
 	m.name = "BeegfsStorageCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	// Set default beegfs-ctl binary
 

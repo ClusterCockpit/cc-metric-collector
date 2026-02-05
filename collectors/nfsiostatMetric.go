@@ -102,7 +102,9 @@ func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	m.name = "NfsIOStatCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "NFS", "unit": "bytes"}
 	m.tags = map[string]string{"type": "node"}

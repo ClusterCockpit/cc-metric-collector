@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"runtime"
 	"syscall"
 	"time"
@@ -34,7 +35,9 @@ type SelfCollector struct {
 func (m *SelfCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	m.name = "SelfCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Self"}
 	m.tags = map[string]string{"type": "node"}
