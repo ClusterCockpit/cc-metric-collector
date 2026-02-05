@@ -58,7 +58,11 @@ func getStats(filename string) map[string]MemstatStats {
 	if err != nil {
 		cclog.Error(err.Error())
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.Error(err.Error())
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

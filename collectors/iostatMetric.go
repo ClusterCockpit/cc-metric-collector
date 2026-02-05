@@ -141,10 +141,18 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 
 	file, err := os.Open(IOSTATFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", IOSTATFILE, err))
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", IOSTATFILE, err))
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

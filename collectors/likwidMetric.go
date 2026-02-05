@@ -386,10 +386,18 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	// Watch changes for the lock file ()
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("takeMeasurement(): Failed to create a new fsnotify.Watcher: %v", err))
 		return true, err
 	}
-	defer watcher.Close()
+	defer func() {
+		if err := watcher.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("takeMeasurement(): Failed to close fsnotify.Watcher: %v", err))
+		}
+	}()
 	if len(m.config.LockfilePath) > 0 {
 		// Check if the lock file exists
 		info, err := os.Stat(m.config.LockfilePath)

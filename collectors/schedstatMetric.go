@@ -137,9 +137,17 @@ func (m *SchedstatCollector) Read(interval time.Duration, output chan lp.CCMessa
 
 	file, err := os.Open(string(SCHEDSTATFILE))
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", string(SCHEDSTATFILE), err))
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", string(SCHEDSTATFILE), err))
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

@@ -157,9 +157,17 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 
 	file, err := os.Open(string(CPUSTATFILE))
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", string(CPUSTATFILE), err))
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", string(CPUSTATFILE), err))
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

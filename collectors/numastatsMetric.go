@@ -188,7 +188,11 @@ func (m *NUMAStatsCollector) Read(interval time.Duration, output chan lp.CCMessa
 				t.previousValues[key] = value
 			}
 		}
-		file.Close()
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", t.file, err))
+		}
 	}
 }
 
