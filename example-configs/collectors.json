@@ -1,6 +1,11 @@
 {
     "cpufreq": {},
     "cpufreq_cpuinfo": {},
+    "cpustat": {
+        "exclude_metrics": [
+            "cpu_idle"
+        ]
+    },
     "gpfs": {
         "exclude_filesystem": [
             "test_fs"
