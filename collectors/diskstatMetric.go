@@ -57,10 +57,11 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	}
 	file, err := os.Open(MOUNTFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): file open for file \"%s\" failed: %w", m.name, MOUNTFILE, err)
 	}
-	defer file.Close()
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): file close for file \"%s\" failed: %w", m.name, MOUNTFILE, err)
+	}
 	m.init = true
 	return nil
 }
