@@ -80,9 +80,17 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	// Check input file
 	file, err := os.Open(string(CPUSTATFILE))
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Init(): Failed to open file '%s': %v", string(CPUSTATFILE), err))
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Init(): Failed to close file '%s': %v", string(CPUSTATFILE), err))
+		}
+	}()
 
 	// Pre-generate tags for all CPUs
 	num_cpus := 0
