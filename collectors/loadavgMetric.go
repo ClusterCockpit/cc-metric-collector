@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -66,10 +67,10 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	m.proc_skips = make([]bool, len(m.proc_matches))
 
 	for i, name := range m.load_matches {
-		_, m.load_skips[i] = stringArrayContains(m.config.ExcludeMetrics, name)
+		m.load_skips[i] = slices.Contains(m.config.ExcludeMetrics, name)
 	}
 	for i, name := range m.proc_matches {
-		_, m.proc_skips[i] = stringArrayContains(m.config.ExcludeMetrics, name)
+		m.proc_skips[i] = slices.Contains(m.config.ExcludeMetrics, name)
 	}
 	m.init = true
 	return nil

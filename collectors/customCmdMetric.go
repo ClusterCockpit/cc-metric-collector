@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -110,8 +111,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 			continue
 		}
 		for _, c := range cmdmetrics {
-			_, skip := stringArrayContains(m.config.ExcludeMetrics, c.Name())
-			if skip {
+			if slices.Contains(m.config.ExcludeMetrics, c.Name()) {
 				continue
 			}
 
@@ -130,8 +130,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 			continue
 		}
 		for _, f := range fmetrics {
-			_, skip := stringArrayContains(m.config.ExcludeMetrics, f.Name())
-			if skip {
+			if slices.Contains(m.config.ExcludeMetrics, f.Name()) {
 				continue
 			}
 			output <- lp.FromInfluxMetric(f)

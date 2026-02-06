@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -78,7 +79,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	m.devices = make(map[string]IOstatCollectorEntry)
 	m.matches = make(map[string]int)
 	for k, v := range matches {
-		if _, skip := stringArrayContains(m.config.ExcludeMetrics, k); !skip {
+		if !slices.Contains(m.config.ExcludeMetrics, k) {
 			m.matches[k] = v
 		}
 	}
@@ -87,10 +88,8 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	}
 	file, err := os.Open(IOSTATFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): Failed to open file \"%s\": %w", m.name, IOSTATFILE, err)
 	}
-	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -104,7 +103,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 		if strings.Contains(device, "loop") {
 			continue
 		}
-		if _, skip := stringArrayContains(m.config.ExcludeDevices, device); skip {
+		if slices.Contains(m.config.ExcludeDevices, device) {
 			continue
 		}
 		currentValues := make(map[string]int64)
@@ -130,6 +129,10 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 			lastValues:    lastValues,
 		}
 	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): Failed to close file \"%s\": %w", m.name, IOSTATFILE, err)
+	}
+
 	m.init = true
 	return err
 }
@@ -168,7 +171,7 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		if strings.Contains(device, "loop") {
 			continue
 		}
-		if _, skip := stringArrayContains(m.config.ExcludeDevices, device); skip {
+		if slices.Contains(m.config.ExcludeDevices, device) {
 			continue
 		}
 		if _, ok := m.devices[device]; !ok {

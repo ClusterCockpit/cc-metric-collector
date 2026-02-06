@@ -51,18 +51,6 @@ func (c *metricCollector) Initialized() bool {
 	return c.init
 }
 
-// stringArrayContains scans an array of strings if the value str is present in the array
-// If the specified value is found, the corresponding array index is returned.
-// The bool value is used to signal success or failure
-func stringArrayContains(array []string, str string) (int, bool) {
-	for i, a := range array {
-		if a == str {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
 // RemoveFromStringList removes the string r from the array of strings s
 // If r is not contained in the array an error is returned
 func RemoveFromStringList(s []string, r string) ([]string, error) {

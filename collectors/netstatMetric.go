@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -132,7 +133,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		canonical := getCanonicalName(raw, m.aliasToCanonical)
 
 		// Check if device is a included device
-		if _, ok := stringArrayContains(m.config.IncludeDevices, canonical); ok {
+		if slices.Contains(m.config.IncludeDevices, canonical) {
 			// Tag will contain original device name (raw).
 			tags := map[string]string{"stype": "network", "stype-id": raw, "type": "node"}
 			meta_unit_byte := map[string]string{"source": m.name, "group": "Network", "unit": "bytes"}

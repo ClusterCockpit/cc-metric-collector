@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -71,7 +72,7 @@ func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 		// Is this a device line with mount point, remote target and NFS version?
 		dev := resolve_regex_fields(l, deviceRegex)
 		if len(dev) > 0 {
-			if _, ok := stringArrayContains(m.config.ExcludeFilesystem, dev[m.key]); !ok {
+			if !slices.Contains(m.config.ExcludeFilesystem, dev[m.key]) {
 				current = dev
 				if len(current["version"]) == 0 {
 					current["version"] = "3"
@@ -85,7 +86,7 @@ func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 			if len(bytes) > 0 {
 				data[current[m.key]] = make(map[string]int64)
 				for name, sval := range bytes {
-					if _, ok := stringArrayContains(m.config.ExcludeMetrics, name); !ok {
+					if !slices.Contains(m.config.ExcludeMetrics, name) {
 						val, err := strconv.ParseInt(sval, 10, 64)
 						if err == nil {
 							data[current[m.key]][name] = val

@@ -17,6 +17,7 @@ import (
 	"log"
 	"os/exec"
 	"os/user"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -386,28 +387,28 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.definitions = []GpfsMetricDefinition{}
 	if m.config.SendAbsoluteValues {
 		for _, def := range GpfsAbsMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDiffValues {
 		for _, def := range GpfsDiffMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDerivedValues {
 		for _, def := range GpfsDeriveMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	} else if m.config.SendBandwidths {
 		for _, def := range GpfsDeriveMetrics {
 			if def.unit == "bytes/sec" {
-				if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 					m.definitions = append(m.definitions, def)
 				}
 			}
@@ -415,7 +416,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	}
 	if m.config.SendTotalValues {
 		for _, def := range GpfsTotalMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				// only send total metrics of the types requested
 				if (def.calc == "none" && m.config.SendAbsoluteValues) ||
 					(def.calc == "difference" && m.config.SendDiffValues) ||
@@ -427,7 +428,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	} else if m.config.SendBandwidths {
 		for _, def := range GpfsTotalMetrics {
 			if def.unit == "bytes/sec" {
-				if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 					m.definitions = append(m.definitions, def)
 				}
 			}

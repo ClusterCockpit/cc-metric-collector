@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 
 	//	"os"
 	"os/exec"
@@ -53,7 +54,7 @@ func (m *nfsCollector) initStats() error {
 
 	buffer, err := cmd.Output()
 	if err == nil {
-		for _, line := range strings.Split(string(buffer), "\n") {
+		for line := range strings.Lines(string(buffer)) {
 			lf := strings.Fields(line)
 			if len(lf) != 5 {
 				continue
@@ -85,7 +86,7 @@ func (m *nfsCollector) updateStats() error {
 
 	buffer, err := cmd.Output()
 	if err == nil {
-		for _, line := range strings.Split(string(buffer), "\n") {
+		for line := range strings.Lines(string(buffer)) {
 			lf := strings.Fields(line)
 			if len(lf) != 5 {
 				continue
@@ -162,7 +163,7 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	}
 
 	for name, data := range m.data {
-		if _, skip := stringArrayContains(m.config.ExcludeMetrics, name); skip {
+		if slices.Contains(m.config.ExcludeMetrics, name) {
 			continue
 		}
 		value := data.current - data.last

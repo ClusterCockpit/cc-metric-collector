@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -73,8 +74,7 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 	//create map with possible variables
 	m.matches = make(map[string]string)
 	for _, value := range storageStat_array {
-		_, skip := stringArrayContains(m.config.ExcludeMetrics, value)
-		if skip {
+		if slices.Contains(m.config.ExcludeMetrics, value) {
 			m.matches["other"] = "0"
 		} else {
 			m.matches["beegfs_cstorage_"+value] = "0"

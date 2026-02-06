@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -111,7 +112,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 
 		// Skip excluded devices by ID
 		str_i := fmt.Sprintf("%d", i)
-		if _, skip := stringArrayContains(m.config.ExcludeDevices, str_i); skip {
+		if slices.Contains(m.config.ExcludeDevices, str_i) {
 			cclog.ComponentDebug(m.name, "Skipping excluded device", str_i)
 			continue
 		}
@@ -139,7 +140,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 			pciInfo.Device)
 
 		// Skip excluded devices specified by PCI ID
-		if _, skip := stringArrayContains(m.config.ExcludeDevices, pci_id); skip {
+		if slices.Contains(m.config.ExcludeDevices, pci_id) {
 			cclog.ComponentDebug(m.name, "Skipping excluded device", pci_id)
 			continue
 		}

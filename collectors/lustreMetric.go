@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os/exec"
 	"os/user"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -341,21 +342,21 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	m.definitions = []LustreMetricDefinition{}
 	if m.config.SendAbsoluteValues {
 		for _, def := range LustreAbsMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDiffValues {
 		for _, def := range LustreDiffMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDerivedValues {
 		for _, def := range LustreDeriveMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}

@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -119,13 +120,12 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 		"MemShared":    "mem_shared",
 	}
 	for k, v := range matches {
-		_, skip := stringArrayContains(m.config.ExcludeMetrics, k)
-		if !skip {
+		if !slices.Contains(m.config.ExcludeMetrics, k) {
 			m.matches[k] = v
 		}
 	}
 	m.sendMemUsed = false
-	if _, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_used"); !skip {
+	if !slices.Contains(m.config.ExcludeMetrics, "mem_used") {
 		m.sendMemUsed = true
 	}
 	if len(m.matches) == 0 {
