@@ -6,6 +6,14 @@
             "cpu_idle"
         ]
     },
+    "diskstat": {
+        "exclude_metrics": [
+            "disk_total"
+        ],
+        "exclude_mounts": [
+            "slurm-tmpfs"
+        ]
+    },
     "gpfs": {
         "exclude_filesystem": [
             "test_fs"
