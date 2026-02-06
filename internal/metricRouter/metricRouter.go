@@ -118,50 +118,74 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 			return err
 		}
 		for _, agg := range r.config.IntervalAgg {
-			r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+			err = r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+			if err != nil {
+				return fmt.Errorf("MetricCache AddAggregation() failed: %w", err)
+			}
 		}
 	}
 	p, err := mp.NewMessageProcessor()
 	if err != nil {
-		return fmt.Errorf("initialization of message processor failed: %v", err.Error())
+		return fmt.Errorf("MessageProcessor NewMessageProcessor() failed: %w", err)
 	}
 	r.mp = p
 
 	if len(r.config.MessageProcessor) > 0 {
 		err = r.mp.FromConfigJSON(r.config.MessageProcessor)
 		if err != nil {
-			return fmt.Errorf("failed parsing JSON for message processor: %v", err.Error())
+			return fmt.Errorf("MessageProcessor FromConfigJSON() failed: %w", err)
 		}
 	}
 	for _, mname := range r.config.DropMetrics {
-		r.mp.AddDropMessagesByName(mname)
+		err = r.mp.AddDropMessagesByName(mname)
+		if err != nil {
+			return fmt.Errorf("MessageProcessor AddDropMessagesByName() failed: %w", err)
+		}
 	}
 	for _, cond := range r.config.DropMetricsIf {
-		r.mp.AddDropMessagesByCondition(cond)
+		err = r.mp.AddDropMessagesByCondition(cond)
+		if err != nil {
+			return fmt.Errorf("MessageProcessor AddDropMessagesByCondition() failed: %w", err)
+		}
 	}
 	for _, data := range r.config.AddTags {
 		cond := data.Condition
 		if cond == "*" {
 			cond = "true"
 		}
-		r.mp.AddAddTagsByCondition(cond, data.Key, data.Value)
+		err = r.mp.AddAddTagsByCondition(cond, data.Key, data.Value)
+		if err != nil {
+			return fmt.Errorf("MessageProcessor AddAddTagsByCondition() failed: %w", err)
+		}
 	}
 	for _, data := range r.config.DelTags {
 		cond := data.Condition
 		if cond == "*" {
 			cond = "true"
 		}
-		r.mp.AddDeleteTagsByCondition(cond, data.Key, data.Value)
+		err = r.mp.AddDeleteTagsByCondition(cond, data.Key, data.Value)
+		if err != nil {
+			return fmt.Errorf("MessageProcessor AddDeleteTagsByCondition() failed: %w", err)
+		}
 	}
 	for oldname, newname := range r.config.RenameMetrics {
-		r.mp.AddRenameMetricByName(oldname, newname)
+		err = r.mp.AddRenameMetricByName(oldname, newname)
+		if err != nil {
+			return fmt.Errorf("MessageProcessor AddRenameMetricByName() failed: %w", err)
+		}
 	}
 	for metricName, prefix := range r.config.ChangeUnitPrefix {
-		r.mp.AddChangeUnitPrefix(fmt.Sprintf("name == '%s'", metricName), prefix)
+		err = r.mp.AddChangeUnitPrefix(fmt.Sprintf("name == '%s'", metricName), prefix)
+		if err != nil {
+			return fmt.Errorf("MessageProcessor AddChangeUnitPrefix() failed: %w", err)
+		}
 	}
 	r.mp.SetNormalizeUnits(r.config.NormalizeUnits)
 
-	r.mp.AddAddTagsByCondition("true", r.config.HostnameTagName, r.hostname)
+	err = r.mp.AddAddTagsByCondition("true", r.config.HostnameTagName, r.hostname)
+	if err != nil {
+		return fmt.Errorf("MessageProcessor AddAddTagsByCondition() failed: %w", err)
+	}
 
 	// r.config.dropMetrics = make(map[string]bool)
 	// for _, mname := range r.config.DropMetrics {
