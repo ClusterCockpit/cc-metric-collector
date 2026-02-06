@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -43,8 +44,13 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "CPU"}
-	m.nodetags = map[string]string{"type": "node"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "CPU",
+	}
+	m.nodetags = map[string]string{
+		"type": "node",
+	}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -66,14 +72,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 
 	m.matches = make(map[string]int)
 	for match, index := range matches {
-		doExclude := false
-		for _, exclude := range m.config.ExcludeMetrics {
-			if match == exclude {
-				doExclude = true
-				break
-			}
-		}
-		if !doExclude {
+		if !slices.Contains(m.config.ExcludeMetrics, match) {
 			m.matches[match] = index
 		}
 	}
