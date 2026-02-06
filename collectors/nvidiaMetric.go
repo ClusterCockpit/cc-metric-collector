@@ -1323,7 +1323,9 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 
 func (m *NvidiaCollector) Close() {
 	if m.init {
-		nvml.Shutdown()
+		if ret := nvml.Shutdown(); ret != nvml.SUCCESS {
+			cclog.ComponentError(m.name, "nvml.Shutdown() not successful")
+		}
 		m.init = false
 	}
 }
