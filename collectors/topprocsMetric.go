@@ -9,13 +9,12 @@ package collectors
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
@@ -36,12 +35,17 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "TopProcsCollector"
 	m.parallel = true
-	m.tags = map[string]string{"type": "node"}
-	m.meta = map[string]string{"source": m.name, "group": "TopProcs"}
+	m.tags = map[string]string{
+		"type": "node",
+	}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "TopProcs",
+	}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s Init(): json.Unmarshal() failed: %w", m.name, err)
 		}
 	} else {
 		m.config.Num_procs = int(DEFAULT_NUM_PROCS)
@@ -53,10 +57,9 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
-	command.Wait()
 	_, err = command.Output()
 	if err != nil {
-		return errors.New("failed to execute command")
+		return fmt.Errorf("%s Init(): failed to get output from command: %w", m.name, err)
 	}
 	m.init = true
 	return nil
@@ -67,10 +70,11 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMessag
 		return
 	}
 	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
-	command.Wait()
 	stdout, err := command.Output()
 	if err != nil {
-		log.Print(m.name, err)
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to read output from command \"%s\": %v", command.String(), err))
 		return
 	}
 
