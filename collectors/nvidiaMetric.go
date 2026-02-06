@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -1279,9 +1280,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 					meta:           map[string]string{},
 					excludeMetrics: excludeMetrics,
 				}
-				for k, v := range m.gpus[i].tags {
-					migDevice.tags[k] = v
-				}
+				maps.Copy(migDevice.tags, m.gpus[i].tags)
 				migDevice.tags["stype"] = "mig"
 				if m.config.UseUuidForMigDevices {
 					uuid, ret := nvml.DeviceGetUUID(mdev)
@@ -1305,9 +1304,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 				if _, ok := migDevice.tags["stype-id"]; !ok {
 					migDevice.tags["stype-id"] = fmt.Sprintf("%d", j)
 				}
-				for k, v := range m.gpus[i].meta {
-					migDevice.meta[k] = v
-				}
+				maps.Copy(migDevice.meta, m.gpus[i].meta)
 				if _, ok := migDevice.meta["uuid"]; ok && !m.config.UseUuidForMigDevices {
 					uuid, ret := nvml.DeviceGetUUID(mdev)
 					if ret == nvml.SUCCESS {

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"os"
 	"os/signal"
@@ -767,9 +768,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				// Here we generate parameter list
 				params := make(map[string]float64)
 				for _, evset := range groups {
-					for mname, mres := range evset.metrics[tid] {
-						params[mname] = mres
-					}
+					maps.Copy(params, evset.metrics[tid])
 				}
 				params["gotime"] = interval.Seconds()
 				// Evaluate the metric
