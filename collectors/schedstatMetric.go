@@ -46,7 +46,6 @@ type SchedstatCollector struct {
 // Called once by the collector manager
 // All tags, meta data tags and metrics that do not change over the runtime should be set here
 func (m *SchedstatCollector) Init(config json.RawMessage) error {
-	var err error = nil
 	// Always set the name early in Init() to use it in cclog.Component* functions
 	m.name = "SchedstatCollector"
 	// This is for later use, also call it early
@@ -66,8 +65,7 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
+		if err := json.Unmarshal(config, &m.config); err != nil {
 			return fmt.Errorf("%s Init(): Error reading config: %w", m.name, err)
 		}
 	}
