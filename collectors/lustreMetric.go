@@ -62,7 +62,6 @@ func (m *LustreCollector) getDeviceDataCommand(device string) []string {
 	} else {
 		command = exec.Command(m.lctl, LCTL_OPTION, statsfile)
 	}
-	command.Wait()
 	stdout, _ := command.Output()
 	return strings.Split(string(stdout), "\n")
 }
