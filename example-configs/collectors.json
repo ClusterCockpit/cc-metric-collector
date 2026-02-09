@@ -34,6 +34,8 @@
     },
     "numastats": {},
     "nvidia": {},
+    "schedstat": {
+    },
     "tempstat": {
         "report_max_temperature": true,
         "report_critical_temperature": true,
