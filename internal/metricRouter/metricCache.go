@@ -51,7 +51,7 @@ type MetricCache interface {
 }
 
 func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
-	var err error = nil
+	var err error
 	c.done = make(chan bool)
 	c.wg = wg
 	c.ticker = ticker
@@ -161,8 +161,8 @@ func (c *metricCache) DeleteAggregation(name string) error {
 // is the current one, index=1 the last interval and so on. Returns and empty array if a wrong index
 // is given (negative index, index larger than configured number of total intervals, ...)
 func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMessage) {
-	var start time.Time = time.Now()
-	var stop time.Time = time.Now()
+	start := time.Now()
+	stop := time.Now()
 	var metrics []lp.CCMessage
 	if index >= 0 && index < c.numPeriods {
 		pindex := c.curPeriod - index

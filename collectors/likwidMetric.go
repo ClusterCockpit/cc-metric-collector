@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"os"
 	"os/signal"
@@ -187,7 +188,7 @@ func getBaseFreq() float64 {
 	for _, f := range files {
 		buffer, err := os.ReadFile(f)
 		if err == nil {
-			data := strings.Replace(string(buffer), "\n", "", -1)
+			data := strings.ReplaceAll(string(buffer), "\n", "")
 			x, err := strconv.ParseInt(data, 0, 64)
 			if err == nil {
 				freq = float64(x)
@@ -230,9 +231,13 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
-		os.Setenv("LIKWID_FORCE", "1")
+		if err := os.Setenv("LIKWID_FORCE", "1"); err != nil {
+			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %v", err)
+		}
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 
 	m.meta = map[string]string{"group": "PerfCounter"}
 	cclog.ComponentDebug(m.name, "Get cpulist and init maps and lists")
@@ -316,7 +321,14 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	case "accessdaemon":
 		if len(m.config.DaemonPath) > 0 {
 			p := os.Getenv("PATH")
-			os.Setenv("PATH", m.config.DaemonPath+":"+p)
+			if len(p) > 0 {
+				p = m.config.DaemonPath + ":" + p
+			} else {
+				p = m.config.DaemonPath
+			}
+			if err := os.Setenv("PATH", p); err != nil {
+				return fmt.Errorf("error setting environment variable PATH=%s: %v", p, err)
+			}
 		}
 		C.HPMmode(1)
 		retCode := C.HPMinit()
@@ -375,10 +387,18 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	// Watch changes for the lock file ()
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("takeMeasurement(): Failed to create a new fsnotify.Watcher: %v", err))
 		return true, err
 	}
-	defer watcher.Close()
+	defer func() {
+		if err := watcher.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("takeMeasurement(): Failed to close fsnotify.Watcher: %v", err))
+		}
+	}()
 	if len(m.config.LockfilePath) > 0 {
 		// Check if the lock file exists
 		info, err := os.Stat(m.config.LockfilePath)
@@ -388,7 +408,9 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 			if createErr != nil {
 				return true, fmt.Errorf("failed to create lock file: %v", createErr)
 			}
-			file.Close()
+			if err := file.Close(); err != nil {
+				return true, fmt.Errorf("failed to close lock file: %v", err)
+			}
 			info, err = os.Stat(m.config.LockfilePath) // Recheck the file after creation
 		}
 		if err != nil {
@@ -748,9 +770,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				// Here we generate parameter list
 				params := make(map[string]float64)
 				for _, evset := range groups {
-					for mname, mres := range evset.metrics[tid] {
-						params[mname] = mres
-					}
+					maps.Copy(params, evset.metrics[tid])
 				}
 				params["gotime"] = interval.Seconds()
 				// Evaluate the metric
@@ -813,13 +833,21 @@ func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMe
 
 		if !skip {
 			// read measurements and derive event set metrics
-			m.calcEventsetMetrics(e, interval, output)
+			err = m.calcEventsetMetrics(e, interval, output)
+			if err != nil {
+				cclog.ComponentError(m.name, err.Error())
+				return
+			}
 			groups = append(groups, e)
 		}
 	}
 	if len(groups) > 0 {
 		// calculate global metrics
-		m.calcGlobalMetrics(groups, interval, output)
+		err = m.calcGlobalMetrics(groups, interval, output)
+		if err != nil {
+			cclog.ComponentError(m.name, err.Error())
+			return
+		}
 	}
 }
 

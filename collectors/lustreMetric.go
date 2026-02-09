@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os/exec"
 	"os/user"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -61,7 +62,6 @@ func (m *LustreCollector) getDeviceDataCommand(device string) []string {
 	} else {
 		command = exec.Command(m.lctl, LCTL_OPTION, statsfile)
 	}
-	command.Wait()
 	stdout, _ := command.Output()
 	return strings.Split(string(stdout), "\n")
 }
@@ -302,7 +302,9 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.tags = map[string]string{"type": "node"}
 	m.meta = map[string]string{"source": m.name, "group": "Lustre"}
 
@@ -339,21 +341,21 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	m.definitions = []LustreMetricDefinition{}
 	if m.config.SendAbsoluteValues {
 		for _, def := range LustreAbsMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDiffValues {
 		for _, def := range LustreDiffMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDerivedValues {
 		for _, def := range LustreDeriveMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}

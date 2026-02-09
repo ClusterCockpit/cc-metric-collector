@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -64,7 +66,9 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	m.config.ProcessMigDevices = false
 	m.config.UseUuidForMigDevices = false
 	m.config.UseSliceForMigDevices = false
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -109,7 +113,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 
 		// Skip excluded devices by ID
 		str_i := fmt.Sprintf("%d", i)
-		if _, skip := stringArrayContains(m.config.ExcludeDevices, str_i); skip {
+		if slices.Contains(m.config.ExcludeDevices, str_i) {
 			cclog.ComponentDebug(m.name, "Skipping excluded device", str_i)
 			continue
 		}
@@ -137,7 +141,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 			pciInfo.Device)
 
 		// Skip excluded devices specified by PCI ID
-		if _, skip := stringArrayContains(m.config.ExcludeDevices, pci_id); skip {
+		if slices.Contains(m.config.ExcludeDevices, pci_id) {
 			cclog.ComponentDebug(m.name, "Skipping excluded device", pci_id)
 			continue
 		}
@@ -222,7 +226,7 @@ func readMemoryInfo(device *NvidiaCollectorDevice, output chan lp.CCMessage) err
 		var total uint64
 		var used uint64
 		var reserved uint64 = 0
-		var v2 bool = false
+		v2 := false
 		meminfo, ret := nvml.DeviceGetMemoryInfo(device.device)
 		if ret != nvml.SUCCESS {
 			err := errors.New(nvml.ErrorString(ret))
@@ -405,7 +409,8 @@ func readEccMode(device *NvidiaCollectorDevice, output chan lp.CCMessage) error 
 		// Changing ECC modes requires a reboot.
 		// The "pending" ECC mode refers to the target mode following the next reboot.
 		_, ecc_pend, ret := nvml.DeviceGetEccMode(device.device)
-		if ret == nvml.SUCCESS {
+		switch ret {
+		case nvml.SUCCESS:
 			var y lp.CCMessage
 			var err error
 			switch ecc_pend {
@@ -419,7 +424,7 @@ func readEccMode(device *NvidiaCollectorDevice, output chan lp.CCMessage) error 
 			if err == nil {
 				output <- y
 			}
-		} else if ret == nvml.ERROR_NOT_SUPPORTED {
+		case nvml.ERROR_NOT_SUPPORTED:
 			y, err := lp.NewMessage("nv_ecc_mode", device.tags, device.meta, map[string]interface{}{"value": "N/A"}, time.Now())
 			if err == nil {
 				output <- y
@@ -768,7 +773,7 @@ func readRemappedRows(device *NvidiaCollectorDevice, output chan lp.CCMessage) e
 				}
 			}
 			if !device.excludeMetrics["nv_remapped_rows_pending"] {
-				var p int = 0
+				p := 0
 				if pending {
 					p = 1
 				}
@@ -778,7 +783,7 @@ func readRemappedRows(device *NvidiaCollectorDevice, output chan lp.CCMessage) e
 				}
 			}
 			if !device.excludeMetrics["nv_remapped_rows_failure"] {
-				var f int = 0
+				f := 0
 				if failure {
 					f = 1
 				}
@@ -1275,9 +1280,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 					meta:           map[string]string{},
 					excludeMetrics: excludeMetrics,
 				}
-				for k, v := range m.gpus[i].tags {
-					migDevice.tags[k] = v
-				}
+				maps.Copy(migDevice.tags, m.gpus[i].tags)
 				migDevice.tags["stype"] = "mig"
 				if m.config.UseUuidForMigDevices {
 					uuid, ret := nvml.DeviceGetUUID(mdev)
@@ -1291,8 +1294,8 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 					if ret == nvml.SUCCESS {
 						mname, ret := nvml.DeviceGetName(mdev)
 						if ret == nvml.SUCCESS {
-							x := strings.Replace(mname, name, "", -1)
-							x = strings.Replace(x, "MIG", "", -1)
+							x := strings.ReplaceAll(mname, name, "")
+							x = strings.ReplaceAll(x, "MIG", "")
 							x = strings.TrimSpace(x)
 							migDevice.tags["stype-id"] = x
 						}
@@ -1301,9 +1304,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 				if _, ok := migDevice.tags["stype-id"]; !ok {
 					migDevice.tags["stype-id"] = fmt.Sprintf("%d", j)
 				}
-				for k, v := range m.gpus[i].meta {
-					migDevice.meta[k] = v
-				}
+				maps.Copy(migDevice.meta, m.gpus[i].meta)
 				if _, ok := migDevice.meta["uuid"]; ok && !m.config.UseUuidForMigDevices {
 					uuid, ret := nvml.DeviceGetUUID(mdev)
 					if ret == nvml.SUCCESS {
@@ -1319,7 +1320,9 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 
 func (m *NvidiaCollector) Close() {
 	if m.init {
-		nvml.Shutdown()
+		if ret := nvml.Shutdown(); ret != nvml.SUCCESS {
+			cclog.ComponentError(m.name, "nvml.Shutdown() not successful")
+		}
 		m.init = false
 	}
 }

@@ -10,6 +10,7 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -36,7 +37,9 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	m.name = "DiskstatCollector"
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		if err := json.Unmarshal(config, &m.config); err != nil {
 			return err
@@ -54,10 +57,11 @@ func (m *DiskstatCollector) Init(config json.RawMessage) error {
 	}
 	file, err := os.Open(MOUNTFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): file open for file \"%s\" failed: %w", m.name, MOUNTFILE, err)
 	}
-	defer file.Close()
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): file close for file \"%s\" failed: %w", m.name, MOUNTFILE, err)
+	}
 	m.init = true
 	return nil
 }
@@ -69,10 +73,18 @@ func (m *DiskstatCollector) Read(interval time.Duration, output chan lp.CCMessag
 
 	file, err := os.Open(MOUNTFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", MOUNTFILE, err))
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", MOUNTFILE, err))
+		}
+	}()
 
 	part_max_used := uint64(0)
 	scanner := bufio.NewScanner(file)
@@ -93,7 +105,7 @@ mountLoop:
 			continue
 		}
 
-		mountPath := strings.Replace(linefields[1], `\040`, " ", -1)
+		mountPath := strings.ReplaceAll(linefields[1], `\040`, " ")
 
 		for _, excl := range m.config.ExcludeMounts {
 			if strings.Contains(mountPath, excl) {

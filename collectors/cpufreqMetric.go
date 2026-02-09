@@ -48,7 +48,9 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	}
 
 	m.name = "CPUFreqCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)

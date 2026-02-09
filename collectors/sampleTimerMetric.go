@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -40,7 +41,9 @@ func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
 	// Always set the name early in Init() to use it in cclog.Component* functions
 	m.name = "SampleTimerCollector"
 	// This is for later use, also call it early
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	// Define meta information sent with each metric
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
 	m.meta = map[string]string{"source": m.name, "group": "SAMPLE"}

@@ -58,7 +58,9 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 
 	m.name = "TempCollector"
 	m.parallel = true
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -117,7 +119,7 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 			sensor.metricName = sensor.label
 		}
 		sensor.metricName = strings.ToLower(sensor.metricName)
-		sensor.metricName = strings.Replace(sensor.metricName, " ", "_", -1)
+		sensor.metricName = strings.ReplaceAll(sensor.metricName, " ", "_")
 		// Add temperature prefix, if required
 		if !strings.Contains(sensor.metricName, "temp") {
 			sensor.metricName = "temp_" + sensor.metricName

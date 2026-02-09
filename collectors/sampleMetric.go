@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -41,7 +42,9 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	// Always set the name early in Init() to use it in cclog.Component* functions
 	m.name = "SampleCollector"
 	// This is for later use, also call it early
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	// Tell whether the collector should be run in parallel with others (reading files, ...)
 	// or it should be run serially, mostly for collectors actually doing measurements
 	// because they should not measure the execution of the other collectors

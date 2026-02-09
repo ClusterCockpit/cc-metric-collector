@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -104,7 +105,7 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 
 		err = collector.Init(collectorCfg)
 		if err != nil {
-			cclog.ComponentError("CollectorManager", "Collector", collectorName, "initialization failed:", err.Error())
+			cclog.ComponentError("CollectorManager", fmt.Sprintf("Collector %s initialization failed: %v", collectorName, err))
 			continue
 		}
 		cclog.ComponentDebug("CollectorManager", "ADD COLLECTOR", collector.Name())

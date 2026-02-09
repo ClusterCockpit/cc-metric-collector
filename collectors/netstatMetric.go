@@ -10,8 +10,9 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -65,7 +66,9 @@ func getCanonicalName(raw string, aliasToCanonical map[string]string) string {
 func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.name = "NetstatCollector"
 	m.parallel = true
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.lastTimestamp = time.Now()
 
 	const (
@@ -107,10 +110,8 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	// Check access to net statistic file
 	file, err := os.Open(NETSTATFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): failed to open netstat file \"%s\": %w", m.name, NETSTATFILE, err)
 	}
-	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -129,7 +130,7 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		canonical := getCanonicalName(raw, m.aliasToCanonical)
 
 		// Check if device is a included device
-		if _, ok := stringArrayContains(m.config.IncludeDevices, canonical); ok {
+		if slices.Contains(m.config.IncludeDevices, canonical) {
 			// Tag will contain original device name (raw).
 			tags := map[string]string{"stype": "network", "stype-id": raw, "type": "node"}
 			meta_unit_byte := map[string]string{"source": m.name, "group": "Network", "unit": "bytes"}
@@ -174,8 +175,13 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		}
 	}
 
+	// Close netstat file
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): failed to close netstat file \"%s\": %w", m.name, NETSTATFILE, err)
+	}
+
 	if len(m.matches) == 0 {
-		return errors.New("no devices to collector metrics found")
+		return fmt.Errorf("%s Init(): no devices to collect metrics found", m.name)
 	}
 	m.init = true
 	return nil
@@ -194,10 +200,18 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 
 	file, err := os.Open(NETSTATFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", NETSTATFILE, err))
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", NETSTATFILE, err))
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

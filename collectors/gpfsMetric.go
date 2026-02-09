@@ -17,6 +17,7 @@ import (
 	"log"
 	"os/exec"
 	"os/user"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -43,11 +44,11 @@ type GpfsCollectorConfig struct {
 }
 
 type GpfsMetricDefinition struct {
-	name       string
-	desc       string
-	prefix     string
-	unit       string
-	calc       string
+	name   string
+	desc   string
+	prefix string
+	unit   string
+	calc   string
 }
 
 type GpfsCollector struct {
@@ -56,251 +57,251 @@ type GpfsCollector struct {
 	config        GpfsCollectorConfig
 	sudoCmd       string
 	skipFS        map[string]struct{}
-	lastTimestamp map[string]time.Time // Store timestamp of lastState per filesystem to derive bandwidths
-	definitions   []GpfsMetricDefinition // all metrics to report
+	lastTimestamp map[string]time.Time          // Store timestamp of lastState per filesystem to derive bandwidths
+	definitions   []GpfsMetricDefinition        // all metrics to report
 	lastState     map[string]GpfsCollectorState // one GpfsCollectorState per filesystem
 }
 
 var GpfsAbsMetrics = []GpfsMetricDefinition{
 	{
-		name:       "gpfs_num_opens",
-		desc:       "number of opens",
-		prefix:     "_oc_",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_num_opens",
+		desc:   "number of opens",
+		prefix: "_oc_",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_num_closes",
-		desc:       "number of closes",
-		prefix:     "_cc_",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_num_closes",
+		desc:   "number of closes",
+		prefix: "_cc_",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_num_reads",
-		desc:       "number of reads",
-		prefix:     "_rdc_",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_num_reads",
+		desc:   "number of reads",
+		prefix: "_rdc_",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_num_writes",
-		desc:       "number of writes",
-		prefix:     "_wc_",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_num_writes",
+		desc:   "number of writes",
+		prefix: "_wc_",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_num_readdirs",
-		desc:       "number of readdirs",
-		prefix:     "_dir_",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_num_readdirs",
+		desc:   "number of readdirs",
+		prefix: "_dir_",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_num_inode_updates",
-		desc:       "number of Inode Updates",
-		prefix:     "_iu_",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_num_inode_updates",
+		desc:   "number of Inode Updates",
+		prefix: "_iu_",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_bytes_read",
-		desc:       "bytes read",
-		prefix:     "_br_",
-		unit:       "bytes",
-		calc:       "none",
+		name:   "gpfs_bytes_read",
+		desc:   "bytes read",
+		prefix: "_br_",
+		unit:   "bytes",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_bytes_written",
-		desc:       "bytes written",
-		prefix:     "_bw_",
-		unit:       "bytes",
-		calc:       "none",
+		name:   "gpfs_bytes_written",
+		desc:   "bytes written",
+		prefix: "_bw_",
+		unit:   "bytes",
+		calc:   "none",
 	},
 }
 
 var GpfsDiffMetrics = []GpfsMetricDefinition{
 	{
-		name:       "gpfs_num_opens_diff",
-		desc:       "number of opens (diff)",
-		prefix:     "_oc_",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_num_opens_diff",
+		desc:   "number of opens (diff)",
+		prefix: "_oc_",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_num_closes_diff",
-		desc:       "number of closes (diff)",
-		prefix:     "_cc_",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_num_closes_diff",
+		desc:   "number of closes (diff)",
+		prefix: "_cc_",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_num_reads_diff",
-		desc:       "number of reads (diff)",
-		prefix:     "_rdc_",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_num_reads_diff",
+		desc:   "number of reads (diff)",
+		prefix: "_rdc_",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_num_writes_diff",
-		desc:       "number of writes (diff)",
-		prefix:     "_wc_",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_num_writes_diff",
+		desc:   "number of writes (diff)",
+		prefix: "_wc_",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_num_readdirs_diff",
-		desc:       "number of readdirs (diff)",
-		prefix:     "_dir_",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_num_readdirs_diff",
+		desc:   "number of readdirs (diff)",
+		prefix: "_dir_",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_num_inode_updates_diff",
-		desc:       "number of Inode Updates (diff)",
-		prefix:     "_iu_",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_num_inode_updates_diff",
+		desc:   "number of Inode Updates (diff)",
+		prefix: "_iu_",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_bytes_read_diff",
-		desc:       "bytes read (diff)",
-		prefix:     "_br_",
-		unit:       "bytes",
-		calc:       "difference",
+		name:   "gpfs_bytes_read_diff",
+		desc:   "bytes read (diff)",
+		prefix: "_br_",
+		unit:   "bytes",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_bytes_written_diff",
-		desc:       "bytes written (diff)",
-		prefix:     "_bw_",
-		unit:       "bytes",
-		calc:       "difference",
+		name:   "gpfs_bytes_written_diff",
+		desc:   "bytes written (diff)",
+		prefix: "_bw_",
+		unit:   "bytes",
+		calc:   "difference",
 	},
 }
 
 var GpfsDeriveMetrics = []GpfsMetricDefinition{
 	{
-		name:       "gpfs_opens_rate",
-		desc:       "number of opens (rate)",
-		prefix:     "_oc_",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_opens_rate",
+		desc:   "number of opens (rate)",
+		prefix: "_oc_",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_closes_rate",
-		desc:       "number of closes (rate)",
-		prefix:     "_oc_",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_closes_rate",
+		desc:   "number of closes (rate)",
+		prefix: "_oc_",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_reads_rate",
-		desc:       "number of reads (rate)",
-		prefix:     "_rdc_",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_reads_rate",
+		desc:   "number of reads (rate)",
+		prefix: "_rdc_",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_writes_rate",
-		desc:       "number of writes (rate)",
-		prefix:     "_wc_",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_writes_rate",
+		desc:   "number of writes (rate)",
+		prefix: "_wc_",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_readdirs_rate",
-		desc:       "number of readdirs (rate)",
-		prefix:     "_dir_",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_readdirs_rate",
+		desc:   "number of readdirs (rate)",
+		prefix: "_dir_",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_inode_updates_rate",
-		desc:       "number of Inode Updates (rate)",
-		prefix:     "_iu_",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_inode_updates_rate",
+		desc:   "number of Inode Updates (rate)",
+		prefix: "_iu_",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_bw_read",
-		desc:       "bytes read (rate)",
-		prefix:     "_br_",
-		unit:       "bytes/sec",
-		calc:       "derivative",
+		name:   "gpfs_bw_read",
+		desc:   "bytes read (rate)",
+		prefix: "_br_",
+		unit:   "bytes/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_bw_write",
-		desc:       "bytes written (rate)",
-		prefix:     "_bw_",
-		unit:       "bytes/sec",
-		calc:       "derivative",
+		name:   "gpfs_bw_write",
+		desc:   "bytes written (rate)",
+		prefix: "_bw_",
+		unit:   "bytes/sec",
+		calc:   "derivative",
 	},
 }
 
 var GpfsTotalMetrics = []GpfsMetricDefinition{
 	{
-		name:       "gpfs_bytes_total",
-		desc:       "bytes total",
-		prefix:     "bytesTotal",
-		unit:       "bytes",
-		calc:       "none",
+		name:   "gpfs_bytes_total",
+		desc:   "bytes total",
+		prefix: "bytesTotal",
+		unit:   "bytes",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_bytes_total_diff",
-		desc:       "bytes total (diff)",
-		prefix:     "bytesTotal",
-		unit:       "bytes",
-		calc:       "difference",
+		name:   "gpfs_bytes_total_diff",
+		desc:   "bytes total (diff)",
+		prefix: "bytesTotal",
+		unit:   "bytes",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_bw_total",
-		desc:       "bytes total (rate)",
-		prefix:     "bytesTotal",
-		unit:       "bytes/sec",
-		calc:       "derivative",
+		name:   "gpfs_bw_total",
+		desc:   "bytes total (rate)",
+		prefix: "bytesTotal",
+		unit:   "bytes/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_iops",
-		desc:       "iops",
-		prefix:     "iops",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_iops",
+		desc:   "iops",
+		prefix: "iops",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_iops_diff",
-		desc:       "iops  (diff)",
-		prefix:     "iops",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_iops_diff",
+		desc:   "iops  (diff)",
+		prefix: "iops",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_iops_rate",
-		desc:       "iops (rate)",
-		prefix:     "iops",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_iops_rate",
+		desc:   "iops (rate)",
+		prefix: "iops",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 	{
-		name:       "gpfs_metaops",
-		desc:       "metaops",
-		prefix:     "metaops",
-		unit:       "requests",
-		calc:       "none",
+		name:   "gpfs_metaops",
+		desc:   "metaops",
+		prefix: "metaops",
+		unit:   "requests",
+		calc:   "none",
 	},
 	{
-		name:       "gpfs_metaops_diff",
-		desc:       "metaops (diff)",
-		prefix:     "metaops",
-		unit:       "requests",
-		calc:       "difference",
+		name:   "gpfs_metaops_diff",
+		desc:   "metaops (diff)",
+		prefix: "metaops",
+		unit:   "requests",
+		calc:   "difference",
 	},
 	{
-		name:       "gpfs_metaops_rate",
-		desc:       "metaops (rate)",
-		prefix:     "metaops",
-		unit:       "requests/sec",
-		calc:       "derivative",
+		name:   "gpfs_metaops_rate",
+		desc:   "metaops (rate)",
+		prefix: "metaops",
+		unit:   "requests/sec",
+		calc:   "derivative",
 	},
 }
 
@@ -310,9 +311,10 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 
-	var err error
 	m.name = "GpfsCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 
 	// Set default mmpmon binary
@@ -320,7 +322,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 
 	// Read JSON configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
+		err := json.Unmarshal(config, &m.config)
 		if err != nil {
 			log.Print(err.Error())
 			return err
@@ -366,7 +368,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	if m.config.Sudo && !strings.HasPrefix(m.config.Mmpmon, "/") {
 		return fmt.Errorf("when using sudo, mmpmon_path must be provided and an absolute path: %s", m.config.Mmpmon)
 	}
-	
+
 	// Check if mmpmon is in executable search path
 	p, err := exec.LookPath(m.config.Mmpmon)
 	if err != nil {
@@ -385,28 +387,28 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	m.definitions = []GpfsMetricDefinition{}
 	if m.config.SendAbsoluteValues {
 		for _, def := range GpfsAbsMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDiffValues {
 		for _, def := range GpfsDiffMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	}
 	if m.config.SendDerivedValues {
 		for _, def := range GpfsDeriveMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				m.definitions = append(m.definitions, def)
 			}
 		}
 	} else if m.config.SendBandwidths {
 		for _, def := range GpfsDeriveMetrics {
 			if def.unit == "bytes/sec" {
-				if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 					m.definitions = append(m.definitions, def)
 				}
 			}
@@ -414,19 +416,19 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	}
 	if m.config.SendTotalValues {
 		for _, def := range GpfsTotalMetrics {
-			if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+			if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 				// only send total metrics of the types requested
-				if ( def.calc == "none" && m.config.SendAbsoluteValues ) ||
-				   ( def.calc == "difference" && m.config.SendDiffValues ) ||
-				   ( def.calc == "derivative" && m.config.SendDerivedValues ) {
+				if (def.calc == "none" && m.config.SendAbsoluteValues) ||
+					(def.calc == "difference" && m.config.SendDiffValues) ||
+					(def.calc == "derivative" && m.config.SendDerivedValues) {
 					m.definitions = append(m.definitions, def)
-				   }
+				}
 			}
 		}
 	} else if m.config.SendBandwidths {
 		for _, def := range GpfsTotalMetrics {
 			if def.unit == "bytes/sec" {
-				if _, skip := stringArrayContains(m.config.ExcludeMetrics, def.name); !skip {
+				if !slices.Contains(m.config.ExcludeMetrics, def.name) {
 					m.definitions = append(m.definitions, def)
 				}
 			}
@@ -456,7 +458,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	} else {
 		cmd = exec.Command(m.config.Mmpmon, "-p", "-s")
 	}
-	
+
 	cmd.Stdin = strings.NewReader("once fs_io_s\n")
 	cmdStdout := new(bytes.Buffer)
 	cmdStderr := new(bytes.Buffer)
@@ -617,7 +619,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				}
 			case "derivative":
 				if vnew_ok && vold_ok && timeDiff > 0 {
-					value = float64(vnew - vold) / timeDiff
+					value = float64(vnew-vold) / timeDiff
 					if value.(float64) < 0 {
 						value = 0
 					}

@@ -1,6 +1,19 @@
 {
     "cpufreq": {},
     "cpufreq_cpuinfo": {},
+    "cpustat": {
+        "exclude_metrics": [
+            "cpu_idle"
+        ]
+    },
+    "diskstat": {
+        "exclude_metrics": [
+            "disk_total"
+        ],
+        "exclude_mounts": [
+            "slurm-tmpfs"
+        ]
+    },
     "gpfs": {
         "exclude_filesystem": [
             "test_fs"
@@ -21,6 +34,8 @@
     },
     "numastats": {},
     "nvidia": {},
+    "schedstat": {
+    },
     "tempstat": {
         "report_max_temperature": true,
         "report_critical_temperature": true,

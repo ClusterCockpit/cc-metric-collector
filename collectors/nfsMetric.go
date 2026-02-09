@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 
 	//	"os"
 	"os/exec"
@@ -18,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
@@ -44,10 +46,15 @@ type nfsCollector struct {
 
 func (m *nfsCollector) initStats() error {
 	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
-	cmd.Wait()
+
+	// Wait for cmd end
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("initStats(): %w", err)
+	}
+
 	buffer, err := cmd.Output()
 	if err == nil {
-		for _, line := range strings.Split(string(buffer), "\n") {
+		for line := range strings.Lines(string(buffer)) {
 			lf := strings.Fields(line)
 			if len(lf) != 5 {
 				continue
@@ -71,10 +78,15 @@ func (m *nfsCollector) initStats() error {
 
 func (m *nfsCollector) updateStats() error {
 	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
-	cmd.Wait()
+
+	// Wait for cmd end
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("updateStats(): %w", err)
+	}
+
 	buffer, err := cmd.Output()
 	if err == nil {
-		for _, line := range strings.Split(string(buffer), "\n") {
+		for line := range strings.Lines(string(buffer)) {
 			lf := strings.Fields(line)
 			if len(lf) != 5 {
 				continue
@@ -119,7 +131,9 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 		return fmt.Errorf("NfsCollector.Init(): Failed to find nfsstat binary '%s': %v", m.config.Nfsstats, err)
 	}
 	m.data = make(map[string]NfsCollectorData)
-	m.initStats()
+	if err := m.initStats(); err != nil {
+		return fmt.Errorf("NfsCollector.Init(): %w", err)
+	}
 	m.init = true
 	m.parallel = true
 	return nil
@@ -131,7 +145,13 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	}
 	timestamp := time.Now()
 
-	m.updateStats()
+	if err := m.updateStats(); err != nil {
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): updateStats() failed: %v", err),
+		)
+		return
+	}
 	prefix := ""
 	switch m.version {
 	case "v3":
@@ -143,7 +163,7 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	}
 
 	for name, data := range m.data {
-		if _, skip := stringArrayContains(m.config.ExcludeMetrics, name); skip {
+		if slices.Contains(m.config.ExcludeMetrics, name) {
 			continue
 		}
 		value := data.current - data.last
@@ -170,13 +190,17 @@ type Nfs4Collector struct {
 func (m *Nfs3Collector) Init(config json.RawMessage) error {
 	m.name = "Nfs3Collector"
 	m.version = `v3`
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	return m.MainInit(config)
 }
 
 func (m *Nfs4Collector) Init(config json.RawMessage) error {
 	m.name = "Nfs4Collector"
 	m.version = `v4`
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	return m.MainInit(config)
 }

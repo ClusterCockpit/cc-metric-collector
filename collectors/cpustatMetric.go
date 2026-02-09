@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,10 +40,17 @@ type CpustatCollector struct {
 
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "CPU"}
-	m.nodetags = map[string]string{"type": "node"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "CPU",
+	}
+	m.nodetags = map[string]string{
+		"type": "node",
+	}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -64,14 +72,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 
 	m.matches = make(map[string]int)
 	for match, index := range matches {
-		doExclude := false
-		for _, exclude := range m.config.ExcludeMetrics {
-			if match == exclude {
-				doExclude = true
-				break
-			}
-		}
-		if !doExclude {
+		if !slices.Contains(m.config.ExcludeMetrics, match) {
 			m.matches[match] = index
 		}
 	}
@@ -79,9 +80,17 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	// Check input file
 	file, err := os.Open(string(CPUSTATFILE))
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Init(): Failed to open file '%s': %v", string(CPUSTATFILE), err))
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Init(): Failed to close file '%s': %v", string(CPUSTATFILE), err))
+		}
+	}()
 
 	// Pre-generate tags for all CPUs
 	num_cpus := 0
@@ -155,9 +164,17 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 
 	file, err := os.Open(string(CPUSTATFILE))
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
+		cclog.ComponentError(
+			m.name,
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", string(CPUSTATFILE), err))
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", string(CPUSTATFILE), err))
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

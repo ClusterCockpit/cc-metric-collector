@@ -10,6 +10,7 @@ package metricAggregator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"os"
 	"strings"
@@ -121,9 +122,7 @@ func (c *metricAggregator) Init(output chan lp.CCMessage) error {
 
 func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMessage) {
 	vars := make(map[string]interface{})
-	for k, v := range c.constants {
-		vars[k] = v
-	}
+	maps.Copy(vars, c.constants)
 	vars["starttime"] = starttime
 	vars["endtime"] = endtime
 	for _, f := range c.functions {

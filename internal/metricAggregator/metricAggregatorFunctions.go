@@ -11,9 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
-
-	"golang.org/x/exp/slices"
 
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 )
@@ -169,7 +168,7 @@ func medianfunc(args interface{}) (interface{}, error) {
 
 func lenfunc(args interface{}) (interface{}, error) {
 	var err error = nil
-	var length int = 0
+	length := 0
 	switch values := args.(type) {
 	case []float64:
 		length = len(values)
@@ -238,7 +237,7 @@ func matchfunc(args ...interface{}) (interface{}, error) {
 	case string:
 		switch total := args[1].(type) {
 		case string:
-			smatch := strings.Replace(match, "%", "\\", -1)
+			smatch := strings.ReplaceAll(match, "%", "\\")
 			regex, err := regexp.Compile(smatch)
 			if err != nil {
 				return false, err

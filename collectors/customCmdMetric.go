@@ -10,9 +10,11 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -49,11 +51,16 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	for _, c := range m.config.Commands {
 		cmdfields := strings.Fields(c)
-		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
-		command.Wait()
+		command := exec.Command(cmdfields[0], cmdfields[1:]...)
+		if err := command.Wait(); err != nil {
+			log.Print(err)
+			continue
+		}
 		_, err = command.Output()
 		if err == nil {
 			m.commands = append(m.commands, c)
@@ -88,8 +95,11 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 	}
 	for _, cmd := range m.commands {
 		cmdfields := strings.Fields(cmd)
-		command := exec.Command(cmdfields[0], strings.Join(cmdfields[1:], " "))
-		command.Wait()
+		command := exec.Command(cmdfields[0], cmdfields[1:]...)
+		if err := command.Wait(); err != nil {
+			log.Print(err)
+			continue
+		}
 		stdout, err := command.Output()
 		if err != nil {
 			log.Print(err)
@@ -101,8 +111,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 			continue
 		}
 		for _, c := range cmdmetrics {
-			_, skip := stringArrayContains(m.config.ExcludeMetrics, c.Name())
-			if skip {
+			if slices.Contains(m.config.ExcludeMetrics, c.Name()) {
 				continue
 			}
 
@@ -121,8 +130,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 			continue
 		}
 		for _, f := range fmetrics {
-			_, skip := stringArrayContains(m.config.ExcludeMetrics, f.Name())
-			if skip {
+			if slices.Contains(m.config.ExcludeMetrics, f.Name()) {
 				continue
 			}
 			output <- lp.FromInfluxMetric(f)

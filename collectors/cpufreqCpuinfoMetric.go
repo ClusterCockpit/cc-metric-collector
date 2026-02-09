@@ -41,9 +41,10 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 
-	m.setup()
-
 	m.name = "CPUFreqCpuInfoCollector"
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,
@@ -56,7 +57,6 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file '%s': %v", cpuInfoFile, err)
 	}
-	defer file.Close()
 
 	// Collect topology information from file cpuinfo
 	foundFreq := false
@@ -84,6 +84,10 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 			case "physical id":
 				physicalPackageID = value
 			}
+		}
+
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("%s Init(): Call to file.Close() failed: %w", m.name, err)
 		}
 
 		// were all topology information collected?
@@ -140,7 +144,13 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 			fmt.Sprintf("Read(): Failed to open file '%s': %v", cpuInfoFile, err))
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", cpuInfoFile, err))
+		}
+	}()
 
 	processorCounter := 0
 	now := time.Now()

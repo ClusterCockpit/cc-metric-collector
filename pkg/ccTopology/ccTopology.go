@@ -13,11 +13,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	cclogger "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
-	"golang.org/x/exp/slices"
 )
 
 const SYSFS_CPUBASE = `/sys/devices/system/cpu`
@@ -80,7 +80,7 @@ func fileToList(path string) []int {
 	// Create list
 	list := make([]int, 0)
 	stringBuffer := strings.TrimSpace(string(buffer))
-	for _, valueRangeString := range strings.Split(stringBuffer, ",") {
+	for valueRangeString := range strings.SplitSeq(stringBuffer, ",") {
 		valueRange := strings.Split(valueRangeString, "-")
 		switch len(valueRange) {
 		case 1:

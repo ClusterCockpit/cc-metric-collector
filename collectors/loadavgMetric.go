@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +43,9 @@ type LoadavgCollector struct {
 func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	m.name = "LoadavgCollector"
 	m.parallel = true
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
@@ -64,10 +67,10 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	m.proc_skips = make([]bool, len(m.proc_matches))
 
 	for i, name := range m.load_matches {
-		_, m.load_skips[i] = stringArrayContains(m.config.ExcludeMetrics, name)
+		m.load_skips[i] = slices.Contains(m.config.ExcludeMetrics, name)
 	}
 	for i, name := range m.proc_matches {
-		_, m.proc_skips[i] = stringArrayContains(m.config.ExcludeMetrics, name)
+		m.proc_skips[i] = slices.Contains(m.config.ExcludeMetrics, name)
 	}
 	m.init = true
 	return nil

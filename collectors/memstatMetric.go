@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -58,7 +59,11 @@ func getStats(filename string) map[string]MemstatStats {
 	if err != nil {
 		cclog.Error(err.Error())
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			cclog.Error(err.Error())
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -115,19 +120,20 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 		"MemShared":    "mem_shared",
 	}
 	for k, v := range matches {
-		_, skip := stringArrayContains(m.config.ExcludeMetrics, k)
-		if !skip {
+		if !slices.Contains(m.config.ExcludeMetrics, k) {
 			m.matches[k] = v
 		}
 	}
 	m.sendMemUsed = false
-	if _, skip := stringArrayContains(m.config.ExcludeMetrics, "mem_used"); !skip {
+	if !slices.Contains(m.config.ExcludeMetrics, "mem_used") {
 		m.sendMemUsed = true
 	}
 	if len(m.matches) == 0 {
 		return errors.New("no metrics to collect")
 	}
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 
 	if m.config.NodeStats {
 		if stats := getStats(MEMSTATFILE); len(stats) == 0 {
@@ -174,7 +180,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	sendStats := func(stats map[string]MemstatStats, tags map[string]string) {
 		for match, name := range m.matches {
 			var value float64 = 0
-			var unit string = ""
+			unit := ""
 			if v, ok := stats[match]; ok {
 				value = v.value
 				if len(v.unit) > 0 {
