@@ -11,9 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
-
-	"golang.org/x/exp/slices"
 
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
 )

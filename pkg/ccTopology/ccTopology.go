@@ -13,11 +13,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	cclogger "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
-	"golang.org/x/exp/slices"
 )
 
 const SYSFS_CPUBASE = `/sys/devices/system/cpu`

@@ -11,7 +11,6 @@ require (
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf
 	github.com/tklauser/go-sysconf v0.3.16
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
-	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/sys v0.40.0
 )
 
@@ -40,6 +39,7 @@ require (
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
