@@ -10,7 +10,6 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -111,10 +110,8 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	// Check access to net statistic file
 	file, err := os.Open(NETSTATFILE)
 	if err != nil {
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): failed to open netstat file \"%s\": %w", m.name, NETSTATFILE, err)
 	}
-	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -178,8 +175,13 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		}
 	}
 
+	// Close netstat file
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): failed to close netstat file \"%s\": %w", m.name, NETSTATFILE, err)
+	}
+
 	if len(m.matches) == 0 {
-		return errors.New("no devices to collector metrics found")
+		return fmt.Errorf("%s Init(): no devices to collect metrics found", m.name)
 	}
 	m.init = true
 	return nil
