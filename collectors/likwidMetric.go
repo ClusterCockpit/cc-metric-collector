@@ -408,7 +408,9 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 			if createErr != nil {
 				return true, fmt.Errorf("failed to create lock file: %v", createErr)
 			}
-			file.Close()
+			if err := file.Close(); err != nil {
+				return true, fmt.Errorf("failed to close lock file: %v", err)
+			}
 			info, err = os.Stat(m.config.LockfilePath) // Recheck the file after creation
 		}
 		if err != nil {
@@ -831,13 +833,21 @@ func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMe
 
 		if !skip {
 			// read measurements and derive event set metrics
-			m.calcEventsetMetrics(e, interval, output)
+			err = m.calcEventsetMetrics(e, interval, output)
+			if err != nil {
+				cclog.ComponentError(m.name, err.Error())
+				return
+			}
 			groups = append(groups, e)
 		}
 	}
 	if len(groups) > 0 {
 		// calculate global metrics
-		m.calcGlobalMetrics(groups, interval, output)
+		err = m.calcGlobalMetrics(groups, interval, output)
+		if err != nil {
+			cclog.ComponentError(m.name, err.Error())
+			return
+		}
 	}
 }
 
