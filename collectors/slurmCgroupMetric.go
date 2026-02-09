@@ -50,8 +50,7 @@ func ParseCPUs(cpuset string) ([]int, error) {
 		return result, nil
 	}
 
-	ranges := strings.Split(cpuset, ",")
-	for _, r := range ranges {
+	for r := range strings.SplitSeq(cpuset, ",") {
 		if strings.Contains(r, "-") {
 			parts := strings.Split(r, "-")
 			if len(parts) != 2 {
