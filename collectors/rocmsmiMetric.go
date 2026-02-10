@@ -90,7 +90,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 
 	m.devices = make([]RocmSmiCollectorDevice, 0)
 
-	for i := 0; i < numDevs; i++ {
+	for i := range numDevs {
 		str_i := fmt.Sprintf("%d", i)
 		if slices.Contains(m.config.ExcludeDevices, str_i) {
 			continue
@@ -292,7 +292,7 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMessage
 			}
 		}
 		if !dev.excludeMetrics["rocm_temp_hbm"] {
-			for i := 0; i < rocm_smi.NUM_HBM_INSTANCES; i++ {
+			for i := range rocm_smi.NUM_HBM_INSTANCES {
 				value := metrics.Temperature_hbm[i]
 				y, err := lp.NewMessage("rocm_temp_hbm", dev.tags, dev.meta, map[string]interface{}{"value": value}, timestamp)
 				if err == nil {

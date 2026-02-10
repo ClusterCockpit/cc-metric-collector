@@ -1263,7 +1263,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			}
 			cclog.ComponentDebug(m.name, "Reading MIG devices for GPU", i)
 
-			for j := 0; j < maxMig; j++ {
+			for j := range maxMig {
 				mdev, ret := nvml.DeviceGetMigDeviceHandleByIndex(m.gpus[i].device, j)
 				if ret != nvml.SUCCESS {
 					continue
