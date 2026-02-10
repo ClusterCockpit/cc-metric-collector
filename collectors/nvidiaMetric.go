@@ -109,7 +109,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 	// For all GPUs
 	idx := 0
 	m.gpus = make([]NvidiaCollectorDevice, num_gpus)
-	for i := 0; i < num_gpus; i++ {
+	for i := range num_gpus {
 
 		// Skip excluded devices by ID
 		str_i := fmt.Sprintf("%d", i)
@@ -1015,7 +1015,7 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 	var aggregate_recovery_errors uint64 = 0
 	var aggregate_crc_flit_errors uint64 = 0
 
-	for i := 0; i < nvml.NVLINK_MAX_LINKS; i++ {
+	for i := range nvml.NVLINK_MAX_LINKS {
 		state, ret := nvml.DeviceGetNvLinkState(device.device, i)
 		if ret == nvml.SUCCESS {
 			if state == nvml.FEATURE_ENABLED {
