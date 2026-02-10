@@ -10,6 +10,7 @@ package collectors
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
@@ -113,14 +114,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		port := pathSplit[6]
 
 		// Skip excluded devices
-		skip := false
-		for _, excludedDevice := range m.config.ExcludeDevices {
-			if excludedDevice == device {
-				skip = true
-				break
-			}
-		}
-		if skip {
+		if slices.Contains(m.config.ExcludeDevices, device) {
 			continue
 		}
 
