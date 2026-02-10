@@ -15,7 +15,9 @@ hugo_path: docs/reference/cc-metric-collector/collectors/rocmsmi.md
 ```json
   "rocm_smi": {
     "exclude_devices": [
-      "0","1", "0000000:ff:01.0"
+      "0",
+      "1",
+      "0000000:ff:01.0"
     ],
     "exclude_metrics": [
       "rocm_mm_util",
@@ -23,7 +25,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/rocmsmi.md
     ],
     "use_pci_info_as_type_id": true,
     "add_pci_info_tag": false,
-    "add_serial_meta": false,
+    "add_serial_meta": false
   }
 ```
 

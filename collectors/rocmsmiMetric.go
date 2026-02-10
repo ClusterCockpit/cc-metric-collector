@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -87,22 +88,11 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		return err
 	}
 
-	exclDev := func(s string) bool {
-		skip_device := false
-		for _, excl := range m.config.ExcludeDevices {
-			if excl == s {
-				skip_device = true
-				break
-			}
-		}
-		return skip_device
-	}
-
 	m.devices = make([]RocmSmiCollectorDevice, 0)
 
 	for i := 0; i < numDevs; i++ {
 		str_i := fmt.Sprintf("%d", i)
-		if exclDev(str_i) {
+		if slices.Contains(m.config.ExcludeDevices, str_i) {
 			continue
 		}
 		device, ret := rocm_smi.DeviceGetHandleByIndex(i)
@@ -126,7 +116,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 			pciInfo.Device,
 			pciInfo.Function)
 
-		if exclDev(pciId) {
+		if slices.Contains(m.config.ExcludeDevices, pciId) {
 			continue
 		}
 
