@@ -617,7 +617,6 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				evset.metrics[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) && metric.Publish {
-					fields := map[string]interface{}{"value": value}
 					y, err :=
 						lp.NewMessage(
 							metric.Name,
@@ -625,7 +624,9 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 								"type": metric.Type,
 							},
 							m.meta,
-							fields,
+							map[string]any{
+								"value": value,
+							},
 							now,
 						)
 					if err == nil {
@@ -663,7 +664,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 							"type-id": fmt.Sprintf("%d", coreID),
 						},
 						m.meta,
-						map[string]interface{}{
+						map[string]any{
 							"value": value,
 						},
 						now,
@@ -700,7 +701,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 							"type-id": fmt.Sprintf("%d", socketID),
 						},
 						m.meta,
-						map[string]interface{}{
+						map[string]any{
 							"value": value,
 						},
 						now,
@@ -734,7 +735,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						"type": "node",
 					},
 					m.meta,
-					map[string]interface{}{
+					map[string]any{
 						"value": totalNodeValue,
 					},
 					now,
@@ -792,7 +793,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 									"type": metric.Type,
 								},
 								m.meta,
-								map[string]interface{}{
+								map[string]any{
 									"value": value,
 								},
 								now,
