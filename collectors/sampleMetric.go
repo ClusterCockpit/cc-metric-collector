@@ -95,7 +95,7 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMessage)
 	// stop := readState()
 	// value = (stop - start) / interval.Seconds()
 
-	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
+	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]any{"value": value}, timestamp)
 	if err == nil {
 		// Send it to output channel
 		output <- y

@@ -138,7 +138,7 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 	sum := float64(0)
 	for name, value := range values {
 		sum += value
-		y, err := lp.NewMessage(name, tags, m.meta, map[string]interface{}{"value": value * 100}, now)
+		y, err := lp.NewMessage(name, tags, m.meta, map[string]any{"value": value * 100}, now)
 		if err == nil {
 			y.AddTag("unit", "Percent")
 			output <- y
@@ -146,7 +146,7 @@ func (m *CpustatCollector) parseStatLine(linefields []string, tags map[string]st
 	}
 	if v, ok := values["cpu_idle"]; ok {
 		sum -= v
-		y, err := lp.NewMessage("cpu_used", tags, m.meta, map[string]interface{}{"value": sum * 100}, now)
+		y, err := lp.NewMessage("cpu_used", tags, m.meta, map[string]any{"value": sum * 100}, now)
 		if err == nil {
 			y.AddTag("unit", "Percent")
 			output <- y
@@ -191,7 +191,7 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	num_cpus_metric, err := lp.NewMessage("num_cpus",
 		m.nodetags,
 		m.meta,
-		map[string]interface{}{"value": int(num_cpus)},
+		map[string]any{"value": int(num_cpus)},
 		now,
 	)
 	if err == nil {

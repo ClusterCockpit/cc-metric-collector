@@ -237,7 +237,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 						counterDef.name,
 						info.tagSet,
 						m.meta,
-						map[string]interface{}{
+						map[string]any{
 							"value": counterDef.currentState,
 						},
 						now); err == nil {
@@ -255,7 +255,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 							counterDef.name+"_bw",
 							info.tagSet,
 							m.meta,
-							map[string]interface{}{
+							map[string]any{
 								"value": rate,
 							},
 							now); err == nil {
@@ -285,7 +285,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					"ib_total",
 					info.tagSet,
 					m.meta,
-					map[string]interface{}{
+					map[string]any{
 						"value": ib_total,
 					},
 					now); err == nil {
@@ -298,7 +298,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					"ib_total_pkts",
 					info.tagSet,
 					m.meta,
-					map[string]interface{}{
+					map[string]any{
 						"value": ib_total_pkts,
 					},
 					now); err == nil {

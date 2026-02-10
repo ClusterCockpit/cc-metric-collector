@@ -110,7 +110,7 @@ func (m *SampleTimerCollector) ReadMetrics(timestamp time.Time) {
 	// stop := readState()
 	// value = (stop - start) / interval.Seconds()
 
-	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
+	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]any{"value": value}, timestamp)
 	if err == nil && m.output != nil {
 		// Send it to output channel if we have a valid channel
 		m.output <- y

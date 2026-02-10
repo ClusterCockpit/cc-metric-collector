@@ -130,7 +130,7 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 				unit = "Watts"
 			}
 
-			y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
+			y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]any{"value": v}, time.Now())
 			if err == nil {
 				y.AddMeta("unit", unit)
 				output <- y
@@ -175,7 +175,7 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 			v, err := strconv.ParseFloat(lv[3], 64)
 			if err == nil {
 				name := strings.ToLower(strings.ReplaceAll(lv[1], " ", "_"))
-				y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]interface{}{"value": v}, time.Now())
+				y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]any{"value": v}, time.Now())
 				if err == nil {
 					if len(lv) > 4 {
 						y.AddMeta("unit", lv[4])

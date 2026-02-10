@@ -593,7 +593,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		for _, metric := range m.definitions {
 			vold, vold_ok := m.lastState[filesystem][metric.prefix]
 			vnew, vnew_ok := newstate[metric.prefix]
-			var value interface{}
+			var value any
 			value_ok := false
 			switch metric.calc {
 			case "none":

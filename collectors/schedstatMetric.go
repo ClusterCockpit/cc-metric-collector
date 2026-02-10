@@ -123,7 +123,7 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 	m.olddata[linefields[0]]["waiting"] = waiting
 	value := l_running + l_waiting
 
-	y, err := lp.NewMessage("cpu_load_core", tags, m.meta, map[string]interface{}{"value": value}, now)
+	y, err := lp.NewMessage("cpu_load_core", tags, m.meta, map[string]any{"value": value}, now)
 	if err == nil {
 		// Send it to output channel
 		output <- y

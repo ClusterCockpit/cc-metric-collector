@@ -203,7 +203,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			sensor.metricName,
 			sensor.tags,
 			m.meta,
-			map[string]interface{}{"value": x},
+			map[string]any{"value": x},
 			time.Now(),
 		)
 		if err == nil {
@@ -216,7 +216,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				sensor.maxTempName,
 				sensor.tags,
 				m.meta,
-				map[string]interface{}{"value": sensor.maxTemp},
+				map[string]any{"value": sensor.maxTemp},
 				time.Now(),
 			)
 			if err == nil {
@@ -230,7 +230,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				sensor.critTempName,
 				sensor.tags,
 				m.meta,
-				map[string]interface{}{"value": sensor.critTemp},
+				map[string]any{"value": sensor.critTemp},
 				time.Now(),
 			)
 			if err == nil {

@@ -102,7 +102,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMessage
 		if m.load_skips[i] {
 			continue
 		}
-		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
+		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]any{"value": x}, now)
 		if err == nil {
 			output <- y
 		}
@@ -121,7 +121,7 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMessage
 		if m.proc_skips[i] {
 			continue
 		}
-		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]interface{}{"value": x}, now)
+		y, err := lp.NewMessage(name, m.tags, m.meta, map[string]any{"value": x}, now)
 		if err == nil {
 			output <- y
 		}
