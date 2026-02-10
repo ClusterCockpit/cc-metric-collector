@@ -249,7 +249,7 @@ func (m *RAPLCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 					"rapl_average_power",
 					p.tags,
 					m.meta,
-					map[string]interface{}{"value": averagePower},
+					map[string]any{"value": averagePower},
 					energyTimestamp)
 				if err == nil {
 					output <- y

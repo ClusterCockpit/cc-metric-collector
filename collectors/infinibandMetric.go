@@ -10,6 +10,7 @@ package collectors
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
@@ -113,14 +114,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		port := pathSplit[6]
 
 		// Skip excluded devices
-		skip := false
-		for _, excludedDevice := range m.config.ExcludeDevices {
-			if excludedDevice == device {
-				skip = true
-				break
-			}
-		}
-		if skip {
+		if slices.Contains(m.config.ExcludeDevices, device) {
 			continue
 		}
 
@@ -243,7 +237,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 						counterDef.name,
 						info.tagSet,
 						m.meta,
-						map[string]interface{}{
+						map[string]any{
 							"value": counterDef.currentState,
 						},
 						now); err == nil {
@@ -261,7 +255,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 							counterDef.name+"_bw",
 							info.tagSet,
 							m.meta,
-							map[string]interface{}{
+							map[string]any{
 								"value": rate,
 							},
 							now); err == nil {
@@ -291,7 +285,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					"ib_total",
 					info.tagSet,
 					m.meta,
-					map[string]interface{}{
+					map[string]any{
 						"value": ib_total,
 					},
 					now); err == nil {
@@ -304,7 +298,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					"ib_total_pkts",
 					info.tagSet,
 					m.meta,
-					map[string]interface{}{
+					map[string]any{
 						"value": ib_total_pkts,
 					},
 					now); err == nil {

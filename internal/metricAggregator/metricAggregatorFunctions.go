@@ -33,7 +33,7 @@ func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error
 }
 
 // Sum up values
-func sumfunc(args interface{}) (interface{}, error) {
+func sumfunc(args any) (any, error) {
 
 	var err error
 	switch values := args.(type) {
@@ -62,7 +62,7 @@ func minAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error
 }
 
 // Get the minimum value
-func minfunc(args interface{}) (interface{}, error) {
+func minfunc(args any) (any, error) {
 	switch values := args.(type) {
 	case []float64:
 		return minAnyType(values)
@@ -83,12 +83,12 @@ func avgAnyType[T float64 | float32 | int | int32 | int64](values []T) (float64,
 	if len(values) == 0 {
 		return 0.0, errors.New("average function requires at least one argument")
 	}
-	sum, err := sumAnyType[T](values)
+	sum, err := sumAnyType(values)
 	return float64(sum) / float64(len(values)), err
 }
 
 // Get the average or mean value
-func avgfunc(args interface{}) (interface{}, error) {
+func avgfunc(args any) (any, error) {
 	switch values := args.(type) {
 	case []float64:
 		return avgAnyType(values)
@@ -113,7 +113,7 @@ func maxAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error
 }
 
 // Get the maximum value
-func maxfunc(args interface{}) (interface{}, error) {
+func maxfunc(args any) (any, error) {
 	switch values := args.(type) {
 	case []float64:
 		return maxAnyType(values)
@@ -145,7 +145,7 @@ func medianAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, er
 }
 
 // Get the median value
-func medianfunc(args interface{}) (interface{}, error) {
+func medianfunc(args any) (any, error) {
 	switch values := args.(type) {
 	case []float64:
 		return medianAnyType(values)
@@ -166,7 +166,7 @@ func medianfunc(args interface{}) (interface{}, error) {
  * Get number of values in list. Returns always an int
  */
 
-func lenfunc(args interface{}) (interface{}, error) {
+func lenfunc(args any) (any, error) {
 	var err error = nil
 	length := 0
 	switch values := args.(type) {
@@ -180,13 +180,7 @@ func lenfunc(args interface{}) (interface{}, error) {
 		length = len(values)
 	case []int32:
 		length = len(values)
-	case float64:
-		err = errors.New("function 'len' can only be applied on arrays and strings")
-	case float32:
-		err = errors.New("function 'len' can only be applied on arrays and strings")
-	case int:
-		err = errors.New("function 'len' can only be applied on arrays and strings")
-	case int64:
+	case float64, float32, int, int64:
 		err = errors.New("function 'len' can only be applied on arrays and strings")
 	case string:
 		length = len(values)
@@ -196,13 +190,13 @@ func lenfunc(args interface{}) (interface{}, error) {
 
 /*
  * Check if a values is in a list
- * In constrast to most of the other functions, this one is an infix operator for
+ * In contrast to most of the other functions, this one is an infix operator for
  * - substring matching: `"abc" in "abcdef"` -> true
  * - substring matching with int casting: `3 in "abd3"` -> true
  * - search for an int in an int list: `3 in getCpuList()` -> true (if you have more than 4 CPU hardware threads)
  */
 
-func infunc(a interface{}, b interface{}) (interface{}, error) {
+func infunc(a any, b any) (any, error) {
 	switch match := a.(type) {
 	case string:
 		switch total := b.(type) {
@@ -212,11 +206,7 @@ func infunc(a interface{}, b interface{}) (interface{}, error) {
 	case int:
 		switch total := b.(type) {
 		case []int:
-			for _, x := range total {
-				if x == match {
-					return true, nil
-				}
-			}
+			return slices.Contains(total, match), nil
 		case string:
 			smatch := fmt.Sprintf("%d", match)
 			return strings.Contains(total, smatch), nil
@@ -232,7 +222,7 @@ func infunc(a interface{}, b interface{}) (interface{}, error) {
  * format keys \d = %d, \w = %d, ... Not sure how to fix this
  */
 
-func matchfunc(args ...interface{}) (interface{}, error) {
+func matchfunc(args ...any) (any, error) {
 	switch match := args[0].(type) {
 	case string:
 		switch total := args[1].(type) {
@@ -254,7 +244,7 @@ func matchfunc(args ...interface{}) (interface{}, error) {
  */
 
 // for a given cpuid, it returns the core id
-func getCpuCoreFunc(args interface{}) (interface{}, error) {
+func getCpuCoreFunc(args any) (any, error) {
 	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadCore(cpuid), nil
@@ -263,7 +253,7 @@ func getCpuCoreFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given cpuid, it returns the socket id
-func getCpuSocketFunc(args interface{}) (interface{}, error) {
+func getCpuSocketFunc(args any) (any, error) {
 	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadSocket(cpuid), nil
@@ -272,7 +262,7 @@ func getCpuSocketFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given cpuid, it returns the id of the NUMA node
-func getCpuNumaDomainFunc(args interface{}) (interface{}, error) {
+func getCpuNumaDomainFunc(args any) (any, error) {
 	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadNumaDomain(cpuid), nil
@@ -281,7 +271,7 @@ func getCpuNumaDomainFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given cpuid, it returns the id of the CPU die
-func getCpuDieFunc(args interface{}) (interface{}, error) {
+func getCpuDieFunc(args any) (any, error) {
 	switch cpuid := args.(type) {
 	case int:
 		return topo.GetHwthreadDie(cpuid), nil
@@ -290,7 +280,7 @@ func getCpuDieFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given core id, it returns the list of cpuids
-func getCpuListOfCoreFunc(args interface{}) (interface{}, error) {
+func getCpuListOfCoreFunc(args any) (any, error) {
 	cpulist := make([]int, 0)
 	switch in := args.(type) {
 	case int:
@@ -304,7 +294,7 @@ func getCpuListOfCoreFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given socket id, it returns the list of cpuids
-func getCpuListOfSocketFunc(args interface{}) (interface{}, error) {
+func getCpuListOfSocketFunc(args any) (any, error) {
 	cpulist := make([]int, 0)
 	switch in := args.(type) {
 	case int:
@@ -318,7 +308,7 @@ func getCpuListOfSocketFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given id of a NUMA domain, it returns the list of cpuids
-func getCpuListOfNumaDomainFunc(args interface{}) (interface{}, error) {
+func getCpuListOfNumaDomainFunc(args any) (any, error) {
 	cpulist := make([]int, 0)
 	switch in := args.(type) {
 	case int:
@@ -332,7 +322,7 @@ func getCpuListOfNumaDomainFunc(args interface{}) (interface{}, error) {
 }
 
 // for a given CPU die id, it returns the list of cpuids
-func getCpuListOfDieFunc(args interface{}) (interface{}, error) {
+func getCpuListOfDieFunc(args any) (any, error) {
 	cpulist := make([]int, 0)
 	switch in := args.(type) {
 	case int:
@@ -346,14 +336,14 @@ func getCpuListOfDieFunc(args interface{}) (interface{}, error) {
 }
 
 // wrapper function to get a list of all cpuids of the node
-func getCpuListOfNode() (interface{}, error) {
+func getCpuListOfNode() (any, error) {
 	return topo.HwthreadList(), nil
 }
 
 // helper function to get the cpuid list for a CCMetric type tag set (type and type-id)
 // since there is no access to the metric data in the function, is should be called like
 // `getCpuListOfType()`
-func getCpuListOfType(args ...interface{}) (interface{}, error) {
+func getCpuListOfType(args ...any) (any, error) {
 	cpulist := make([]int, 0)
 	switch typ := args[0].(type) {
 	case string:

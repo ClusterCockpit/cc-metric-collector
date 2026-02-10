@@ -10,6 +10,7 @@ package metricRouter
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -192,8 +193,8 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	return nil
 }
 
-func getParamMap(point lp.CCMessage) map[string]interface{} {
-	params := make(map[string]interface{})
+func getParamMap(point lp.CCMessage) map[string]any {
+	params := make(map[string]any)
 	params["metric"] = point
 	params["name"] = point.Name()
 	for key, value := range point.Tags() {
@@ -202,9 +203,7 @@ func getParamMap(point lp.CCMessage) map[string]interface{} {
 	for key, value := range point.Meta() {
 		params[key] = value
 	}
-	for key, value := range point.Fields() {
-		params[key] = value
-	}
+	maps.Copy(params, point.Fields())
 	params["timestamp"] = point.Time()
 	return params
 }

@@ -257,7 +257,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_mem_used") {
 					memPerCore := jobdata.MemoryUsage / coreCount
-					if y, err := lp.NewMessage("job_mem_used", coreTags, m.meta, map[string]interface{}{"value": memPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage("job_mem_used", coreTags, m.meta, map[string]any{"value": memPerCore}, timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
 					}
@@ -265,7 +265,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_max_mem_used") {
 					maxMemPerCore := jobdata.MaxMemoryUsage / coreCount
-					if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]interface{}{"value": maxMemPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]any{"value": maxMemPerCore}, timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
 					}
@@ -273,7 +273,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_mem_limit") {
 					limitPerCore := jobdata.LimitMemoryUsage / coreCount
-					if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]interface{}{"value": limitPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]any{"value": limitPerCore}, timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
 					}
@@ -281,7 +281,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_user_cpu") {
 					cpuUserPerCore := jobdata.CpuUsageUser / coreCount
-					if y, err := lp.NewMessage("job_user_cpu", coreTags, m.meta, map[string]interface{}{"value": cpuUserPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage("job_user_cpu", coreTags, m.meta, map[string]any{"value": cpuUserPerCore}, timestamp); err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
 					}
@@ -289,7 +289,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_sys_cpu") {
 					cpuSysPerCore := jobdata.CpuUsageSys / coreCount
-					if y, err := lp.NewMessage("job_sys_cpu", coreTags, m.meta, map[string]interface{}{"value": cpuSysPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage("job_sys_cpu", coreTags, m.meta, map[string]any{"value": cpuSysPerCore}, timestamp); err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
 					}
@@ -308,35 +308,35 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 			}
 
 			if !m.isExcluded("job_mem_used") {
-				if y, err := lp.NewMessage("job_mem_used", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage("job_mem_used", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
 
 			if !m.isExcluded("job_max_mem_used") {
-				if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
 
 			if !m.isExcluded("job_mem_limit") {
-				if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
 
 			if !m.isExcluded("job_user_cpu") {
-				if y, err := lp.NewMessage("job_user_cpu", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage("job_user_cpu", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
 				}
 			}
 
 			if !m.isExcluded("job_sys_cpu") {
-				if y, err := lp.NewMessage("job_sys_cpu", coreTags, m.meta, map[string]interface{}{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage("job_sys_cpu", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
 					y.AddMeta("unit", "%")
 					output <- y
 				}

@@ -404,23 +404,23 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			} else {
 				use_x = devData[def.name]
 			}
-			var value interface{}
+			var value any
 			switch def.calc {
 			case "none":
 				value = use_x
-				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]any{"value": value}, time.Now())
 			case "difference":
 				value = use_x - devData[def.name]
 				if value.(int64) < 0 {
 					value = 0
 				}
-				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]any{"value": value}, time.Now())
 			case "derivative":
 				value = float64(use_x-devData[def.name]) / tdiff.Seconds()
 				if value.(float64) < 0 {
 					value = 0
 				}
-				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]interface{}{"value": value}, time.Now())
+				y, err = lp.NewMessage(def.name, m.tags, m.meta, map[string]any{"value": value}, time.Now())
 			}
 			if err == nil {
 				y.AddTag("device", device)

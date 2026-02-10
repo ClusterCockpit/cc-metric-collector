@@ -35,11 +35,6 @@ jobs:
       run: |
         go install github.com/reviewdog/reviewdog/cmd/reviewdog@latest
 
-    # See: https://staticcheck.io
-    - name: Install staticcheck
-      run: |
-        go install honnef.co/go/tools/cmd/staticcheck@latest
-
     # See: https://golangci-lint.run
     - name: Install GolangCI-Lint
       run: |
@@ -54,21 +49,7 @@ jobs:
     # Running the linter requires likwid.h, which gets downloaded in the build step
     - name: Static Analysis with GolangCI-Lint and Upload Report with reviewdog
       run: |
-        golangci-lint run | reviewdog -f=golangci-lint -name "Check golangci-lint on build-latest" -reporter=github-check -filter-mode=nofilter -fail-level none
-      env:
-        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # Running the linter requires likwid.h, which gets downloaded in the build step
-    - name: Run Static Analysis with go vet and Upload Report with reviewdog
-      run: |
-        go vet ./... | reviewdog -f=govet -name "Check govet on build-latest" -reporter=github-check -filter-mode=nofilter -fail-level none
-      env:
-        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # Running the linter requires likwid.h, which gets downloaded in the build step
-    - name: Run Static Analysis with staticcheck and Upload Report with reviewdog
-      run: |
-        staticcheck ./... | reviewdog -f=staticcheck -name "Check staticcheck on build-latest" -reporter=github-check -filter-mode=nofilter -fail-level none
+        golangci-lint run --enable modernize,staticcheck,govet | reviewdog -f=golangci-lint -name "Check golangci-lint on build-latest" -reporter=github-check -filter-mode=nofilter -fail-level none
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

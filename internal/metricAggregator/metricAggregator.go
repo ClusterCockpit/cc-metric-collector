@@ -13,6 +13,7 @@ import (
 	"maps"
 	"math"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -37,7 +38,7 @@ type MetricAggregatorIntervalConfig struct {
 
 type metricAggregator struct {
 	functions []*MetricAggregatorIntervalConfig
-	constants map[string]interface{}
+	constants map[string]any
 	language  gval.Language
 	output    chan lp.CCMessage
 }
@@ -85,7 +86,7 @@ var evaluables = struct {
 func (c *metricAggregator) Init(output chan lp.CCMessage) error {
 	c.output = output
 	c.functions = make([]*MetricAggregatorIntervalConfig, 0)
-	c.constants = make(map[string]interface{})
+	c.constants = make(map[string]any)
 
 	// add constants like hostname, numSockets, ... to constants list
 	// Set hostname
@@ -121,7 +122,7 @@ func (c *metricAggregator) Init(output chan lp.CCMessage) error {
 }
 
 func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics []lp.CCMessage) {
-	vars := make(map[string]interface{})
+	vars := make(map[string]any)
 	maps.Copy(vars, c.constants)
 	vars["starttime"] = starttime
 	vars["endtime"] = endtime
@@ -262,15 +263,15 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			var m lp.CCMessage
 			switch t := value.(type) {
 			case float64:
-				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]any{"value": t}, starttime)
 			case float32:
-				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]any{"value": t}, starttime)
 			case int:
-				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]any{"value": t}, starttime)
 			case int64:
-				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]any{"value": t}, starttime)
 			case string:
-				m, err = lp.NewMessage(f.Name, tags, meta, map[string]interface{}{"value": t}, starttime)
+				m, err = lp.NewMessage(f.Name, tags, meta, map[string]any{"value": t}, starttime)
 			default:
 				cclog.ComponentError("MetricCache", "Gval returned invalid type", t, "skipping metric", f.Name)
 			}
@@ -328,18 +329,19 @@ func (c *metricAggregator) AddAggregation(name, function, condition string, tags
 }
 
 func (c *metricAggregator) DeleteAggregation(name string) error {
-	for i, agg := range c.functions {
-		if agg.Name == name {
-			copy(c.functions[i:], c.functions[i+1:])
-			c.functions[len(c.functions)-1] = nil
-			c.functions = c.functions[:len(c.functions)-1]
-			return nil
-		}
+	i := slices.IndexFunc(
+		c.functions,
+		func(agg *MetricAggregatorIntervalConfig) bool {
+			return agg.Name == name
+		})
+	if i == -1 {
+		return fmt.Errorf("no aggregation for metric name %s", name)
 	}
-	return fmt.Errorf("no aggregation for metric name %s", name)
+	c.functions = slices.Delete(c.functions, i, i)
+	return nil
 }
 
-func (c *metricAggregator) AddConstant(name string, value interface{}) {
+func (c *metricAggregator) AddConstant(name string, value any) {
 	c.constants[name] = value
 }
 
@@ -347,11 +349,11 @@ func (c *metricAggregator) DelConstant(name string) {
 	delete(c.constants, name)
 }
 
-func (c *metricAggregator) AddFunction(name string, function func(args ...interface{}) (interface{}, error)) {
+func (c *metricAggregator) AddFunction(name string, function func(args ...any) (any, error)) {
 	c.language = gval.NewLanguage(c.language, gval.Function(name, function))
 }
 
-func EvalBoolCondition(condition string, params map[string]interface{}) (bool, error) {
+func EvalBoolCondition(condition string, params map[string]any) (bool, error) {
 	evaluables.mutex.Lock()
 	evaluable, ok := evaluables.mapping[condition]
 	evaluables.mutex.Unlock()

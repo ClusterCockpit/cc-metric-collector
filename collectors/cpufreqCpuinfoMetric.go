@@ -171,7 +171,7 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 							fmt.Sprintf("Read(): Failed to convert cpu MHz '%s' to float64: %v", lineSplit[1], err))
 						return
 					}
-					if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]interface{}{"value": value}, now); err == nil {
+					if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]any{"value": value}, now); err == nil {
 						output <- y
 					}
 				}

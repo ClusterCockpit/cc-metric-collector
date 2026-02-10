@@ -167,7 +167,7 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			continue
 		}
 		value := data.current - data.last
-		y, err := lp.NewMessage(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, map[string]interface{}{"value": value}, timestamp)
+		y, err := lp.NewMessage(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, map[string]any{"value": value}, timestamp)
 		if err == nil {
 			y.AddMeta("version", m.version)
 			output <- y
