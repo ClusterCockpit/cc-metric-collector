@@ -217,7 +217,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
 		}
 	}
 	lib := dl.New(m.config.LibraryPath, LIKWID_LIB_DL_FLAGS)
@@ -226,13 +226,13 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 	err := lib.Open()
 	if err != nil {
-		return fmt.Errorf("error opening %s: %v", m.config.LibraryPath, err)
+		return fmt.Errorf("error opening %s: %w", m.config.LibraryPath, err)
 	}
 
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
 		if err := os.Setenv("LIKWID_FORCE", "1"); err != nil {
-			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %v", err)
+			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %w", err)
 		}
 	}
 	if err := m.setup(); err != nil {
@@ -327,7 +327,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 				p = m.config.DaemonPath
 			}
 			if err := os.Setenv("PATH", p); err != nil {
-				return fmt.Errorf("error setting environment variable PATH=%s: %v", p, err)
+				return fmt.Errorf("error setting environment variable PATH=%s: %w", p, err)
 			}
 		}
 		C.HPMmode(1)
@@ -406,10 +406,10 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 			// Create the lock file if it does not exist
 			file, createErr := os.Create(m.config.LockfilePath)
 			if createErr != nil {
-				return true, fmt.Errorf("failed to create lock file: %v", createErr)
+				return true, fmt.Errorf("failed to create lock file: %w", createErr)
 			}
 			if err := file.Close(); err != nil {
-				return true, fmt.Errorf("failed to close lock file: %v", err)
+				return true, fmt.Errorf("failed to close lock file: %w", err)
 			}
 			info, err = os.Stat(m.config.LockfilePath) // Recheck the file after creation
 		}

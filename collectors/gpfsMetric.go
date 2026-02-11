@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"os/user"
 	"slices"
@@ -324,8 +323,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			log.Print(err.Error())
-			return err
+			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{
@@ -366,7 +364,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// when using sudo, the full path of mmpmon must be specified because
 	// exec.LookPath will not work as mmpmon is not executable as user
 	if m.config.Sudo && !strings.HasPrefix(m.config.Mmpmon, "/") {
-		return fmt.Errorf("when using sudo, mmpmon_path must be provided and an absolute path: %s", m.config.Mmpmon)
+		return fmt.Errorf("%s Init(): when using sudo, mmpmon_path must be provided and an absolute path: %s", m.name, m.config.Mmpmon)
 	}
 
 	// Check if mmpmon is in executable search path
@@ -379,7 +377,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 			p = m.config.Mmpmon
 		} else {
 			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
-			return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+			return fmt.Errorf("%s Init(): failed to find mmpmon binary '%s': %w", m.name, m.config.Mmpmon, err)
 		}
 	}
 	m.config.Mmpmon = p

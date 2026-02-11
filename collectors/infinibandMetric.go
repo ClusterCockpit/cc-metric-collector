@@ -90,10 +90,10 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	globPattern := filepath.Join(IB_BASEPATH, "*", "ports", "*")
 	ibDirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("unable to glob files with pattern %s: %v", globPattern, err)
+		return fmt.Errorf("%s Init(): unable to glob files with pattern %s: %w", m.name, globPattern, err)
 	}
 	if ibDirs == nil {
-		return fmt.Errorf("unable to find any directories with pattern %s", globPattern)
+		return fmt.Errorf("%s Init(): unable to find any directories with pattern %s", m.name, globPattern)
 	}
 
 	for _, path := range ibDirs {
@@ -157,7 +157,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		for _, counter := range portCounterFiles {
 			err := unix.Access(counter.path, unix.R_OK)
 			if err != nil {
-				return fmt.Errorf("unable to access %s: %v", counter.path, err)
+				return fmt.Errorf("%s Init(): unable to access %s: %w", m.name, counter.path, err)
 			}
 		}
 
@@ -177,7 +177,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	}
 
 	if len(m.info) == 0 {
-		return fmt.Errorf("found no IB devices")
+		return fmt.Errorf("%s Init(): found no IB devices", m.name)
 	}
 
 	m.init = true

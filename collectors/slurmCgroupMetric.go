@@ -79,9 +79,10 @@ func ParseCPUs(cpuset string) ([]int, error) {
 }
 
 func GetAllCPUs() ([]int, error) {
-	data, err := os.ReadFile("/sys/devices/system/cpu/online")
+	cpuOnline := "/sys/devices/system/cpu/online"
+	data, err := os.ReadFile(cpuOnline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read /sys/devices/system/cpu/online: %v", err)
+		return nil, fmt.Errorf("failed to read file \"%s\": %w", cpuOnline, err)
 	}
 	return ParseCPUs(strings.TrimSpace(string(data)))
 }
@@ -114,8 +115,7 @@ func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+			return fmt.Errorf("%s Init(): Error reading JSON config: %w", m.name, err)
 		}
 		m.excludeMetrics = make(map[string]struct{})
 		for _, metric := range m.config.ExcludeMetrics {
@@ -130,19 +130,16 @@ func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	if !m.useSudo {
 		user, err := user.Current()
 		if err != nil {
-			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
-			return err
+			return fmt.Errorf("%s Init(): Failed to get current user: %w", m.name, err)
 		}
 		if user.Uid != "0" {
-			cclog.ComponentError(m.name, "Reading cgroup files requires root privileges (or enable use_sudo in config)")
-			return fmt.Errorf("not root")
+			return fmt.Errorf("%s Init(): Reading cgroup files requires root privileges (or enable use_sudo in config)", m.name)
 		}
 	}
 
 	m.allCPUs, err = GetAllCPUs()
 	if err != nil {
-		cclog.ComponentError(m.name, "Error reading online CPUs:", err.Error())
-		return err
+		return fmt.Errorf("%s Init(): Error reading online CPUs: %w", m.name, err)
 	}
 
 	m.init = true
