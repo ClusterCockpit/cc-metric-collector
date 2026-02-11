@@ -337,7 +337,9 @@ func (c *metricAggregator) DeleteAggregation(name string) error {
 	if i == -1 {
 		return fmt.Errorf("no aggregation for metric name %s", name)
 	}
-	c.functions = slices.Delete(c.functions, i, i)
+	copy(c.functions[i:], c.functions[i+1:])
+	c.functions[len(c.functions)-1] = nil
+	c.functions = c.functions[:len(c.functions)-1]
 	return nil
 }
 
