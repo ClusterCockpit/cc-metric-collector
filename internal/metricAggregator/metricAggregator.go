@@ -137,7 +137,6 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 		matches := make([]lp.CCMessage, 0)
 		for _, m := range metrics {
 			vars["metric"] = m
-			//value, err := gval.Evaluate(f.Condition, vars, c.language)
 			value, err := f.gvalCond.EvalBool(context.Background(), vars)
 			if err != nil {
 				cclog.ComponentError("MetricCache", "COLLECT", f.Name, "COND", f.Condition, ":", err.Error())

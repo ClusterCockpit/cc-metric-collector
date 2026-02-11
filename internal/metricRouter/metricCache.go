@@ -137,12 +137,12 @@ func (c *metricCache) Add(metric lp.CCMessage) {
 		p := c.intervals[c.curPeriod]
 		if p.numMetrics < p.sizeMetrics {
 			p.metrics[p.numMetrics] = metric
-			p.numMetrics = p.numMetrics + 1
+			p.numMetrics++
 			p.stopstamp = metric.Time()
 		} else {
 			p.metrics = append(p.metrics, metric)
-			p.numMetrics = p.numMetrics + 1
-			p.sizeMetrics = p.sizeMetrics + 1
+			p.numMetrics++
+			p.sizeMetrics++
 			p.stopstamp = metric.Time()
 		}
 		c.lock.Unlock()

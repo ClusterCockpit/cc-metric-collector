@@ -562,30 +562,30 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		// compute total metrics (map[...] will return 0 if key not found)
 		// bytes read and written
 		if br, br_ok := newstate["_br_"]; br_ok {
-			newstate["bytesTotal"] = newstate["bytesTotal"] + br
+			newstate["bytesTotal"] += br
 		}
 		if bw, bw_ok := newstate["_bw_"]; bw_ok {
-			newstate["bytesTotal"] = newstate["bytesTotal"] + bw
+			newstate["bytesTotal"] += bw
 		}
 		// read and write count
 		if rdc, rdc_ok := newstate["_rdc_"]; rdc_ok {
-			newstate["iops"] = newstate["iops"] + rdc
+			newstate["iops"] += rdc
 		}
 		if wc, wc_ok := newstate["_wc_"]; wc_ok {
-			newstate["iops"] = newstate["iops"] + wc
+			newstate["iops"] += wc
 		}
 		// meta operations
 		if oc, oc_ok := newstate["_oc_"]; oc_ok {
-			newstate["metaops"] = newstate["metaops"] + oc
+			newstate["metaops"] += oc
 		}
 		if cc, cc_ok := newstate["_cc_"]; cc_ok {
-			newstate["metaops"] = newstate["metaops"] + cc
+			newstate["metaops"] += cc
 		}
 		if dir, dir_ok := newstate["_dir_"]; dir_ok {
-			newstate["metaops"] = newstate["metaops"] + dir
+			newstate["metaops"] += dir
 		}
 		if iu, iu_ok := newstate["_iu_"]; iu_ok {
-			newstate["metaops"] = newstate["metaops"] + iu
+			newstate["metaops"] += iu
 		}
 		// send desired metrics for this filesystem
 		for _, metric := range m.definitions {

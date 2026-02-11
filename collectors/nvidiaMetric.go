@@ -1022,7 +1022,7 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 				if !device.excludeMetrics["nv_nvlink_crc_errors"] {
 					// Data link receive data CRC error counter
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_CRC_DATA)
-					aggregate_crc_errors = aggregate_crc_errors + count
+					aggregate_crc_errors += count
 					if ret == nvml.SUCCESS {
 						y, err := lp.NewMessage("nv_nvlink_crc_errors", device.tags, device.meta, map[string]any{"value": count}, time.Now())
 						if err == nil {
@@ -1035,7 +1035,7 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 				if !device.excludeMetrics["nv_nvlink_ecc_errors"] {
 					// Data link receive data ECC error counter
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_ECC_DATA)
-					aggregate_ecc_errors = aggregate_ecc_errors + count
+					aggregate_ecc_errors += count
 					if ret == nvml.SUCCESS {
 						y, err := lp.NewMessage("nv_nvlink_ecc_errors", device.tags, device.meta, map[string]any{"value": count}, time.Now())
 						if err == nil {
@@ -1048,7 +1048,7 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 				if !device.excludeMetrics["nv_nvlink_replay_errors"] {
 					// Data link transmit replay error counter
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_REPLAY)
-					aggregate_replay_errors = aggregate_replay_errors + count
+					aggregate_replay_errors += count
 					if ret == nvml.SUCCESS {
 						y, err := lp.NewMessage("nv_nvlink_replay_errors", device.tags, device.meta, map[string]any{"value": count}, time.Now())
 						if err == nil {
@@ -1061,7 +1061,7 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 				if !device.excludeMetrics["nv_nvlink_recovery_errors"] {
 					// Data link transmit recovery error counter
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_RECOVERY)
-					aggregate_recovery_errors = aggregate_recovery_errors + count
+					aggregate_recovery_errors += count
 					if ret == nvml.SUCCESS {
 						y, err := lp.NewMessage("nv_nvlink_recovery_errors", device.tags, device.meta, map[string]any{"value": count}, time.Now())
 						if err == nil {
@@ -1074,7 +1074,7 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 				if !device.excludeMetrics["nv_nvlink_crc_flit_errors"] {
 					// Data link receive flow control digit CRC error counter
 					count, ret := nvml.DeviceGetNvLinkErrorCounter(device.device, i, nvml.NVLINK_ERROR_DL_CRC_FLIT)
-					aggregate_crc_flit_errors = aggregate_crc_flit_errors + count
+					aggregate_crc_flit_errors += count
 					if ret == nvml.SUCCESS {
 						y, err := lp.NewMessage("nv_nvlink_crc_flit_errors", device.tags, device.meta, map[string]any{"value": count}, time.Now())
 						if err == nil {
