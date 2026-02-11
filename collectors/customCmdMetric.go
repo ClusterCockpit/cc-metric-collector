@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	influx "github.com/influxdata/line-protocol"
 )
@@ -43,12 +44,14 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	var err error
 	m.name = "CustomCmdCollector"
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "Custom"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Custom",
+	}
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
 		if err != nil {
-			log.Print(err.Error())
-			return err
+			return fmt.Errorf("%s Init(): json.Unmarshal() call failed: %w", m.name, err)
 		}
 	}
 	if err := m.setup(); err != nil {
@@ -57,13 +60,15 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	for _, c := range m.config.Commands {
 		cmdfields := strings.Fields(c)
 		command := exec.Command(cmdfields[0], cmdfields[1:]...)
-		if err := command.Wait(); err != nil {
-			log.Print(err)
-			continue
-		}
 		_, err = command.Output()
 		if err == nil {
 			m.commands = append(m.commands, c)
+		} else {
+			cclog.ComponentWarn(
+				m.name,
+				fmt.Sprintf("%s Init(): Execution of command \"%s\" failed: %v", m.name, command.String(), err),
+			)
+			continue
 		}
 	}
 	for _, f := range m.config.Files {
@@ -71,7 +76,10 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 		if err == nil {
 			m.files = append(m.files, f)
 		} else {
-			log.Print(err.Error())
+			cclog.ComponentWarn(
+				m.name,
+				fmt.Sprintf("%s Init(): Reading of file \"%s\" failed: %v", m.name, f, err),
+			)
 			continue
 		}
 	}
