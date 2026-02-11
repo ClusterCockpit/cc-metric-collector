@@ -618,13 +618,13 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			case "derivative":
 				if vnew_ok && vold_ok && timeDiff > 0 {
 					value = float64(vnew-vold) / timeDiff
-					if value.(float64) < 0 {
-						value = 0
+					if value.(float64) < 0.0 {
+						value = 0.0
 					}
 					value_ok = true
 				} else if vold_ok {
 					// if the difference is not computable, return 0
-					value = 0
+					value = 0.0
 					value_ok = true
 				}
 			}
