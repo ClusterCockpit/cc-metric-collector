@@ -126,13 +126,13 @@ func checkMetricType(t string) bool {
 }
 
 func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig {
-	clist := make([]string, len(input.Events))
+	clist := make([]string, 0, len(input.Events))
 	for k := range input.Events {
 		clist = append(clist, k)
 	}
 	slices.Sort(clist)
-	tmplist := make([]string, len(clist))
-	elist := make([]*C.char, len(clist))
+	tmplist := make([]string, 0, len(clist))
+	elist := make([]*C.char, 0, len(clist))
 	for _, k := range clist {
 		v := input.Events[k]
 		tmplist = append(tmplist, fmt.Sprintf("%s:%s", v, k))
