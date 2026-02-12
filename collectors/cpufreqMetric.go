@@ -83,8 +83,8 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 			CPUFreqCollectorTopology{
 				tagSet: map[string]string{
 					"type":       "hwthread",
-					"type-id":    fmt.Sprint(c.CpuID),
-					"package_id": fmt.Sprint(c.Socket),
+					"type-id":    strconv.Itoa(c.CpuID),
+					"package_id": strconv.Itoa(c.Socket),
 				},
 				scalingCurFreqFile: scalingCurFreqFile,
 			},

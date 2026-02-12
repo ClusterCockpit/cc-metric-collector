@@ -53,7 +53,7 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	// Tell whether the collector should be run in parallel with others (reading files, ...)
-	// or it should be run serially, mostly for collectors acutally doing measurements
+	// or it should be run serially, mostly for collectors actually doing measurements
 	// because they should not measure the execution of the other collectors
 	m.parallel = true
 	// Define meta information sent with each metric
@@ -90,7 +90,7 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 			waiting, _ := strconv.ParseInt(linefields[8], 10, 64)
 			m.cputags[linefields[0]] = map[string]string{
 				"type":    "hwthread",
-				"type-id": fmt.Sprintf("%d", cpu),
+				"type-id": strconv.Itoa(cpu),
 			}
 			m.olddata[linefields[0]] = map[string]int64{
 				"running": running,

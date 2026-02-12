@@ -159,7 +159,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 							file: f,
 							tags: map[string]string{
 								"type":    "memoryDomain",
-								"type-id": fmt.Sprintf("%d", id),
+								"type-id": strconv.Itoa(id),
 							},
 						}
 						m.nodefiles[id] = f

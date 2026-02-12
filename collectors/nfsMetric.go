@@ -150,7 +150,7 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		)
 		return
 	}
-	prefix := ""
+	var prefix string
 	switch m.version {
 	case "v3":
 		prefix = "nfs3"

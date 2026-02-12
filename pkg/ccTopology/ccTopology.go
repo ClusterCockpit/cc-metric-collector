@@ -51,14 +51,13 @@ var cache struct {
 func fileToInt(path string) int {
 	buffer, err := os.ReadFile(path)
 	if err != nil {
-		log.Print(err)
-		cclogger.ComponentError("ccTopology", "fileToInt", "Reading", path, ":", err.Error())
+		cclogger.ComponentError("ccTopology", fmt.Sprintf("fileToInt(): Reading \"%s\": %v", path, err))
 		return -1
 	}
 	stringBuffer := strings.TrimSpace(string(buffer))
 	id, err := strconv.Atoi(stringBuffer)
 	if err != nil {
-		cclogger.ComponentError("ccTopology", "fileToInt", "Parsing", path, ":", stringBuffer, err.Error())
+		cclogger.ComponentError("ccTopology", fmt.Sprintf("fileToInt(): Parsing \"%s\": %v", stringBuffer, err))
 		return -1
 	}
 	return id
@@ -304,20 +303,19 @@ func GetTypeList(topology_type string) []int {
 }
 
 func GetTypeId(hwt HwthreadEntry, topology_type string) (int, error) {
-	var err error = nil
 	switch topology_type {
 	case "node":
-		return 0, err
+		return 0, nil
 	case "socket":
-		return hwt.Socket, err
+		return hwt.Socket, nil
 	case "die":
-		return hwt.Die, err
+		return hwt.Die, nil
 	case "memoryDomain":
-		return hwt.NumaDomain, err
+		return hwt.NumaDomain, nil
 	case "core":
-		return hwt.Core, err
+		return hwt.Core, nil
 	case "hwthread":
-		return hwt.CpuID, err
+		return hwt.CpuID, nil
 	}
 	return -1, fmt.Errorf("unknown topology type '%s'", topology_type)
 }

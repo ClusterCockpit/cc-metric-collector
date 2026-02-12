@@ -108,7 +108,9 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		} else if strings.HasPrefix(linefields[0], "cpu") && strings.Compare(linefields[0], "cpu") != 0 {
 			cpustr := strings.TrimLeft(linefields[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
-			m.cputags[linefields[0]] = map[string]string{"type": "hwthread", "type-id": fmt.Sprintf("%d", cpu)}
+			m.cputags[linefields[0]] = map[string]string{
+				"type":    "hwthread",
+				"type-id": strconv.Itoa(cpu)}
 			m.olddata[linefields[0]] = make(map[string]int64)
 			for k, v := range m.matches {
 				m.olddata[linefields[0]][k], _ = strconv.ParseInt(linefields[v], 0, 64)
@@ -191,7 +193,7 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	num_cpus_metric, err := lp.NewMessage("num_cpus",
 		m.nodetags,
 		m.meta,
-		map[string]any{"value": int(num_cpus)},
+		map[string]any{"value": num_cpus},
 		now,
 	)
 	if err == nil {

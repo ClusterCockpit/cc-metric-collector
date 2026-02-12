@@ -107,8 +107,11 @@ func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "SLURM"}
-	m.tags = map[string]string{"type": "hwthread"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "SLURM"}
+	m.tags = map[string]string{
+		"type": "hwthread"}
 	m.cpuUsed = make(map[int]bool)
 	m.cgroupBase = defaultCgroupBase
 
@@ -156,7 +159,9 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 		CpuSet:           []int{},
 	}
 
-	cg := func(f string) string { return filepath.Join(m.cgroupBase, jobdir, f) }
+	cg := func(f string) string {
+		return filepath.Join(m.cgroupBase, jobdir, f)
+	}
 
 	memUsage, err := m.readFile(cg("memory.current"))
 	if err == nil {
@@ -205,8 +210,8 @@ func (m *SlurmCgroupCollector) ReadJobData(jobdir string) (SlurmJobData, error) 
 			}
 		}
 		if usageUsec > 0 {
-			jobdata.CpuUsageUser = (userUsec * 100 / usageUsec)
-			jobdata.CpuUsageSys = (systemUsec * 100 / usageUsec)
+			jobdata.CpuUsageUser = (userUsec * 100.0 / usageUsec)
+			jobdata.CpuUsageSys = (systemUsec * 100.0 / usageUsec)
 		}
 	}
 
@@ -249,12 +254,18 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 			for _, cpu := range jobdata.CpuSet {
 				coreTags := map[string]string{
 					"type":    "hwthread",
-					"type-id": fmt.Sprintf("%d", cpu),
+					"type-id": strconv.Itoa(cpu),
 				}
 
 				if coreCount > 0 && !m.isExcluded("job_mem_used") {
 					memPerCore := jobdata.MemoryUsage / coreCount
-					if y, err := lp.NewMessage("job_mem_used", coreTags, m.meta, map[string]any{"value": memPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage(
+						"job_mem_used",
+						coreTags,
+						m.meta,
+						map[string]any{
+							"value": memPerCore},
+						timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
 					}
@@ -262,7 +273,13 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_max_mem_used") {
 					maxMemPerCore := jobdata.MaxMemoryUsage / coreCount
-					if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]any{"value": maxMemPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage(
+						"job_max_mem_used",
+						coreTags,
+						m.meta,
+						map[string]any{
+							"value": maxMemPerCore},
+						timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
 					}
@@ -270,7 +287,13 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_mem_limit") {
 					limitPerCore := jobdata.LimitMemoryUsage / coreCount
-					if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]any{"value": limitPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage(
+						"job_mem_limit",
+						coreTags,
+						m.meta,
+						map[string]any{
+							"value": limitPerCore},
+						timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
 					}
@@ -278,7 +301,13 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_user_cpu") {
 					cpuUserPerCore := jobdata.CpuUsageUser / coreCount
-					if y, err := lp.NewMessage("job_user_cpu", coreTags, m.meta, map[string]any{"value": cpuUserPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage(
+						"job_user_cpu",
+						coreTags,
+						m.meta,
+						map[string]any{
+							"value": cpuUserPerCore},
+						timestamp); err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
 					}
@@ -286,7 +315,13 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 				if coreCount > 0 && !m.isExcluded("job_sys_cpu") {
 					cpuSysPerCore := jobdata.CpuUsageSys / coreCount
-					if y, err := lp.NewMessage("job_sys_cpu", coreTags, m.meta, map[string]any{"value": cpuSysPerCore}, timestamp); err == nil {
+					if y, err := lp.NewMessage(
+						"job_sys_cpu",
+						coreTags,
+						m.meta,
+						map[string]any{
+							"value": cpuSysPerCore},
+						timestamp); err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
 					}
@@ -301,25 +336,43 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 		if !m.cpuUsed[cpu] {
 			coreTags := map[string]string{
 				"type":    "hwthread",
-				"type-id": fmt.Sprintf("%d", cpu),
+				"type-id": strconv.Itoa(cpu),
 			}
 
 			if !m.isExcluded("job_mem_used") {
-				if y, err := lp.NewMessage("job_mem_used", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage(
+					"job_mem_used",
+					coreTags,
+					m.meta,
+					map[string]any{
+						"value": 0},
+					timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
 
 			if !m.isExcluded("job_max_mem_used") {
-				if y, err := lp.NewMessage("job_max_mem_used", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage(
+					"job_max_mem_used",
+					coreTags,
+					m.meta,
+					map[string]any{
+						"value": 0},
+					timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}
 			}
 
 			if !m.isExcluded("job_mem_limit") {
-				if y, err := lp.NewMessage("job_mem_limit", coreTags, m.meta, map[string]any{"value": 0}, timestamp); err == nil {
+				if y, err := lp.NewMessage(
+					"job_mem_limit",
+					coreTags,
+					m.meta,
+					map[string]any{
+						"value": 0},
+					timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
 				}

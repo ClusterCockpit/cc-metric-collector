@@ -35,7 +35,7 @@ type CPUFreqCpuInfoCollector struct {
 	topology []CPUFreqCpuInfoCollectorTopology
 }
 
-func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
+func (m *CPUFreqCpuInfoCollector) Init(_ json.RawMessage) error {
 	// Check if already initialized
 	if m.init {
 		return nil

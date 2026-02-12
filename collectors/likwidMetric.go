@@ -24,7 +24,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -125,22 +125,14 @@ func checkMetricType(t string) bool {
 	return ok
 }
 
-func eventsToEventStr(events map[string]string) string {
-	elist := make([]string, 0)
-	for k, v := range events {
-		elist = append(elist, fmt.Sprintf("%s:%s", v, k))
-	}
-	return strings.Join(elist, ",")
-}
-
 func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig {
-	tmplist := make([]string, 0)
-	clist := make([]string, 0)
+	clist := make([]string, len(input.Events))
 	for k := range input.Events {
 		clist = append(clist, k)
 	}
-	sort.Strings(clist)
-	elist := make([]*C.char, 0)
+	slices.Sort(clist)
+	tmplist := make([]string, len(clist))
+	elist := make([]*C.char, len(clist))
 	for _, k := range clist {
 		v := input.Events[k]
 		tmplist = append(tmplist, fmt.Sprintf("%s:%s", v, k))
@@ -381,7 +373,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 // take a measurement for 'interval' seconds of event set index 'group'
 func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig, interval time.Duration) (bool, error) {
 	var ret C.int
-	var gid C.int = -1
 	sigchan := make(chan os.Signal, 1)
 
 	// Watch changes for the lock file ()
@@ -462,6 +453,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	signal.Notify(sigchan, syscall.SIGCHLD)
 
 	// Add an event string to LIKWID
+	var gid C.int
 	select {
 	case <-sigchan:
 		gid = -1
@@ -631,7 +623,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						)
 					if err == nil {
 						if metric.Type != "node" {
-							y.AddTag("type-id", fmt.Sprintf("%d", domain))
+							y.AddTag("type-id", strconv.Itoa(domain))
 						}
 						if len(metric.Unit) > 0 {
 							y.AddMeta("unit", metric.Unit)
@@ -661,7 +653,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						metric.Name,
 						map[string]string{
 							"type":    "core",
-							"type-id": fmt.Sprintf("%d", coreID),
+							"type-id": strconv.Itoa(coreID),
 						},
 						m.meta,
 						map[string]any{
@@ -698,7 +690,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						metric.Name,
 						map[string]string{
 							"type":    "socket",
-							"type-id": fmt.Sprintf("%d", socketID),
+							"type-id": strconv.Itoa(socketID),
 						},
 						m.meta,
 						map[string]any{
@@ -800,7 +792,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 							)
 						if err == nil {
 							if metric.Type != "node" {
-								y.AddTag("type-id", fmt.Sprintf("%d", domain))
+								y.AddTag("type-id", strconv.Itoa(domain))
 							}
 							if len(metric.Unit) > 0 {
 								y.AddMeta("unit", metric.Unit)
@@ -816,7 +808,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 }
 
 func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMessage) {
-	var err error = nil
+	var err error
 	groups := make([]LikwidEventsetConfig, 0)
 
 	for evidx, evset := range m.config.Eventsets {

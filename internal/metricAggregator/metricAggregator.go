@@ -170,22 +170,22 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 		// Check, that only values of one type were collected
 		countValueTypes := 0
 		if len(valuesFloat64) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesFloat32) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesInt) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesInt32) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesInt64) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesBool) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if countValueTypes > 1 {
 			cclog.ComponentError("MetricCache", "Collected values of different types")
