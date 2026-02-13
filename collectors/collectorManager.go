@@ -123,9 +123,7 @@ func (cm *collectorManager) Start() {
 	tick := make(chan time.Time)
 	cm.ticker.AddChannel(tick)
 
-	cm.wg.Add(1)
-	go func() {
-		defer cm.wg.Done()
+	cm.wg.Go(func() {
 		// Collector manager is done
 		done := func() {
 			// close all metric collectors
@@ -180,7 +178,7 @@ func (cm *collectorManager) Start() {
 				}
 			}
 		}
-	}()
+	})
 
 	// Collector manager is started
 	cclog.ComponentDebug("CollectorManager", "STARTED")

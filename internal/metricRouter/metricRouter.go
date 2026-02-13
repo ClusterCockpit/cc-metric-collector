@@ -291,9 +291,7 @@ func (r *metricRouter) Start() {
 		r.cache.Start()
 	}
 
-	r.wg.Add(1)
-	go func() {
-		defer r.wg.Done()
+	r.wg.Go(func() {
 
 		for {
 			select {
@@ -324,7 +322,7 @@ func (r *metricRouter) Start() {
 				}
 			}
 		}
-	}()
+	})
 	cclog.ComponentDebug("MetricRouter", "STARTED")
 }
 

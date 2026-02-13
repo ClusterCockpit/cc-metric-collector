@@ -102,9 +102,7 @@ func (c *metricCache) Start() {
 		return oldPeriod
 	}
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
+	c.wg.Go(func() {
 		for {
 			select {
 			case <-c.done:
@@ -124,7 +122,7 @@ func (c *metricCache) Start() {
 				}
 			}
 		}
-	}()
+	})
 	cclog.ComponentDebug("MetricCache", "START")
 }
 
