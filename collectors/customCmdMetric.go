@@ -36,74 +36,78 @@ type CustomCmdCollectorConfig struct {
 
 type CustomCmdCollector struct {
 	metricCollector
-	config   CustomCmdCollectorConfig
-	commands []string
-	files    []string
+	config         CustomCmdCollectorConfig
+	cmdFieldsSlice [][]string
+	files          []string
 }
 
 func (m *CustomCmdCollector) Init(config json.RawMessage) error {
-	var err error
 	m.name = "CustomCmdCollector"
 	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,
 		"group":  "Custom",
 	}
+
+	// Read configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
+		if err := json.Unmarshal(config, &m.config); err != nil {
 			return fmt.Errorf("%s Init(): json.Unmarshal() call failed: %w", m.name, err)
 		}
 	}
+
+	// Setup
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
+
+	// Check if command can be executed
 	for _, c := range m.config.Commands {
-		cmdfields := strings.Fields(c)
-		command := exec.Command(cmdfields[0], cmdfields[1:]...)
-		_, err = command.Output()
-		if err == nil {
-			m.commands = append(m.commands, c)
-		} else {
+		cmdFields := strings.Fields(c)
+		command := exec.Command(cmdFields[0], cmdFields[1:]...)
+		if _, err := command.Output(); err != nil {
 			cclog.ComponentWarn(
 				m.name,
-				fmt.Sprintf("%s Init(): Execution of command \"%s\" failed: %v", m.name, command.String(), err),
-			)
+				fmt.Sprintf("%s Init(): Execution of command \"%s\" failed: %v", m.name, command.String(), err))
 			continue
 		}
+		m.cmdFieldsSlice = append(m.cmdFieldsSlice, cmdFields)
 	}
-	for _, f := range m.config.Files {
-		_, err = os.ReadFile(f)
-		if err == nil {
-			m.files = append(m.files, f)
-		} else {
+
+	// Check if file can be read
+	for _, fileName := range m.config.Files {
+		if _, err := os.ReadFile(fileName); err != nil {
 			cclog.ComponentWarn(
 				m.name,
-				fmt.Sprintf("%s Init(): Reading of file \"%s\" failed: %v", m.name, f, err),
-			)
+				fmt.Sprintf("%s Init(): Reading of file \"%s\" failed: %v", m.name, fileName, err))
 			continue
 		}
+		m.files = append(m.files, fileName)
 	}
-	if len(m.files) == 0 && len(m.commands) == 0 {
+
+	if len(m.files) == 0 && len(m.cmdFieldsSlice) == 0 {
 		return errors.New("no metrics to collect")
 	}
 	m.init = true
 	return nil
 }
 
-var DefaultTime = func() time.Time {
-	return time.Unix(42, 0)
-}
-
 func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	if !m.init {
 		return
 	}
-	for _, cmd := range m.commands {
-		// Execute configured commands
-		cmdFields := strings.Fields(cmd)
+
+	// Execute configured commands
+	for _, cmdFields := range m.cmdFieldsSlice {
 		command := exec.Command(cmdFields[0], cmdFields[1:]...)
-		stdout, _ := command.StdoutPipe()
+		stdout, err := command.StdoutPipe()
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to create stdout pipe for command \"%s\": %v", command.String(), err),
+			)
+			continue
+		}
 		errBuf := new(bytes.Buffer)
 		command.Stderr = errBuf
 
@@ -113,7 +117,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 				m.name,
 				fmt.Sprintf("Read(): Failed to start command \"%s\": %v", command.String(), err),
 			)
-			return
+			continue
 		}
 
 		// Read and decode influxDB line-protocol from command output
@@ -143,9 +147,11 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 			cclog.ComponentError(
 				m.name,
 				fmt.Sprintf("Read(): command stderr: \"%s\"\n", strings.TrimSpace(string(errMsg))))
-			return
+			continue
 		}
 	}
+
+	// Read configured files
 	for _, filename := range m.files {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -153,6 +159,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 				m.name,
 				fmt.Sprintf("Read(): Failed to open file \"%s\": %v\n", filename, err),
 			)
+			continue
 		}
 
 		// Read and decode influxDB line-protocol from file
@@ -177,6 +184,7 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 				m.name,
 				fmt.Sprintf("Read(): Failed to close file \"%s\": %v\n", filename, err),
 			)
+			continue
 		}
 	}
 }
