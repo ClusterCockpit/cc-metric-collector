@@ -8,10 +8,11 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"os"
 	"os/exec"
 	"slices"
@@ -20,7 +21,9 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
-	influx "github.com/influxdata/line-protocol"
+
+	receivers "github.com/ClusterCockpit/cc-lib/v2/receivers"
+	lp2 "github.com/influxdata/line-protocol/v2/lineprotocol"
 )
 
 const CUSTOMCMDPATH = `/home/unrz139/Work/cc-metric-collector/collectors/custom`
@@ -33,8 +36,6 @@ type CustomCmdCollectorConfig struct {
 
 type CustomCmdCollector struct {
 	metricCollector
-	handler  *influx.MetricHandler
-	parser   *influx.Parser
 	config   CustomCmdCollectorConfig
 	commands []string
 	files    []string
@@ -86,9 +87,6 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	if len(m.files) == 0 && len(m.commands) == 0 {
 		return errors.New("no metrics to collect")
 	}
-	m.handler = influx.NewMetricHandler()
-	m.parser = influx.NewParser(m.handler)
-	m.parser.SetTimeFunc(DefaultTime)
 	m.init = true
 	return nil
 }
@@ -102,46 +100,83 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 		return
 	}
 	for _, cmd := range m.commands {
-		cmdfields := strings.Fields(cmd)
-		command := exec.Command(cmdfields[0], cmdfields[1:]...)
-		if err := command.Wait(); err != nil {
-			log.Print(err)
-			continue
-		}
-		stdout, err := command.Output()
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		cmdmetrics, err := m.parser.Parse(stdout)
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		for _, c := range cmdmetrics {
-			if slices.Contains(m.config.ExcludeMetrics, c.Name()) {
-				continue
-			}
+		// Execute configured commands
+		cmdFields := strings.Fields(cmd)
+		command := exec.Command(cmdFields[0], cmdFields[1:]...)
+		stdout, _ := command.StdoutPipe()
+		errBuf := new(bytes.Buffer)
+		command.Stderr = errBuf
 
-			output <- lp.FromInfluxMetric(c)
-		}
-	}
-	for _, file := range m.files {
-		buffer, err := os.ReadFile(file)
-		if err != nil {
-			log.Print(err)
+		// Start command
+		if err := command.Start(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to start command \"%s\": %v", command.String(), err),
+			)
 			return
 		}
-		fmetrics, err := m.parser.Parse(buffer)
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		for _, f := range fmetrics {
-			if slices.Contains(m.config.ExcludeMetrics, f.Name()) {
+
+		// Read and decode influxDB line-protocol from command output
+		d := lp2.NewDecoder(stdout)
+		for d.Next() {
+			metric, err := receivers.DecodeInfluxMessage(d)
+			if err != nil {
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to decode influx Message: %v", err),
+				)
 				continue
 			}
-			output <- lp.FromInfluxMetric(f)
+			if slices.Contains(m.config.ExcludeMetrics, metric.Name()) {
+				continue
+			}
+			output <- metric
+		}
+
+		// Wait for command end
+		if err := command.Wait(); err != nil {
+			errMsg, _ := io.ReadAll(errBuf)
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to wait for the end of command \"%s\": %v\n", command.String(), err),
+			)
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): command stderr: \"%s\"\n", strings.TrimSpace(string(errMsg))))
+			return
+		}
+	}
+	for _, filename := range m.files {
+		file, err := os.Open(filename)
+		if err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to open file \"%s\": %v\n", filename, err),
+			)
+		}
+
+		// Read and decode influxDB line-protocol from file
+		d := lp2.NewDecoder(file)
+		for d.Next() {
+			metric, err := receivers.DecodeInfluxMessage(d)
+			if err != nil {
+				cclog.ComponentError(
+					m.name,
+					fmt.Sprintf("Read(): Failed to decode influx Message: %v", err),
+				)
+				continue
+			}
+			if slices.Contains(m.config.ExcludeMetrics, metric.Name()) {
+				continue
+			}
+			output <- metric
+		}
+
+		if err := file.Close(); err != nil {
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to close file \"%s\": %v\n", filename, err),
+			)
 		}
 	}
 }
