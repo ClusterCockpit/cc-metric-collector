@@ -137,7 +137,6 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 		matches := make([]lp.CCMessage, 0)
 		for _, m := range metrics {
 			vars["metric"] = m
-			//value, err := gval.Evaluate(f.Condition, vars, c.language)
 			value, err := f.gvalCond.EvalBool(context.Background(), vars)
 			if err != nil {
 				cclog.ComponentError("MetricCache", "COLLECT", f.Name, "COND", f.Condition, ":", err.Error())
@@ -171,22 +170,22 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 		// Check, that only values of one type were collected
 		countValueTypes := 0
 		if len(valuesFloat64) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesFloat32) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesInt) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesInt32) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesInt64) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if len(valuesBool) > 0 {
-			countValueTypes += 1
+			countValueTypes++
 		}
 		if countValueTypes > 1 {
 			cclog.ComponentError("MetricCache", "Collected values of different types")
@@ -337,7 +336,9 @@ func (c *metricAggregator) DeleteAggregation(name string) error {
 	if i == -1 {
 		return fmt.Errorf("no aggregation for metric name %s", name)
 	}
-	c.functions = slices.Delete(c.functions, i, i)
+	copy(c.functions[i:], c.functions[i+1:])
+	c.functions[len(c.functions)-1] = nil
+	c.functions = c.functions[:len(c.functions)-1]
 	return nil
 }
 

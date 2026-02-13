@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	topo "github.com/ClusterCockpit/cc-metric-collector/pkg/ccTopology"
@@ -208,7 +209,7 @@ func infunc(a any, b any) (any, error) {
 		case []int:
 			return slices.Contains(total, match), nil
 		case string:
-			smatch := fmt.Sprintf("%d", match)
+			smatch := strconv.Itoa(match)
 			return strings.Contains(total, smatch), nil
 		}
 

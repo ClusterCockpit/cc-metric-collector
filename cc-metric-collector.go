@@ -50,30 +50,6 @@ type RuntimeConfig struct {
 	Sync     sync.WaitGroup
 }
 
-//// Structure of the configuration file
-//type GlobalConfig struct {
-//	Sink           sinks.SinkConfig           `json:"sink"`
-//	Interval       int                        `json:"interval"`
-//	Duration       int                        `json:"duration"`
-//	Collectors     []string                   `json:"collectors"`
-//	Receiver       receivers.ReceiverConfig   `json:"receiver"`
-//	DefTags        map[string]string          `json:"default_tags"`
-//	CollectConfigs map[string]json.RawMessage `json:"collect_config"`
-//}
-
-//// Load JSON configuration file
-//func LoadConfiguration(file string, config *GlobalConfig) error {
-//	configFile, err := os.Open(file)
-//	defer configFile.Close()
-//	if err != nil {
-//		fmt.Println(err.Error())
-//		return err
-//	}
-//	jsonParser := json.NewDecoder(configFile)
-//	err = jsonParser.Decode(config)
-//	return err
-//}
-
 func ReadCli() map[string]string {
 	var m map[string]string
 	cfg := flag.String("config", "./config.json", "Path to configuration file")
@@ -92,22 +68,6 @@ func ReadCli() map[string]string {
 	m["loglevel"] = *loglevel
 	return m
 }
-
-//func SetLogging(logfile string) error {
-//	var file *os.File
-//	var err error
-//	if logfile != "stderr" {
-//		file, err = os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-//		if err != nil {
-//			log.Fatal(err)
-//			return err
-//		}
-//	} else {
-//		file = os.Stderr
-//	}
-//	log.SetOutput(file)
-//	return nil
-//}
 
 // General shutdownHandler function that gets executed in case of interrupt or graceful shutdownHandler
 func shutdownHandler(config *RuntimeConfig, shutdownSignal chan os.Signal) {
@@ -215,11 +175,6 @@ func mainFunc() int {
 		cclog.Error("Metric collector configuration file must be set")
 		return 1
 	}
-
-	// Set log file
-	// if logfile := rcfg.CliArgs["logfile"]; logfile != "stderr" {
-	// 	cclog.SetOutput(logfile)
-	// }
 
 	// Creat new multi channel ticker
 	rcfg.MultiChanTicker = mct.NewTicker(rcfg.Interval)

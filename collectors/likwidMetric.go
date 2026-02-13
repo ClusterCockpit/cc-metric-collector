@@ -24,7 +24,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -125,22 +125,14 @@ func checkMetricType(t string) bool {
 	return ok
 }
 
-func eventsToEventStr(events map[string]string) string {
-	elist := make([]string, 0)
-	for k, v := range events {
-		elist = append(elist, fmt.Sprintf("%s:%s", v, k))
-	}
-	return strings.Join(elist, ",")
-}
-
 func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig {
-	tmplist := make([]string, 0)
-	clist := make([]string, 0)
+	clist := make([]string, 0, len(input.Events))
 	for k := range input.Events {
 		clist = append(clist, k)
 	}
-	sort.Strings(clist)
-	elist := make([]*C.char, 0)
+	slices.Sort(clist)
+	tmplist := make([]string, 0, len(clist))
+	elist := make([]*C.char, 0, len(clist))
 	for _, k := range clist {
 		v := input.Events[k]
 		tmplist = append(tmplist, fmt.Sprintf("%s:%s", v, k))
@@ -217,7 +209,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
 		}
 	}
 	lib := dl.New(m.config.LibraryPath, LIKWID_LIB_DL_FLAGS)
@@ -226,13 +218,13 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 	err := lib.Open()
 	if err != nil {
-		return fmt.Errorf("error opening %s: %v", m.config.LibraryPath, err)
+		return fmt.Errorf("error opening %s: %w", m.config.LibraryPath, err)
 	}
 
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
 		if err := os.Setenv("LIKWID_FORCE", "1"); err != nil {
-			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %v", err)
+			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %w", err)
 		}
 	}
 	if err := m.setup(); err != nil {
@@ -327,7 +319,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 				p = m.config.DaemonPath
 			}
 			if err := os.Setenv("PATH", p); err != nil {
-				return fmt.Errorf("error setting environment variable PATH=%s: %v", p, err)
+				return fmt.Errorf("error setting environment variable PATH=%s: %w", p, err)
 			}
 		}
 		C.HPMmode(1)
@@ -381,7 +373,6 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 // take a measurement for 'interval' seconds of event set index 'group'
 func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig, interval time.Duration) (bool, error) {
 	var ret C.int
-	var gid C.int = -1
 	sigchan := make(chan os.Signal, 1)
 
 	// Watch changes for the lock file ()
@@ -406,10 +397,10 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 			// Create the lock file if it does not exist
 			file, createErr := os.Create(m.config.LockfilePath)
 			if createErr != nil {
-				return true, fmt.Errorf("failed to create lock file: %v", createErr)
+				return true, fmt.Errorf("failed to create lock file: %w", createErr)
 			}
 			if err := file.Close(); err != nil {
-				return true, fmt.Errorf("failed to close lock file: %v", err)
+				return true, fmt.Errorf("failed to close lock file: %w", err)
 			}
 			info, err = os.Stat(m.config.LockfilePath) // Recheck the file after creation
 		}
@@ -462,6 +453,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	signal.Notify(sigchan, syscall.SIGCHLD)
 
 	// Add an event string to LIKWID
+	var gid C.int
 	select {
 	case <-sigchan:
 		gid = -1
@@ -631,7 +623,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						)
 					if err == nil {
 						if metric.Type != "node" {
-							y.AddTag("type-id", fmt.Sprintf("%d", domain))
+							y.AddTag("type-id", strconv.Itoa(domain))
 						}
 						if len(metric.Unit) > 0 {
 							y.AddMeta("unit", metric.Unit)
@@ -661,7 +653,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						metric.Name,
 						map[string]string{
 							"type":    "core",
-							"type-id": fmt.Sprintf("%d", coreID),
+							"type-id": strconv.Itoa(coreID),
 						},
 						m.meta,
 						map[string]any{
@@ -698,7 +690,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 						metric.Name,
 						map[string]string{
 							"type":    "socket",
-							"type-id": fmt.Sprintf("%d", socketID),
+							"type-id": strconv.Itoa(socketID),
 						},
 						m.meta,
 						map[string]any{
@@ -800,7 +792,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 							)
 						if err == nil {
 							if metric.Type != "node" {
-								y.AddTag("type-id", fmt.Sprintf("%d", domain))
+								y.AddTag("type-id", strconv.Itoa(domain))
 							}
 							if len(metric.Unit) > 0 {
 								y.AddMeta("unit", metric.Unit)
@@ -816,7 +808,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 }
 
 func (m *LikwidCollector) ReadThread(interval time.Duration, output chan lp.CCMessage) {
-	var err error = nil
+	var err error
 	groups := make([]LikwidEventsetConfig, 0)
 
 	for evidx, evset := range m.config.Eventsets {

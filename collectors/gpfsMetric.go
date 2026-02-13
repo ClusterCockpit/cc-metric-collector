@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"os/user"
 	"slices"
@@ -324,8 +323,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			log.Print(err.Error())
-			return err
+			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{
@@ -366,7 +364,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	// when using sudo, the full path of mmpmon must be specified because
 	// exec.LookPath will not work as mmpmon is not executable as user
 	if m.config.Sudo && !strings.HasPrefix(m.config.Mmpmon, "/") {
-		return fmt.Errorf("when using sudo, mmpmon_path must be provided and an absolute path: %s", m.config.Mmpmon)
+		return fmt.Errorf("%s Init(): when using sudo, mmpmon_path must be provided and an absolute path: %s", m.name, m.config.Mmpmon)
 	}
 
 	// Check if mmpmon is in executable search path
@@ -379,7 +377,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 			p = m.config.Mmpmon
 		} else {
 			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
-			return fmt.Errorf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err)
+			return fmt.Errorf("%s Init(): failed to find mmpmon binary '%s': %w", m.name, m.config.Mmpmon, err)
 		}
 	}
 	m.config.Mmpmon = p
@@ -564,30 +562,30 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		// compute total metrics (map[...] will return 0 if key not found)
 		// bytes read and written
 		if br, br_ok := newstate["_br_"]; br_ok {
-			newstate["bytesTotal"] = newstate["bytesTotal"] + br
+			newstate["bytesTotal"] += br
 		}
 		if bw, bw_ok := newstate["_bw_"]; bw_ok {
-			newstate["bytesTotal"] = newstate["bytesTotal"] + bw
+			newstate["bytesTotal"] += bw
 		}
 		// read and write count
 		if rdc, rdc_ok := newstate["_rdc_"]; rdc_ok {
-			newstate["iops"] = newstate["iops"] + rdc
+			newstate["iops"] += rdc
 		}
 		if wc, wc_ok := newstate["_wc_"]; wc_ok {
-			newstate["iops"] = newstate["iops"] + wc
+			newstate["iops"] += wc
 		}
 		// meta operations
 		if oc, oc_ok := newstate["_oc_"]; oc_ok {
-			newstate["metaops"] = newstate["metaops"] + oc
+			newstate["metaops"] += oc
 		}
 		if cc, cc_ok := newstate["_cc_"]; cc_ok {
-			newstate["metaops"] = newstate["metaops"] + cc
+			newstate["metaops"] += cc
 		}
 		if dir, dir_ok := newstate["_dir_"]; dir_ok {
-			newstate["metaops"] = newstate["metaops"] + dir
+			newstate["metaops"] += dir
 		}
 		if iu, iu_ok := newstate["_iu_"]; iu_ok {
-			newstate["metaops"] = newstate["metaops"] + iu
+			newstate["metaops"] += iu
 		}
 		// send desired metrics for this filesystem
 		for _, metric := range m.definitions {
@@ -620,13 +618,13 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			case "derivative":
 				if vnew_ok && vold_ok && timeDiff > 0 {
 					value = float64(vnew-vold) / timeDiff
-					if value.(float64) < 0 {
-						value = 0
+					if value.(float64) < 0.0 {
+						value = 0.0
 					}
 					value_ok = true
 				} else if vold_ok {
 					// if the difference is not computable, return 0
-					value = 0
+					value = 0.0
 					value_ok = true
 				}
 			}

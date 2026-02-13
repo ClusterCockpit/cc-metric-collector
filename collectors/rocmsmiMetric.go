@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -91,7 +92,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 	m.devices = make([]RocmSmiCollectorDevice, 0)
 
 	for i := range numDevs {
-		str_i := fmt.Sprintf("%d", i)
+		str_i := strconv.Itoa(i)
 		if slices.Contains(m.config.ExcludeDevices, str_i) {
 			continue
 		}
@@ -297,7 +298,7 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMessage
 				y, err := lp.NewMessage("rocm_temp_hbm", dev.tags, dev.meta, map[string]any{"value": value}, timestamp)
 				if err == nil {
 					y.AddTag("stype", "device")
-					y.AddTag("stype-id", fmt.Sprintf("%d", i))
+					y.AddTag("stype-id", strconv.Itoa(i))
 					output <- y
 				}
 			}

@@ -143,7 +143,13 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 		if old, ok := m.data[mntpoint]; ok {
 			for name, newVal := range values {
 				if m.config.SendAbsoluteValues {
-					msg, err := lp.NewMessage(fmt.Sprintf("nfsio_%s", name), m.tags, m.meta, map[string]any{"value": newVal}, now)
+					msg, err := lp.NewMessage(
+						"nfsio_"+name,
+						m.tags,
+						m.meta,
+						map[string]any{
+							"value": newVal},
+						now)
 					if err == nil {
 						msg.AddTag("stype", "filesystem")
 						msg.AddTag("stype-id", mntpoint)

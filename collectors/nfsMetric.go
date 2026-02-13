@@ -10,7 +10,6 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"slices"
 
 	//	"os"
@@ -49,7 +48,7 @@ func (m *nfsCollector) initStats() error {
 
 	// Wait for cmd end
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("initStats(): %w", err)
+		return fmt.Errorf("%s initStats(): %w", m.name, err)
 	}
 
 	buffer, err := cmd.Output()
@@ -81,7 +80,7 @@ func (m *nfsCollector) updateStats() error {
 
 	// Wait for cmd end
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("updateStats(): %w", err)
+		return fmt.Errorf("%s updateStats(): %w", m.name, err)
 	}
 
 	buffer, err := cmd.Output()
@@ -114,8 +113,7 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			log.Print(err.Error())
-			return err
+			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{
@@ -128,11 +126,11 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 	// Check if nfsstat is in executable search path
 	_, err := exec.LookPath(m.config.Nfsstats)
 	if err != nil {
-		return fmt.Errorf("NfsCollector.Init(): Failed to find nfsstat binary '%s': %v", m.config.Nfsstats, err)
+		return fmt.Errorf("%s Init(): Failed to find nfsstat binary '%s': %w", m.name, m.config.Nfsstats, err)
 	}
 	m.data = make(map[string]NfsCollectorData)
 	if err := m.initStats(); err != nil {
-		return fmt.Errorf("NfsCollector.Init(): %w", err)
+		return fmt.Errorf("%s Init(): %w", m.name, err)
 	}
 	m.init = true
 	m.parallel = true
@@ -152,7 +150,7 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		)
 		return
 	}
-	prefix := ""
+	var prefix string
 	switch m.version {
 	case "v3":
 		prefix = "nfs3"

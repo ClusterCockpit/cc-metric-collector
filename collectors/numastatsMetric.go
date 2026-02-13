@@ -84,7 +84,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	if len(config) > 0 {
 		err := json.Unmarshal(config, &m.config)
 		if err != nil {
-			return fmt.Errorf("unable to unmarshal numastat configuration: %s", err.Error())
+			return fmt.Errorf("%s Init(): unable to unmarshal numastat configuration: %w", m.name, err)
 		}
 	}
 
@@ -93,10 +93,10 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	globPattern := base + "[0-9]*"
 	dirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		return fmt.Errorf("unable to glob files with pattern '%s'", globPattern)
+		return fmt.Errorf("%s Init(): unable to glob files with pattern '%s'", m.name, globPattern)
 	}
 	if dirs == nil {
-		return fmt.Errorf("unable to find any files with pattern '%s'", globPattern)
+		return fmt.Errorf("%s Init(): unable to find any files with pattern '%s'", m.name, globPattern)
 	}
 	m.topology = make([]NUMAStatsCollectorTopolgy, 0, len(dirs))
 	for _, dir := range dirs {

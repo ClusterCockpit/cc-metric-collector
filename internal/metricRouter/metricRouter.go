@@ -186,10 +186,6 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 		return fmt.Errorf("MessageProcessor AddAddTagsByCondition() failed: %w", err)
 	}
 
-	// r.config.dropMetrics = make(map[string]bool)
-	// for _, mname := range r.config.DropMetrics {
-	// 	r.config.dropMetrics[mname] = true
-	// }
 	return nil
 }
 
@@ -208,7 +204,7 @@ func getParamMap(point lp.CCMessage) map[string]any {
 	return params
 }
 
-// DoAddTags adds a tag when condition is fullfiled
+// DoAddTags adds a tag when condition is fulfilled
 func (r *metricRouter) DoAddTags(point lp.CCMessage) {
 	var conditionMatches bool
 	for _, m := range r.config.AddTags {
@@ -230,83 +226,6 @@ func (r *metricRouter) DoAddTags(point lp.CCMessage) {
 	}
 }
 
-// DoDelTags removes a tag when condition is fullfiled
-// func (r *metricRouter) DoDelTags(point lp.CCMessage) {
-// 	var conditionMatches bool
-// 	for _, m := range r.config.DelTags {
-// 		if m.Condition == "*" {
-// 			// Condition is always matched
-// 			conditionMatches = true
-// 		} else {
-// 			// Evaluate condition
-// 			var err error
-// 			conditionMatches, err = agg.EvalBoolCondition(m.Condition, getParamMap(point))
-// 			if err != nil {
-// 				cclog.ComponentError("MetricRouter", err.Error())
-// 				conditionMatches = false
-// 			}
-// 		}
-// 		if conditionMatches {
-// 			point.RemoveTag(m.Key)
-// 		}
-// 	}
-// }
-
-// Conditional test whether a metric should be dropped
-// func (r *metricRouter) dropMetric(point lp.CCMessage) bool {
-// 	// Simple drop check
-// 	if conditionMatches, ok := r.config.dropMetrics[point.Name()]; ok {
-// 		return conditionMatches
-// 	}
-
-// 	// Checking the dropping conditions
-// 	for _, m := range r.config.DropMetricsIf {
-// 		conditionMatches, err := agg.EvalBoolCondition(m, getParamMap(point))
-// 		if err != nil {
-// 			cclog.ComponentError("MetricRouter", err.Error())
-// 			conditionMatches = false
-// 		}
-// 		if conditionMatches {
-// 			return conditionMatches
-// 		}
-// 	}
-
-// 	// No dropping condition met
-// 	return false
-// }
-
-// func (r *metricRouter) prepareUnit(point lp.CCMessage) bool {
-// 	if r.config.NormalizeUnits {
-// 		if in_unit, ok := point.GetMeta("unit"); ok {
-// 			u := units.NewUnit(in_unit)
-// 			if u.Valid() {
-// 				point.AddMeta("unit", u.Short())
-// 			}
-// 		}
-// 	}
-// 	if newP, ok := r.config.ChangeUnitPrefix[point.Name()]; ok {
-
-// 		newPrefix := units.NewPrefix(newP)
-
-// 		if in_unit, ok := point.GetMeta("unit"); ok && newPrefix != units.InvalidPrefix {
-// 			u := units.NewUnit(in_unit)
-// 			if u.Valid() {
-// 				cclog.ComponentDebug("MetricRouter", "Change prefix to", newP, "for metric", point.Name())
-// 				conv, out_unit := units.GetUnitPrefixFactor(u, newPrefix)
-// 				if conv != nil && out_unit.Valid() {
-// 					if val, ok := point.GetField("value"); ok {
-// 						point.AddField("value", conv(val))
-// 						point.AddMeta("unit", out_unit.Short())
-// 					}
-// 				}
-// 			}
-
-// 		}
-// 	}
-
-// 	return true
-// }
-
 // Start starts the metric router
 func (r *metricRouter) Start() {
 	// start timer if configured
@@ -322,28 +241,7 @@ func (r *metricRouter) Start() {
 		cclog.ComponentDebug("MetricRouter", "DONE")
 	}
 
-	// Forward takes a received metric, adds or deletes tags
-	// and forwards it to the output channels
-	// forward := func(point lp.CCMessage) {
-	// 	cclog.ComponentDebug("MetricRouter", "FORWARD", point)
-	// 	r.DoAddTags(point)
-	// 	r.DoDelTags(point)
-	// 	name := point.Name()
-	// 	if new, ok := r.config.RenameMetrics[name]; ok {
-	// 		point.SetName(new)
-	// 		point.AddMeta("oldname", name)
-	// 		r.DoAddTags(point)
-	// 		r.DoDelTags(point)
-	// 	}
-
-	// 	r.prepareUnit(point)
-
-	// 	for _, o := range r.outputs {
-	// 		o <- point
-	// 	}
-	// }
-
-	// Foward message received from collector channel
+	// Forward message received from collector channel
 	coll_forward := func(p lp.CCMessage) {
 		// receive from metric collector
 		//p.AddTag(r.config.HostnameTagName, r.hostname)
@@ -356,11 +254,6 @@ func (r *metricRouter) Start() {
 				o <- m
 			}
 		}
-		// if !r.dropMetric(p) {
-		// 	for _, o := range r.outputs {
-		// 		o <- point
-		// 	}
-		// }
 		// even if the metric is dropped, it is stored in the cache for
 		// aggregations
 		if r.config.NumCacheIntervals > 0 {
@@ -380,9 +273,6 @@ func (r *metricRouter) Start() {
 				o <- m
 			}
 		}
-		// if !r.dropMetric(p) {
-		// 	forward(p)
-		// }
 	}
 
 	// Forward message received from cache channel

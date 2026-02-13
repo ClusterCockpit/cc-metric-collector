@@ -21,7 +21,7 @@ type multiChanTicker struct {
 
 type MultiChanTicker interface {
 	Init(duration time.Duration)
-	AddChannel(chan time.Time)
+	AddChannel(channel chan time.Time)
 	Close()
 }
 

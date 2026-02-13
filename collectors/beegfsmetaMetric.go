@@ -78,7 +78,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 		}
 	}
 
-	//create map with possible variables
+	// Create map with possible variables
 	m.matches = make(map[string]string)
 	for _, value := range nodeMdstat_array {
 		if slices.Contains(m.config.ExcludeMetrics, value) {
@@ -104,7 +104,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 	// Beegfs file system statistics can only be queried by user root
 	user, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("BeegfsMetaCollector.Init(): Failed to get current user: %v", err)
+		return fmt.Errorf("BeegfsMetaCollector.Init(): Failed to get current user: %w", err)
 	}
 	if user.Uid != "0" {
 		return fmt.Errorf("BeegfsMetaCollector.Init(): BeeGFS file system statistics can only be queried by user root")
@@ -113,7 +113,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 	// Check if beegfs-ctl is in executable search path
 	_, err = exec.LookPath(m.config.Beegfs)
 	if err != nil {
-		return fmt.Errorf("BeegfsMetaCollector.Init(): Failed to find beegfs-ctl binary '%s': %v", m.config.Beegfs, err)
+		return fmt.Errorf("BeegfsMetaCollector.Init(): Failed to find beegfs-ctl binary '%s': %w", m.config.Beegfs, err)
 	}
 	m.init = true
 	return nil
@@ -123,7 +123,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 	if !m.init {
 		return
 	}
-	//get mounpoint
+	// Get mounpoint
 	buffer, _ := os.ReadFile(string("/proc/mounts"))
 	mounts := strings.Split(string(buffer), "\n")
 	var mountpoints []string
@@ -164,12 +164,15 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 		cmd.Stderr = cmdStderr
 		err := cmd.Run()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): Failed to execute command \"%s\": %s\n", cmd.String(), err.Error())
-			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): command exit code: \"%d\"\n", cmd.ProcessState.ExitCode())
-			data, _ := io.ReadAll(cmdStderr)
-			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): command stderr: \"%s\"\n", string(data))
-			data, _ = io.ReadAll(cmdStdout)
-			fmt.Fprintf(os.Stderr, "BeegfsMetaCollector.Read(): command stdout: \"%s\"\n", string(data))
+			dataStdErr, _ := io.ReadAll(cmdStderr)
+			dataStdOut, _ := io.ReadAll(cmdStdout)
+			cclog.ComponentError(
+				m.name,
+				fmt.Sprintf("Read(): Failed to execute command \"%s\": %v\n", cmd.String(), err),
+				fmt.Sprintf("Read(): command exit code: \"%d\"\n", cmd.ProcessState.ExitCode()),
+				fmt.Sprintf("Read(): command stderr: \"%s\"\n", string(dataStdErr)),
+				fmt.Sprintf("Read(): command stdout: \"%s\"\n", string(dataStdOut)),
+			)
 			return
 		}
 		// Read I/O statistics

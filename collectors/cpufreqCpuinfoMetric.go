@@ -35,7 +35,7 @@ type CPUFreqCpuInfoCollector struct {
 	topology []CPUFreqCpuInfoCollectorTopology
 }
 
-func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
+func (m *CPUFreqCpuInfoCollector) Init(_ json.RawMessage) error {
 	// Check if already initialized
 	if m.init {
 		return nil
@@ -55,7 +55,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		return fmt.Errorf("failed to open file '%s': %v", cpuInfoFile, err)
+		return fmt.Errorf("%s Init(): failed to open file '%s': %w", m.name, cpuInfoFile, err)
 	}
 
 	// Collect topology information from file cpuinfo
@@ -123,7 +123,7 @@ func (m *CPUFreqCpuInfoCollector) Init(config json.RawMessage) error {
 
 	// Check if at least one CPU with frequency information was detected
 	if len(m.topology) == 0 {
-		return fmt.Errorf("no CPU frequency info found in %s", cpuInfoFile)
+		return fmt.Errorf("%s Init(): no CPU frequency info found in %s", m.name, cpuInfoFile)
 	}
 
 	m.init = true

@@ -76,15 +76,15 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		scalingCurFreqFile := filepath.Join("/sys/devices/system/cpu", fmt.Sprintf("cpu%d", c.CpuID), "cpufreq/scaling_cur_freq")
 		err := unix.Access(scalingCurFreqFile, unix.R_OK)
 		if err != nil {
-			return fmt.Errorf("unable to access file '%s': %v", scalingCurFreqFile, err)
+			return fmt.Errorf("unable to access file '%s': %w", scalingCurFreqFile, err)
 		}
 
 		m.topology = append(m.topology,
 			CPUFreqCollectorTopology{
 				tagSet: map[string]string{
 					"type":       "hwthread",
-					"type-id":    fmt.Sprint(c.CpuID),
-					"package_id": fmt.Sprint(c.Socket),
+					"type-id":    strconv.Itoa(c.CpuID),
+					"package_id": strconv.Itoa(c.Socket),
 				},
 				scalingCurFreqFile: scalingCurFreqFile,
 			},

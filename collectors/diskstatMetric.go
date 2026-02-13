@@ -124,7 +124,13 @@ mountLoop:
 		tags := map[string]string{"type": "node", "device": linefields[0]}
 		total := (stat.Blocks * uint64(stat.Bsize)) / uint64(1000000000)
 		if m.allowedMetrics["disk_total"] {
-			y, err := lp.NewMessage("disk_total", tags, m.meta, map[string]any{"value": total}, time.Now())
+			y, err := lp.NewMessage(
+				"disk_total",
+				tags,
+				m.meta,
+				map[string]any{
+					"value": total},
+				time.Now())
 			if err == nil {
 				y.AddMeta("unit", "GBytes")
 				output <- y
@@ -132,7 +138,13 @@ mountLoop:
 		}
 		free := (stat.Bfree * uint64(stat.Bsize)) / uint64(1000000000)
 		if m.allowedMetrics["disk_free"] {
-			y, err := lp.NewMessage("disk_free", tags, m.meta, map[string]any{"value": free}, time.Now())
+			y, err := lp.NewMessage(
+				"disk_free",
+				tags,
+				m.meta,
+				map[string]any{
+					"value": free},
+				time.Now())
 			if err == nil {
 				y.AddMeta("unit", "GBytes")
 				output <- y
@@ -146,7 +158,14 @@ mountLoop:
 		}
 	}
 	if m.allowedMetrics["part_max_used"] {
-		y, err := lp.NewMessage("part_max_used", map[string]string{"type": "node"}, m.meta, map[string]any{"value": int(part_max_used)}, time.Now())
+		y, err := lp.NewMessage(
+			"part_max_used",
+			map[string]string{
+				"type": "node"},
+			m.meta,
+			map[string]any{
+				"value": int(part_max_used)},
+			time.Now())
 		if err == nil {
 			y.AddMeta("unit", "percent")
 			output <- y
