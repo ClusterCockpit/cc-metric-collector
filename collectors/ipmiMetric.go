@@ -27,6 +27,7 @@ const IPMISENSORS_PATH = `ipmi-sensors`
 
 type IpmiCollector struct {
 	metricCollector
+
 	config struct {
 		ExcludeDevices  []string `json:"exclude_devices"`
 		IpmitoolPath    string   `json:"ipmitool_path"`

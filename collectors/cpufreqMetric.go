@@ -35,6 +35,7 @@ type CPUFreqCollectorTopology struct {
 // See: https://www.kernel.org/doc/html/latest/admin-guide/pm/cpufreq.html
 type CPUFreqCollector struct {
 	metricCollector
+
 	topology []CPUFreqCollectorTopology
 	config   struct {
 		ExcludeMetrics []string `json:"exclude_metrics,omitempty"`

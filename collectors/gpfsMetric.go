@@ -52,6 +52,7 @@ type GpfsMetricDefinition struct {
 
 type GpfsCollector struct {
 	metricCollector
+
 	tags          map[string]string
 	config        GpfsCollectorConfig
 	sudoCmd       string

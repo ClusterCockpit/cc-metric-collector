@@ -29,6 +29,7 @@ type DiskstatCollectorConfig struct {
 
 type DiskstatCollector struct {
 	metricCollector
+
 	config         DiskstatCollectorConfig
 	allowedMetrics map[string]bool
 }

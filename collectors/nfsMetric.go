@@ -34,6 +34,7 @@ type NfsCollectorData struct {
 
 type nfsCollector struct {
 	metricCollector
+
 	tags    map[string]string
 	version string
 	config  struct {

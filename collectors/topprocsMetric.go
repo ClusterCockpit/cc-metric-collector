@@ -27,6 +27,7 @@ type TopProcsCollectorConfig struct {
 
 type TopProcsCollector struct {
 	metricCollector
+
 	tags   map[string]string
 	config TopProcsCollectorConfig
 }

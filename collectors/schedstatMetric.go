@@ -31,6 +31,7 @@ type SchedstatCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type SchedstatCollector struct {
 	metricCollector
+
 	config        SchedstatCollectorConfig     // the configuration structure
 	lastTimestamp time.Time                    // Store time stamp of last tick to derive values
 	meta          map[string]string            // default meta information

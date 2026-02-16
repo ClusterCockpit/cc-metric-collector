@@ -46,6 +46,7 @@ type InfinibandCollectorInfo struct {
 
 type InfinibandCollector struct {
 	metricCollector
+
 	config struct {
 		ExcludeDevices     []string `json:"exclude_devices,omitempty"` // IB device to exclude e.g. mlx5_0
 		SendAbsoluteValues bool     `json:"send_abs_values"`           // Send absolut values as read from sys filesystem

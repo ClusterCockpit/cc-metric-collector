@@ -40,6 +40,7 @@ type MemstatCollectorNode struct {
 
 type MemstatCollector struct {
 	metricCollector
+
 	stats       map[string]int64
 	tags        map[string]string
 	matches     map[string]string

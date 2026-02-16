@@ -30,6 +30,7 @@ type CpustatCollectorConfig struct {
 
 type CpustatCollector struct {
 	metricCollector
+
 	config        CpustatCollectorConfig
 	lastTimestamp time.Time // Store time stamp of last tick to derive values
 	matches       map[string]int

@@ -30,6 +30,7 @@ const LOADAVGFILE = "/proc/loadavg"
 
 type LoadavgCollector struct {
 	metricCollector
+
 	tags         map[string]string
 	load_matches []string
 	load_skips   []bool

@@ -32,6 +32,7 @@ type CPUFreqCpuInfoCollectorTopology struct {
 
 type CPUFreqCpuInfoCollector struct {
 	metricCollector
+
 	topology []CPUFreqCpuInfoCollectorTopology
 }
 

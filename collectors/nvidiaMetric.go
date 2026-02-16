@@ -47,6 +47,7 @@ type NvidiaCollectorDevice struct {
 
 type NvidiaCollector struct {
 	metricCollector
+
 	config   NvidiaCollectorConfig
 	gpus     []NvidiaCollectorDevice
 	num_gpus int

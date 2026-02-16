@@ -8,7 +8,6 @@ require (
 	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/influxdata/line-protocol/v2 v2.2.1
 	github.com/tklauser/go-sysconf v0.3.16
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/sys v0.41.0
@@ -23,6 +22,7 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
+	github.com/influxdata/line-protocol/v2 v2.2.1 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/nats.go v1.48.0 // indirect

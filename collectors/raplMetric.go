@@ -34,6 +34,7 @@ type RAPLZoneInfo struct {
 
 type RAPLCollector struct {
 	metricCollector
+
 	config struct {
 		// Exclude IDs for RAPL zones, e.g.
 		// * 0 for zone 0

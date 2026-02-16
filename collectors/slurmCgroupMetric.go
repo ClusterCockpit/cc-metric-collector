@@ -32,6 +32,7 @@ type SlurmCgroupsConfig struct {
 
 type SlurmCgroupCollector struct {
 	metricCollector
+
 	config         SlurmCgroupsConfig
 	meta           map[string]string
 	tags           map[string]string

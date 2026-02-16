@@ -25,6 +25,7 @@ type SampleCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type SampleCollector struct {
 	metricCollector
+
 	config SampleCollectorConfig // the configuration structure
 	meta   map[string]string     // default meta information
 	tags   map[string]string     // default tags

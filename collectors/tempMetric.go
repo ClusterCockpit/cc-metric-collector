@@ -41,6 +41,7 @@ type TempCollectorSensor struct {
 
 type TempCollector struct {
 	metricCollector
+
 	config struct {
 		ExcludeMetrics     []string                     `json:"exclude_metrics"`
 		TagOverride        map[string]map[string]string `json:"tag_override"`

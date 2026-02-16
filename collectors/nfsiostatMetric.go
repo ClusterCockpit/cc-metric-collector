@@ -34,6 +34,7 @@ type NfsIOStatCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type NfsIOStatCollector struct {
 	metricCollector
+
 	config        NfsIOStatCollectorConfig    // the configuration structure
 	meta          map[string]string           // default meta information
 	tags          map[string]string           // default tags

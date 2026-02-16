@@ -41,6 +41,7 @@ type NetstatCollectorMetric struct {
 
 type NetstatCollector struct {
 	metricCollector
+
 	config           NetstatCollectorConfig
 	aliasToCanonical map[string]string
 	matches          map[string][]NetstatCollectorMetric

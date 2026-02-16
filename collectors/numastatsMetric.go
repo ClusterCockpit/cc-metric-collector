@@ -59,6 +59,7 @@ type NUMAStatsCollectorTopolgy struct {
 
 type NUMAStatsCollector struct {
 	metricCollector
+
 	topology      []NUMAStatsCollectorTopolgy
 	config        NUMAStatsCollectorConfig
 	lastTimestamp time.Time

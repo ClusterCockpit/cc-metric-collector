@@ -38,6 +38,7 @@ type RocmSmiCollectorDevice struct {
 
 type RocmSmiCollector struct {
 	metricCollector
+
 	config  RocmSmiCollectorConfig // the configuration structure
 	devices []RocmSmiCollectorDevice
 }

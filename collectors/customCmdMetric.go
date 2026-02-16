@@ -31,6 +31,7 @@ type CustomCmdCollectorConfig struct {
 
 type CustomCmdCollector struct {
 	metricCollector
+
 	config         CustomCmdCollectorConfig
 	cmdFieldsSlice [][]string
 	files          []string

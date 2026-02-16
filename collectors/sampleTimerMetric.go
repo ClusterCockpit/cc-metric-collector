@@ -26,6 +26,7 @@ type SampleTimerCollectorConfig struct {
 // defined by metricCollector (name, init, ...)
 type SampleTimerCollector struct {
 	metricCollector
+
 	wg       sync.WaitGroup             // sync group for management
 	done     chan bool                  // channel for management
 	meta     map[string]string          // default meta information

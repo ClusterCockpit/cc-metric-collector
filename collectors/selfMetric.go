@@ -27,6 +27,7 @@ type SelfCollectorConfig struct {
 
 type SelfCollector struct {
 	metricCollector
+
 	config SelfCollectorConfig // the configuration structure
 	meta   map[string]string   // default meta information
 	tags   map[string]string   // default tags

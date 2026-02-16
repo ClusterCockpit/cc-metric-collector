@@ -37,6 +37,7 @@ type IOstatCollectorEntry struct {
 
 type IOstatCollector struct {
 	metricCollector
+
 	matches map[string]int
 	config  IOstatCollectorConfig
 	devices map[string]IOstatCollectorEntry

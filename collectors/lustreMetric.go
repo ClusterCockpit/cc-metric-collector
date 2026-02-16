@@ -45,6 +45,7 @@ type LustreMetricDefinition struct {
 
 type LustreCollector struct {
 	metricCollector
+
 	tags          map[string]string
 	config        LustreCollectorConfig
 	lctl          string

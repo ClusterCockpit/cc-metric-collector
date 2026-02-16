@@ -37,6 +37,7 @@ type BeegfsMetaCollectorConfig struct {
 
 type BeegfsMetaCollector struct {
 	metricCollector
+
 	tags    map[string]string
 	matches map[string]string
 	config  BeegfsMetaCollectorConfig
