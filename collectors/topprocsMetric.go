@@ -18,8 +18,10 @@ import (
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
-const MAX_NUM_PROCS = 10
-const DEFAULT_NUM_PROCS = 2
+const (
+	MAX_NUM_PROCS     = 10
+	DEFAULT_NUM_PROCS = 2
+)
 
 type TopProcsCollectorConfig struct {
 	Num_procs int `json:"num_procs"`
@@ -87,7 +89,8 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMessag
 			m.tags,
 			m.meta,
 			map[string]any{
-				"value": lines[i]},
+				"value": lines[i],
+			},
 			time.Now())
 		if err == nil {
 			output <- y

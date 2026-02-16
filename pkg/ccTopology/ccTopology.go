@@ -111,78 +111,75 @@ func fileToList(path string) []int {
 
 // init initializes the cache structure
 func init() {
+	getHWThreads := func() []int {
+		globPath := filepath.Join(SYSFS_CPUBASE, "cpu[0-9]*")
+		regexPath := filepath.Join(SYSFS_CPUBASE, "cpu([[:digit:]]+)")
+		regex := regexp.MustCompile(regexPath)
 
-	getHWThreads :=
-		func() []int {
-			globPath := filepath.Join(SYSFS_CPUBASE, "cpu[0-9]*")
-			regexPath := filepath.Join(SYSFS_CPUBASE, "cpu([[:digit:]]+)")
-			regex := regexp.MustCompile(regexPath)
+		// File globbing for hardware threads
+		files, err := filepath.Glob(globPath)
+		if err != nil {
+			cclogger.ComponentError("CCTopology", "init:getHWThreads", err.Error())
+			return nil
+		}
 
-			// File globbing for hardware threads
-			files, err := filepath.Glob(globPath)
-			if err != nil {
-				cclogger.ComponentError("CCTopology", "init:getHWThreads", err.Error())
+		hwThreadIDs := make([]int, len(files))
+		for i, file := range files {
+			// Extract hardware thread ID
+			matches := regex.FindStringSubmatch(file)
+			if len(matches) != 2 {
+				cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to extract hardware thread ID from ", file)
 				return nil
 			}
 
-			hwThreadIDs := make([]int, len(files))
-			for i, file := range files {
-				// Extract hardware thread ID
-				matches := regex.FindStringSubmatch(file)
-				if len(matches) != 2 {
-					cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to extract hardware thread ID from ", file)
-					return nil
-				}
-
-				// Convert hardware thread ID to int
-				id, err := strconv.Atoi(matches[1])
-				if err != nil {
-					cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to convert to int hardware thread ID ", matches[1])
-					return nil
-				}
-
-				hwThreadIDs[i] = id
-			}
-
-			// Sort hardware thread IDs
-			slices.Sort(hwThreadIDs)
-			return hwThreadIDs
-		}
-
-	getNumaDomain :=
-		func(basePath string) int {
-			globPath := filepath.Join(basePath, "node*")
-			regexPath := filepath.Join(basePath, "node([[:digit:]]+)")
-			regex := regexp.MustCompile(regexPath)
-
-			// File globbing for NUMA node
-			files, err := filepath.Glob(globPath)
-			if err != nil {
-				cclogger.ComponentError("CCTopology", "init:getNumaDomain", err.Error())
-				return -1
-			}
-
-			// Check, that exactly one NUMA domain was found
-			if len(files) != 1 {
-				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Number of NUMA domains != 1: ", len(files))
-				return -1
-			}
-
-			// Extract NUMA node ID
-			matches := regex.FindStringSubmatch(files[0])
-			if len(matches) != 2 {
-				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to extract NUMA node ID from: ", files[0])
-				return -1
-			}
-
+			// Convert hardware thread ID to int
 			id, err := strconv.Atoi(matches[1])
 			if err != nil {
-				cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to parse NUMA node ID from: ", matches[1])
-				return -1
+				cclogger.ComponentError("CCTopology", "init:getHWThreads: Failed to convert to int hardware thread ID ", matches[1])
+				return nil
 			}
 
-			return id
+			hwThreadIDs[i] = id
 		}
+
+		// Sort hardware thread IDs
+		slices.Sort(hwThreadIDs)
+		return hwThreadIDs
+	}
+
+	getNumaDomain := func(basePath string) int {
+		globPath := filepath.Join(basePath, "node*")
+		regexPath := filepath.Join(basePath, "node([[:digit:]]+)")
+		regex := regexp.MustCompile(regexPath)
+
+		// File globbing for NUMA node
+		files, err := filepath.Glob(globPath)
+		if err != nil {
+			cclogger.ComponentError("CCTopology", "init:getNumaDomain", err.Error())
+			return -1
+		}
+
+		// Check, that exactly one NUMA domain was found
+		if len(files) != 1 {
+			cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Number of NUMA domains != 1: ", len(files))
+			return -1
+		}
+
+		// Extract NUMA node ID
+		matches := regex.FindStringSubmatch(files[0])
+		if len(matches) != 2 {
+			cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to extract NUMA node ID from: ", files[0])
+			return -1
+		}
+
+		id, err := strconv.Atoi(matches[1])
+		if err != nil {
+			cclogger.ComponentError("CCTopology", "init:getNumaDomain", "Failed to parse NUMA node ID from: ", matches[1])
+			return -1
+		}
+
+		return id
+	}
 
 	cache.HwthreadList = getHWThreads()
 	cache.CoreList = make([]int, len(cache.HwthreadList))
@@ -218,16 +215,15 @@ func init() {
 		// Lookup NUMA domain id
 		cache.NumaDomainList[i] = getNumaDomain(cpuBase)
 
-		cache.CpuData[i] =
-			HwthreadEntry{
-				CpuID:        cache.HwthreadList[i],
-				SMT:          cache.SMTList[i],
-				CoreCPUsList: coreCPUsList,
-				Socket:       cache.SocketList[i],
-				NumaDomain:   cache.NumaDomainList[i],
-				Die:          cache.DieList[i],
-				Core:         cache.CoreList[i],
-			}
+		cache.CpuData[i] = HwthreadEntry{
+			CpuID:        cache.HwthreadList[i],
+			SMT:          cache.SMTList[i],
+			CoreCPUsList: coreCPUsList,
+			Socket:       cache.SocketList[i],
+			NumaDomain:   cache.NumaDomainList[i],
+			Die:          cache.DieList[i],
+			Core:         cache.CoreList[i],
+		}
 	}
 
 	slices.Sort(cache.HwthreadList)

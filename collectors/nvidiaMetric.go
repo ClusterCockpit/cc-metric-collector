@@ -1226,7 +1226,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 	}
 
 	// Actual read loop over all attached Nvidia GPUs
-	for i := 0; i < m.num_gpus; i++ {
+	for i := range m.num_gpus {
 
 		readAll(&m.gpus[i], output)
 

@@ -24,8 +24,10 @@ import (
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
-const MEMSTATFILE = "/proc/meminfo"
-const NUMA_MEMSTAT_BASE = "/sys/devices/system/node"
+const (
+	MEMSTATFILE       = "/proc/meminfo"
+	NUMA_MEMSTAT_BASE = "/sys/devices/system/node"
+)
 
 type MemstatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics"`

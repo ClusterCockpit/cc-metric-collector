@@ -12,15 +12,13 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/ClusterCockpit/cc-lib/v2/receivers"
 	"github.com/ClusterCockpit/cc-lib/v2/sinks"
 	"github.com/ClusterCockpit/cc-metric-collector/collectors"
-
-	//	"strings"
-	"sync"
-	"time"
 
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"

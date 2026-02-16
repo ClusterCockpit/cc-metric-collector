@@ -110,9 +110,11 @@ func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	m.parallel = true
 	m.meta = map[string]string{
 		"source": m.name,
-		"group":  "SLURM"}
+		"group":  "SLURM",
+	}
 	m.tags = map[string]string{
-		"type": "hwthread"}
+		"type": "hwthread",
+	}
 	m.cpuUsed = make(map[int]bool)
 	m.cgroupBase = defaultCgroupBase
 
@@ -265,7 +267,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 						coreTags,
 						m.meta,
 						map[string]any{
-							"value": memPerCore},
+							"value": memPerCore,
+						},
 						timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
@@ -279,7 +282,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 						coreTags,
 						m.meta,
 						map[string]any{
-							"value": maxMemPerCore},
+							"value": maxMemPerCore,
+						},
 						timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
@@ -293,7 +297,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 						coreTags,
 						m.meta,
 						map[string]any{
-							"value": limitPerCore},
+							"value": limitPerCore,
+						},
 						timestamp); err == nil {
 						y.AddMeta("unit", "Bytes")
 						output <- y
@@ -307,7 +312,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 						coreTags,
 						m.meta,
 						map[string]any{
-							"value": cpuUserPerCore},
+							"value": cpuUserPerCore,
+						},
 						timestamp); err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
@@ -321,7 +327,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 						coreTags,
 						m.meta,
 						map[string]any{
-							"value": cpuSysPerCore},
+							"value": cpuSysPerCore,
+						},
 						timestamp); err == nil {
 						y.AddMeta("unit", "%")
 						output <- y
@@ -346,7 +353,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 					coreTags,
 					m.meta,
 					map[string]any{
-						"value": 0},
+						"value": 0,
+					},
 					timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
@@ -359,7 +367,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 					coreTags,
 					m.meta,
 					map[string]any{
-						"value": 0},
+						"value": 0,
+					},
 					timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y
@@ -372,7 +381,8 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 					coreTags,
 					m.meta,
 					map[string]any{
-						"value": 0},
+						"value": 0,
+					},
 					timestamp); err == nil {
 					y.AddMeta("unit", "Bytes")
 					output <- y

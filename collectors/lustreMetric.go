@@ -22,9 +22,11 @@ import (
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
-const LUSTRE_SYSFS = `/sys/fs/lustre`
-const LCTL_CMD = `lctl`
-const LCTL_OPTION = `get_param`
+const (
+	LUSTRE_SYSFS = `/sys/fs/lustre`
+	LCTL_CMD     = `lctl`
+	LCTL_OPTION  = `get_param`
+)
 
 type LustreCollectorConfig struct {
 	LCtlCommand        string   `json:"lctl_command,omitempty"`

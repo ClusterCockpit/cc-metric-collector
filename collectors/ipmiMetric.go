@@ -93,7 +93,6 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 }
 
 func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
-
 	// Setup ipmitool command
 	command := exec.Command(cmd, "sensor")
 	stdout, _ := command.StdoutPipe()
@@ -152,7 +151,6 @@ func (m *IpmiCollector) readIpmiTool(cmd string, output chan lp.CCMessage) {
 }
 
 func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
-
 	// Setup ipmisensors command
 	command := exec.Command(cmd, "--comma-separated-output", "--sdr-cache-recreate")
 	stdout, _ := command.StdoutPipe()
@@ -197,11 +195,9 @@ func (m *IpmiCollector) readIpmiSensors(cmd string, output chan lp.CCMessage) {
 		cclog.ComponentError(m.name, fmt.Sprintf("readIpmiSensors(): command stderr: \"%s\"\n", strings.TrimSpace(string(errMsg))))
 		return
 	}
-
 }
 
 func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-
 	// Check if already initialized
 	if !m.init {
 		return

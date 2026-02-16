@@ -101,7 +101,6 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		// Send it to output channel
 		output <- y
 	}
-
 }
 
 // Close metric collector: close network connection, close files, close libraries, ...

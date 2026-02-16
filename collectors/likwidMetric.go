@@ -609,18 +609,17 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				evset.metrics[tid][metric.Name] = value
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) && metric.Publish {
-					y, err :=
-						lp.NewMessage(
-							metric.Name,
-							map[string]string{
-								"type": metric.Type,
-							},
-							m.meta,
-							map[string]any{
-								"value": value,
-							},
-							now,
-						)
+					y, err := lp.NewMessage(
+						metric.Name,
+						map[string]string{
+							"type": metric.Type,
+						},
+						m.meta,
+						map[string]any{
+							"value": value,
+						},
+						now,
+					)
 					if err == nil {
 						if metric.Type != "node" {
 							y.AddTag("type-id", strconv.Itoa(domain))
@@ -648,19 +647,18 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 			}
 
 			for coreID, value := range totalCoreValues {
-				y, err :=
-					lp.NewMessage(
-						metric.Name,
-						map[string]string{
-							"type":    "core",
-							"type-id": strconv.Itoa(coreID),
-						},
-						m.meta,
-						map[string]any{
-							"value": value,
-						},
-						now,
-					)
+				y, err := lp.NewMessage(
+					metric.Name,
+					map[string]string{
+						"type":    "core",
+						"type-id": strconv.Itoa(coreID),
+					},
+					m.meta,
+					map[string]any{
+						"value": value,
+					},
+					now,
+				)
 				if err != nil {
 					continue
 				}
@@ -685,19 +683,18 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 			}
 
 			for socketID, value := range totalSocketValues {
-				y, err :=
-					lp.NewMessage(
-						metric.Name,
-						map[string]string{
-							"type":    "socket",
-							"type-id": strconv.Itoa(socketID),
-						},
-						m.meta,
-						map[string]any{
-							"value": value,
-						},
-						now,
-					)
+				y, err := lp.NewMessage(
+					metric.Name,
+					map[string]string{
+						"type":    "socket",
+						"type-id": strconv.Itoa(socketID),
+					},
+					m.meta,
+					map[string]any{
+						"value": value,
+					},
+					now,
+				)
 				if err != nil {
 					continue
 				}
@@ -720,18 +717,17 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 				}
 			}
 
-			y, err :=
-				lp.NewMessage(
-					metric.Name,
-					map[string]string{
-						"type": "node",
-					},
-					m.meta,
-					map[string]any{
-						"value": totalNodeValue,
-					},
-					now,
-				)
+			y, err := lp.NewMessage(
+				metric.Name,
+				map[string]string{
+					"type": "node",
+				},
+				m.meta,
+				map[string]any{
+					"value": totalNodeValue,
+				},
+				now,
+			)
 			if err != nil {
 				continue
 			}
@@ -778,18 +774,17 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				// Now we have the result, send it with the proper tags
 				if !math.IsNaN(value) {
 					if metric.Publish {
-						y, err :=
-							lp.NewMessage(
-								metric.Name,
-								map[string]string{
-									"type": metric.Type,
-								},
-								m.meta,
-								map[string]any{
-									"value": value,
-								},
-								now,
-							)
+						y, err := lp.NewMessage(
+							metric.Name,
+							map[string]string{
+								"type": metric.Type,
+							},
+							m.meta,
+							map[string]any{
+								"value": value,
+							},
+							now,
+						)
 						if err == nil {
 							if metric.Type != "node" {
 								y.AddTag("type-id", strconv.Itoa(domain))

@@ -10,7 +10,6 @@ package collectors
 import (
 	"bufio"
 	"encoding/json"
-
 	"fmt"
 	"os"
 	"strconv"

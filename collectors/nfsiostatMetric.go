@@ -43,8 +43,10 @@ type NfsIOStatCollector struct {
 	lastTimestamp time.Time
 }
 
-var deviceRegex = regexp.MustCompile(`device (?P<server>[^ ]+) mounted on (?P<mntpoint>[^ ]+) with fstype nfs(?P<version>\d*) statvers=[\d\.]+`)
-var bytesRegex = regexp.MustCompile(`\s+bytes:\s+(?P<nread>[^ ]+) (?P<nwrite>[^ ]+) (?P<dread>[^ ]+) (?P<dwrite>[^ ]+) (?P<nfsread>[^ ]+) (?P<nfswrite>[^ ]+) (?P<pageread>[^ ]+) (?P<pagewrite>[^ ]+)`)
+var (
+	deviceRegex = regexp.MustCompile(`device (?P<server>[^ ]+) mounted on (?P<mntpoint>[^ ]+) with fstype nfs(?P<version>\d*) statvers=[\d\.]+`)
+	bytesRegex  = regexp.MustCompile(`\s+bytes:\s+(?P<nread>[^ ]+) (?P<nwrite>[^ ]+) (?P<dread>[^ ]+) (?P<dwrite>[^ ]+) (?P<nfsread>[^ ]+) (?P<nfswrite>[^ ]+) (?P<pageread>[^ ]+) (?P<pagewrite>[^ ]+)`)
+)
 
 func resolve_regex_fields(s string, regex *regexp.Regexp) map[string]string {
 	fields := make(map[string]string)
@@ -149,7 +151,8 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 						m.tags,
 						m.meta,
 						map[string]any{
-							"value": newVal},
+							"value": newVal,
+						},
 						now)
 					if err == nil {
 						msg.AddTag("stype", "filesystem")

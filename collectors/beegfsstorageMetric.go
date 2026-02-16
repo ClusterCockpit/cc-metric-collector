@@ -48,12 +48,13 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 	// Metrics
-	var storageStat_array = [18]string{
+	storageStat_array := [18]string{
 		"sum", "ack", "sChDrct", "getFSize",
 		"sAttr", "statfs", "trunc", "close",
 		"fsync", "ops-rd", "MiB-rd/s", "ops-wr",
 		"MiB-wr/s", "gendbg", "hrtbeat", "remNode",
-		"storInf", "unlnk"}
+		"storInf", "unlnk",
+	}
 
 	m.name = "BeegfsStorageCollector"
 	if err := m.setup(); err != nil {
@@ -72,7 +73,7 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 		}
 	}
 
-	//create map with possible variables
+	// Create map with possible variables
 	m.matches = make(map[string]string)
 	for _, value := range storageStat_array {
 		if slices.Contains(m.config.ExcludeMetrics, value) {
@@ -117,11 +118,10 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 	if !m.init {
 		return
 	}
-	//get mounpoint
-	buffer, _ := os.ReadFile(string("/proc/mounts"))
-	mounts := strings.Split(string(buffer), "\n")
+	// Get mounpoint
+	buffer, _ := os.ReadFile("/proc/mounts")
 	var mountpoints []string
-	for _, line := range mounts {
+	for line := range strings.Lines(string(buffer)) {
 		if len(line) == 0 {
 			continue
 		}
@@ -146,7 +146,6 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 		// --nodetype=meta: The node type to query (meta, storage).
 		// --interval:
 		// --mount=/mnt/beeond/: Which mount point
-		//cmd := exec.Command(m.config.Beegfs, "/root/mc/test.txt")
 		mountoption := "--mount=" + mountpoint
 		cmd := exec.Command(m.config.Beegfs, "--clientstats",
 			"--nodetype=storage", mountoption, "--allstats")
@@ -172,7 +171,6 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 		scanner := bufio.NewScanner(cmdStdout)
 
 		sumLine := regexp.MustCompile(`^Sum:\s+\d+\s+\[[a-zA-Z]+\]+`)
-		//Line := regexp.MustCompile(`^(.*)\s+(\d)+\s+\[([a-zA-Z]+)\]+`)
 		statsLine := regexp.MustCompile(`^(.*?)\s+?(\d.*?)$`)
 		singleSpacePattern := regexp.MustCompile(`\s+`)
 		removePattern := regexp.MustCompile(`[\[|\]]`)
@@ -187,7 +185,7 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 			match := statsLine.FindStringSubmatch(readLine)
 			// nodeName = "Sum:" or would be nodes
 			// nodeName := match[1]
-			//Remove multiple whitespaces
+			// Remove multiple whitespaces
 			dummy := removePattern.ReplaceAllString(match[2], " ")
 			metaStats := strings.TrimSpace(singleSpacePattern.ReplaceAllString(dummy, " "))
 			split := strings.Split(metaStats, " ")
@@ -198,7 +196,6 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 			for i := 0; i <= len(split)-1; i += 2 {
 				if _, ok := m.matches[split[i+1]]; ok {
 					m.matches["beegfs_cstorage_"+split[i+1]] = split[i]
-					//m.matches[split[i+1]] = split[i]
 				} else {
 					f1, err := strconv.ParseFloat(m.matches["other"], 32)
 					if err != nil {

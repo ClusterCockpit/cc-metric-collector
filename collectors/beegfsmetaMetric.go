@@ -50,7 +50,7 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 	// Metrics
-	var nodeMdstat_array = [39]string{
+	nodeMdstat_array := [39]string{
 		"sum", "ack", "close", "entInf",
 		"fndOwn", "mkdir", "create", "rddir",
 		"refrEn", "mdsInf", "rmdir", "rmLnk",
@@ -60,7 +60,8 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 		"lookLI", "statLI", "revalLI", "openLI",
 		"createLI", "hardlnk", "flckAp", "flckEn",
 		"flckRg", "dirparent", "listXA", "getXA",
-		"rmXA", "setXA", "mirror"}
+		"rmXA", "setXA", "mirror",
+	}
 
 	m.name = "BeegfsMetaCollector"
 	if err := m.setup(); err != nil {
@@ -154,7 +155,6 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 		// --nodetype=meta: The node type to query (meta, storage).
 		// --interval:
 		// --mount=/mnt/beeond/: Which mount point
-		//cmd := exec.Command(m.config.Beegfs, "/root/mc/test.txt")
 		mountoption := "--mount=" + mountpoint
 		cmd := exec.Command(m.config.Beegfs, "--clientstats",
 			"--nodetype=meta", mountoption, "--allstats")
@@ -180,14 +180,12 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 		scanner := bufio.NewScanner(cmdStdout)
 
 		sumLine := regexp.MustCompile(`^Sum:\s+\d+\s+\[[a-zA-Z]+\]+`)
-		//Line := regexp.MustCompile(`^(.*)\s+(\d)+\s+\[([a-zA-Z]+)\]+`)
 		statsLine := regexp.MustCompile(`^(.*?)\s+?(\d.*?)$`)
 		singleSpacePattern := regexp.MustCompile(`\s+`)
 		removePattern := regexp.MustCompile(`[\[|\]]`)
 
 		for scanner.Scan() {
 			readLine := scanner.Text()
-			//fmt.Println(readLine)
 			// Jump few lines, we only want the I/O stats from nodes
 			if !sumLine.MatchString(readLine) {
 				continue
@@ -196,7 +194,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 			match := statsLine.FindStringSubmatch(readLine)
 			// nodeName = "Sum:" or would be nodes
 			// nodeName := match[1]
-			//Remove multiple whitespaces
+			// Remove multiple whitespaces
 			dummy := removePattern.ReplaceAllString(match[2], " ")
 			metaStats := strings.TrimSpace(singleSpacePattern.ReplaceAllString(dummy, " "))
 			split := strings.Split(metaStats, " ")
@@ -222,7 +220,6 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 							fmt.Sprintf("Metric (other): Failed to convert str written '%s' to float: %v", m.matches["other"], err))
 						continue
 					}
-					//mdStat["other"] = fmt.Sprintf("%f", f1+f2)
 					m.matches["beegfs_cstorage_other"] = fmt.Sprintf("%f", f1+f2)
 				}
 			}

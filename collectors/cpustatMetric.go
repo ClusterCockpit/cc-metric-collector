@@ -111,7 +111,8 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			cpu, _ := strconv.Atoi(cpustr)
 			m.cputags[linefields[0]] = map[string]string{
 				"type":    "hwthread",
-				"type-id": strconv.Itoa(cpu)}
+				"type-id": strconv.Itoa(cpu),
+			}
 			m.olddata[linefields[0]] = make(map[string]int64)
 			for k, v := range m.matches {
 				m.olddata[linefields[0]][k], _ = strconv.ParseInt(linefields[v], 0, 64)

@@ -79,7 +79,6 @@ func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker,
 
 // Start starts the metric cache
 func (c *metricCache) Start() {
-
 	c.tickchan = make(chan time.Time)
 	c.ticker.AddChannel(c.tickchan)
 	// Router cache is done
@@ -171,7 +170,6 @@ func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMessage
 			start = c.intervals[pindex].startstamp
 			stop = c.intervals[pindex].stopstamp
 			metrics = c.intervals[pindex].metrics
-			//return c.intervals[pindex].startstamp, c.intervals[pindex].stopstamp, c.intervals[pindex].metrics
 		} else {
 			metrics = make([]lp.CCMessage, 0)
 		}

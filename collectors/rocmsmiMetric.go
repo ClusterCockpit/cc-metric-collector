@@ -58,15 +58,6 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
-	// Define meta information sent with each metric
-	// (Can also be dynamic or this is the basic set with extension through AddMeta())
-	//m.meta = map[string]string{"source": m.name, "group": "AMD"}
-	// Define tags sent with each metric
-	// The 'type' tag is always needed, it defines the granulatity of the metric
-	// node -> whole system
-	// socket -> CPU socket (requires socket ID as 'type-id' tag)
-	// cpu -> single CPU hardware thread (requires cpu ID as 'type-id' tag)
-	//m.tags = map[string]string{"type": "node"}
 	// Read in the JSON configuration
 	if len(config) > 0 {
 		err = json.Unmarshal(config, &m.config)
@@ -305,7 +296,6 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMessage
 			}
 		}
 	}
-
 }
 
 // Close metric collector: close network connection, close files, close libraries, ...

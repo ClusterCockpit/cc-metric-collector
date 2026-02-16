@@ -58,6 +58,17 @@ fmt:
 	$(GOBIN) fmt $(GOSRC_APP)
 	@for F in $(GOSRC_INTERNAL); do $(GOBIN) fmt $$F; done
 
+# gofumpt <https://github.com/mvdan/gofumpt>:
+# Enforce a stricter format than gofmt
+.PHONY: gofumpt
+fmt:
+	$(GOBIN) install mvdan.cc/gofumpt@latest
+	gofumpt -w $(GOSRC_COLLECTORS)
+	gofumpt -w $(GOSRC_SINKS)
+	gofumpt -w $(GOSRC_RECEIVERS)
+	gofumpt -w $(GOSRC_APP)
+	@for F in $(GOSRC_INTERNAL); do gofumpt -w $$F; done
+
 
 # Examine Go source code and reports suspicious constructs
 .PHONY: vet

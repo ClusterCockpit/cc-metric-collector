@@ -8,19 +8,18 @@
 package collectors
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
+	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	"golang.org/x/sys/unix"
-
-	"encoding/json"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const IB_BASEPATH = "/sys/class/infiniband/"
@@ -59,7 +58,6 @@ type InfinibandCollector struct {
 
 // Init initializes the Infiniband collector by walking through files below IB_BASEPATH
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
-
 	// Check if already initialized
 	if m.init {
 		return nil
@@ -187,7 +185,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 
 // Read reads Infiniband counter files below IB_BASEPATH
 func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-
 	// Check if already initialized
 	if !m.init {
 		return
@@ -233,15 +230,14 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
-				if y, err :=
-					lp.NewMessage(
-						counterDef.name,
-						info.tagSet,
-						m.meta,
-						map[string]any{
-							"value": counterDef.currentState,
-						},
-						now); err == nil {
+				if y, err := lp.NewMessage(
+					counterDef.name,
+					info.tagSet,
+					m.meta,
+					map[string]any{
+						"value": counterDef.currentState,
+					},
+					now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
 				}
@@ -251,15 +247,14 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			if m.config.SendDerivedValues {
 				if counterDef.lastState >= 0 {
 					rate := float64((counterDef.currentState - counterDef.lastState)) / timeDiff
-					if y, err :=
-						lp.NewMessage(
-							counterDef.name+"_bw",
-							info.tagSet,
-							m.meta,
-							map[string]any{
-								"value": rate,
-							},
-							now); err == nil {
+					if y, err := lp.NewMessage(
+						counterDef.name+"_bw",
+						info.tagSet,
+						m.meta,
+						map[string]any{
+							"value": rate,
+						},
+						now); err == nil {
 						y.AddMeta("unit", counterDef.unit+"/sec")
 						output <- y
 
@@ -281,28 +276,26 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 
 		// Send total values
 		if m.config.SendTotalValues {
-			if y, err :=
-				lp.NewMessage(
-					"ib_total",
-					info.tagSet,
-					m.meta,
-					map[string]any{
-						"value": ib_total,
-					},
-					now); err == nil {
+			if y, err := lp.NewMessage(
+				"ib_total",
+				info.tagSet,
+				m.meta,
+				map[string]any{
+					"value": ib_total,
+				},
+				now); err == nil {
 				y.AddMeta("unit", "bytes")
 				output <- y
 			}
 
-			if y, err :=
-				lp.NewMessage(
-					"ib_total_pkts",
-					info.tagSet,
-					m.meta,
-					map[string]any{
-						"value": ib_total_pkts,
-					},
-					now); err == nil {
+			if y, err := lp.NewMessage(
+				"ib_total_pkts",
+				info.tagSet,
+				m.meta,
+				map[string]any{
+					"value": ib_total_pkts,
+				},
+				now); err == nil {
 				y.AddMeta("unit", "packets")
 				output <- y
 			}

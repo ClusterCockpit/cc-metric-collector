@@ -182,7 +182,6 @@ func (m *TempCollector) Init(config json.RawMessage) error {
 }
 
 func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
-
 	for _, sensor := range m.sensors {
 		// Read sensor file
 		buffer, err := os.ReadFile(sensor.file)
@@ -239,7 +238,6 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			}
 		}
 	}
-
 }
 
 func (m *TempCollector) Close() {

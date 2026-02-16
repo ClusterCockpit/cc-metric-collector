@@ -55,16 +55,19 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 	}
 	m.meta = map[string]string{
 		"source": m.name,
-		"group":  "LOAD"}
+		"group":  "LOAD",
+	}
 	m.tags = map[string]string{"type": "node"}
 	m.load_matches = []string{
 		"load_one",
 		"load_five",
-		"load_fifteen"}
+		"load_fifteen",
+	}
 	m.load_skips = make([]bool, len(m.load_matches))
 	m.proc_matches = []string{
 		"proc_run",
-		"proc_total"}
+		"proc_total",
+	}
 	m.proc_skips = make([]bool, len(m.proc_matches))
 
 	for i, name := range m.load_matches {

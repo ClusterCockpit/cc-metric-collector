@@ -35,7 +35,6 @@ func sumAnyType[T float64 | float32 | int | int32 | int64](values []T) (T, error
 
 // Sum up values
 func sumfunc(args any) (any, error) {
-
 	var err error
 	switch values := args.(type) {
 	case []float64:
@@ -168,7 +167,7 @@ func medianfunc(args any) (any, error) {
  */
 
 func lenfunc(args any) (any, error) {
-	var err error = nil
+	var err error
 	length := 0
 	switch values := args.(type) {
 	case []float64:

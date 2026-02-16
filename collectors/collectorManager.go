@@ -20,7 +20,6 @@ import (
 
 // Map of all available metric collectors
 var AvailableCollectors = map[string]MetricCollector{
-
 	"likwid":          new(LikwidCollector),
 	"loadavg":         new(LoadavgCollector),
 	"memstat":         new(MemstatCollector),

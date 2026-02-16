@@ -138,7 +138,7 @@ func (m *SchedstatCollector) Read(interval time.Duration, output chan lp.CCMessa
 		return
 	}
 
-	//timestamps
+	// timestamps
 	now := time.Now()
 	tsdelta := now.Sub(m.lastTimestamp)
 
@@ -166,7 +166,6 @@ func (m *SchedstatCollector) Read(interval time.Duration, output chan lp.CCMessa
 	}
 
 	m.lastTimestamp = now
-
 }
 
 // Close metric collector: close network connection, close files, close libraries, ...

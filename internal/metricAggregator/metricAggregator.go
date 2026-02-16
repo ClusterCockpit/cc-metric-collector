@@ -72,10 +72,12 @@ var metricCacheLanguage = gval.NewLanguage(
 	gval.Function("getCpuList", getCpuListOfNode),
 	gval.Function("getCpuListOfType", getCpuListOfType),
 )
+
 var language gval.Language = gval.NewLanguage(
 	gval.Full(),
 	metricCacheLanguage,
 )
+
 var evaluables = struct {
 	mapping map[string]gval.Evaluable
 	mutex   sync.Mutex
@@ -359,10 +361,9 @@ func EvalBoolCondition(condition string, params map[string]any) (bool, error) {
 	evaluable, ok := evaluables.mapping[condition]
 	evaluables.mutex.Unlock()
 	if !ok {
-		newcond :=
+		newcond := strings.ReplaceAll(
 			strings.ReplaceAll(
-				strings.ReplaceAll(
-					condition, "'", "\""), "%", "\\")
+				condition, "'", "\""), "%", "\\")
 		var err error
 		evaluable, err = language.NewEvaluable(newcond)
 		if err != nil {
@@ -381,10 +382,9 @@ func EvalFloat64Condition(condition string, params map[string]float64) (float64,
 	evaluable, ok := evaluables.mapping[condition]
 	evaluables.mutex.Unlock()
 	if !ok {
-		newcond :=
+		newcond := strings.ReplaceAll(
 			strings.ReplaceAll(
-				strings.ReplaceAll(
-					condition, "'", "\""), "%", "\\")
+				condition, "'", "\""), "%", "\\")
 		var err error
 		evaluable, err = language.NewEvaluable(newcond)
 		if err != nil {

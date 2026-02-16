@@ -17,7 +17,6 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
-
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 	mp "github.com/ClusterCockpit/cc-lib/v2/messageProcessor"
 	agg "github.com/ClusterCockpit/cc-metric-collector/internal/metricAggregator"
@@ -244,7 +243,6 @@ func (r *metricRouter) Start() {
 	// Forward message received from collector channel
 	coll_forward := func(p lp.CCMessage) {
 		// receive from metric collector
-		//p.AddTag(r.config.HostnameTagName, r.hostname)
 		if r.config.IntervalStamp {
 			p.SetTime(r.timestamp)
 		}
@@ -292,7 +290,6 @@ func (r *metricRouter) Start() {
 	}
 
 	r.wg.Go(func() {
-
 		for {
 			select {
 			case <-r.done:
