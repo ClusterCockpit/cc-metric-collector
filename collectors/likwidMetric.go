@@ -142,7 +142,7 @@ func genLikwidEventSet(input LikwidCollectorEventsetConfig) LikwidEventsetConfig
 	estr := strings.Join(tmplist, ",")
 	res := make(map[int]map[string]float64)
 	met := make(map[int]map[string]float64)
-	for _, i := range topo.CpuList() {
+	for _, i := range topo.HwthreadList() {
 		res[i] = make(map[string]float64)
 		for k := range input.Events {
 			res[i][k] = 0.0

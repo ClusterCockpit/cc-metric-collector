@@ -259,12 +259,6 @@ func HwthreadList() []int {
 	return slices.Clone(cache.HwthreadList)
 }
 
-// Get list of hardware thread IDs in the order of listing in /proc/cpuinfo
-// Deprecated! Use HwthreadList()
-func CpuList() []int {
-	return HwthreadList()
-}
-
 // CoreList gets the list of CPU core IDs in the order of listing in /proc/cpuinfo
 func CoreList() []int {
 	return slices.Clone(cache.CoreList)
