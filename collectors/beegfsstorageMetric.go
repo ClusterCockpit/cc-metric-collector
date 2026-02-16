@@ -71,7 +71,7 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 			return err
 		}
 	}
-	println(m.config.Beegfs)
+
 	//create map with possible variables
 	m.matches = make(map[string]string)
 	for _, value := range storageStat_array {
@@ -179,7 +179,6 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 
 		for scanner.Scan() {
 			readLine := scanner.Text()
-			//fmt.Println(readLine)
 			// Jump few lines, we only want the I/O stats from nodes
 			if !sumLine.MatchString(readLine) {
 				continue
