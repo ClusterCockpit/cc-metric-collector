@@ -86,10 +86,6 @@ func (m *CPUFreqCpuInfoCollector) Init(_ json.RawMessage) error {
 			}
 		}
 
-		if err := file.Close(); err != nil {
-			return fmt.Errorf("%s Init(): Call to file.Close() failed: %w", m.name, err)
-		}
-
 		// were all topology information collected?
 		if foundFreq &&
 			len(processor) > 0 &&
@@ -119,6 +115,10 @@ func (m *CPUFreqCpuInfoCollector) Init(_ json.RawMessage) error {
 			coreID = ""
 			physicalPackageID = ""
 		}
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): Call to file.Close() failed: %w", m.name, err)
 	}
 
 	// Check if at least one CPU with frequency information was detected
