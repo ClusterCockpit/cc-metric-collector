@@ -44,38 +44,6 @@ type nfsCollector struct {
 	data map[string]NfsCollectorData
 }
 
-func (m *nfsCollector) initStats() error {
-	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
-
-	// Wait for cmd end
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("%s initStats(): %w", m.name, err)
-	}
-
-	buffer, err := cmd.Output()
-	if err == nil {
-		for line := range strings.Lines(string(buffer)) {
-			lf := strings.Fields(line)
-			if len(lf) != 5 {
-				continue
-			}
-			if lf[1] == m.version {
-				name := strings.Trim(lf[3], ":")
-				if _, exist := m.data[name]; !exist {
-					value, err := strconv.ParseInt(lf[4], 0, 64)
-					if err == nil {
-						x := m.data[name]
-						x.current = value
-						x.last = value
-						m.data[name] = x
-					}
-				}
-			}
-		}
-	}
-	return err
-}
-
 func (m *nfsCollector) updateStats() error {
 	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
 
@@ -85,27 +53,42 @@ func (m *nfsCollector) updateStats() error {
 	}
 
 	buffer, err := cmd.Output()
-	if err == nil {
-		for line := range strings.Lines(string(buffer)) {
-			lf := strings.Fields(line)
-			if len(lf) != 5 {
-				continue
-			}
-			if lf[1] == m.version {
-				name := strings.Trim(lf[3], ":")
-				if _, exist := m.data[name]; exist {
-					value, err := strconv.ParseInt(lf[4], 0, 64)
-					if err == nil {
-						x := m.data[name]
-						x.last = x.current
-						x.current = value
-						m.data[name] = x
-					}
-				}
-			}
+	if err != nil {
+		return err
+	}
+
+	for name, data := range m.data {
+		m.data[name] = NfsCollectorData{
+			last:    data.current,
+			current: -1,
 		}
 	}
-	return err
+
+	for line := range strings.Lines(string(buffer)) {
+		lf := strings.Fields(line)
+		if len(lf) != 5 {
+			continue
+		}
+		if lf[1] != m.version {
+			continue
+		}
+		name := strings.Trim(lf[3], ":")
+		value, err := strconv.ParseInt(lf[4], 0, 64)
+		if err != nil {
+			return err
+		}
+
+		collectorData, exist := m.data[name]
+		collectorData.current = value
+
+		if !exist {
+			collectorData.last = -1
+		}
+
+		m.data[name] = collectorData
+	}
+
+	return nil
 }
 
 func (m *nfsCollector) MainInit(config json.RawMessage) error {
@@ -130,7 +113,7 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): Failed to find nfsstat binary '%s': %w", m.name, m.config.Nfsstats, err)
 	}
 	m.data = make(map[string]NfsCollectorData)
-	if err := m.initStats(); err != nil {
+	if err := m.updateStats(); err != nil {
 		return fmt.Errorf("%s Init(): %w", m.name, err)
 	}
 	m.init = true
@@ -165,8 +148,12 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		if slices.Contains(m.config.ExcludeMetrics, name) {
 			continue
 		}
-		value := data.current - data.last
-		y, err := lp.NewMessage(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, map[string]any{"value": value}, timestamp)
+
+		valueMap := make(map[string]any)
+		if data.current >= 0 && data.last >= 0 {
+			valueMap["value"] = data.current - data.last
+		}
+		y, err := lp.NewMessage(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, valueMap, timestamp)
 		if err == nil {
 			y.AddMeta("version", m.version)
 			output <- y
