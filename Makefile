@@ -61,7 +61,7 @@ fmt:
 # gofumpt <https://github.com/mvdan/gofumpt>:
 # Enforce a stricter format than gofmt
 .PHONY: gofumpt
-fmt:
+gofumpt:
 	$(GOBIN) install mvdan.cc/gofumpt@latest
 	gofumpt -w $(GOSRC_COLLECTORS)
 	gofumpt -w $(GOSRC_SINKS)
@@ -75,6 +75,9 @@ fmt:
 vet:
 	$(GOBIN) vet ./...
 
+.PHONY: modernize
+modernize:
+	$(GOBIN) run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./...
 
 # Run linter for the Go programming language.
 # Using static analysis, it finds bugs and performance issues, offers simplifications, and enforces style rules
