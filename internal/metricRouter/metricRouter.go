@@ -180,7 +180,7 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	}
 	r.mp.SetNormalizeUnits(r.config.NormalizeUnits)
 
-	err = r.mp.AddAddTagsByCondition("true", r.config.HostnameTagName, r.hostname)
+	err = r.mp.AddAddTagsByCondition("!msg.HasTag('"+r.config.HostnameTagName+"')", r.config.HostnameTagName, r.hostname)
 	if err != nil {
 		return fmt.Errorf("MessageProcessor AddAddTagsByCondition() failed: %w", err)
 	}
