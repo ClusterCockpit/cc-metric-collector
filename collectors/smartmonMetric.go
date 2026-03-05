@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"time"
 
@@ -38,7 +39,7 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 	} else {
 		command = exec.Command(m.smartCtlCmd, "--scan", "-j")
 	}
-	command.Wait()
+
 	stdout, err := command.Output()
 	if err != nil {
 		return err
@@ -59,7 +60,9 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 func (m *SmartMonCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	m.name = "SmartMonCollector"
-	m.setup()
+	if err := m.setup(); err != nil {
+		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+	}
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	m.tags = map[string]string{"type": "node", "stype": "disk"}
@@ -126,7 +129,7 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessag
 		} else {
 			command = exec.Command(m.smartCtlCmd, "-j", "-a", d)
 		}
-		command.Wait()
+
 		stdout, err := command.Output()
 		if err != nil {
 			cclog.ComponentError(m.name, "cannot read data for device", d)
@@ -212,7 +215,6 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessag
 			output <- y
 		}
 	}
-
 }
 
 func (m *SmartMonCollector) Close() {
