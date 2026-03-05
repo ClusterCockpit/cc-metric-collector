@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-metric-collector/internal/ccLogger"
-	lp "github.com/ClusterCockpit/cc-metric-collector/internal/ccMetric"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
 type SmartMonCollectorConfig struct {
@@ -116,7 +116,7 @@ type SmartMonData struct {
 	} `json:"nvme_smart_health_information_log"`
 }
 
-func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMetric) {
+func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	timestamp := time.Now()
 	for _, d := range m.devices {
 		var command *exec.Cmd
@@ -137,76 +137,76 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMetric
 			cclog.ComponentError(m.name, "cannot unmarshal data for device", d)
 			continue
 		}
-		y, err := lp.New("smartmon_temp", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.Temperature}, timestamp)
+		y, err := lp.NewMessage("smartmon_temp", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.Temperature}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			y.AddMeta("unit", "degC")
 			output <- y
 		}
-		y, err = lp.New("smartmon_percent_used", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.PercentageUsed}, timestamp)
+		y, err = lp.NewMessage("smartmon_percent_used", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.PercentageUsed}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			y.AddMeta("unit", "percent")
 			output <- y
 		}
-		y, err = lp.New("smartmon_avail_spare", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.AvailableSpare}, timestamp)
+		y, err = lp.NewMessage("smartmon_avail_spare", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.AvailableSpare}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			y.AddMeta("unit", "percent")
 			output <- y
 		}
-		y, err = lp.New("smartmon_data_units_read", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.DataUnitsRead}, timestamp)
+		y, err = lp.NewMessage("smartmon_data_units_read", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.DataUnitsRead}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_data_units_write", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.DataUnitsWrite}, timestamp)
+		y, err = lp.NewMessage("smartmon_data_units_write", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.DataUnitsWrite}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_host_reads", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.HostReads}, timestamp)
+		y, err = lp.NewMessage("smartmon_host_reads", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.HostReads}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_host_writes", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.HostWrites}, timestamp)
+		y, err = lp.NewMessage("smartmon_host_writes", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.HostWrites}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_power_cycles", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.PowerCycles}, timestamp)
+		y, err = lp.NewMessage("smartmon_power_cycles", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.PowerCycles}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_power_on", m.tags, m.meta, map[string]interface{}{"value": int64(data.HealthLog.PowerOnHours) * 3600}, timestamp)
+		y, err = lp.NewMessage("smartmon_power_on", m.tags, m.meta, map[string]interface{}{"value": int64(data.HealthLog.PowerOnHours) * 3600}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			y.AddMeta("unit", "seconds")
 			output <- y
 		}
-		y, err = lp.New("smartmon_unsafe_shutdowns", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.UnsafeShutdowns}, timestamp)
+		y, err = lp.NewMessage("smartmon_unsafe_shutdowns", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.UnsafeShutdowns}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_media_errors", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.MediaErrors}, timestamp)
+		y, err = lp.NewMessage("smartmon_media_errors", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.MediaErrors}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_errlog_entries", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.NumErrorLogEntries}, timestamp)
+		y, err = lp.NewMessage("smartmon_errlog_entries", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.NumErrorLogEntries}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_warn_temp_time", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.WarnTempTime}, timestamp)
+		y, err = lp.NewMessage("smartmon_warn_temp_time", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.WarnTempTime}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.New("smartmon_crit_temp_time", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.CriticalTempTime}, timestamp)
+		y, err = lp.NewMessage("smartmon_crit_temp_time", m.tags, m.meta, map[string]interface{}{"value": data.HealthLog.CriticalTempTime}, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
 			output <- y
