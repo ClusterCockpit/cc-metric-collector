@@ -17,8 +17,9 @@ type SmartMonCollectorConfig struct {
 }
 
 type deviceT struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	queryCommand []string
 }
 
 type SmartMonCollector struct {
@@ -36,12 +37,12 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 		Devices []deviceT `json:"devices"`
 	}
 
-	var command *exec.Cmd
+	var scanCmd []string
 	if m.config.UseSudo {
-		command = exec.Command(m.sudoCmd, m.smartCtlCmd, "--scan", "--json=c")
-	} else {
-		command = exec.Command(m.smartCtlCmd, "--scan", "--json=c")
+		scanCmd = append(scanCmd, m.sudoCmd)
 	}
+	scanCmd = append(scanCmd, m.smartCtlCmd, "--scan", "--json=c")
+	command := exec.Command(scanCmd[0], scanCmd[1:]...)
 
 	stdout, err := command.Output()
 	if err != nil {
@@ -58,6 +59,11 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 	m.devices = make([]deviceT, 0)
 	for _, d := range scan.Devices {
 		if !slices.Contains(m.config.ExcludeDevices, d.Name) {
+			if m.config.UseSudo {
+				d.queryCommand = append(d.queryCommand, m.sudoCmd)
+			}
+			d.queryCommand = append(d.queryCommand, m.smartCtlCmd, "--json=c", "--device="+d.Type, "--all", d.Name)
+
 			m.devices = append(m.devices, d)
 		}
 	}
@@ -136,13 +142,8 @@ type SmartMonData struct {
 func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	timestamp := time.Now()
 	for _, d := range m.devices {
-		var command *exec.Cmd
 		var data SmartMonData
-		if m.config.UseSudo {
-			command = exec.Command(m.sudoCmd, m.smartCtlCmd, "--json=c", "--device="+d.Type, "--all", d.Name)
-		} else {
-			command = exec.Command(m.smartCtlCmd, "--json=c", "--device="+d.Type, "--all", d.Name)
-		}
+		command := exec.Command(d.queryCommand[0], d.queryCommand[1:]...)
 
 		stdout, err := command.Output()
 		if err != nil {
