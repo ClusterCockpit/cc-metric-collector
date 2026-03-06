@@ -185,7 +185,7 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessag
 			y.AddTag("stype-id", d)
 			output <- y
 		}
-		y, err = lp.NewMessage(
+		y, err = lp.NewMetric(
 			"smartmon_power_cycles", m.tags, m.meta, data.HealthLog.PowerCycles, timestamp)
 		if err == nil {
 			y.AddTag("stype-id", d)
