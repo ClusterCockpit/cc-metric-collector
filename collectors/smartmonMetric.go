@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"slices"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -15,24 +16,25 @@ type SmartMonCollectorConfig struct {
 	ExcludeDevices []string `json:"exclude_devices,omitempty"`
 }
 
+type deviceT struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
 type SmartMonCollector struct {
 	metricCollector
 	config      SmartMonCollectorConfig // the configuration structure
 	meta        map[string]string       // default meta information
 	tags        map[string]string       // default tags
-	devices     []string                // smartmon devices
+	devices     []deviceT               // smartmon devices
 	sudoCmd     string                  // Full path to 'sudo' command
 	smartCtlCmd string                  // Full path to 'smartctl' command
 }
 
 func (m *SmartMonCollector) getSmartmonDevices() error {
 	var scan struct {
-		Devices []struct {
-			Name string `json:"name"`
-			Type string `json:"type"`
-		} `json:"devices"`
+		Devices []deviceT `json:"devices"`
 	}
-	m.devices = make([]string, 0)
 
 	var command *exec.Cmd
 	if m.config.UseSudo {
@@ -52,9 +54,11 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 		return fmt.Errorf("%s getSmartmonDevices(): Failed to parse JSON output from device scan command: %w",
 			m.name, err)
 	}
+
+	m.devices = make([]deviceT, 0)
 	for _, d := range scan.Devices {
-		if len(d.Name) > 0 {
-			m.devices = append(m.devices, d.Name)
+		if !slices.Contains(m.config.ExcludeDevices, d.Name) {
+			m.devices = append(m.devices, d)
 		}
 	}
 
@@ -135,107 +139,107 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessag
 		var command *exec.Cmd
 		var data SmartMonData
 		if m.config.UseSudo {
-			command = exec.Command(m.sudoCmd, m.smartCtlCmd, "-j", "-a", d)
+			command = exec.Command(m.sudoCmd, m.smartCtlCmd, "--json=c", "--device="+d.Type, "--all", d.Name)
 		} else {
-			command = exec.Command(m.smartCtlCmd, "-j", "-a", d)
+			command = exec.Command(m.smartCtlCmd, "--json=c", "--device="+d.Type, "--all", d.Name)
 		}
 
 		stdout, err := command.Output()
 		if err != nil {
-			cclog.ComponentError(m.name, "cannot read data for device", d)
+			cclog.ComponentError(m.name, "cannot read data for device", d.Name)
 			continue
 		}
 		err = json.Unmarshal(stdout, &data)
 		if err != nil {
-			cclog.ComponentError(m.name, "cannot unmarshal data for device", d)
+			cclog.ComponentError(m.name, "cannot unmarshal data for device", d.Name)
 			continue
 		}
 		y, err := lp.NewMetric(
 			"smartmon_temp", m.tags, m.meta, data.HealthLog.Temperature, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			y.AddMeta("unit", "degC")
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_percent_used", m.tags, m.meta, data.HealthLog.PercentageUsed, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			y.AddMeta("unit", "percent")
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_avail_spare", m.tags, m.meta, data.HealthLog.AvailableSpare, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			y.AddMeta("unit", "percent")
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_data_units_read", m.tags, m.meta, data.HealthLog.DataUnitsRead, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_data_units_write", m.tags, m.meta, data.HealthLog.DataUnitsWrite, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_host_reads", m.tags, m.meta, data.HealthLog.HostReads, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_host_writes", m.tags, m.meta, data.HealthLog.HostWrites, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_power_cycles", m.tags, m.meta, data.HealthLog.PowerCycles, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_power_on", m.tags, m.meta, int64(data.HealthLog.PowerOnHours)*3600, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			y.AddMeta("unit", "sec")
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_unsafe_shutdowns", m.tags, m.meta, data.HealthLog.UnsafeShutdowns, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_media_errors", m.tags, m.meta, data.HealthLog.MediaErrors, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_errlog_entries", m.tags, m.meta, data.HealthLog.NumErrorLogEntries, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_warn_temp_time", m.tags, m.meta, data.HealthLog.WarnTempTime, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 		y, err = lp.NewMetric(
 			"smartmon_crit_temp_time", m.tags, m.meta, data.HealthLog.CriticalTempTime, timestamp)
 		if err == nil {
-			y.AddTag("stype-id", d)
+			y.AddTag("stype-id", d.Name)
 			output <- y
 		}
 	}
