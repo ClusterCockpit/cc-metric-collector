@@ -11,8 +11,8 @@ import (
 )
 
 type SmartMonCollectorConfig struct {
-	UseSudo        bool     `json:"use_sudo"`
-	ExcludeDevices []string `json:"exclude_devices"`
+	UseSudo        bool     `json:"use_sudo,omitempty"`
+	ExcludeDevices []string `json:"exclude_devices,omitempty"`
 }
 
 type SmartMonCollector struct {
@@ -26,7 +26,6 @@ type SmartMonCollector struct {
 }
 
 func (m *SmartMonCollector) getSmartmonDevices() error {
-	var command *exec.Cmd
 	var scan struct {
 		Devices []struct {
 			Name string `json:"name"`
@@ -34,19 +33,24 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 		} `json:"devices"`
 	}
 	m.devices = make([]string, 0)
+
+	var command *exec.Cmd
 	if m.config.UseSudo {
-		command = exec.Command(m.sudoCmd, m.smartCtlCmd, "--scan", "-j")
+		command = exec.Command(m.sudoCmd, m.smartCtlCmd, "--scan", "--json=c")
 	} else {
-		command = exec.Command(m.smartCtlCmd, "--scan", "-j")
+		command = exec.Command(m.smartCtlCmd, "--scan", "--json=c")
 	}
 
 	stdout, err := command.Output()
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"%s getSmartmonDevices(): Failed to execute device scan command %s: %w",
+			m.name, command.String(), err)
 	}
 	err = json.Unmarshal(stdout, &scan)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s getSmartmonDevices(): Failed to parse JSON output from device scan command: %w",
+			m.name, err)
 	}
 	for _, d := range scan.Devices {
 		if len(d.Name) > 0 {
@@ -58,36 +62,42 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 }
 
 func (m *SmartMonCollector) Init(config json.RawMessage) error {
-	var err error = nil
 	m.name = "SmartMonCollector"
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "Disk"}
-	m.tags = map[string]string{"type": "node", "stype": "disk"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Disk",
+	}
+	m.tags = map[string]string{
+		"type":  "node",
+		"stype": "disk",
+	}
+
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		if err := json.Unmarshal(config, &m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error reading config: %w", m.name, err)
 		}
 	}
+
+	// Check if sudo and smartctl are in search path
 	if m.config.UseSudo {
 		p, err := exec.LookPath("sudo")
 		if err != nil {
-			return err
+			return fmt.Errorf("%s Init(): No sudo command found in search path: %w", m.name, err)
 		}
 		m.sudoCmd = p
 	}
 	p, err := exec.LookPath("smartctl")
 	if err != nil {
-		return err
+		return fmt.Errorf("%s Init(): No smartctl command found in search path: %w", m.name, err)
 	}
 	m.smartCtlCmd = p
-	err = m.getSmartmonDevices()
-	if err != nil {
+
+	if err = m.getSmartmonDevices(); err != nil {
 		return err
 	}
 
