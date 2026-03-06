@@ -14,6 +14,10 @@ import (
 type SmartMonCollectorConfig struct {
 	UseSudo        bool     `json:"use_sudo,omitempty"`
 	ExcludeDevices []string `json:"exclude_devices,omitempty"`
+	Devices        []struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	} `json:"devices,omitempty"`
 }
 
 type deviceT struct {
@@ -33,10 +37,26 @@ type SmartMonCollector struct {
 }
 
 func (m *SmartMonCollector) getSmartmonDevices() error {
-	var scan struct {
-		Devices []deviceT `json:"devices"`
+	// Use configured devices
+	if len(m.config.Devices) > 0 {
+		for _, configDevice := range m.config.Devices {
+			if !slices.Contains(m.config.ExcludeDevices, configDevice.Name) {
+				d := deviceT{
+					Name: configDevice.Name,
+					Type: configDevice.Type,
+				}
+				if m.config.UseSudo {
+					d.queryCommand = append(d.queryCommand, m.sudoCmd)
+				}
+				d.queryCommand = append(d.queryCommand, m.smartCtlCmd, "--json=c", "--device="+d.Type, "--all", d.Name)
+
+				m.devices = append(m.devices, d)
+			}
+		}
+		return nil
 	}
 
+	// Use scan command
 	var scanCmd []string
 	if m.config.UseSudo {
 		scanCmd = append(scanCmd, m.sudoCmd)
@@ -50,14 +70,18 @@ func (m *SmartMonCollector) getSmartmonDevices() error {
 			"%s getSmartmonDevices(): Failed to execute device scan command %s: %w",
 			m.name, command.String(), err)
 	}
-	err = json.Unmarshal(stdout, &scan)
+
+	var scanOutput struct {
+		Devices []deviceT `json:"devices"`
+	}
+	err = json.Unmarshal(stdout, &scanOutput)
 	if err != nil {
 		return fmt.Errorf("%s getSmartmonDevices(): Failed to parse JSON output from device scan command: %w",
 			m.name, err)
 	}
 
 	m.devices = make([]deviceT, 0)
-	for _, d := range scan.Devices {
+	for _, d := range scanOutput.Devices {
 		if !slices.Contains(m.config.ExcludeDevices, d.Name) {
 			if m.config.UseSudo {
 				d.queryCommand = append(d.queryCommand, m.sudoCmd)
