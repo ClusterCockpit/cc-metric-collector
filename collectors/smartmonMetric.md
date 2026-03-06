@@ -4,7 +4,11 @@
   "smartmon": {
     "use_sudo" : true,
     "exclude_devices": [
-      "/dev/sda",
+      "/dev/sda"
+    ],
+    "devices": [
+      "name": "/dev/nvme0"
+      "type": "nvme"
     ]
   }
 ```
