@@ -14,6 +14,7 @@ import (
 type SmartMonCollectorConfig struct {
 	UseSudo        bool     `json:"use_sudo,omitempty"`
 	ExcludeDevices []string `json:"exclude_devices,omitempty"`
+	ExcludeMetrics []string `json:"excludeMetrics,omitempty"`
 	Devices        []struct {
 		Name string `json:"name"`
 		Type string `json:"type"`
@@ -28,12 +29,28 @@ type deviceT struct {
 
 type SmartMonCollector struct {
 	metricCollector
-	config      SmartMonCollectorConfig // the configuration structure
-	meta        map[string]string       // default meta information
-	tags        map[string]string       // default tags
-	devices     []deviceT               // smartmon devices
-	sudoCmd     string                  // Full path to 'sudo' command
-	smartCtlCmd string                  // Full path to 'smartctl' command
+	config        SmartMonCollectorConfig // the configuration structure
+	meta          map[string]string       // default meta information
+	tags          map[string]string       // default tags
+	devices       []deviceT               // smartmon devices
+	sudoCmd       string                  // Full path to 'sudo' command
+	smartCtlCmd   string                  // Full path to 'smartctl' command
+	excludeMetric struct {
+		temp,
+		percentUsed,
+		availSpare,
+		dataUnitsRead,
+		dataUnitsWrite,
+		hostReads,
+		hostWrites,
+		powerCycles,
+		powerOn,
+		UnsafeShutdowns,
+		mediaErrors,
+		errlogEntries,
+		warnTempTime,
+		critCompTime bool
+	}
 }
 
 func (m *SmartMonCollector) getSmartmonDevices() error {
@@ -116,6 +133,41 @@ func (m *SmartMonCollector) Init(config json.RawMessage) error {
 			return fmt.Errorf("%s Init(): Error reading config: %w", m.name, err)
 		}
 	}
+	for _, excludeMetric := range m.config.ExcludeMetrics {
+		switch excludeMetric {
+		case "smartmon_temp":
+			m.excludeMetric.temp = true
+		case "smartmon_percent_used":
+			m.excludeMetric.percentUsed = true
+		case "smartmon_avail_spare":
+			m.excludeMetric.availSpare = true
+		case "smartmon_data_units_read":
+			m.excludeMetric.dataUnitsRead = true
+		case "smartmon_data_units_write":
+			m.excludeMetric.dataUnitsWrite = true
+		case "smartmon_host_reads":
+			m.excludeMetric.hostReads = true
+		case "smartmon_host_writes":
+			m.excludeMetric.hostWrites = true
+		case "smartmon_power_cycles":
+			m.excludeMetric.powerCycles = true
+		case "smartmon_power_on":
+			m.excludeMetric.powerOn = true
+		case "smartmon_unsafe_shutdowns":
+			m.excludeMetric.UnsafeShutdowns = true
+		case "smartmon_media_errors":
+			m.excludeMetric.mediaErrors = true
+		case "smartmon_errlog_entries":
+			m.excludeMetric.errlogEntries = true
+		case "smartmon_warn_temp_time":
+			m.excludeMetric.warnTempTime = true
+		case "smartmon_crit_comp_time":
+			m.excludeMetric.critCompTime = true
+		default:
+			return fmt.Errorf("%s Init(): Unknown excluded metric: %s", m.name, excludeMetric)
+		}
+
+	}
 
 	// Check if sudo and smartctl are in search path
 	if m.config.UseSudo {
@@ -146,6 +198,8 @@ type SmartMonData struct {
 		Bytes  int `json:"bytes"`
 	} `json:"user_capacity"`
 	HealthLog struct {
+		// Available SMART health information:
+		// sudo smartctl -a --json=c /dev/nvme0 | jq --color-output | less --RAW-CONTROL-CHARS
 		Temperature        int `json:"temperature"`
 		PercentageUsed     int `json:"percentage_used"`
 		AvailableSpare     int `json:"available_spare"`
@@ -159,7 +213,7 @@ type SmartMonData struct {
 		MediaErrors        int `json:"media_errors"`
 		NumErrorLogEntries int `json:"num_err_log_entries"`
 		WarnTempTime       int `json:"warning_temp_time"`
-		CriticalTempTime   int `json:"critical_comp_time"`
+		CriticalCompTime   int `json:"critical_comp_time"`
 	} `json:"nvme_smart_health_information_log"`
 }
 
@@ -179,93 +233,121 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessag
 			cclog.ComponentError(m.name, "cannot unmarshal data for device", d.Name)
 			continue
 		}
-		y, err := lp.NewMetric(
-			"smartmon_temp", m.tags, m.meta, data.HealthLog.Temperature, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			y.AddMeta("unit", "degC")
-			output <- y
+		if !m.excludeMetric.temp {
+			y, err := lp.NewMetric(
+				"smartmon_temp", m.tags, m.meta, data.HealthLog.Temperature, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				y.AddMeta("unit", "degC")
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_percent_used", m.tags, m.meta, data.HealthLog.PercentageUsed, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			y.AddMeta("unit", "percent")
-			output <- y
+		if !m.excludeMetric.percentUsed {
+			y, err := lp.NewMetric(
+				"smartmon_percent_used", m.tags, m.meta, data.HealthLog.PercentageUsed, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				y.AddMeta("unit", "percent")
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_avail_spare", m.tags, m.meta, data.HealthLog.AvailableSpare, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			y.AddMeta("unit", "percent")
-			output <- y
+		if !m.excludeMetric.availSpare {
+			y, err := lp.NewMetric(
+				"smartmon_avail_spare", m.tags, m.meta, data.HealthLog.AvailableSpare, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				y.AddMeta("unit", "percent")
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_data_units_read", m.tags, m.meta, data.HealthLog.DataUnitsRead, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.dataUnitsRead {
+			y, err := lp.NewMetric(
+				"smartmon_data_units_read", m.tags, m.meta, data.HealthLog.DataUnitsRead, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_data_units_write", m.tags, m.meta, data.HealthLog.DataUnitsWrite, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.dataUnitsWrite {
+			y, err := lp.NewMetric(
+				"smartmon_data_units_write", m.tags, m.meta, data.HealthLog.DataUnitsWrite, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_host_reads", m.tags, m.meta, data.HealthLog.HostReads, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.hostReads {
+			y, err := lp.NewMetric(
+				"smartmon_host_reads", m.tags, m.meta, data.HealthLog.HostReads, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_host_writes", m.tags, m.meta, data.HealthLog.HostWrites, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.hostWrites {
+			y, err := lp.NewMetric(
+				"smartmon_host_writes", m.tags, m.meta, data.HealthLog.HostWrites, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_power_cycles", m.tags, m.meta, data.HealthLog.PowerCycles, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.powerCycles {
+			y, err := lp.NewMetric(
+				"smartmon_power_cycles", m.tags, m.meta, data.HealthLog.PowerCycles, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_power_on", m.tags, m.meta, int64(data.HealthLog.PowerOnHours)*3600, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			y.AddMeta("unit", "sec")
-			output <- y
+		if !m.excludeMetric.powerOn {
+			y, err := lp.NewMetric(
+				"smartmon_power_on", m.tags, m.meta, int64(data.HealthLog.PowerOnHours)*3600, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				y.AddMeta("unit", "sec")
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_unsafe_shutdowns", m.tags, m.meta, data.HealthLog.UnsafeShutdowns, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.UnsafeShutdowns {
+			y, err := lp.NewMetric(
+				"smartmon_unsafe_shutdowns", m.tags, m.meta, data.HealthLog.UnsafeShutdowns, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_media_errors", m.tags, m.meta, data.HealthLog.MediaErrors, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.mediaErrors {
+			y, err := lp.NewMetric(
+				"smartmon_media_errors", m.tags, m.meta, data.HealthLog.MediaErrors, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_errlog_entries", m.tags, m.meta, data.HealthLog.NumErrorLogEntries, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.errlogEntries {
+			y, err := lp.NewMetric(
+				"smartmon_errlog_entries", m.tags, m.meta, data.HealthLog.NumErrorLogEntries, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_warn_temp_time", m.tags, m.meta, data.HealthLog.WarnTempTime, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.warnTempTime {
+			y, err := lp.NewMetric(
+				"smartmon_warn_temp_time", m.tags, m.meta, data.HealthLog.WarnTempTime, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
-		y, err = lp.NewMetric(
-			"smartmon_crit_temp_time", m.tags, m.meta, data.HealthLog.CriticalTempTime, timestamp)
-		if err == nil {
-			y.AddTag("stype-id", d.Name)
-			output <- y
+		if !m.excludeMetric.critCompTime {
+			y, err := lp.NewMetric(
+				"smartmon_crit_comp_time", m.tags, m.meta, data.HealthLog.CriticalCompTime, timestamp)
+			if err == nil {
+				y.AddTag("stype-id", d.Name)
+				output <- y
+			}
 		}
 	}
 }
