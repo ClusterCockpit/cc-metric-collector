@@ -13,17 +13,19 @@ hugo_path: docs/reference/cc-metric-collector/collectors/smartmonMetric.md
 
 ```json
   "smartmon": {
-    "use_sudo" : true,
+    "use_sudo": true,
     "exclude_devices": [
       "/dev/sda"
     ],
     "excludeMetrics": [
       "smartmon_warn_temp_time",
       "smartmon_crit_comp_time"
-    ]
+    ],
     "devices": [
-      "name": "/dev/nvme0"
-      "type": "nvme"
+      {
+        "name": "/dev/nvme0",
+        "type": "nvme"
+      }
     ]
   }
 ```
