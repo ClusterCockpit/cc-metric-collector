@@ -89,7 +89,7 @@ staticcheck:
 .PHONY: golangci-lint
 golangci-lint:
 	$(GOBIN) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	$$($(GOBIN) env GOPATH)/bin/golangci-lint run
+	$$($(GOBIN) env GOPATH)/bin/golangci-lint run --enable errorlint,govet,misspell,modernize,prealloc,staticcheck,unconvert,wastedassign
 
 .ONESHELL:
 .PHONY: RPM
