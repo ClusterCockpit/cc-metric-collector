@@ -10,7 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/tklauser/go-sysconf v0.3.16
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.42.0
 )
 
 require (
