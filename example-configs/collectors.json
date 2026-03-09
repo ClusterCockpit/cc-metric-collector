@@ -34,8 +34,8 @@
     },
     "numastats": {},
     "nvidia": {},
-    "schedstat": {
-    },
+    "schedstat": {},
+    "smartmon": {},
     "tempstat": {
         "report_max_temperature": true,
         "report_critical_temperature": true,
