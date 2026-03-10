@@ -1,6 +1,6 @@
 {
     "process_messages" : {
-        "add_tag_if": [
+        "add_tags_if": [
             {
                 "key" : "cluster",
                 "value" : "testcluster",
@@ -12,7 +12,7 @@
                 "if" : "name == 'temp_package_id_0'"
             }
         ],
-        "delete_tag_if": [
+        "delete_meta_if": [
             {
                 "key" : "unit",
                 "if" : "true"
