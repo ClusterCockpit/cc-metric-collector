@@ -14,14 +14,14 @@ This Collector is to collect BeeGFS on Demand (BeeOND) storage stats.
 
 ```json
   "beegfs_storage": {
-	"beegfs_path": "/usr/bin/beegfs-ctl",
+    "beegfs_path": "/usr/bin/beegfs-ctl",
     "exclude_filesystem": [
       "/mnt/ignore_me"
     ],
     "exclude_metrics": [     
-          "ack",
-		  "storInf",
-		  "unlnk"
+      "ack",
+      "storInf",
+      "unlnk"
     ]
   }
 ```

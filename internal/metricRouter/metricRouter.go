@@ -8,6 +8,7 @@
 package metricRouter
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -46,8 +47,7 @@ type metricRouterConfig struct {
 	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
 	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
 	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
-	// dropMetrics       map[string]bool                      // Internal map for O(1) lookup
-	MessageProcessor json.RawMessage `json:"process_messages,omitempty"`
+	MessageProcessor  json.RawMessage                      `json:"process_messages,omitempty"`
 }
 
 // Metric router data structure
@@ -102,10 +102,10 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	// Drop domain part of host name
 	r.hostname = strings.SplitN(hostname, `.`, 2)[0]
 
-	err = json.Unmarshal(routerConfig, &r.config)
-	if err != nil {
-		cclog.ComponentError("MetricRouter", err.Error())
-		return err
+	d := json.NewDecoder(bytes.NewReader(routerConfig))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&r.config); err != nil {
+		return fmt.Errorf("failed to decode metric router config: %w", err)
 	}
 	r.maxForward = max(1, r.config.MaxForward)
 

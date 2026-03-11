@@ -15,7 +15,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/numastat.md
   "numastats": {
     "send_abs_values" : true,
     "send_derived_values" : true
-}
+  }
 ```
 
 The `numastat` collector reads data from `/sys/devices/system/node/node*/numastat` and outputs a handful **memoryDomain** metrics. See: <https://www.kernel.org/doc/html/latest/admin-guide/numastat.html>

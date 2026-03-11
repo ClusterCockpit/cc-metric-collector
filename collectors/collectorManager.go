@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -88,10 +89,10 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	cm.ticker = ticker
 	cm.duration = duration
 
-	err := json.Unmarshal(collectConfig, &cm.config)
-	if err != nil {
-		cclog.Error(err.Error())
-		return err
+	d := json.NewDecoder(bytes.NewReader(collectConfig))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&cm.config); err != nil {
+		return fmt.Errorf("%s Init(): Error decoding collector manager config: %w", "CollectorManager", err)
 	}
 
 	// Initialize configured collectors
@@ -102,7 +103,7 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 		}
 		collector := AvailableCollectors[collectorName]
 
-		err = collector.Init(collectorCfg)
+		err := collector.Init(collectorCfg)
 		if err != nil {
 			cclog.ComponentError("CollectorManager", fmt.Sprintf("Collector %s initialization failed: %v", collectorName, err))
 			continue

@@ -59,6 +59,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [ ] Aggreate metrics to higher topology entity (sum hwthread metrics to socket metric, ...). Needs to be configurable
 
 # Contributing own collectors
+
 A collector reads data from any source, parses it to metrics and submits these metrics to the `metric-collector`. A collector provides three function:
 
 * `Name() string`: Return the name of the collector

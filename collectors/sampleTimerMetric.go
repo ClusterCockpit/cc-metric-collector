@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -47,26 +48,30 @@ func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
 	}
 	// Define meta information sent with each metric
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
-	m.meta = map[string]string{"source": m.name, "group": "SAMPLE"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "SAMPLE",
+	}
 	// Define tags sent with each metric
 	// The 'type' tag is always needed, it defines the granularity of the metric
 	// node -> whole system
 	// socket -> CPU socket (requires socket ID as 'type-id' tag)
 	// cpu -> single CPU hardware thread (requires cpu ID as 'type-id' tag)
-	m.tags = map[string]string{"type": "node"}
+	m.tags = map[string]string{
+		"type": "node",
+	}
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): error decoding JSON config: %w", m.name, err)
 		}
 	}
 	// Parse the read interval duration
 	m.interval, err = time.ParseDuration(m.config.Interval)
 	if err != nil {
-		cclog.ComponentError(m.name, "Error parsing interval:", err.Error())
-		return err
+		return fmt.Errorf("%s Init(): error parsing interval: %w", m.name, err)
 	}
 
 	// Storage for output channel
@@ -77,13 +82,11 @@ func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
 	m.ticker = time.NewTicker(m.interval)
 
 	// Start the timer loop with return functionality by sending 'true' to the done channel
-	m.wg.Add(1)
-	go func() {
+	m.wg.Go(func() {
 		select {
 		case <-m.done:
 			// Exit the timer loop
 			cclog.ComponentDebug(m.name, "Closing...")
-			m.wg.Done()
 			return
 		case timestamp := <-m.ticker.C:
 			// This is executed every timer tick but we have to wait until the first
@@ -92,7 +95,7 @@ func (m *SampleTimerCollector) Init(name string, config json.RawMessage) error {
 				m.ReadMetrics(timestamp)
 			}
 		}
-	}()
+	})
 
 	// Set this flag only if everything is initialized properly, all required files exist, ...
 	m.init = true
@@ -111,7 +114,7 @@ func (m *SampleTimerCollector) ReadMetrics(timestamp time.Time) {
 	// stop := readState()
 	// value = (stop - start) / interval.Seconds()
 
-	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]any{"value": value}, timestamp)
+	y, err := lp.NewMetric("sample_metric", m.tags, m.meta, value, timestamp)
 	if err == nil && m.output != nil {
 		// Send it to output channel if we have a valid channel
 		m.output <- y

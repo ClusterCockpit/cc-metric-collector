@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -46,9 +47,10 @@ func (m *TopProcsCollector) Init(config json.RawMessage) error {
 		"group":  "TopProcs",
 	}
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			return fmt.Errorf("%s Init(): json.Unmarshal() failed: %w", m.name, err)
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	} else {
 		m.config.Num_procs = int(DEFAULT_NUM_PROCS)

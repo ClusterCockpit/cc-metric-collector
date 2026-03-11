@@ -8,11 +8,11 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
@@ -52,7 +52,10 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	m.parallel = true
 	// Define meta information sent with each metric
 	// (Can also be dynamic or this is the basic set with extension through AddMeta())
-	m.meta = map[string]string{"source": m.name, "group": "SAMPLE"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "SAMPLE",
+	}
 	// Define tags sent with each metric
 	// The 'type' tag is always needed, it defines the granularity of the metric
 	// node -> whole system
@@ -63,13 +66,15 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
 	// core -> single CPU core that may consist of multiple hardware threads (SMT) (requires core ID as 'type-id' tag)
 	// hwthtread -> single CPU hardware thread (requires hardware thread ID as 'type-id' tag)
 	// accelerator -> A accelerator device like GPU or FPGA (requires an accelerator ID as 'type-id' tag)
-	m.tags = map[string]string{"type": "node"}
+	m.tags = map[string]string{
+		"type": "node",
+	}
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 
@@ -96,7 +101,7 @@ func (m *SampleCollector) Read(interval time.Duration, output chan lp.CCMessage)
 	// stop := readState()
 	// value = (stop - start) / interval.Seconds()
 
-	y, err := lp.NewMessage("sample_metric", m.tags, m.meta, map[string]any{"value": value}, timestamp)
+	y, err := lp.NewMetric("sample_metric", m.tags, m.meta, value, timestamp)
 	if err == nil {
 		// Send it to output channel
 		output <- y

@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,14 +18,13 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
 // These are the fields we read from the JSON configuration
 type NfsIOStatCollectorConfig struct {
 	ExcludeMetrics          []string `json:"exclude_metrics,omitempty"`
-	ExcludeFilesystem       []string `json:"exclude_filesystem,omitempty"`
+	ExcludeFilesystems      []string `json:"exclude_filesystem,omitempty"`
 	UseServerAddressAsSType bool     `json:"use_server_as_stype,omitempty"`
 	SendAbsoluteValues      bool     `json:"send_abs_values"`
 	SendDerivedValues       bool     `json:"send_derived_values"`
@@ -75,7 +75,7 @@ func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 		// Is this a device line with mount point, remote target and NFS version?
 		dev := resolve_regex_fields(l, deviceRegex)
 		if len(dev) > 0 {
-			if !slices.Contains(m.config.ExcludeFilesystem, dev[m.key]) {
+			if !slices.Contains(m.config.ExcludeFilesystems, dev[m.key]) {
 				current = dev
 				if len(current["version"]) == 0 {
 					current["version"] = "3"
@@ -117,10 +117,10 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	m.config.SendAbsoluteValues = true
 	m.config.SendDerivedValues = false
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 	m.key = "mntpoint"

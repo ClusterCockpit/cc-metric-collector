@@ -14,7 +14,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/gpfs.md
 ```json
   "gpfs": {
     "mmpmon_path": "/path/to/mmpmon",
-    "use_sudo": "true",
+    "use_sudo": true,
     "exclude_filesystem": [
       "fs1"
     ],

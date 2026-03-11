@@ -16,7 +16,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/nfsio.md
     "exclude_metrics": [
       "oread", "pageread"
     ],
-    "exclude_filesystems": [
+    "exclude_filesystem": [
       "/mnt"
     ],
     "use_server_as_stype": false,

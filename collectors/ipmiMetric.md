@@ -14,7 +14,7 @@ hugo_path: docs/reference/cc-metric-collector/collectors/ipmi.md
 ```json
   "ipmistat": {
     "ipmitool_path": "/path/to/ipmitool",
-    "ipmisensors_path": "/path/to/ipmi-sensors",
+    "ipmisensors_path": "/path/to/ipmi-sensors"
   }
 ```
 

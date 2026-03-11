@@ -119,8 +119,9 @@ func (m *SlurmCgroupCollector) Init(config json.RawMessage) error {
 	m.cgroupBase = defaultCgroupBase
 
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
+		d := json.NewDecoder(strings.NewReader(string(config)))
+		d.DisallowUnknownFields()
+		if err = d.Decode(&m.config); err != nil {
 			return fmt.Errorf("%s Init(): Error reading JSON config: %w", m.name, err)
 		}
 		m.excludeMetrics = make(map[string]struct{})

@@ -56,9 +56,10 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 	m.config.IpmitoolPath = "ipmitool"
 	m.config.IpmisensorsPath = "ipmi-sensors"
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 	// Check if executables ipmitool or ipmisensors are found

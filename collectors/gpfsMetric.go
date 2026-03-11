@@ -32,7 +32,7 @@ type GpfsCollectorState map[string]int64
 
 type GpfsCollectorConfig struct {
 	Mmpmon             string   `json:"mmpmon_path,omitempty"`
-	ExcludeFilesystem  []string `json:"exclude_filesystem,omitempty"`
+	ExcludeFilesystems []string `json:"exclude_filesystem,omitempty"`
 	ExcludeMetrics     []string `json:"exclude_metrics,omitempty"`
 	Sudo               bool     `json:"use_sudo,omitempty"`
 	SendAbsoluteValues bool     `json:"send_abs_values,omitempty"`
@@ -322,9 +322,10 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 
 	// Read JSON configuration
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{
@@ -336,7 +337,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		"filesystem": "",
 	}
 	m.skipFS = make(map[string]struct{})
-	for _, fs := range m.config.ExcludeFilesystem {
+	for _, fs := range m.config.ExcludeFilesystems {
 		m.skipFS[fs] = struct{}{}
 	}
 	m.lastState = make(map[string]GpfsCollectorState)
@@ -377,7 +378,6 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 			// the file was given in the config, use it
 			p = m.config.Mmpmon
 		} else {
-			cclog.ComponentError(m.name, fmt.Sprintf("failed to find mmpmon binary '%s': %v", m.config.Mmpmon, err))
 			return fmt.Errorf("%s Init(): failed to find mmpmon binary '%s': %w", m.name, m.config.Mmpmon, err)
 		}
 	}

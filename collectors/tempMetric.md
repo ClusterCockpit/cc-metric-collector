@@ -14,10 +14,10 @@ hugo_path: docs/reference/cc-metric-collector/collectors/temp.md
 
 ```json
   "tempstat": {
-    "tag_override" : {
-        "<device like hwmon1>" : {
-            "type" : "socket",
-            "type-id" : "0"
+    "tag_override": {
+        "<device like hwmon1>": {
+            "type": "socket",
+            "type-id": "0"
         }
     },
     "exclude_metrics": [

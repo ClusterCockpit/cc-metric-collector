@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"os"
@@ -48,22 +49,22 @@ type RuntimeConfig struct {
 	Sync     sync.WaitGroup
 }
 
+// ReadCli reads the command line arguments
 func ReadCli() map[string]string {
-	var m map[string]string
 	cfg := flag.String("config", "./config.json", "Path to configuration file")
 	logfile := flag.String("log", "stderr", "Path for logfile")
 	once := flag.Bool("once", false, "Run all collectors only once")
 	loglevel := flag.String("loglevel", "info", "Set log level")
 	flag.Parse()
-	m = make(map[string]string)
-	m["configfile"] = *cfg
-	m["logfile"] = *logfile
+	m := map[string]string{
+		"configfile": *cfg,
+		"logfile":    *logfile,
+		"once":       "false",
+		"loglevel":   *loglevel,
+	}
 	if *once {
 		m["once"] = "true"
-	} else {
-		m["once"] = "false"
 	}
-	m["loglevel"] = *loglevel
 	return m
 }
 
@@ -120,9 +121,10 @@ func mainFunc() int {
 
 	// Load and check configuration
 	main := ccconf.GetPackageConfig("main")
-	err = json.Unmarshal(main, &rcfg.ConfigFile)
-	if err != nil {
-		cclog.Error("Error reading configuration file ", rcfg.CliArgs["configfile"], ": ", err.Error())
+	d := json.NewDecoder(bytes.NewReader(main))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&rcfg.ConfigFile); err != nil {
+		cclog.Errorf("Error reading configuration file %s: %v", rcfg.CliArgs["configfile"], err)
 		return 1
 	}
 
