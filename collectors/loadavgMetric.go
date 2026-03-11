@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -48,9 +49,10 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{
@@ -63,16 +65,17 @@ func (m *LoadavgCollector) Init(config json.RawMessage) error {
 		"load_five",
 		"load_fifteen",
 	}
-	m.load_skips = make([]bool, len(m.load_matches))
 	m.proc_matches = []string{
 		"proc_run",
 		"proc_total",
 	}
-	m.proc_skips = make([]bool, len(m.proc_matches))
 
+	m.load_skips = make([]bool, len(m.load_matches))
 	for i, name := range m.load_matches {
 		m.load_skips[i] = slices.Contains(m.config.ExcludeMetrics, name)
 	}
+
+	m.proc_skips = make([]bool, len(m.proc_matches))
 	for i, name := range m.proc_matches {
 		m.proc_skips[i] = slices.Contains(m.config.ExcludeMetrics, name)
 	}

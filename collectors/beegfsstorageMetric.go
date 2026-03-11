@@ -28,9 +28,9 @@ import (
 
 // Struct for the collector-specific JSON config
 type BeegfsStorageCollectorConfig struct {
-	Beegfs            string   `json:"beegfs_path"`
-	ExcludeMetrics    []string `json:"exclude_metrics,omitempty"`
-	ExcludeFilesystem []string `json:"exclude_filesystem"`
+	Beegfs             string   `json:"beegfs_path"`
+	ExcludeMetrics     []string `json:"exclude_metrics,omitempty"`
+	ExcludeFilesystems []string `json:"exclude_filesystem"`
 }
 
 type BeegfsStorageCollector struct {
@@ -67,9 +67,10 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 
 	// Read JSON configuration
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 
@@ -92,7 +93,7 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 		"filesystem": "",
 	}
 	m.skipFS = make(map[string]struct{})
-	for _, fs := range m.config.ExcludeFilesystem {
+	for _, fs := range m.config.ExcludeFilesystems {
 		m.skipFS[fs] = struct{}{}
 	}
 

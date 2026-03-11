@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -67,10 +68,10 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 

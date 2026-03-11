@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -45,12 +46,7 @@ type nfsCollector struct {
 }
 
 func (m *nfsCollector) updateStats() error {
-	cmd := exec.Command(m.config.Nfsstats, `-l`, `--all`)
-
-	// Wait for cmd end
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("%s updateStats(): %w", m.name, err)
-	}
+	cmd := exec.Command(m.config.Nfsstats, "-l", "--all")
 
 	buffer, err := cmd.Output()
 	if err != nil {
@@ -95,9 +91,10 @@ func (m *nfsCollector) MainInit(config json.RawMessage) error {
 	m.config.Nfsstats = string(NFSSTAT_EXEC)
 	// Read JSON configuration
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return fmt.Errorf("%s Init(): failed to unmarshal JSON config: %w", m.name, err)
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{

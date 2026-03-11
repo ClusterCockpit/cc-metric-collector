@@ -8,6 +8,7 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -54,9 +55,10 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	}
 	m.parallel = true
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 	m.meta = map[string]string{

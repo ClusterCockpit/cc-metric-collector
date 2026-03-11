@@ -8,13 +8,13 @@
 package collectors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"runtime"
 	"syscall"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
@@ -40,13 +40,18 @@ func (m *SelfCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	m.parallel = true
-	m.meta = map[string]string{"source": m.name, "group": "Self"}
-	m.tags = map[string]string{"type": "node"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Self",
+	}
+	m.tags = map[string]string{
+		"type": "node",
+	}
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 	m.init = true
@@ -60,49 +65,49 @@ func (m *SelfCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		var memstats runtime.MemStats
 		runtime.ReadMemStats(&memstats)
 
-		y, err := lp.NewMessage("total_alloc", m.tags, m.meta, map[string]any{"value": memstats.TotalAlloc}, timestamp)
+		y, err := lp.NewMetric("total_alloc", m.tags, m.meta, memstats.TotalAlloc, timestamp)
 		if err == nil {
 			y.AddMeta("unit", "Bytes")
 			output <- y
 		}
-		y, err = lp.NewMessage("heap_alloc", m.tags, m.meta, map[string]any{"value": memstats.HeapAlloc}, timestamp)
+		y, err = lp.NewMetric("heap_alloc", m.tags, m.meta, memstats.HeapAlloc, timestamp)
 		if err == nil {
 			y.AddMeta("unit", "Bytes")
 			output <- y
 		}
-		y, err = lp.NewMessage("heap_sys", m.tags, m.meta, map[string]any{"value": memstats.HeapSys}, timestamp)
+		y, err = lp.NewMetric("heap_sys", m.tags, m.meta, memstats.HeapSys, timestamp)
 		if err == nil {
 			y.AddMeta("unit", "Bytes")
 			output <- y
 		}
-		y, err = lp.NewMessage("heap_idle", m.tags, m.meta, map[string]any{"value": memstats.HeapIdle}, timestamp)
+		y, err = lp.NewMetric("heap_idle", m.tags, m.meta, memstats.HeapIdle, timestamp)
 		if err == nil {
 			y.AddMeta("unit", "Bytes")
 			output <- y
 		}
-		y, err = lp.NewMessage("heap_inuse", m.tags, m.meta, map[string]any{"value": memstats.HeapInuse}, timestamp)
+		y, err = lp.NewMetric("heap_inuse", m.tags, m.meta, memstats.HeapInuse, timestamp)
 		if err == nil {
 			y.AddMeta("unit", "Bytes")
 			output <- y
 		}
-		y, err = lp.NewMessage("heap_released", m.tags, m.meta, map[string]any{"value": memstats.HeapReleased}, timestamp)
+		y, err = lp.NewMetric("heap_released", m.tags, m.meta, memstats.HeapReleased, timestamp)
 		if err == nil {
 			y.AddMeta("unit", "Bytes")
 			output <- y
 		}
-		y, err = lp.NewMessage("heap_objects", m.tags, m.meta, map[string]any{"value": memstats.HeapObjects}, timestamp)
+		y, err = lp.NewMetric("heap_objects", m.tags, m.meta, memstats.HeapObjects, timestamp)
 		if err == nil {
 			output <- y
 		}
 	}
 	if m.config.GoRoutines {
-		y, err := lp.NewMessage("num_goroutines", m.tags, m.meta, map[string]any{"value": runtime.NumGoroutine()}, timestamp)
+		y, err := lp.NewMetric("num_goroutines", m.tags, m.meta, runtime.NumGoroutine(), timestamp)
 		if err == nil {
 			output <- y
 		}
 	}
 	if m.config.CgoCalls {
-		y, err := lp.NewMessage("num_cgo_calls", m.tags, m.meta, map[string]any{"value": runtime.NumCgoCall()}, timestamp)
+		y, err := lp.NewMetric("num_cgo_calls", m.tags, m.meta, runtime.NumCgoCall(), timestamp)
 		if err == nil {
 			output <- y
 		}
@@ -113,35 +118,35 @@ func (m *SelfCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		if err == nil {
 			sec, nsec := rusage.Utime.Unix()
 			t := float64(sec) + (float64(nsec) * 1e-9)
-			y, err := lp.NewMessage("rusage_user_time", m.tags, m.meta, map[string]any{"value": t}, timestamp)
+			y, err := lp.NewMetric("rusage_user_time", m.tags, m.meta, t, timestamp)
 			if err == nil {
 				y.AddMeta("unit", "seconds")
 				output <- y
 			}
 			sec, nsec = rusage.Stime.Unix()
 			t = float64(sec) + (float64(nsec) * 1e-9)
-			y, err = lp.NewMessage("rusage_system_time", m.tags, m.meta, map[string]any{"value": t}, timestamp)
+			y, err = lp.NewMetric("rusage_system_time", m.tags, m.meta, t, timestamp)
 			if err == nil {
 				y.AddMeta("unit", "seconds")
 				output <- y
 			}
-			y, err = lp.NewMessage("rusage_vol_ctx_switch", m.tags, m.meta, map[string]any{"value": rusage.Nvcsw}, timestamp)
+			y, err = lp.NewMetric("rusage_vol_ctx_switch", m.tags, m.meta, rusage.Nvcsw, timestamp)
 			if err == nil {
 				output <- y
 			}
-			y, err = lp.NewMessage("rusage_invol_ctx_switch", m.tags, m.meta, map[string]any{"value": rusage.Nivcsw}, timestamp)
+			y, err = lp.NewMetric("rusage_invol_ctx_switch", m.tags, m.meta, rusage.Nivcsw, timestamp)
 			if err == nil {
 				output <- y
 			}
-			y, err = lp.NewMessage("rusage_signals", m.tags, m.meta, map[string]any{"value": rusage.Nsignals}, timestamp)
+			y, err = lp.NewMetric("rusage_signals", m.tags, m.meta, rusage.Nsignals, timestamp)
 			if err == nil {
 				output <- y
 			}
-			y, err = lp.NewMessage("rusage_major_pgfaults", m.tags, m.meta, map[string]any{"value": rusage.Majflt}, timestamp)
+			y, err = lp.NewMetric("rusage_major_pgfaults", m.tags, m.meta, rusage.Majflt, timestamp)
 			if err == nil {
 				output <- y
 			}
-			y, err = lp.NewMessage("rusage_minor_pgfaults", m.tags, m.meta, map[string]any{"value": rusage.Minflt}, timestamp)
+			y, err = lp.NewMetric("rusage_minor_pgfaults", m.tags, m.meta, rusage.Minflt, timestamp)
 			if err == nil {
 				output <- y
 			}

@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -66,8 +67,10 @@ func (m *SchedstatCollector) Init(config json.RawMessage) error {
 
 	// Read in the JSON configuration
 	if len(config) > 0 {
-		if err := json.Unmarshal(config, &m.config); err != nil {
-			return fmt.Errorf("%s Init(): Error reading config: %w", m.name, err)
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 
@@ -124,7 +127,7 @@ func (m *SchedstatCollector) ParseProcLine(linefields []string, tags map[string]
 	m.olddata[linefields[0]]["waiting"] = waiting
 	value := l_running + l_waiting
 
-	y, err := lp.NewMessage("cpu_load_core", tags, m.meta, map[string]any{"value": value}, now)
+	y, err := lp.NewMetric("cpu_load_core", tags, m.meta, value, now)
 	if err == nil {
 		// Send it to output channel
 		output <- y

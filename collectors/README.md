@@ -59,6 +59,7 @@ In contrast to the configuration files for sinks and receivers, the collectors c
 * [ ] Aggreate metrics to higher topology entity (sum hwthread metrics to socket metric, ...). Needs to be configurable
 
 # Contributing own collectors
+
 A collector reads data from any source, parses it to metrics and submits these metrics to the `metric-collector`. A collector provides three function:
 
 * `Name() string`: Return the name of the collector
@@ -104,8 +105,10 @@ func (m *SampleCollector) Init(config json.RawMessage) error {
         return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
     }
     if len(config) > 0 {
-        if err := json.Unmarshal(config, &m.config); err != nil {
-            return fmt.Errorf("%s Init(): json.Unmarshal() call failed: %w", m.name, err)
+        d := json.NewDecoder(bytes.NewReader(config))
+        d.DisallowUnknownFields()
+        if err := d.Decode(&m.config); err != nil {
+            return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
         }
     }
     m.meta = map[string]string{"source": m.name, "group": "Sample"}

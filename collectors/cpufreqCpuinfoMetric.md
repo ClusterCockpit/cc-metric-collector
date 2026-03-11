@@ -12,7 +12,9 @@ hugo_path: docs/reference/cc-metric-collector/collectors/cpufreq_cpuinfo.md
 ## `cpufreq_cpuinfo` collector
 
 ```json
-  "cpufreq_cpuinfo": {}
+  "cpufreq_cpuinfo": {
+    "exclude_metrics": []
+  }
 ```
 
 The `cpufreq_cpuinfo` collector reads the clock frequency from `/proc/cpuinfo` and outputs a handful **hwthread** metrics.

@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -53,9 +54,10 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		"type": "node",
 	}
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 	matches := map[string]int{
@@ -79,19 +81,10 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	}
 
 	// Check input file
-	file, err := os.Open(string(CPUSTATFILE))
+	file, err := os.Open(CPUSTATFILE)
 	if err != nil {
-		cclog.ComponentError(
-			m.name,
-			fmt.Sprintf("Init(): Failed to open file '%s': %v", string(CPUSTATFILE), err))
+		return fmt.Errorf("%s Init(): Failed to open file '%s': %w", m.name, CPUSTATFILE, err)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Init(): Failed to close file '%s': %v", string(CPUSTATFILE), err))
-		}
-	}()
 
 	// Pre-generate tags for all CPUs
 	num_cpus := 0
@@ -120,6 +113,12 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			num_cpus++
 		}
 	}
+
+	// Close file
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s Init(): Failed to close file '%s': %w", m.name, CPUSTATFILE, err)
+	}
+
 	m.lastTimestamp = time.Now()
 	m.init = true
 	return nil
@@ -166,11 +165,11 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	now := time.Now()
 	tsdelta := now.Sub(m.lastTimestamp)
 
-	file, err := os.Open(string(CPUSTATFILE))
+	file, err := os.Open(CPUSTATFILE)
 	if err != nil {
 		cclog.ComponentError(
 			m.name,
-			fmt.Sprintf("Read(): Failed to open file '%s': %v", string(CPUSTATFILE), err))
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", CPUSTATFILE, err))
 	}
 	defer func() {
 		if err := file.Close(); err != nil {

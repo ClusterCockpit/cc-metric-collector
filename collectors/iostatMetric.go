@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,9 +53,10 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
 	if len(config) > 0 {
-		err = json.Unmarshal(config, &m.config)
-		if err != nil {
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
 	// https://www.kernel.org/doc/html/latest/admin-guide/iostats.html

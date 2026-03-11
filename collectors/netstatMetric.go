@@ -9,6 +9,7 @@ package collectors
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -99,10 +100,10 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 	m.config.SendDerivedValues = false
 	// Read configuration file, allow overwriting default config
 	if len(config) > 0 {
-		err := json.Unmarshal(config, &m.config)
-		if err != nil {
-			cclog.ComponentError(m.name, "Error reading config:", err.Error())
-			return err
+		d := json.NewDecoder(bytes.NewReader(config))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&m.config); err != nil {
+			return fmt.Errorf("%s Init(): failed to decode JSON config: %w", m.name, err)
 		}
 	}
 
