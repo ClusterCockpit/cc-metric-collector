@@ -11,7 +11,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -68,7 +67,7 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 		command := exec.Command(p)
 		err := command.Run()
 		if err != nil {
-			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %v", p, err.Error()))
+			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %s", p, err.Error()))
 			m.ipmitool = ""
 		} else {
 			m.ipmitool = p
@@ -79,14 +78,14 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 		command := exec.Command(p)
 		err := command.Run()
 		if err != nil {
-			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %v", p, err.Error()))
+			cclog.ComponentError(m.name, fmt.Sprintf("Failed to execute %s: %s", p, err.Error()))
 			m.ipmisensors = ""
 		} else {
 			m.ipmisensors = p
 		}
 	}
 	if len(m.ipmitool) == 0 && len(m.ipmisensors) == 0 {
-		return errors.New("no usable IPMI reader found")
+		return fmt.Errorf("%s Init(): no usable IPMI reader found", m.name)
 	}
 
 	m.init = true

@@ -11,7 +11,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -45,7 +44,6 @@ type IOstatCollector struct {
 }
 
 func (m *IOstatCollector) Init(config json.RawMessage) error {
-	var err error
 	m.name = "IOstatCollector"
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
@@ -87,7 +85,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 		}
 	}
 	if len(m.matches) == 0 {
-		return errors.New("no metrics to collect")
+		return fmt.Errorf("%s Init(): no metrics to collect", m.name)
 	}
 	file, err := os.Open(IOSTATFILE)
 	if err != nil {
@@ -137,7 +135,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	}
 
 	m.init = true
-	return err
+	return nil
 }
 
 func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {

@@ -10,7 +10,6 @@ package collectors
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -85,7 +84,7 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 	}
 
 	if len(m.files) == 0 && len(m.cmdFieldsSlice) == 0 {
-		return errors.New("no metrics to collect")
+		return fmt.Errorf("%s Init(): no metrics to collect", m.name)
 	}
 	m.init = true
 	return nil

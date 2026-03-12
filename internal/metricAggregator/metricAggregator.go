@@ -94,8 +94,7 @@ func (c *metricAggregator) Init(output chan lp.CCMessage) error {
 	// Set hostname
 	hostname, err := os.Hostname()
 	if err != nil {
-		cclog.Error(err.Error())
-		return err
+		return fmt.Errorf("metricAggregator: failed to get hostname: %w", err)
 	}
 	// Drop domain part of host name
 	c.constants["hostname"] = strings.SplitN(hostname, `.`, 2)[0]

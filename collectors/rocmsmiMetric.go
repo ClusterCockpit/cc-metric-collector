@@ -10,7 +10,6 @@ package collectors
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -52,7 +51,6 @@ type RocmSmiCollector struct {
 // Called once by the collector manager
 // All tags, meta data tags and metrics that do not change over the runtime should be set here
 func (m *RocmSmiCollector) Init(config json.RawMessage) error {
-	var err error = nil
 	// Always set the name early in Init() to use it in cclog.Component* functions
 	m.name = "RocmSmiCollector"
 	// This is for later use, also call it early
@@ -70,16 +68,12 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 
 	ret := rocm_smi.Init()
 	if ret != rocm_smi.STATUS_SUCCESS {
-		err = errors.New("failed to initialize ROCm SMI library")
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): failed to initialize ROCm SMI library", m.name)
 	}
 
 	numDevs, ret := rocm_smi.NumMonitorDevices()
 	if ret != rocm_smi.STATUS_SUCCESS {
-		err = errors.New("failed to get number of GPUs from ROCm SMI library")
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): failed to get number of GPUs from ROCm SMI library", m.name)
 	}
 
 	m.devices = make([]RocmSmiCollectorDevice, 0)
@@ -91,16 +85,12 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		}
 		device, ret := rocm_smi.DeviceGetHandleByIndex(i)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			err = fmt.Errorf("failed to get handle for GPU %d", i)
-			cclog.ComponentError(m.name, err.Error())
-			return err
+			return fmt.Errorf("%s Init(): failed to get get handle for GPU %d", m.name, i)
 		}
 
 		pciInfo, ret := rocm_smi.DeviceGetPciInfo(device)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			err = fmt.Errorf("failed to get PCI information for GPU %d", i)
-			cclog.ComponentError(m.name, err.Error())
-			return err
+			return fmt.Errorf("%s Init(): failed to get PCI information for GPU %d", m.name, i)
 		}
 
 		pciId := fmt.Sprintf(
@@ -150,7 +140,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 
 	// Set this flag only if everything is initialized properly, all required files exist, ...
 	m.init = true
-	return err
+	return nil
 }
 
 // Read collects all metrics belonging to the sample collector

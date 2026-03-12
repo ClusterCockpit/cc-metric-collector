@@ -104,7 +104,6 @@ func (m *NfsIOStatCollector) readNfsiostats() map[string]map[string]int64 {
 }
 
 func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
-	var err error = nil
 	m.name = "NfsIOStatCollector"
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
@@ -130,7 +129,7 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	m.data = m.readNfsiostats()
 	m.lastTimestamp = time.Now()
 	m.init = true
-	return err
+	return nil
 }
 
 func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessage) {

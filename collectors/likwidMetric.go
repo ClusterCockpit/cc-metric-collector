@@ -18,7 +18,6 @@ import "C"
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -216,17 +215,17 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	}
 	lib := dl.New(m.config.LibraryPath, LIKWID_LIB_DL_FLAGS)
 	if lib == nil {
-		return fmt.Errorf("error instantiating DynamicLibrary for %s", m.config.LibraryPath)
+		return fmt.Errorf("%s Init(): error instantiating DynamicLibrary for %s", m.name, m.config.LibraryPath)
 	}
 	err := lib.Open()
 	if err != nil {
-		return fmt.Errorf("error opening %s: %w", m.config.LibraryPath, err)
+		return fmt.Errorf("%s Init(): error opening %s: %w", m.name, m.config.LibraryPath, err)
 	}
 
 	if m.config.ForceOverwrite {
 		cclog.ComponentDebug(m.name, "Set LIKWID_FORCE=1")
 		if err := os.Setenv("LIKWID_FORCE", "1"); err != nil {
-			return fmt.Errorf("error setting environment variable LIKWID_FORCE=1: %w", err)
+			return fmt.Errorf("%s Init(): error setting environment variable LIKWID_FORCE=1: %w", m.name, err)
 		}
 	}
 	if err := m.setup(); err != nil {
@@ -297,16 +296,12 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 
 	// If no event set could be added, shut down LikwidCollector
 	if totalMetrics == 0 {
-		err := errors.New("no LIKWID eventset or metric usable")
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): no LIKWID eventset or metric usable", m.name)
 	}
 
 	ret := C.topology_init()
 	if ret != 0 {
-		err := errors.New("failed to initialize topology module")
-		cclog.ComponentError(m.name, err.Error())
-		return err
+		return fmt.Errorf("%s Init(): failed to initialize topology module", m.name)
 	}
 	m.measureThread = thread.New()
 	switch m.config.AccessMode {
@@ -321,7 +316,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 				p = m.config.DaemonPath
 			}
 			if err := os.Setenv("PATH", p); err != nil {
-				return fmt.Errorf("error setting environment variable PATH=%s: %w", p, err)
+				return fmt.Errorf("%s Init(): error setting environment variable PATH=%s: %w", m.name, p, err)
 			}
 		}
 		C.HPMmode(1)

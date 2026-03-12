@@ -11,7 +11,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -96,7 +95,6 @@ func getStats(filename string) map[string]MemstatStats {
 }
 
 func (m *MemstatCollector) Init(config json.RawMessage) error {
-	var err error
 	m.name = "MemstatCollector"
 	m.parallel = true
 	m.config.NodeStats = true
@@ -134,7 +132,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 		m.sendMemUsed = true
 	}
 	if len(m.matches) == 0 {
-		return errors.New("no metrics to collect")
+		return fmt.Errorf("%s Init(): no metrics to collect", m.name)
 	}
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
@@ -142,7 +140,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 
 	if m.config.NodeStats {
 		if stats := getStats(MEMSTATFILE); len(stats) == 0 {
-			return fmt.Errorf("cannot read data from file %s", MEMSTATFILE)
+			return fmt.Errorf("%s Init(): cannot read data from file %s", m.name, MEMSTATFILE)
 		}
 	}
 
@@ -154,7 +152,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 			m.nodefiles = make(map[int]MemstatCollectorNode)
 			for _, f := range files {
 				if stats := getStats(f); len(stats) == 0 {
-					return fmt.Errorf("cannot read data from file %s", f)
+					return fmt.Errorf("%s Init(): cannot read data from file %s", m.name, f)
 				}
 				rematch := regex.FindStringSubmatch(f)
 				if len(rematch) == 2 {
@@ -174,7 +172,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 		}
 	}
 	m.init = true
-	return err
+	return nil
 }
 
 func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage) {

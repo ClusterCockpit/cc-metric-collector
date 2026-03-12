@@ -134,11 +134,31 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 		// Check if device is a included device
 		if slices.Contains(m.config.IncludeDevices, canonical) {
 			// Tag will contain original device name (raw).
-			tags := map[string]string{"stype": "network", "stype-id": raw, "type": "node"}
-			meta_unit_byte := map[string]string{"source": m.name, "group": "Network", "unit": "bytes"}
-			meta_unit_byte_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "bytes/sec"}
-			meta_unit_pkts := map[string]string{"source": m.name, "group": "Network", "unit": "packets"}
-			meta_unit_pkts_per_sec := map[string]string{"source": m.name, "group": "Network", "unit": "packets/sec"}
+			tags := map[string]string{
+				"stype":    "network",
+				"stype-id": raw,
+				"type":     "node",
+			}
+			meta_unit_byte := map[string]string{
+				"source": m.name,
+				"group":  "Network",
+				"unit":   "bytes",
+			}
+			meta_unit_byte_per_sec := map[string]string{
+				"source": m.name,
+				"group":  "Network",
+				"unit":   "bytes/sec",
+			}
+			meta_unit_pkts := map[string]string{
+				"source": m.name,
+				"group":  "Network",
+				"unit":   "packets",
+			}
+			meta_unit_pkts_per_sec := map[string]string{
+				"source": m.name,
+				"group":  "Network",
+				"unit":   "packets/sec",
+			}
 
 			m.matches[canonical] = []NetstatCollectorMetric{
 				{

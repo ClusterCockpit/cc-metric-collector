@@ -100,16 +100,16 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 	// Beegfs file system statistics can only be queried by user root
 	user, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("BeegfsStorageCollector.Init(): Failed to get current user: %w", err)
+		return fmt.Errorf("%s Init(): Failed to get current user: %w", m.name, err)
 	}
 	if user.Uid != "0" {
-		return fmt.Errorf("BeegfsStorageCollector.Init(): BeeGFS file system statistics can only be queried by user root")
+		return fmt.Errorf("%s Init(): BeeGFS file system statistics can only be queried by user root", m.name)
 	}
 
 	// Check if beegfs-ctl is in executable search path
 	_, err = exec.LookPath(m.config.Beegfs)
 	if err != nil {
-		return fmt.Errorf("BeegfsStorageCollector.Init(): Failed to find beegfs-ctl binary '%s': %w", m.config.Beegfs, err)
+		return fmt.Errorf("%s Init(): Failed to find beegfs-ctl binary '%s': %w", m.name, m.config.Beegfs, err)
 	}
 	m.init = true
 	return nil

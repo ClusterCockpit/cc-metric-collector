@@ -112,8 +112,7 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 	if r.config.NumCacheIntervals > 0 {
 		r.cache, err = NewCache(r.cache_input, r.ticker, &r.cachewg, r.config.NumCacheIntervals)
 		if err != nil {
-			cclog.ComponentError("MetricRouter", "MetricCache initialization failed:", err.Error())
-			return err
+			return fmt.Errorf("MetricRouter: failed to initialize MetricCache: %w", err)
 		}
 		for _, agg := range r.config.IntervalAgg {
 			err = r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)

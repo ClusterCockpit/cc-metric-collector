@@ -8,6 +8,7 @@
 package metricRouter
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -70,8 +71,7 @@ func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker,
 	// The code is executed by the MetricCache goroutine
 	c.aggEngine, err = agg.NewAggregator(c.output)
 	if err != nil {
-		cclog.ComponentError("MetricCache", "Cannot create aggregator")
-		return err
+		return fmt.Errorf("MetricCache: failed to create aggregator: %w", err)
 	}
 
 	return nil

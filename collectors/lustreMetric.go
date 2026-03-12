@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	lp "github.com/ClusterCockpit/cc-lib/v2/ccMessage"
 )
 
@@ -318,18 +317,15 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	if !m.config.Sudo {
 		user, err := user.Current()
 		if err != nil {
-			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
-			return err
+			return fmt.Errorf("%s Init(): Failed to get current user: %w", m.name, err)
 		}
 		if user.Uid != "0" {
-			cclog.ComponentError(m.name, "Lustre file system statistics can only be queried by user root")
-			return err
+			return fmt.Errorf("%s Init(): Lustre file system statistics can only be queried by user root", m.name)
 		}
 	} else {
 		p, err := exec.LookPath("sudo")
 		if err != nil {
-			cclog.ComponentError(m.name, "Cannot find 'sudo'")
-			return err
+			return fmt.Errorf("%s Init(): Cannot find 'sudo': %w", m.name, err)
 		}
 		m.sudoCmd = p
 	}
@@ -338,7 +334,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	if err != nil {
 		p, err = exec.LookPath(LCTL_CMD)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s Init(): Cannot find %s command: %w", m.name, LCTL_CMD, err)
 		}
 	}
 	m.lctl = p
@@ -366,12 +362,12 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 		}
 	}
 	if len(m.definitions) == 0 {
-		return errors.New("no metrics to collect")
+		return fmt.Errorf("%s Init(): no metrics to collect", m.name)
 	}
 
 	devices := m.getDevices()
 	if len(devices) == 0 {
-		return errors.New("no Lustre devices found")
+		return fmt.Errorf("%s Init(): no Lustre devices found", m.name)
 	}
 	m.stats = make(map[string]map[string]int64)
 	for _, d := range devices {

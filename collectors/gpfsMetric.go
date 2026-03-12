@@ -347,18 +347,15 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	if !m.config.Sudo {
 		user, err := user.Current()
 		if err != nil {
-			cclog.ComponentError(m.name, "Failed to get current user:", err.Error())
-			return err
+			return fmt.Errorf("%s Init(): failed to get current user: %w", m.name, err)
 		}
 		if user.Uid != "0" {
-			cclog.ComponentError(m.name, "GPFS file system statistics can only be queried by user root")
-			return err
+			return fmt.Errorf("%s Init(): GPFS file system statistics can only be queried by user root", m.name)
 		}
 	} else {
 		p, err := exec.LookPath("sudo")
 		if err != nil {
-			cclog.ComponentError(m.name, "Cannot find 'sudo'")
-			return err
+			return fmt.Errorf("%s Init(): cannot find 'sudo': %w", m.name, err)
 		}
 		m.sudoCmd = p
 	}
@@ -434,7 +431,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		}
 	}
 	if len(m.definitions) == 0 {
-		return errors.New("no metrics to collect")
+		return fmt.Errorf("%s Init(): no metrics to collect", m.name)
 	}
 
 	m.init = true

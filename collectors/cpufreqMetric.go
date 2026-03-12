@@ -79,7 +79,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 		scalingCurFreqFile := filepath.Join("/sys/devices/system/cpu", fmt.Sprintf("cpu%d", c.CpuID), "cpufreq/scaling_cur_freq")
 		err := unix.Access(scalingCurFreqFile, unix.R_OK)
 		if err != nil {
-			return fmt.Errorf("unable to access file '%s': %w", scalingCurFreqFile, err)
+			return fmt.Errorf("%s Init(): unable to access file '%s': %w", m.name, scalingCurFreqFile, err)
 		}
 
 		m.topology = append(m.topology,
