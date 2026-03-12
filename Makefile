@@ -27,6 +27,17 @@ $(APP): $(GOSRC) go.mod
 	$(GOBIN) get
 	$(GOBIN) build -o $(APP) $(GOSRC_APP)
 
+# -ldflags:
+#   -s : drops the OS symbol table 
+#   -w : drops DWARF
+#   -> Panic stack traces still show function names and file:line
+.PHONY: build-stripped
+build-stripped:
+	make -C collectors
+	$(GOBIN) get
+	$(GOBIN) build -ldflags "-s -w" -trimpath -o $(APP) $(GOSRC_APP)
+
+.PHONY: install
 install: $(APP)
 	@WORKSPACE=$(PREFIX)
 	@if [ -z "$${WORKSPACE}" ]; then exit 1; fi
