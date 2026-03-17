@@ -111,16 +111,38 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 	m.matches = make(map[string]string)
 	m.tags = map[string]string{"type": "node"}
 	matches := map[string]string{
-		"MemTotal":     "mem_total",
-		"SwapTotal":    "swap_total",
-		"SReclaimable": "mem_sreclaimable",
-		"Slab":         "mem_slab",
-		"MemFree":      "mem_free",
-		"Buffers":      "mem_buffers",
-		"Cached":       "mem_cached",
-		"MemAvailable": "mem_available",
-		"SwapFree":     "swap_free",
-		"MemShared":    "mem_shared",
+		"MemTotal":        "mem_total",
+		"SwapTotal":       "swap_total",
+		"SReclaimable":    "mem_sreclaimable",
+		"Slab":            "mem_slab",
+		"MemFree":         "mem_free",
+		"Buffers":         "mem_buffers",
+		"Cached":          "mem_cached",
+		"MemAvailable":    "mem_available",
+		"SwapFree":        "swap_free",
+		"Shmem":           "mem_shared",
+		"Active":          "mem_active",
+		"Inactive":        "mem_inactive",
+		"Dirty":           "mem_dirty",
+		"Writeback":       "mem_writeback",
+		"AnonPages":       "mem_anon_pages",
+		"Mapped":          "mem_mapped",
+		"VmallocTotal":    "mem_vmalloc_total",
+		"AnonHugePages":   "mem_anon_hugepages",
+		"ShmemHugePages":  "mem_shared_hugepages",
+		"ShmemPmdMapped":  "mem_shared_pmd_mapped",
+		"HugePages_Total": "mem_hugepages_total",
+		"HugePages_Free":  "mem_hugepages_free",
+		"HugePages_Rsvd":  "mem_hugepages_reserved",
+		"HugePages_Surp":  "mem_hugepages_surplus",
+		"Hugepagesize":    "mem_hugepages_size",
+		"DirectMap4k":     "mem_direct_mapped_4k",
+		"DirectMap4M":     "mem_direct_mapped_4m",
+		"DirectMap2M":     "mem_direct_mapped_2m",
+		"DirectMap1G":     "mem_direct_mapped_1g",
+		"Mlocked":         "mem_locked",
+		"PageTables":      "mem_pagetables",
+		"KernelStack":     "mem_kernelstack",
 	}
 	for k, v := range matches {
 		if !slices.Contains(m.config.ExcludeMetrics, k) {
@@ -219,6 +241,12 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 							memUsed -= cacheVal.value
 							if len(cacheVal.unit) > 0 && len(unit) == 0 {
 								unit = cacheVal.unit
+							}
+						}
+						if shmemVal, shmem := stats["Shmem"]; shmem {
+							memUsed -= shmemVal.value
+							if len(shmemVal.unit) > 0 && len(unit) == 0 {
+								unit = shmemVal.unit
 							}
 						}
 					}

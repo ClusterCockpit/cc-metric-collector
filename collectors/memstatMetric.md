@@ -32,7 +32,29 @@ Metrics:
 * `mem_cached`
 * `mem_available`
 * `mem_shared`
+* `mem_active`
+* `mem_inactive`
+* `mem_dirty`
+* `mem_writeback`
+* `mem_anon_pages`
+* `mem_mapped`
+* `mem_vmalloc_total`
+* `mem_anon_hugepages`
+* `mem_shared_hugepages`
+* `mem_shared_pmd_mapped`
+* `mem_hugepages_total`
+* `mem_hugepages_free`
+* `mem_hugepages_reserved`
+* `mem_hugepages_surplus`
+* `mem_hugepages_size`
+* `mem_direct_mapped_4k`
+* `mem_direct_mapped_2m`
+* `mem_direct_mapped_4m`
+* `mem_direct_mapped_1g`
+* `mem_locked`
+* `mem_pagetables`
+* `mem_kernelstack`
 * `swap_total`
 * `swap_free`
-* `mem_used` = `mem_total` - (`mem_free` + `mem_buffers` + `mem_cached`)
+* `mem_used` = `mem_total` - (`mem_free` + `mem_buffers` + `mem_cached` + `mem_shared`)
 
