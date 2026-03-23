@@ -65,48 +65,58 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 		}
 	}
 
-	if len(m.config.IpmitoolPath) != 0 && len(m.config.IpmisensorsPath) != 0 {
-		return fmt.Errorf("ipmitool_path and ipmisensors_path cannot be used at the same time. Please disable one of them")
+	m.ipmitool = m.config.IpmitoolPath
+	m.ipmisensors = m.config.IpmisensorsPath
+
+	// Test if any of the supported backends work
+	var dummyChan chan lp.CCMessage
+	dummyConsumer := func() {
+		for range dummyChan {
+		}
 	}
 
-	// Test if the configured commands actually work
-	if len(m.config.IpmitoolPath) != 0 {
-		dummyChan := make(chan lp.CCMessage)
-		go func() {
-			for range dummyChan {
-			}
-		}()
-		err := m.readIpmiTool(dummyChan)
+	// Test if ipmi-sensors works (preferred over ipmitool, because it's faster)
+	var ipmiSensorsErr error
+	if _, ipmiSensorsErr = exec.LookPath(m.ipmisensors); ipmiSensorsErr == nil {
+		dummyChan = make(chan lp.CCMessage)
+		go dummyConsumer()
+		ipmiSensorsErr = m.readIpmiSensors(dummyChan)
 		close(dummyChan)
-		if err != nil {
-			return fmt.Errorf("Cannot execute '%s' (sudo=%t): %v", m.config.IpmitoolPath, m.config.Sudo, err)
+		if ipmiSensorsErr == nil {
+			cclog.ComponentDebugf(m.name, "Using ipmi-sensors for ipmistat collector")
+			m.init = true
+			return nil
 		}
-	} else if len(m.config.IpmisensorsPath) != 0 {
-		dummyChan := make(chan lp.CCMessage)
-		go func() {
-			for range dummyChan {
-			}
-		}()
-		err := m.readIpmiSensors(dummyChan)
-		close(dummyChan)
-		if err != nil {
-			return fmt.Errorf("Cannot execute '%s' (sudo=%t): %v", m.config.IpmisensorsPath, m.config.Sudo, err)
-		}
-	} else {
-		return fmt.Errorf("IpmiCollector enabled, but neither ipmitool nor ipmi-sensors are configured.")
 	}
+	cclog.ComponentDebugf(m.name, "Unable to use ipmi-sensors for ipmistat collector: %v", ipmiSensorsErr)
+	m.ipmisensors = ""
 
-	m.init = true
-	return nil
+	// Test if ipmitool works (may be very slow)
+	var ipmiToolErr error
+	if _, ipmiToolErr = exec.LookPath(m.ipmitool); ipmiToolErr == nil {
+		dummyChan = make(chan lp.CCMessage)
+		go dummyConsumer()
+		ipmiToolErr = m.readIpmiTool(dummyChan)
+		close(dummyChan)
+		if ipmiToolErr == nil {
+			cclog.ComponentDebugf(m.name, "Using ipmitool for ipmistat collector")
+			m.init = true
+			return nil
+		}
+	}
+	m.ipmitool = ""
+	cclog.ComponentDebugf(m.name, "Unable to use ipmitool for ipmistat collector: %v", ipmiToolErr)
+
+	return fmt.Errorf("unable to init neither ipmitool (%w) nor ipmi-sensors (%w)", ipmiToolErr, ipmiSensorsErr)
 }
 
 func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 	// Setup ipmitool command
 	argv := make([]string, 0)
 	if m.config.Sudo {
-		argv = append(argv, "sudo")
+		argv = append(argv, "sudo", "-n")
 	}
-	argv = append(argv, m.config.IpmitoolPath, "sensor")
+	argv = append(argv, m.ipmitool, "sensor")
 	command := exec.Command(argv[0], argv[1:]...)
 	stdout, _ := command.StdoutPipe()
 	errBuf := new(bytes.Buffer)
@@ -114,7 +124,7 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 
 	// start command
 	if err := command.Start(); err != nil {
-		return fmt.Errorf("Failed to start command '%s': %v", command.String(), err)
+		return fmt.Errorf("failed to start command '%s': %w", command.String(), err)
 	}
 
 	// Read command output
@@ -124,6 +134,12 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 		if len(lv) < 3 {
 			continue
 		}
+
+		if strings.TrimSpace(lv[1]) == "0x0" || strings.TrimSpace(lv[1]) == "na" {
+			// Ignore known non-float values
+			continue
+		}
+
 		v, err := strconv.ParseFloat(strings.TrimSpace(lv[1]), 64)
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "Failed to parse float '%s': %v", lv[1], err)
@@ -154,7 +170,7 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 	// Wait for command end
 	if err := command.Wait(); err != nil {
 		errMsg, _ := io.ReadAll(errBuf)
-		return fmt.Errorf("Failed to complete command '%s': %v (stderr: %s)", command.String(), err, strings.TrimSpace(string(errMsg)))
+		return fmt.Errorf("failed to complete command '%s': %w (stderr: %s)", command.String(), err, strings.TrimSpace(string(errMsg)))
 	}
 
 	return nil
@@ -164,9 +180,9 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 	// Setup ipmisensors command
 	argv := make([]string, 0)
 	if m.config.Sudo {
-		argv = append(argv, "sudo")
+		argv = append(argv, "sudo", "-n")
 	}
-	argv = append(argv, m.config.IpmisensorsPath, "--comma-separated-output", "--sdr-cache-recreate")
+	argv = append(argv, m.ipmisensors, "--comma-separated-output", "--sdr-cache-recreate")
 	command := exec.Command(argv[0], argv[1:]...)
 	stdout, _ := command.StdoutPipe()
 	errBuf := new(bytes.Buffer)
@@ -174,7 +190,7 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 
 	// start command
 	if err := command.Start(); err != nil {
-		return fmt.Errorf("Failed to start command '%s': %v", command.String(), err)
+		return fmt.Errorf("failed to start command '%s': %w", command.String(), err)
 	}
 
 	// Read command output
@@ -184,7 +200,11 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 		if len(lv) <= 3 {
 			continue
 		}
-		v, err := strconv.ParseFloat(lv[3], 64)
+		if lv[3] == "N/A" || lv[3] == "Reading" {
+			// Ignore known non-float values
+			continue
+		}
+		v, err := strconv.ParseFloat(strings.TrimSpace(lv[3]), 64)
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "Failed to parse float '%s': %v", lv[3], err)
 			continue
@@ -204,7 +224,7 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 	// Wait for command end
 	if err := command.Wait(); err != nil {
 		errMsg, _ := io.ReadAll(errBuf)
-		return fmt.Errorf("Failed to complete command '%s': %v (stderr: %s)", command.String(), err, strings.TrimSpace(string(errMsg)))
+		return fmt.Errorf("failed to complete command '%s': %w (stderr: %s)", command.String(), err, strings.TrimSpace(string(errMsg)))
 	}
 
 	return nil
@@ -216,15 +236,15 @@ func (m *IpmiCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		return
 	}
 
-	if len(m.config.IpmitoolPath) > 0 {
-		err := m.readIpmiTool(output)
-		if err != nil {
-			cclog.ComponentErrorf(m.name, "readIpmiTool() failed: %v", err)
-		}
-	} else if len(m.config.IpmisensorsPath) > 0 {
+	if len(m.ipmisensors) > 0 {
 		err := m.readIpmiSensors(output)
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "readIpmiSensors() failed: %v", err)
+		}
+	} else if len(m.ipmitool) > 0 {
+		err := m.readIpmiTool(output)
+		if err != nil {
+			cclog.ComponentErrorf(m.name, "readIpmiTool() failed: %v", err)
 		}
 	}
 }
