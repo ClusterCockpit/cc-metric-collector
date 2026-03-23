@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/ClusterCockpit/cc-lib/v2 v2.8.2
-	github.com/ClusterCockpit/go-rocm-smi v0.3.0
+	github.com/ClusterCockpit/go-rocm-smi v0.4.0
 	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
 	github.com/fsnotify/fsnotify v1.9.0
