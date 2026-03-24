@@ -23,9 +23,9 @@ The `ipmistat` collector reads data from `ipmitool` (`ipmitool sensor`) or `ipmi
 
 The metrics depend on the output of the underlying tools but contain temperature, power and energy metrics.
 
-ipmitool and ipmi-sensors typically require root to run.
-In order to cc-metric-collector without root priviliges, you can enable `use_sudo`.
-Add a file like this in /etc/sudoers.d/ to allow cc-metric-collector to run this command:
+`ipmitool` and `ipmi-sensors` typically require root to run.
+In order to run `cc-metric-collector` without root priviliges, you can enable `use_sudo`.
+Add a file like this in `/etc/sudoers.d/` to allow `cc-metric-collector` to run the required commands:
 
 ```
 # Do not log the following sudo commands from monitoring, since this causes a lot of log spam.

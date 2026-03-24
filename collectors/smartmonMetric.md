@@ -50,3 +50,18 @@ Metrics:
 * `smartmon_errlog_entries`: Error log entries
 * `smartmon_warn_temp_time`: Time above the warning temperature threshold
 * `smartmon_crit_comp_time`: Time above the critical composite temperature threshold
+
+`smartctl` typically require root to run.
+In order to run `cc-metric-collector` without root priviliges, you can enable `use_sudo`.
+Add a file like this in `/etc/sudoers.d/` to allow `cc-metric-collector` to run the required command:
+
+```
+# Do not log the following sudo commands from monitoring, since this causes a lot of log spam.
+# However keep log_denied enabled, to detect failures
+Defaults: monitoring !log_allowed, !pam_session
+
+# Allow to use lctl
+monitoring ALL = (root) NOPASSWD:/absolute/path/to/smartctl --json=c --device=* "--all" *
+# Or add individual rules for each device
+# monitoring ALL = (root) NOPASSWD:/absolute/path/to/smartctl --json=c --device=<device_type> "--all" <device>
+```

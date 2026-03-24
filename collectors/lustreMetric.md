@@ -55,3 +55,16 @@ Metrics:
 * `lustre_inode_permission_diff` (if `send_diff_values == true`)
 
 This collector adds an `device` tag.
+
+`lctl` typically require root to run.
+In order to run `cc-metric-collector` without root priviliges, you can enable `use_sudo`.
+Add a file like this in `/etc/sudoers.d/` to allow `cc-metric-collector` to run the required command:
+
+```
+# Do not log the following sudo commands from monitoring, since this causes a lot of log spam.
+# However keep log_denied enabled, to detect failures
+Defaults: monitoring !log_allowed, !pam_session
+
+# Allow to use lctl
+monitoring ALL = (root) NOPASSWD:/absolute/path/to/lctl get_param llite.*.stats
+```
