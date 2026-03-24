@@ -11,13 +11,9 @@ hugo_path: docs/reference/cc-metric-collector/_index.md
 
 # cc-metric-collector
 
-A node agent for measuring, processing and forwarding node level metrics. It is part of the [ClusterCockpit ecosystem](https://clustercockpit.org/docs/overview/).
+A node agent for measuring, processing and forwarding node level metrics. It is part of the [ClusterCockpit ecosystem](https://clustercockpit.org/docs/overview/). 
 
-The metric collector sends (and receives) metric in the [InfluxDB line protocol](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) as it provides flexibility while providing a separation between tags (like index columns in relational databases) and fields (like data columns).
-
-There is a single timer loop that triggers all collectors serially, collects the collectors' data and sends the metrics to the sink. This is done as all data is submitted with a single time stamp. The sinks currently use mostly blocking APIs.
-
-The receiver runs as a go routine side-by-side with the timer loop and asynchronously forwards received metrics to the sink.
+The `cc-metric-collector` sends (and maybe receives) metrics in the [InfluxDB line protocol](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) as it provides flexibility while providing a separation between tags (like index columns in relational databases) and fields (like data columns). The `cc-metric-collector` consists of 4 components: collectors, router, sinks and receivers. The collectors read data from the current system and submit metrics to the router. The router can be configured to manipulate the metrics before forwarding them to the sinks. The receivers are also attached to the router like the collectors but they receive data from external source like other `cc-metric-collector` instances.
 
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7438287.svg)](https://doi.org/10.5281/zenodo.7438287)
@@ -43,7 +39,7 @@ There is a main configuration file with basic settings that point to the other c
 }
 ```
 
-The `interval` defines how often the metrics should be read and send to the sink. The `duration` tells collectors how long one measurement has to take. This is important for some collectors, like the `likwid` collector. For more information, see [here](./docs/configuration.md).
+The `interval` defines how often the metrics should be read and send to the sink(s). The `duration` tells the collectors how long one measurement has to take. This is important for some collectors, like the `likwid` collector. For more information, see [here](./docs/configuration.md).
 
 See the component READMEs for their configuration:
 
@@ -57,7 +53,7 @@ See the component READMEs for their configuration:
 ```
 $ git clone git@github.com:ClusterCockpit/cc-metric-collector.git
 $ make (downloads LIKWID, builds it as static library with 'direct' accessmode and copies all required files for the collector)
-$ go get (requires at least golang 1.16)
+$ go get
 $ make
 ```
 
@@ -67,11 +63,13 @@ For more information, see [here](./docs/building.md).
 
 ```
 $ ./cc-metric-collector --help
-Usage of metric-collector:
+Usage of ./cc-metric-collector:
   -config string
     	Path to configuration file (default "./config.json")
   -log string
     	Path for logfile (default "stderr")
+  -loglevel string
+    	Set log level (default "info")
   -once
     	Run all collectors only once
 ```
@@ -114,7 +112,7 @@ flowchart TD
 
 # Contributing
 
-The ClusterCockpit ecosystem is designed to be used by different HPC computing centers. Since configurations and setups differ between the centers, the centers likely have to put some work into the cc-metric-collector to gather all desired metrics.
+The ClusterCockpit ecosystem is designed to be used by different HPC computing centers. Since configurations and setups differ between the centers, the centers likely have to put some work into `cc-metric-collector` to gather all desired metrics.
 
 You are free to open an issue to request a collector but we would also be happy about PRs.
 
