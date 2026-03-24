@@ -28,7 +28,6 @@ type IpmiCollector struct {
 	metricCollector
 
 	config struct {
-		ExcludeDevices  []string `json:"exclude_devices"`
 		IpmitoolPath    string   `json:"ipmitool_path"`
 		IpmisensorsPath string   `json:"ipmisensors_path"`
 		Sudo            bool     `json:"use_sudo"`
