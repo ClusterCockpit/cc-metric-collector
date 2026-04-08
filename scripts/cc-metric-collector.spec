@@ -53,6 +53,8 @@ install -Dpm 0644 scripts/%{name}.sysusers %{buildroot}%{_sysusersdir}/%{name}.c
 %systemd_preun %{name}.service
 
 %files
+# Binary
+%attr(-,clustercockpit,clustercockpit) %{_bindir}/%{name}
 # Config
 %dir %{_sysconfdir}/%{name}
 %attr(0600,clustercockpit,clustercockpit) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.json
