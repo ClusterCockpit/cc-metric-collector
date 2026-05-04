@@ -1,10 +1,10 @@
 module github.com/ClusterCockpit/cc-metric-collector
 
-go 1.25.0
+go 1.25.8
 
 require (
 	github.com/ClusterCockpit/cc-lib/v2 v2.12.0
-	github.com/ClusterCockpit/go-rocm-smi v0.4.0
+	github.com/ClusterCockpit/go-rocm-smi v0.5.0
 	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
 	github.com/fsnotify/fsnotify v1.10.0
