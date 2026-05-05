@@ -202,7 +202,9 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 	for i := range m.info {
 		info := &m.info[i]
 
-		var ib_total, ib_total_pkts int64
+		var ib_total, ib_total_last_state,
+			ib_total_pkts, ib_total_pkts_last_state int64
+		var ib_total_last_state_available, ib_total_pkts_last_state_available bool
 		for i := range info.portCounterFiles {
 			counterDef := &info.portCounterFiles[i]
 
@@ -232,14 +234,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
-				if y, err := lp.NewMessage(
-					counterDef.name,
-					info.tagSet,
-					m.meta,
-					map[string]any{
-						"value": counterDef.currentState,
-					},
-					now); err == nil {
+				if y, err := lp.NewMetric(counterDef.name, info.tagSet, m.meta, counterDef.currentState, now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
 				}
@@ -249,17 +244,21 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			if m.config.SendDerivedValues {
 				if counterDef.lastState >= 0 {
 					rate := float64((counterDef.currentState - counterDef.lastState)) / timeDiff
-					if y, err := lp.NewMessage(
-						counterDef.name+"_bw",
-						info.tagSet,
-						m.meta,
-						map[string]any{
-							"value": rate,
-						},
-						now); err == nil {
+					if y, err := lp.NewMetric(counterDef.name+"_bw", info.tagSet, m.meta, rate, now); err == nil {
 						y.AddMeta("unit", counterDef.unit+"/sec")
 						output <- y
+					}
 
+					// Sum up total values of last state
+					if m.config.SendTotalValues {
+						switch {
+						case counterDef.addToIBTotal:
+							ib_total_last_state += counterDef.lastState
+							ib_total_last_state_available = true
+						case counterDef.addToIBTotalPkgs:
+							ib_total_pkts_last_state += counterDef.lastState
+							ib_total_pkts_last_state_available = true
+						}
 					}
 				}
 				counterDef.lastState = counterDef.currentState
@@ -278,28 +277,30 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 
 		// Send total values
 		if m.config.SendTotalValues {
-			if y, err := lp.NewMessage(
-				"ib_total",
-				info.tagSet,
-				m.meta,
-				map[string]any{
-					"value": ib_total,
-				},
-				now); err == nil {
+			if y, err := lp.NewMetric("ib_total", info.tagSet, m.meta, ib_total, now); err == nil {
 				y.AddMeta("unit", "bytes")
 				output <- y
 			}
 
-			if y, err := lp.NewMessage(
-				"ib_total_pkts",
-				info.tagSet,
-				m.meta,
-				map[string]any{
-					"value": ib_total_pkts,
-				},
-				now); err == nil {
+			if y, err := lp.NewMetric("ib_total_pkts", info.tagSet, m.meta, ib_total_pkts, now); err == nil {
 				y.AddMeta("unit", "packets")
 				output <- y
+			}
+
+			if m.config.SendDerivedValues && ib_total_last_state_available {
+				rate := float64((ib_total - ib_total_last_state)) / timeDiff
+				if y, err := lp.NewMetric("ib_total_bw", info.tagSet, m.meta, rate, now); err == nil {
+					y.AddMeta("unit", "bytes/sec")
+					output <- y
+				}
+			}
+
+			if m.config.SendDerivedValues && ib_total_pkts_last_state_available {
+				rate := float64((ib_total_pkts - ib_total_pkts_last_state)) / timeDiff
+				if y, err := lp.NewMetric("ib_total_pkts_bw", info.tagSet, m.meta, rate, now); err == nil {
+					y.AddMeta("unit", "packets/sec")
+					output <- y
+				}
 			}
 		}
 	}

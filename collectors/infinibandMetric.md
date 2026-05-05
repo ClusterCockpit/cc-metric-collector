@@ -41,5 +41,7 @@ Metrics:
 * `ib_xmit_bw` (if `send_derived_values == true`)
 * `ib_recv_pkts_bw` (if `send_derived_values == true`)
 * `ib_xmit_pkts_bw` (if `send_derived_values == true`)
+* `ib_total_bw` (if `send_total_values == true` and `send_derived_values == true`)
+* `ib_total_pkts_bw` (if `send_total_values == true` and `send_derived_values == true`)
 
 The collector adds a `device` tag to all metrics
