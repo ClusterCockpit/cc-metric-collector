@@ -32,7 +32,6 @@ type InfinibandCollectorMetric struct {
 	scale            int64
 	addToIBTotal     bool
 	addToIBTotalPkgs bool
-	currentState     int64
 	lastState        int64
 }
 
@@ -229,12 +228,9 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			// Scale raw value
 			v *= counterDef.scale
 
-			// Save current state
-			counterDef.currentState = v
-
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
-				if y, err := lp.NewMetric(counterDef.name, info.tagSet, m.meta, counterDef.currentState, now); err == nil {
+				if y, err := lp.NewMetric(counterDef.name, info.tagSet, m.meta, v, now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
 				}
@@ -243,7 +239,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			// Send derived values
 			if m.config.SendDerivedValues {
 				if counterDef.lastState >= 0 {
-					rate := float64((counterDef.currentState - counterDef.lastState)) / timeDiff
+					rate := float64((v - counterDef.lastState)) / timeDiff
 					if y, err := lp.NewMetric(counterDef.name+"_bw", info.tagSet, m.meta, rate, now); err == nil {
 						y.AddMeta("unit", counterDef.unit+"/sec")
 						output <- y
@@ -261,16 +257,16 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 						}
 					}
 				}
-				counterDef.lastState = counterDef.currentState
+				counterDef.lastState = v
 			}
 
 			// Sum up total values
 			if m.config.SendTotalValues {
 				switch {
 				case counterDef.addToIBTotal:
-					ib_total += counterDef.currentState
+					ib_total += v
 				case counterDef.addToIBTotalPkgs:
-					ib_total_pkts += counterDef.currentState
+					ib_total_pkts += v
 				}
 			}
 		}
