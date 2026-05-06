@@ -86,15 +86,7 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMessag
 	lines := strings.Split(string(stdout), "\n")
 	for i := 1; i < m.config.Num_procs+1; i++ {
 		name := fmt.Sprintf("topproc%d", i)
-		y, err := lp.NewMessage(
-			name,
-			m.tags,
-			m.meta,
-			map[string]any{
-				"value": lines[i],
-			},
-			time.Now())
-		if err == nil {
+		if y, err := lp.NewMetric(name, m.tags, m.meta, lines[i], time.Now()); err == nil {
 			output <- y
 		}
 	}

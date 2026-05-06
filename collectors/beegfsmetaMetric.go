@@ -227,8 +227,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 
 			for key, data := range m.matches {
 				value, _ := strconv.ParseFloat(data, 32)
-				y, err := lp.NewMessage(key, m.tags, m.meta, map[string]any{"value": value}, time.Now())
-				if err == nil {
+				if y, err := lp.NewMetric(key, m.tags, m.meta, value, time.Now()); err == nil {
 					output <- y
 				}
 			}

@@ -262,14 +262,14 @@ func (m *NetstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 					continue
 				}
 				if m.config.SendAbsoluteValues {
-					if y, err := lp.NewMessage(metric.name, metric.tags, metric.meta, map[string]any{"value": v}, now); err == nil {
+					if y, err := lp.NewMetric(metric.name, metric.tags, metric.meta, v, now); err == nil {
 						output <- y
 					}
 				}
 				if m.config.SendDerivedValues {
 					if metric.lastValue >= 0 {
 						rate := float64(v-metric.lastValue) / timeDiff
-						if y, err := lp.NewMessage(metric.name+"_bw", metric.tags, metric.meta_rates, map[string]any{"value": rate}, now); err == nil {
+						if y, err := lp.NewMetric(metric.name+"_bw", metric.tags, metric.meta_rates, rate, now); err == nil {
 							output <- y
 						}
 					}

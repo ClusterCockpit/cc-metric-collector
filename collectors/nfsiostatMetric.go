@@ -145,14 +145,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 		if old, ok := m.data[mntpoint]; ok {
 			for name, newVal := range values {
 				if m.config.SendAbsoluteValues {
-					msg, err := lp.NewMessage(
-						"nfsio_"+name,
-						m.tags,
-						m.meta,
-						map[string]any{
-							"value": newVal,
-						},
-						now)
+					msg, err := lp.NewMetric("nfsio_"+name, m.tags, m.meta, newVal, now)
 					if err == nil {
 						msg.AddTag("stype", "filesystem")
 						msg.AddTag("stype-id", mntpoint)
@@ -161,7 +154,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 				}
 				if m.config.SendDerivedValues {
 					rate := float64(newVal-old[name]) / timeDiff
-					msg, err := lp.NewMessage(fmt.Sprintf("nfsio_%s_bw", name), m.tags, m.meta, map[string]any{"value": rate}, now)
+					msg, err := lp.NewMetric(fmt.Sprintf("nfsio_%s_bw", name), m.tags, m.meta, rate, now)
 					if err == nil {
 						if strings.HasPrefix(name, "page") {
 							msg.AddMeta("unit", "4K_pages/s")

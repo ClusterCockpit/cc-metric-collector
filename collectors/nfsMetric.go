@@ -146,14 +146,13 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			continue
 		}
 
-		valueMap := make(map[string]any)
 		if data.current >= 0 && data.last >= 0 {
-			valueMap["value"] = data.current - data.last
-		}
-		y, err := lp.NewMessage(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, valueMap, timestamp)
-		if err == nil {
-			y.AddMeta("version", m.version)
-			output <- y
+			value := data.current - data.last
+			y, err := lp.NewMetric(fmt.Sprintf("%s_%s", prefix, name), m.tags, m.meta, value, timestamp)
+			if err == nil {
+				y.AddMeta("version", m.version)
+				output <- y
+			}
 		}
 	}
 }

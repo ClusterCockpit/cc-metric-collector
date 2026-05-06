@@ -213,7 +213,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 				}
 			}
 
-			y, err := lp.NewMessage(name, tags, m.meta, map[string]any{"value": value}, time.Now())
+			y, err := lp.NewMetric(name, tags, m.meta, value, time.Now())
 			if err == nil {
 				if len(unit) > 0 {
 					y.AddMeta("unit", unit)
@@ -252,7 +252,7 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 					}
 				}
 			}
-			y, err := lp.NewMessage("mem_used", tags, m.meta, map[string]any{"value": memUsed}, time.Now())
+			y, err := lp.NewMetric("mem_used", tags, m.meta, memUsed, time.Now())
 			if err == nil {
 				if len(unit) > 0 {
 					y.AddMeta("unit", unit)

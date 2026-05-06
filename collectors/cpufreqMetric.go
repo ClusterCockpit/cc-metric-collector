@@ -129,7 +129,7 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage
 			continue
 		}
 
-		if y, err := lp.NewMessage("cpufreq", t.tagSet, m.meta, map[string]any{"value": cpuFreq}, now); err == nil {
+		if y, err := lp.NewMetric("cpufreq", t.tagSet, m.meta, cpuFreq, now); err == nil {
 			output <- y
 		}
 	}

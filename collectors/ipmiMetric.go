@@ -28,9 +28,9 @@ type IpmiCollector struct {
 	metricCollector
 
 	config struct {
-		IpmitoolPath    string   `json:"ipmitool_path"`
-		IpmisensorsPath string   `json:"ipmisensors_path"`
-		Sudo            bool     `json:"use_sudo"`
+		IpmitoolPath    string `json:"ipmitool_path"`
+		IpmisensorsPath string `json:"ipmisensors_path"`
+		Sudo            bool   `json:"use_sudo"`
 	}
 
 	ipmitool    string
@@ -157,7 +157,7 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 			unit = "Watts"
 		}
 
-		y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]any{"value": v}, time.Now())
+		y, err := lp.NewMetric(name, map[string]string{"type": "node"}, m.meta, v, time.Now())
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "Failed to create message: %v", err)
 			continue
@@ -209,7 +209,7 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 			continue
 		}
 		name := strings.ToLower(strings.ReplaceAll(lv[1], " ", "_"))
-		y, err := lp.NewMessage(name, map[string]string{"type": "node"}, m.meta, map[string]any{"value": v}, time.Now())
+		y, err := lp.NewMetric(name, map[string]string{"type": "node"}, m.meta, v, time.Now())
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "Failed to create message: %v", err)
 			continue

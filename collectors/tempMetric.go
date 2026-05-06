@@ -201,26 +201,14 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			continue
 		}
 		x /= 1000
-		y, err := lp.NewMessage(
-			sensor.metricName,
-			sensor.tags,
-			m.meta,
-			map[string]any{"value": x},
-			time.Now(),
-		)
+		y, err := lp.NewMetric(sensor.metricName, sensor.tags, m.meta, x, time.Now())
 		if err == nil {
 			output <- y
 		}
 
 		// max temperature
 		if m.config.ReportMaxTemp && sensor.maxTemp != 0 {
-			y, err := lp.NewMessage(
-				sensor.maxTempName,
-				sensor.tags,
-				m.meta,
-				map[string]any{"value": sensor.maxTemp},
-				time.Now(),
-			)
+			y, err := lp.NewMetric(sensor.maxTempName, sensor.tags, m.meta, sensor.maxTemp, time.Now())
 			if err == nil {
 				output <- y
 			}
@@ -228,13 +216,7 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 
 		// critical temperature
 		if m.config.ReportCriticalTemp && sensor.critTemp != 0 {
-			y, err := lp.NewMessage(
-				sensor.critTempName,
-				sensor.tags,
-				m.meta,
-				map[string]any{"value": sensor.critTemp},
-				time.Now(),
-			)
+			y, err := lp.NewMetric(sensor.critTempName, sensor.tags, m.meta, sensor.critTemp, time.Now())
 			if err == nil {
 				output <- y
 			}

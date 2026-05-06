@@ -242,12 +242,7 @@ func (m *RAPLCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				timeDiff := energyTimestamp.Sub(p.energyTimestamp)
 				averagePower := float64(energyDiff) / float64(timeDiff.Microseconds())
 
-				y, err := lp.NewMessage(
-					"rapl_average_power",
-					p.tags,
-					m.meta,
-					map[string]any{"value": averagePower},
-					energyTimestamp)
+				y, err := lp.NewMetric("rapl_average_power", p.tags, m.meta, averagePower, energyTimestamp)
 				if err == nil {
 					output <- y
 				}
