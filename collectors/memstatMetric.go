@@ -72,7 +72,8 @@ func getStats(filename string) map[string]MemstatStats {
 	for scanner.Scan() {
 		line := scanner.Text()
 		linefields := strings.Fields(line)
-		if len(linefields) == 3 {
+		switch len(linefields) {
+		case 3:
 			v, err := strconv.ParseFloat(linefields[1], 64)
 			if err == nil {
 				stats[strings.Trim(linefields[0], ":")] = MemstatStats{
@@ -80,7 +81,7 @@ func getStats(filename string) map[string]MemstatStats {
 					unit:  linefields[2],
 				}
 			}
-		} else if len(linefields) == 5 {
+		case 5:
 			v, err := strconv.ParseFloat(linefields[3], 64)
 			if err == nil {
 				cclog.ComponentDebug("getStats", strings.Trim(linefields[2], ":"), v, linefields[4])
@@ -106,7 +107,10 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
 		}
 	}
-	m.meta = map[string]string{"source": m.name, "group": "Memory"}
+	m.meta = map[string]string{
+		"source": m.name,
+		"group":  "Memory",
+	}
 	m.stats = make(map[string]int64)
 	m.matches = make(map[string]string)
 	m.tags = map[string]string{"type": "node"}
@@ -145,7 +149,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 		"KernelStack":     "mem_kernelstack",
 	}
 	for k, v := range matches {
-		if !slices.Contains(m.config.ExcludeMetrics, k) {
+		if !slices.Contains(m.config.ExcludeMetrics, v) {
 			m.matches[k] = v
 		}
 	}
@@ -153,7 +157,7 @@ func (m *MemstatCollector) Init(config json.RawMessage) error {
 	if !slices.Contains(m.config.ExcludeMetrics, "mem_used") {
 		m.sendMemUsed = true
 	}
-	if len(m.matches) == 0 {
+	if len(m.matches) == 0 && !m.sendMemUsed {
 		return fmt.Errorf("%s Init(): no metrics to collect", m.name)
 	}
 	if err := m.setup(); err != nil {
