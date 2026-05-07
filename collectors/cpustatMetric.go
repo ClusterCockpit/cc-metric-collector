@@ -27,6 +27,7 @@ const CPUSTATFILE = `/proc/stat`
 
 type CpustatCollectorConfig struct {
 	ExcludeMetrics []string `json:"exclude_metrics,omitempty"`
+	excludeNumCPUs bool
 }
 
 type CpustatCollector struct {
@@ -79,6 +80,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			m.matches[match] = index
 		}
 	}
+	m.config.excludeNumCPUs = slices.Contains(m.config.ExcludeMetrics, "num_cpus")
 
 	// Check input file
 	file, err := os.Open(CPUSTATFILE)
@@ -95,11 +97,13 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		line := scanner.Text()
 		linefields := strings.Fields(line)
 		if strings.Compare(linefields[0], "cpu") == 0 {
+			// Kernel system statistics for all CPUs
 			m.olddata["cpu"] = make(map[string]int64)
 			for k, v := range m.matches {
 				m.olddata["cpu"][k], _ = strconv.ParseInt(linefields[v], 0, 64)
 			}
 		} else if strings.HasPrefix(linefields[0], "cpu") && strings.Compare(linefields[0], "cpu") != 0 {
+			// Kernel system statistics per CPU
 			cpustr := strings.TrimLeft(linefields[0], "cpu")
 			cpu, _ := strconv.Atoi(cpustr)
 			m.cputags[linefields[0]] = map[string]string{
@@ -191,9 +195,10 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 		}
 	}
 
-	num_cpus_metric, err := lp.NewMetric("num_cpus", m.nodetags, m.meta, num_cpus, now)
-	if err == nil {
-		output <- num_cpus_metric
+	if !m.config.excludeNumCPUs {
+		if num_cpus_metric, err := lp.NewMetric("num_cpus", m.nodetags, m.meta, num_cpus, now); err == nil {
+			output <- num_cpus_metric
+		}
 	}
 
 	m.lastTimestamp = now
