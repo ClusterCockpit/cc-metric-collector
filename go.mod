@@ -8,7 +8,7 @@ require (
 	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/PaesslerAG/gval v1.2.4
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/tklauser/go-sysconf v0.3.16
+	github.com/tklauser/go-sysconf v0.4.0
 	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
 	golang.org/x/sys v0.45.0
 )
@@ -38,7 +38,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/stmcginnis/gofish v0.21.6 // indirect
-	github.com/tklauser/numcpus v0.11.0 // indirect
+	github.com/tklauser/numcpus v0.12.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
