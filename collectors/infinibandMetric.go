@@ -25,7 +25,13 @@ import (
 )
 
 // See: https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-class-infiniband
-const IB_BASEPATH = "/sys/class/infiniband/"
+const (
+	IB_BASEPATH    = "/sys/class/infiniband/"
+	IBdataUnit     = "bytes"
+	IBdataRateUnit = IBdataUnit + "/sec"
+	IBpkgUnit      = "packets"
+	IBpkgRateUnit  = IBpkgUnit + "/sec"
+)
 
 type InfinibandCollectorMetric struct {
 	name               string
@@ -130,8 +136,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				// This is 64 bit counter
 				name:             "ib_recv",
 				path:             filepath.Join(countersDir, "port_rcv_data"),
-				unit:             "bytes/4",
-				unitRates:        "bytes/sec",
+				unit:             IBdataUnit,
+				unitRates:        IBdataRateUnit
 				scaleByFourLanes: true,
 				addToIBTotal:     true,
 			},
@@ -140,8 +146,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				// This is 64 bit counter
 				name:             "ib_xmit",
 				path:             filepath.Join(countersDir, "port_xmit_data"),
-				unit:             "bytes/4",
-				unitRates:        "bytes/sec",
+				unit:             IBdataUnit,
+				unitRates:        IBdataRateUnit,
 				scaleByFourLanes: true,
 				addToIBTotal:     true,
 			},
@@ -150,8 +156,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				// This is 64 bit counter.
 				name:             "ib_recv_pkts",
 				path:             filepath.Join(countersDir, "port_rcv_packets"),
-				unit:             "packets",
-				unitRates:        "packets/sec",
+				unit:             IBpkgUnit,
+				unitRates:        IBpkgRateUnit,
 				addToIBTotalPkgs: true,
 			},
 			{
@@ -159,8 +165,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				// This is 64 bit counter.
 				name:             "ib_xmit_pkts",
 				path:             filepath.Join(countersDir, "port_xmit_packets"),
-				unit:             "packets",
-				unitRates:        "packets/sec",
+				unit:             IBpkgUnit,
+				unitRates:        IBpkgRateUnit,
 				addToIBTotalPkgs: true,
 			},
 		}
@@ -228,17 +234,21 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			data := strings.TrimSpace(string(line))
 
 			// convert counter to uint64
-			v, err := strconv.ParseUint(data, 10, 64)
+			vRawCounter, err := strconv.ParseUint(data, 10, 64)
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
-					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to int64: %v", counterDef.name, data, err))
+					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to uint64: %v", counterDef.name, data, err))
 				continue
 			}
 
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
-				if y, err := lp.NewMetric(counterDef.name, info.tagSet, m.meta, v, now); err == nil {
+				vScaledCounter := vRawCounter
+				if counterDef.scaleByFourLanes {
+					vScaledCounter *= uint64(4)
+				}
+				if y, err := lp.NewMetric(counterDef.name, info.tagSet, m.meta, vScaledCounter, now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
 				}
@@ -248,11 +258,11 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			if m.config.SendDerivedValues {
 				if counterDef.lastStateAvailable {
 					var rate float64
-					if v >= counterDef.lastState {
-						rate = float64(v-counterDef.lastState) / timeDiff
+					if vRawCounter >= counterDef.lastState {
+						rate = float64(vRawCounter-counterDef.lastState) / timeDiff
 					} else {
 						// Counter wrap around
-						rate = float64(math.MaxUint64-counterDef.lastState+v+1) / timeDiff
+						rate = float64(math.MaxUint64-counterDef.lastState+vRawCounter+1) / timeDiff
 					}
 					if counterDef.scaleByFourLanes {
 						rate *= float64(4)
@@ -274,7 +284,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 						}
 					}
 				}
-				counterDef.lastState = v
+				counterDef.lastState = vRawCounter
 				counterDef.lastStateAvailable = true
 			}
 
@@ -282,9 +292,9 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			if m.config.SendTotalValues {
 				switch {
 				case counterDef.addToIBTotal:
-					ib_total += v
+					ib_total += vRawCounter
 				case counterDef.addToIBTotalPkgs:
-					ib_total_pkts += v
+					ib_total_pkts += vRawCounter
 				}
 			}
 		}
@@ -292,25 +302,25 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 		// Send total values
 		if m.config.SendTotalValues {
 			if y, err := lp.NewMetric("ib_total", info.tagSet, m.meta, ib_total, now); err == nil {
-				y.AddMeta("unit", "bytes/4")
+				y.AddMeta("unit", IBdataUnit)
 				output <- y
 			}
 
 			if y, err := lp.NewMetric("ib_total_pkts", info.tagSet, m.meta, ib_total_pkts, now); err == nil {
-				y.AddMeta("unit", "packets")
+				y.AddMeta("unit", IBpkgUnit)
 				output <- y
 			}
 
 			if m.config.SendDerivedValues && ib_total_bw_available {
 				if y, err := lp.NewMetric("ib_total_bw", info.tagSet, m.meta, ib_total_bw, now); err == nil {
-					y.AddMeta("unit", "bytes/sec")
+					y.AddMeta("unit", IBdataRateUnit)
 					output <- y
 				}
 			}
 
 			if m.config.SendDerivedValues && ib_total_pkts_bw_available {
 				if y, err := lp.NewMetric("ib_total_pkts_bw", info.tagSet, m.meta, ib_total_pkts_bw, now); err == nil {
-					y.AddMeta("unit", "packets/sec")
+					y.AddMeta("unit", IBpkgRateUnit)
 					output <- y
 				}
 			}
