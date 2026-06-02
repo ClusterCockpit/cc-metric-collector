@@ -23,6 +23,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// See: https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-class-infiniband
 const IB_BASEPATH = "/sys/class/infiniband/"
 
 type InfinibandCollectorMetric struct {
@@ -122,6 +123,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 		countersDir := filepath.Join(path, "counters")
 		portCounterFiles := []InfinibandCollectorMetric{
 			{
+				// Total number of data octets, divided by 4 (lanes), received on all VLs.
+				// This is 64 bit counter
 				name:         "ib_recv",
 				path:         filepath.Join(countersDir, "port_rcv_data"),
 				unit:         "bytes",
@@ -130,6 +133,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				lastState:    -1,
 			},
 			{
+				// Total number of data octets, divided by 4 (lanes), transmitted on all VLs.
+				// This is 64 bit counter
 				name:         "ib_xmit",
 				path:         filepath.Join(countersDir, "port_xmit_data"),
 				unit:         "bytes",
@@ -138,6 +143,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				lastState:    -1,
 			},
 			{
+				// Total number of packets received on all VLs from this port (this may include packets containing Errors.
+				// This is 64 bit counter.
 				name:             "ib_recv_pkts",
 				path:             filepath.Join(countersDir, "port_rcv_packets"),
 				unit:             "packets",
@@ -146,6 +153,8 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				lastState:        -1,
 			},
 			{
+				// Total number of packets transmitted on all VLs from this port. This may include packets with errors.
+				// This is 64 bit counter.
 				name:             "ib_xmit_pkts",
 				path:             filepath.Join(countersDir, "port_xmit_packets"),
 				unit:             "packets",
