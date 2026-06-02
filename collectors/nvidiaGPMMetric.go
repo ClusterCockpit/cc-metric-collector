@@ -130,6 +130,7 @@ type NvidiaGPMCollector struct {
 func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 	var err error = nil
 	m.name = "NvidiaGPMCollector"
+	m.parallel = true
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
@@ -166,7 +167,6 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 	}
 
 	// For all GPUs
-	idx := 0
 	m.gpus = make([]NvidiaGPMCollectorDevice, 0, num_gpus)
 	for i := range num_gpus {
 
@@ -185,15 +185,31 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 			continue
 		}
 
-		//supportInfoFunc := nvml.GpmQueryDeviceSupportV(device)
 		supportInfo, ret := nvml.GpmQueryDeviceSupport(device)
-		if supportInfo.IsSupportedDevice == uint32(nvml.FEATURE_DISABLED) {
-			cclog.ComponentErrorf(m.name, "Device at index %d does not support GPM metrics", i)
+		if ret != nvml.SUCCESS {
+			err = errors.New(nvml.ErrorString(ret))
+			cclog.ComponentErrorf(m.name, "Unable to query GPM support for device at index %d: %s", i, err.Error())
 			continue
+		} else {
+			if supportInfo.IsSupportedDevice == uint32(nvml.FEATURE_DISABLED) {
+				cclog.ComponentErrorf(m.name, "Device at index %d does not support GPM metrics", i)
+				continue
+			}
 		}
+
 		stream, ret := nvml.GpmQueryIfStreamingEnabled(device)
-		if stream == uint32(nvml.FEATURE_DISABLED) {
-			nvml.GpmSetStreamingEnabled(device, uint32(nvml.FEATURE_ENABLED))
+		if ret != nvml.SUCCESS {
+			err = errors.New(nvml.ErrorString(ret))
+			cclog.ComponentErrorf(m.name, "Unable to query GPM streaming for device at index %d: %s", i, err.Error())
+			continue
+		} else {
+			if stream == uint32(nvml.FEATURE_DISABLED) {
+				ret = nvml.GpmSetStreamingEnabled(device, uint32(nvml.FEATURE_ENABLED))
+				if ret != nvml.SUCCESS {
+					err = errors.New(nvml.ErrorString(ret))
+					cclog.ComponentErrorf(m.name, "Unable to set streaming mode for device at index %d: %s", i, err.Error())
+				}
+			}
 		}
 
 		// Get device's PCI info
@@ -240,7 +256,7 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 		}
 
 		// Now we got all infos together, populate the device list
-		g := &m.gpus[idx]
+		g := NvidiaGPMCollectorDevice{}
 
 		// Add device handle
 		g.device = device
@@ -296,7 +312,7 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 		metIdx := 0
 		for _, inmetric := range m.config.Metrics {
 			for _, defmetric := range NvidiaGPMMetrics {
-				if inmetric == defmetric.outname {
+				if inmetric == defmetric.outname || inmetric == defmetric.name {
 					g.measurement.Metrics[metIdx] = nvml.GpmMetric{
 						MetricId: uint32(defmetric.id),
 					}
@@ -306,8 +322,10 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 			}
 		}
 		g.measurement.NumMetrics = uint32(metIdx)
+		m.gpus = append(m.gpus, g)
 	}
 	cclog.ComponentDebugf(m.name, "Found %d Nvidia GPUs with GPM support", len(m.gpus))
+	m.num_gpus = len(m.gpus)
 	m.init = true
 	return err
 }
@@ -358,9 +376,17 @@ func (m *NvidiaGPMCollector) Read(interval time.Duration, output chan lp.CCMessa
 
 func (m *NvidiaGPMCollector) Close() {
 	if m.init {
-		for _, gpu := range m.gpus {
-			gpu.measurement.Sample1.Free()
-			gpu.measurement.Sample2.Free()
+		for i, gpu := range m.gpus {
+			ret := gpu.measurement.Sample1.Free()
+			if ret != nvml.SUCCESS {
+				err := errors.New(nvml.ErrorString(ret))
+				cclog.ComponentErrorf(m.name, "Unable to free start sample for device at index %d: %s", i, err.Error())
+			}
+			ret = gpu.measurement.Sample2.Free()
+			if ret != nvml.SUCCESS {
+				err := errors.New(nvml.ErrorString(ret))
+				cclog.ComponentErrorf(m.name, "Unable to free stop sample for device at index %d: %s", i, err.Error())
+			}
 		}
 		if ret := nvml.Shutdown(); ret != nvml.SUCCESS {
 			cclog.ComponentError(m.name, "nvml.Shutdown() not successful")
