@@ -50,6 +50,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"nfsiostat":       new(NfsIOStatCollector),
 	"slurm_cgroup":    new(SlurmCgroupCollector),
 	"smartmon":        new(SmartMonCollector),
+	"nvidia_gpm":      new(NvidiaGPMCollector),
 }
 
 // Metric collector manager data structure
@@ -99,17 +100,17 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	// Initialize configured collectors
 	for collectorName, collectorCfg := range cm.config {
 		if _, found := AvailableCollectors[collectorName]; !found {
-			cclog.ComponentError("CollectorManager", "SKIP unknown collector", collectorName)
+			cclog.ComponentErrorf("CollectorManager", "SKIP unknown collector %s", collectorName)
 			continue
 		}
 		collector := AvailableCollectors[collectorName]
 
 		err := collector.Init(collectorCfg)
 		if err != nil {
-			cclog.ComponentError("CollectorManager", fmt.Sprintf("Collector %s initialization failed: %v", collectorName, err))
+			cclog.ComponentErrorf("CollectorManager", "Collector %s initialization failed: %v", collectorName, err)
 			continue
 		}
-		cclog.ComponentDebug("CollectorManager", "ADD COLLECTOR", collector.Name())
+		cclog.ComponentDebugf("CollectorManager", "ADD COLLECTOR %s", collector.Name())
 		if collector.Parallel() {
 			cm.collectors = append(cm.collectors, collector)
 		} else {
@@ -155,7 +156,7 @@ func (cm *collectorManager) Start() {
 						return
 					default:
 						// Read metrics from collector c via goroutine
-						cclog.ComponentDebug("CollectorManager", c.Name(), t)
+						cclog.ComponentDebugf("CollectorManager: Read %s at %v", c.Name(), t)
 						cm.collector_wg.Add(1)
 						go func(myc MetricCollector) {
 							myc.Read(cm.duration, cm.output)
@@ -173,7 +174,7 @@ func (cm *collectorManager) Start() {
 						return
 					default:
 						// Read metrics from collector c
-						cclog.ComponentDebug("CollectorManager", c.Name(), t)
+						cclog.ComponentDebugf("CollectorManager: Read %s at %v", c.Name(), t)
 						c.Read(cm.duration, cm.output)
 					}
 				}
