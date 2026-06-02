@@ -27,13 +27,14 @@ import (
 const IB_BASEPATH = "/sys/class/infiniband/"
 
 type InfinibandCollectorMetric struct {
-	name             string
-	path             string
-	unit             string
-	scale            int64
-	addToIBTotal     bool
-	addToIBTotalPkgs bool
-	lastState        int64
+	name               string
+	path               string
+	unit               string
+	scale              uint64
+	addToIBTotal       bool
+	addToIBTotalPkgs   bool
+	lastState          uint64
+	lastStateAvailable bool
 }
 
 type InfinibandCollectorInfo struct {
@@ -130,7 +131,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				unit:         "bytes",
 				scale:        4,
 				addToIBTotal: true,
-				lastState:    -1,
 			},
 			{
 				// Total number of data octets, divided by 4 (lanes), transmitted on all VLs.
@@ -140,7 +140,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				unit:         "bytes",
 				scale:        4,
 				addToIBTotal: true,
-				lastState:    -1,
 			},
 			{
 				// Total number of packets received on all VLs from this port (this may include packets containing Errors.
@@ -150,7 +149,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				unit:             "packets",
 				scale:            1,
 				addToIBTotalPkgs: true,
-				lastState:        -1,
 			},
 			{
 				// Total number of packets transmitted on all VLs from this port. This may include packets with errors.
@@ -160,7 +158,6 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				unit:             "packets",
 				scale:            1,
 				addToIBTotalPkgs: true,
-				lastState:        -1,
 			},
 		}
 		for _, counter := range portCounterFiles {
@@ -211,7 +208,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 		info := &m.info[i]
 
 		var ib_total, ib_total_last_state,
-			ib_total_pkts, ib_total_pkts_last_state int64
+			ib_total_pkts, ib_total_pkts_last_state uint64
 		var ib_total_last_state_available, ib_total_pkts_last_state_available bool
 		for i := range info.portCounterFiles {
 			counterDef := &info.portCounterFiles[i]
@@ -226,8 +223,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			}
 			data := strings.TrimSpace(string(line))
 
-			// convert counter to int64
-			v, err := strconv.ParseInt(data, 10, 64)
+			// convert counter to uint64
+			v, err := strconv.ParseUint(data, 10, 64)
 			if err != nil {
 				cclog.ComponentError(
 					m.name,
@@ -247,7 +244,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 
 			// Send derived values
 			if m.config.SendDerivedValues {
-				if counterDef.lastState >= 0 {
+				if counterDef.lastStateAvailable {
 					rate := float64((v - counterDef.lastState)) / timeDiff
 					if y, err := lp.NewMetric(counterDef.name+"_bw", info.tagSet, m.meta, rate, now); err == nil {
 						y.AddMeta("unit", counterDef.unit+"/sec")
@@ -267,6 +264,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					}
 				}
 				counterDef.lastState = v
+				counterDef.lastStateAvailable = true
 			}
 
 			// Sum up total values
