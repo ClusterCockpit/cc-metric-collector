@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -246,7 +247,13 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			// Send derived values
 			if m.config.SendDerivedValues {
 				if counterDef.lastStateAvailable {
-					rate := float64((v - counterDef.lastState)) / timeDiff
+					var rate float64
+					if v >= counterDef.lastState {
+						rate = float64(v-counterDef.lastState) / timeDiff
+					} else {
+						// Counter wrap around
+						rate = float64(math.MaxUint64-counterDef.lastState+v+1) / timeDiff
+					}
 					if counterDef.scaleByFourLanes {
 						rate *= float64(4)
 					}
