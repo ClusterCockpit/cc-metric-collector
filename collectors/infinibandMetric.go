@@ -137,7 +137,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				name:             "ib_recv",
 				path:             filepath.Join(countersDir, "port_rcv_data"),
 				unit:             IBdataUnit,
-				unitRates:        IBdataRateUnit
+				unitRates:        IBdataRateUnit,
 				scaleByFourLanes: true,
 				addToIBTotal:     true,
 			},
@@ -241,13 +241,13 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to uint64: %v", counterDef.name, data, err))
 				continue
 			}
+			vScaledCounter := vRawCounter
+			if counterDef.scaleByFourLanes {
+				vScaledCounter *= uint64(4)
+			}
 
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
-				vScaledCounter := vRawCounter
-				if counterDef.scaleByFourLanes {
-					vScaledCounter *= uint64(4)
-				}
 				if y, err := lp.NewMetric(counterDef.name, info.tagSet, m.meta, vScaledCounter, now); err == nil {
 					y.AddMeta("unit", counterDef.unit)
 					output <- y
@@ -292,9 +292,9 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 			if m.config.SendTotalValues {
 				switch {
 				case counterDef.addToIBTotal:
-					ib_total += vRawCounter
+					ib_total += vScaledCounter
 				case counterDef.addToIBTotalPkgs:
-					ib_total_pkts += vRawCounter
+					ib_total_pkts += vScaledCounter
 				}
 			}
 		}
