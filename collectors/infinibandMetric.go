@@ -30,6 +30,7 @@ type InfinibandCollectorMetric struct {
 	name               string
 	path               string
 	unit               string
+	unitRates          string
 	scaleByFourLanes   bool
 	addToIBTotal       bool
 	addToIBTotalPkgs   bool
@@ -129,6 +130,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				name:             "ib_recv",
 				path:             filepath.Join(countersDir, "port_rcv_data"),
 				unit:             "bytes/4",
+				unitRates:        "bytes/sec",
 				scaleByFourLanes: true,
 				addToIBTotal:     true,
 			},
@@ -138,6 +140,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				name:             "ib_xmit",
 				path:             filepath.Join(countersDir, "port_xmit_data"),
 				unit:             "bytes/4",
+				unitRates:        "bytes/sec",
 				scaleByFourLanes: true,
 				addToIBTotal:     true,
 			},
@@ -147,6 +150,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				name:             "ib_recv_pkts",
 				path:             filepath.Join(countersDir, "port_rcv_packets"),
 				unit:             "packets",
+				unitRates:        "packets/sec",
 				addToIBTotalPkgs: true,
 			},
 			{
@@ -155,6 +159,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				name:             "ib_xmit_pkts",
 				path:             filepath.Join(countersDir, "port_xmit_packets"),
 				unit:             "packets",
+				unitRates:        "packets/sec",
 				addToIBTotalPkgs: true,
 			},
 		}
@@ -205,9 +210,9 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 	for i := range m.info {
 		info := &m.info[i]
 
-		var ib_total, ib_total_last_state,
-			ib_total_pkts, ib_total_pkts_last_state uint64
-		var ib_total_last_state_available, ib_total_pkts_last_state_available bool
+		var ib_total, ib_total_pkts uint64        // sum of xmit and recv counters
+		var ib_total_bw, ib_total_pkts_bw float64 // sum of xmit and recv rates
+		var ib_total_bw_available, ib_total_pkts_bw_available bool
 		for i := range info.portCounterFiles {
 			counterDef := &info.portCounterFiles[i]
 
@@ -246,19 +251,19 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 						rate *= float64(4)
 					}
 					if y, err := lp.NewMetric(counterDef.name+"_bw", info.tagSet, m.meta, rate, now); err == nil {
-						y.AddMeta("unit", counterDef.unit+"/sec")
+						y.AddMeta("unit", counterDef.unitRates)
 						output <- y
 					}
 
-					// Sum up total values of last state
+					// Sum up rates for total rates
 					if m.config.SendTotalValues {
 						switch {
 						case counterDef.addToIBTotal:
-							ib_total_last_state += counterDef.lastState
-							ib_total_last_state_available = true
+							ib_total_bw += rate
+							ib_total_bw_available = true
 						case counterDef.addToIBTotalPkgs:
-							ib_total_pkts_last_state += counterDef.lastState
-							ib_total_pkts_last_state_available = true
+							ib_total_pkts_bw += rate
+							ib_total_pkts_bw_available = true
 						}
 					}
 				}
@@ -289,18 +294,15 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 				output <- y
 			}
 
-			if m.config.SendDerivedValues && ib_total_last_state_available {
-				rate := float64((ib_total - ib_total_last_state)) / timeDiff
-				rate *= float64(4)
-				if y, err := lp.NewMetric("ib_total_bw", info.tagSet, m.meta, rate, now); err == nil {
+			if m.config.SendDerivedValues && ib_total_bw_available {
+				if y, err := lp.NewMetric("ib_total_bw", info.tagSet, m.meta, ib_total_bw, now); err == nil {
 					y.AddMeta("unit", "bytes/sec")
 					output <- y
 				}
 			}
 
-			if m.config.SendDerivedValues && ib_total_pkts_last_state_available {
-				rate := float64((ib_total_pkts - ib_total_pkts_last_state)) / timeDiff
-				if y, err := lp.NewMetric("ib_total_pkts_bw", info.tagSet, m.meta, rate, now); err == nil {
+			if m.config.SendDerivedValues && ib_total_pkts_bw_available {
+				if y, err := lp.NewMetric("ib_total_pkts_bw", info.tagSet, m.meta, ib_total_pkts_bw, now); err == nil {
 					y.AddMeta("unit", "packets/sec")
 					output <- y
 				}
