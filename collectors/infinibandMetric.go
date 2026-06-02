@@ -229,6 +229,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 				cclog.ComponentError(
 					m.name,
 					fmt.Sprintf("Read(): Failed to read from file '%s': %v", counterDef.path, err))
+				// Current counter can not be saved as last state
+				counterDef.lastStateAvailable = false
 				continue
 			}
 			data := strings.TrimSpace(string(line))
@@ -239,6 +241,8 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 				cclog.ComponentError(
 					m.name,
 					fmt.Sprintf("Read(): Failed to convert Infininiband metrice %s='%s' to uint64: %v", counterDef.name, data, err))
+				// Current counter can not be saved as last state
+				counterDef.lastStateAvailable = false
 				continue
 			}
 			vScaledCounter := vRawCounter
