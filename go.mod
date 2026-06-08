@@ -9,7 +9,7 @@ require (
 	github.com/PaesslerAG/gval v1.2.4
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/tklauser/go-sysconf v0.4.0
-	golang.design/x/thread v0.0.0-20210122121316-335e9adffdf1
+	golang.design/x/thread v0.3.2
 	golang.org/x/sys v0.45.0
 )
 
