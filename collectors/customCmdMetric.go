@@ -64,9 +64,9 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 		cmdFields := strings.Fields(c)
 		command := exec.Command(cmdFields[0], cmdFields[1:]...)
 		if _, err := command.Output(); err != nil {
-			cclog.ComponentWarn(
+			cclog.ComponentWarnf(
 				m.name,
-				fmt.Sprintf("%s Init(): Execution of command \"%s\" failed: %v", m.name, command.String(), err))
+				"%s Init(): Execution of command \"%s\" failed: %v", m.name, command.String(), err)
 			continue
 		}
 		m.cmdFieldsSlice = append(m.cmdFieldsSlice, cmdFields)
@@ -77,7 +77,7 @@ func (m *CustomCmdCollector) Init(config json.RawMessage) error {
 		if _, err := os.ReadFile(fileName); err != nil {
 			cclog.ComponentWarn(
 				m.name,
-				fmt.Sprintf("%s Init(): Reading of file \"%s\" failed: %v", m.name, fileName, err))
+				"%s Init(): Reading of file \"%s\" failed: %v", m.name, fileName, err)
 			continue
 		}
 		m.files = append(m.files, fileName)
@@ -100,20 +100,18 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 		command := exec.Command(cmdFields[0], cmdFields[1:]...)
 		stdout, err := command.Output()
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to read command output for command \"%s\": %v", command.String(), err),
-			)
+				"Read(): Failed to read command output for command \"%s\": %v", command.String(), err)
 			continue
 		}
 
 		// Read and decode influxDB line-protocol from command output
 		metrics, err := lp.FromBytes(stdout)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to decode influx Message: %v", err),
-			)
+				"Read(): Failed to decode influx Message: %v", err)
 			continue
 		}
 		for _, metric := range metrics {
@@ -128,20 +126,18 @@ func (m *CustomCmdCollector) Read(interval time.Duration, output chan lp.CCMessa
 	for _, filename := range m.files {
 		input, err := os.ReadFile(filename)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to read file \"%s\": %v\n", filename, err),
-			)
+				"Read(): Failed to read file \"%s\": %v\n", filename, err)
 			continue
 		}
 
 		// Read and decode influxDB line-protocol from file
 		metrics, err := lp.FromBytes(input)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to decode influx Message: %v", err),
-			)
+				"Read(): Failed to decode influx Message: %v", err)
 			continue
 		}
 		for _, metric := range metrics {

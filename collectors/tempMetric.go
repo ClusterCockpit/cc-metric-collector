@@ -188,16 +188,16 @@ func (m *TempCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		// Read sensor file
 		buffer, err := os.ReadFile(sensor.file)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to read file '%s': %v", sensor.file, err))
+				"Read(): Failed to read file '%s': %v", sensor.file, err)
 			continue
 		}
 		x, err := strconv.ParseInt(strings.TrimSpace(string(buffer)), 10, 64)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to convert temperature '%s' to int64: %v", buffer, err))
+				"Read(): Failed to convert temperature '%s' to int64: %v", buffer, err)
 			continue
 		}
 		x /= 1000

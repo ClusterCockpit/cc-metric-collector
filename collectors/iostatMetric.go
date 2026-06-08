@@ -145,16 +145,16 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 
 	file, err := os.Open(IOSTATFILE)
 	if err != nil {
-		cclog.ComponentError(
+		cclog.ComponentErrorf(
 			m.name,
-			fmt.Sprintf("Read(): Failed to open file '%s': %v", IOSTATFILE, err))
+			"Read(): Failed to open file '%s': %v", IOSTATFILE, err)
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to close file '%s': %v", IOSTATFILE, err))
+				"Read(): Failed to close file '%s': %v", IOSTATFILE, err)
 		}
 	}()
 

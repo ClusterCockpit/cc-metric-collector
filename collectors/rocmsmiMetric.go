@@ -124,7 +124,7 @@ func (m *RocmSmiCollector) Init(config json.RawMessage) error {
 		if m.config.AddSerialMeta {
 			serial, ret := rocm_smi.DeviceGetSerialNumber(device)
 			if ret != rocm_smi.STATUS_SUCCESS {
-				cclog.ComponentError(m.name, "Unable to get serial number for device at index", i, ":", rocm_smi.StatusStringNoError(ret))
+				cclog.ComponentErrorf(m.name, "Unable to get serial number for device at index %d: %s", i, rocm_smi.StatusStringNoError(ret))
 			} else {
 				dev.meta["serial"] = serial
 			}
@@ -152,7 +152,7 @@ func (m *RocmSmiCollector) Read(interval time.Duration, output chan lp.CCMessage
 	for _, dev := range m.devices {
 		metrics, ret := rocm_smi.DeviceGetMetrics(dev.device)
 		if ret != rocm_smi.STATUS_SUCCESS {
-			cclog.ComponentError(m.name, "Unable to get metrics for device at index", dev.index, ":", rocm_smi.StatusStringNoError(ret))
+			cclog.ComponentErrorf(m.name, "Unable to get metrics for device at index %d: %s", dev.index, rocm_smi.StatusStringNoError(ret))
 			continue
 		}
 

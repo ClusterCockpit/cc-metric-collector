@@ -35,18 +35,18 @@ type metricRouterTagConfig struct {
 
 // Metric router configuration
 type metricRouterConfig struct {
-	HostnameTagName   string                               `json:"hostname_tag"`        // Key name used when adding the hostname to a metric (default 'hostname')
-	AddTags           []metricRouterTagConfig              `json:"add_tags"`            // List of tags that are added when the condition is met
-	DelTags           []metricRouterTagConfig              `json:"delete_tags"`         // List of tags that are removed when the condition is met
-	IntervalAgg       []agg.MetricAggregatorIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
-	DropMetrics       []string                             `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
-	DropMetricsIf     []string                             `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
-	RenameMetrics     map[string]string                    `json:"rename_metrics"`      // Map to rename metric name from key to value
-	IntervalStamp     bool                                 `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
-	NumCacheIntervals int                                  `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
-	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
-	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
-	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
+	HostnameTagName   string                               `json:"hostname_tag,omitempty"`        // Key name used when adding the hostname to a metric (default 'hostname')
+	AddTags           []metricRouterTagConfig              `json:"add_tags,omitempty"`            // List of tags that are added when the condition is met
+	DelTags           []metricRouterTagConfig              `json:"delete_tags,omitempty"`         // List of tags that are removed when the condition is met
+	IntervalAgg       []agg.MetricAggregatorIntervalConfig `json:"interval_aggregates,omitempty"` // List of aggregation function processed at the end of an interval
+	DropMetrics       []string                             `json:"drop_metrics,omitempty"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
+	DropMetricsIf     []string                             `json:"drop_metrics_if,omitempty"`     // List of evaluatable terms to drop metrics
+	RenameMetrics     map[string]string                    `json:"rename_metrics,omitempty"`      // Map to rename metric name from key to value
+	IntervalStamp     bool                                 `json:"interval_timestamp,omitempty"`  // Update timestamp periodically by ticker each interval?
+	NumCacheIntervals int                                  `json:"num_cache_intervals,omitempty"` // Number of intervals of cached metrics for evaluation
+	MaxForward        int                                  `json:"max_forward,omitempty"`         // Number of maximal forwarded metrics at one select
+	NormalizeUnits    bool                                 `json:"normalize_units,omitempty"`     // Check unit meta flag and normalize it using cc-units
+	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix,omitempty"`  // Add prefix that should be applied to the metrics
 	MessageProcessor  json.RawMessage                      `json:"process_messages,omitempty"`
 }
 
@@ -297,7 +297,7 @@ func (r *metricRouter) Start() {
 
 			case timestamp := <-timeChan:
 				r.timestamp = timestamp
-				cclog.ComponentDebug("MetricRouter", "Update timestamp", r.timestamp.UnixNano())
+				cclog.ComponentDebugf("MetricRouter", "Update timestamp %d", r.timestamp.UnixNano())
 
 			case p := <-r.coll_input:
 				coll_forward(p)

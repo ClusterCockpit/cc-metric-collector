@@ -200,16 +200,16 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 				} else {
 					f1, err := strconv.ParseFloat(m.matches["other"], 32)
 					if err != nil {
-						cclog.ComponentError(
+						cclog.ComponentErrorf(
 							m.name,
-							fmt.Sprintf("Metric (other): Failed to convert str written '%s' to float: %v", m.matches["other"], err))
+							"Metric (other): Failed to convert str written '%s' to float: %v", m.matches["other"], err)
 						continue
 					}
 					f2, err := strconv.ParseFloat(split[i], 32)
 					if err != nil {
-						cclog.ComponentError(
+						cclog.ComponentErrorf(
 							m.name,
-							fmt.Sprintf("Metric (other): Failed to convert str written '%s' to float: %v", m.matches["other"], err))
+							"Metric (other): Failed to convert str written '%s' to float: %v", m.matches["other"], err)
 						continue
 					}
 					m.matches["beegfs_cstorage_other"] = fmt.Sprintf("%f", f1+f2)

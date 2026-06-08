@@ -240,7 +240,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 	globPattern := filepath.Join(m.cgroupBase, "job_*")
 	jobDirs, err := filepath.Glob(globPattern)
 	if err != nil {
-		cclog.ComponentError(m.name, "Error globbing job directories:", err.Error())
+		cclog.ComponentErrorf(m.name, "Error globbing job directories: %s", err.Error())
 		return
 	}
 
@@ -249,7 +249,7 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 
 		jobdata, err := m.ReadJobData(jKey)
 		if err != nil {
-			cclog.ComponentError(m.name, "Error reading job data for", jKey, ":", err.Error())
+			cclog.ComponentError(m.name, "Error reading job data for %s: %s", jKey, err.Error())
 			continue
 		}
 

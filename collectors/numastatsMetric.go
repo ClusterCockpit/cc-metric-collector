@@ -117,7 +117,7 @@ func (m *NUMAStatsCollector) Init(config json.RawMessage) error {
 	}
 
 	// Initialized
-	cclog.ComponentDebug(m.name, "initialized", len(m.topology), "NUMA domains")
+	cclog.ComponentDebugf(m.name, "initialized %d NUMA domains", len(m.topology))
 	m.init = true
 	return nil
 }

@@ -208,11 +208,10 @@ func (m *RAPLCollector) Init(config json.RawMessage) error {
 	}
 
 	// Initialized
-	cclog.ComponentDebug(
+	cclog.ComponentDebugf(
 		m.name,
-		"initialized",
-		len(m.RAPLZoneInfo),
-		"zones with running average power limit (RAPL) monitoring attributes")
+		"initialized %d zones with running average power limit (RAPL) monitoring attributes",
+		len(m.RAPLZoneInfo))
 	m.init = true
 
 	return err

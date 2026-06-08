@@ -77,9 +77,9 @@ func (m *TopProcsCollector) Read(interval time.Duration, output chan lp.CCMessag
 	command := exec.Command("ps", "-Ao", "comm", "--sort=-pcpu")
 	stdout, err := command.Output()
 	if err != nil {
-		cclog.ComponentError(
+		cclog.ComponentErrorf(
 			m.name,
-			fmt.Sprintf("Read(): Failed to read output from command \"%s\": %v", command.String(), err))
+			"Read(): Failed to read output from command \"%s\": %v", command.String(), err)
 		return
 	}
 

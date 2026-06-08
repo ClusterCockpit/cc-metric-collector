@@ -125,10 +125,9 @@ func (m *nfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	timestamp := time.Now()
 
 	if err := m.updateStats(); err != nil {
-		cclog.ComponentError(
+		cclog.ComponentErrorf(
 			m.name,
-			fmt.Sprintf("Read(): updateStats() failed: %v", err),
-		)
+			"Read(): updateStats() failed: %v", err)
 		return
 	}
 	var prefix string

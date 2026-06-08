@@ -371,7 +371,7 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 	if err != nil {
 		// if using sudo, exec.lookPath will return EACCES (file mode r-x------), this can be ignored
 		if m.config.Sudo && errors.Is(err, syscall.EACCES) {
-			cclog.ComponentWarn(m.name, fmt.Sprintf("got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err))
+			cclog.ComponentWarnf(m.name, "got error looking for mmpmon binary '%s': %v . This is expected when using sudo, continuing.", m.config.Mmpmon, err)
 			// the file was given in the config, use it
 			p = m.config.Mmpmon
 		} else {
@@ -517,23 +517,23 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		// return code
 		rc, err := strconv.Atoi(key_value["_rc_"])
 		if err != nil {
-			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert return code '%s' to int: %v", key_value["_rc_"], err))
+			cclog.ComponentErrorf(m.name, "Read(): Failed to convert return code '%s' to int: %v", key_value["_rc_"], err)
 			continue
 		}
 		if rc != 0 {
-			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Filesystem '%s' is not ok.", filesystem))
+			cclog.ComponentErrorf(m.name, "Read(): Filesystem '%s' is not ok.", filesystem)
 			continue
 		}
 
 		// timestamp
 		sec, err := strconv.ParseInt(key_value["_t_"], 10, 64)
 		if err != nil {
-			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err))
+			cclog.ComponentErrorf(m.name, "Read(): Failed to convert seconds '%s' to int64: %v", key_value["_t_"], err)
 			continue
 		}
 		msec, err := strconv.ParseInt(key_value["_tu_"], 10, 64)
 		if err != nil {
-			cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err))
+			cclog.ComponentErrorf(m.name, "Read(): Failed to convert micro seconds '%s' to int64: %v", key_value["_tu_"], err)
 			continue
 		}
 		timestamp := time.Unix(sec, msec*1000)
@@ -551,7 +551,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 		for _, metric := range GpfsAbsMetrics {
 			value, err := strconv.ParseInt(key_value[metric.prefix], 10, 64)
 			if err != nil {
-				cclog.ComponentError(m.name, fmt.Sprintf("Read(): Failed to convert %s '%s' to int64: %v", metric.desc, key_value[metric.prefix], err))
+				cclog.ComponentErrorf(m.name, "Read(): Failed to convert %s '%s' to int64: %v", metric.desc, key_value[metric.prefix], err)
 				continue
 			}
 			newstate[metric.prefix] = value
@@ -636,7 +636,7 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 				}
 			} else {
 				// the value could not be computed correctly
-				cclog.ComponentWarn(m.name, fmt.Sprintf("Read(): Could not compute value for filesystem %s of metric %s: vold_ok = %t, vnew_ok = %t", filesystem, metric.name, vold_ok, vnew_ok))
+				cclog.ComponentWarnf(m.name, "Read(): Could not compute value for filesystem %s of metric %s: vold_ok = %t, vnew_ok = %t", filesystem, metric.name, vold_ok, vnew_ok)
 			}
 		}
 

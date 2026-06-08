@@ -113,7 +113,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		// Skip excluded devices by ID
 		str_i := strconv.Itoa(i)
 		if slices.Contains(m.config.ExcludeDevices, str_i) {
-			cclog.ComponentDebug(m.name, "Skipping excluded device", str_i)
+			cclog.ComponentDebugf(m.name, "Skipping excluded device %s", str_i)
 			continue
 		}
 
@@ -121,7 +121,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		device, ret := nvml.DeviceGetHandleByIndex(i)
 		if ret != nvml.SUCCESS {
 			err = errors.New(nvml.ErrorString(ret))
-			cclog.ComponentError(m.name, "Unable to get device at index", i, ":", err.Error())
+			cclog.ComponentErrorf(m.name, "Unable to get device at index %d: %s", i, err.Error())
 			continue
 		}
 
@@ -129,7 +129,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		pciInfo, ret := nvml.DeviceGetPciInfo(device)
 		if ret != nvml.SUCCESS {
 			err = errors.New(nvml.ErrorString(ret))
-			cclog.ComponentError(m.name, "Unable to get PCI info for device at index", i, ":", err.Error())
+			cclog.ComponentErrorf(m.name, "Unable to get PCI info for device at index %d: %s", i, err.Error())
 			continue
 		}
 		// Create PCI ID in the common format used by the NVML.
@@ -141,7 +141,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 
 		// Skip excluded devices specified by PCI ID
 		if slices.Contains(m.config.ExcludeDevices, pci_id) {
-			cclog.ComponentDebug(m.name, "Skipping excluded device", pci_id)
+			cclog.ComponentDebugf(m.name, "Skipping excluded device %s", pci_id)
 			continue
 		}
 
@@ -183,7 +183,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		if m.config.AddBoardNumberMeta {
 			board, ret := nvml.DeviceGetBoardPartNumber(device)
 			if ret != nvml.SUCCESS {
-				cclog.ComponentError(m.name, "Unable to get boart part number for device at index", i, ":", err.Error())
+				cclog.ComponentErrorf(m.name, "Unable to get boart part number for device at index %d: %s", i, err.Error())
 			} else {
 				g.meta["board_number"] = board
 			}
@@ -191,7 +191,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		if m.config.AddSerialMeta {
 			serial, ret := nvml.DeviceGetSerial(device)
 			if ret != nvml.SUCCESS {
-				cclog.ComponentError(m.name, "Unable to get serial number for device at index", i, ":", err.Error())
+				cclog.ComponentErrorf(m.name, "Unable to get serial number for device at index %d: %s", i, err.Error())
 			} else {
 				g.meta["serial"] = serial
 			}
@@ -199,7 +199,7 @@ func (m *NvidiaCollector) Init(config json.RawMessage) error {
 		if m.config.AddUuidMeta {
 			uuid, ret := nvml.DeviceGetUUID(device)
 			if ret != nvml.SUCCESS {
-				cclog.ComponentError(m.name, "Unable to get UUID for device at index", i, ":", err.Error())
+				cclog.ComponentErrorf(m.name, "Unable to get UUID for device at index %d: %s", i, err.Error())
 			} else {
 				g.meta["uuid"] = uuid
 			}
@@ -1128,97 +1128,97 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		}
 		err = readMemoryInfo(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readMemoryInfo for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readMemoryInfo for device %s failed", name)
 		}
 
 		err = readUtilization(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readUtilization for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readUtilization for device %s failed", name)
 		}
 
 		err = readTemp(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readTemp for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readTemp for device %s failed", name)
 		}
 
 		err = readFan(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readFan for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readFan for device %s failed", name)
 		}
 
 		err = readEccMode(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readEccMode for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readEccMode for device %s failed", name)
 		}
 
 		err = readPerfState(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readPerfState for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readPerfState for device %s failed", name)
 		}
 
 		err = readPowerUsage(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readPowerUsage for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readPowerUsage for device %s failed", name)
 		}
 
 		err = readEnergyConsumption(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readEnergyConsumption for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readEnergyConsumption for device %s failed", name)
 		}
 
 		err = readClocks(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readClocks for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readClocks for device %s failed", name)
 		}
 
 		err = readMaxClocks(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readMaxClocks for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readMaxClocks for device %s failed", name)
 		}
 
 		err = readEccErrors(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readEccErrors for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readEccErrors for device %s failed", name)
 		}
 
 		err = readPowerLimit(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readPowerLimit for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readPowerLimit for device %s failed", name)
 		}
 
 		err = readEncUtilization(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readEncUtilization for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readEncUtilization for device %s failed", name)
 		}
 
 		err = readDecUtilization(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readDecUtilization for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readDecUtilization for device %s failed", name)
 		}
 
 		err = readRemappedRows(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readRemappedRows for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readRemappedRows for device %s failed", name)
 		}
 
 		err = readBarMemoryInfo(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readBarMemoryInfo for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readBarMemoryInfo for device %s failed", name)
 		}
 
 		err = readProcessCounts(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readProcessCounts for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readProcessCounts for device %s failed", name)
 		}
 
 		err = readViolationStats(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readViolationStats for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readViolationStats for device %s failed", name)
 		}
 
 		err = readNVLinkStats(device, output)
 		if err != nil {
-			cclog.ComponentDebug(m.name, "readNVLinkStats for device", name, "failed")
+			cclog.ComponentDebugf(m.name, "readNVLinkStats for device %s failed", name)
 		}
 	}
 
@@ -1244,7 +1244,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			if maxMig == 0 {
 				continue
 			}
-			cclog.ComponentDebug(m.name, "Reading MIG devices for GPU", i)
+			cclog.ComponentDebugf(m.name, "Reading MIG devices for GPU %d", i)
 
 			for j := range maxMig {
 				mdev, ret := nvml.DeviceGetMigDeviceHandleByIndex(m.gpus[i].device, j)
@@ -1268,7 +1268,7 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 				if m.config.UseUuidForMigDevices {
 					uuid, ret := nvml.DeviceGetUUID(mdev)
 					if ret != nvml.SUCCESS {
-						cclog.ComponentError(m.name, "Unable to get UUID for mig device at index", j, ":", err.Error())
+						cclog.ComponentErrorf(m.name, "Unable to get UUID for mig device at index %d: %s", j, err.Error())
 					} else {
 						migDevice.tags["stype-id"] = uuid
 					}

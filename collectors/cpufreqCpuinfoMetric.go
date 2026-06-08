@@ -139,16 +139,16 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 	const cpuInfoFile = "/proc/cpuinfo"
 	file, err := os.Open(cpuInfoFile)
 	if err != nil {
-		cclog.ComponentError(
+		cclog.ComponentErrorf(
 			m.name,
-			fmt.Sprintf("Read(): Failed to open file '%s': %v", cpuInfoFile, err))
+			"Read(): Failed to open file '%s': %v", cpuInfoFile, err)
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to close file '%s': %v", cpuInfoFile, err))
+				"Read(): Failed to close file '%s': %v", cpuInfoFile, err)
 		}
 	}()
 
@@ -166,9 +166,9 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 				if !t.isHT {
 					value, err := strconv.ParseFloat(strings.TrimSpace(lineSplit[1]), 64)
 					if err != nil {
-						cclog.ComponentError(
+						cclog.ComponentErrorf(
 							m.name,
-							fmt.Sprintf("Read(): Failed to convert cpu MHz '%s' to float64: %v", lineSplit[1], err))
+							"Read(): Failed to convert cpu MHz '%s' to float64: %v", lineSplit[1], err)
 						return
 					}
 					if y, err := lp.NewMetric("cpufreq", t.tagSet, m.meta, value, now); err == nil {

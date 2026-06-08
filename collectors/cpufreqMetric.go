@@ -95,10 +95,7 @@ func (m *CPUFreqCollector) Init(config json.RawMessage) error {
 	}
 
 	// Initialized
-	cclog.ComponentDebug(
-		m.name,
-		"initialized",
-		len(m.topology), "non-hyper-threading CPUs")
+	cclog.ComponentDebugf(m.name, "initialized %d non-hyper-threading CPUs")
 	m.init = true
 	return nil
 }
@@ -116,16 +113,14 @@ func (m *CPUFreqCollector) Read(interval time.Duration, output chan lp.CCMessage
 		// Read current frequency
 		line, err := os.ReadFile(t.scalingCurFreqFile)
 		if err != nil {
-			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to read file '%s': %v", t.scalingCurFreqFile, err))
+			cclog.ComponentErrorf(
+				m.name, "Read(): Failed to read file '%s': %v", t.scalingCurFreqFile, err)
 			continue
 		}
 		cpuFreq, err := strconv.ParseInt(strings.TrimSpace(string(line)), 10, 64)
 		if err != nil {
 			cclog.ComponentError(
-				m.name,
-				fmt.Sprintf("Read(): Failed to convert CPU frequency '%s' to int64: %v", line, err))
+				m.name, "Read(): Failed to convert CPU frequency '%s' to int64: %v", line, err)
 			continue
 		}
 

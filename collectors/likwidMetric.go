@@ -12,6 +12,12 @@ package collectors
 #cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-in-object-files
 #include <stdlib.h>
 #include <likwid.h>
+
+
+int cc_add_hwthread(int cpu_id) {
+    return HPMaddThread(cpu_id);
+}
+
 */
 import "C"
 
@@ -261,12 +267,12 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 			}
 			for _, metric := range evset.Metrics {
 				// Try to evaluate the metric
-				cclog.ComponentDebug(m.name, "Checking", metric.Name)
+				cclog.ComponentDebugf(m.name, "Checking %s", metric.Name)
 				if !checkMetricType(metric.Type) {
-					cclog.ComponentError(m.name, "Metric", metric.Name, "uses invalid type", metric.Type)
+					cclog.ComponentErrorf(m.name, "Metric %s uses invalid type %s", metric.Name, metric.Type)
 					metric.Calc = ""
 				} else if !testLikwidMetricFormula(metric.Calc, params) {
-					cclog.ComponentError(m.name, "Metric", metric.Name, "cannot be calculated with given counters")
+					cclog.ComponentError(m.name, "Metric %s cannot be calculated with given counters", metric.Name)
 					metric.Calc = ""
 				} else {
 					globalParams = append(globalParams, metric.Name)
@@ -281,13 +287,13 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	for _, metric := range m.config.Metrics {
 		// Try to evaluate the global metric
 		if !checkMetricType(metric.Type) {
-			cclog.ComponentError(m.name, "Metric", metric.Name, "uses invalid type", metric.Type)
+			cclog.ComponentErrorf(m.name, "Metric %s uses invalid type %s", metric.Name, metric.Type)
 			metric.Calc = ""
 		} else if !testLikwidMetricFormula(metric.Calc, globalParams) {
-			cclog.ComponentError(m.name, "Metric", metric.Name, "cannot be calculated with given counters")
+			cclog.ComponentError(m.name, "Metric %s cannot be calculated with given counters", metric.Name)
 			metric.Calc = ""
 		} else if !checkMetricType(metric.Type) {
-			cclog.ComponentError(m.name, "Metric", metric.Name, "has invalid type")
+			cclog.ComponentError(m.name, "Metric %s has invalid type", metric.Name)
 			metric.Calc = ""
 		} else {
 			totalMetrics++
@@ -328,7 +334,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 		for _, c := range m.cpulist {
 			m.measureThread.Call(
 				func() {
-					retCode := C.HPMaddThread(C.uint32_t(c))
+					retCode := C.cc_add_hwthread(C.int(c))
 					if retCode != 0 {
 						err := fmt.Errorf("C.HPMaddThread(%v) failed with return code %v", c, retCode)
 						cclog.ComponentError(m.name, err.Error())
@@ -375,16 +381,16 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	// Watch changes for the lock file ()
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		cclog.ComponentError(
+		cclog.ComponentErrorf(
 			m.name,
-			fmt.Sprintf("takeMeasurement(): Failed to create a new fsnotify.Watcher: %v", err))
+			"takeMeasurement(): Failed to create a new fsnotify.Watcher: %v", err)
 		return true, err
 	}
 	defer func() {
 		if err := watcher.Close(); err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("takeMeasurement(): Failed to close fsnotify.Watcher: %v", err))
+				"takeMeasurement(): Failed to close fsnotify.Watcher: %v", err)
 		}
 	}()
 	if len(m.config.LockfilePath) > 0 {
@@ -597,7 +603,7 @@ func (m *LikwidCollector) calcEventsetMetrics(evset LikwidEventsetConfig, interv
 			if tid >= 0 && len(metric.Calc) > 0 {
 				value, err := agg.EvalFloat64Condition(metric.Calc, evset.results[tid])
 				if err != nil {
-					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
+					cclog.ComponentErrorf(m.name, "Calculation for metric %s failed: %s", metric.Name, err.Error())
 					value = 0.0
 				}
 				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {
@@ -762,7 +768,7 @@ func (m *LikwidCollector) calcGlobalMetrics(groups []LikwidEventsetConfig, inter
 				// Evaluate the metric
 				value, err := agg.EvalFloat64Condition(metric.Calc, params)
 				if err != nil {
-					cclog.ComponentError(m.name, "Calculation for metric", metric.Name, "failed:", err.Error())
+					cclog.ComponentErrorf(m.name, "Calculation for metric %s failed: %s", metric.Name, err.Error())
 					value = 0.0
 				}
 				if m.config.InvalidToZero && (math.IsNaN(value) || math.IsInf(value, 0)) {

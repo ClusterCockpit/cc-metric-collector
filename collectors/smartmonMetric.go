@@ -228,12 +228,12 @@ func (m *SmartMonCollector) Read(interval time.Duration, output chan lp.CCMessag
 
 		stdout, err := command.Output()
 		if err != nil {
-			cclog.ComponentError(m.name, "cannot read data for device", d.Name)
+			cclog.ComponentErrorf(m.name, "cannot read data for device %s", d.Name)
 			continue
 		}
 		err = json.Unmarshal(stdout, &data)
 		if err != nil {
-			cclog.ComponentError(m.name, "cannot unmarshal data for device", d.Name)
+			cclog.ComponentErrorf(m.name, "cannot unmarshal data for device %s", d.Name)
 			continue
 		}
 		if !m.excludeMetric.temp {

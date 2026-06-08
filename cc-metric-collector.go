@@ -132,11 +132,11 @@ func mainFunc() int {
 	if len(rcfg.ConfigFile.Interval) > 0 {
 		t, err := time.ParseDuration(rcfg.ConfigFile.Interval)
 		if err != nil {
-			cclog.Error("Configuration value 'interval' no valid duration")
+			cclog.Errorf("Configuration value interval=%s no valid duration", rcfg.ConfigFile.Interval)
 		}
 		rcfg.Interval = t
 		if rcfg.Interval == 0 {
-			cclog.Error("Configuration value 'interval' must be greater than zero")
+			cclog.Errorf("Configuration value interval=%s must be greater than zero", rcfg.ConfigFile.Interval)
 			return 1
 		}
 	}
@@ -145,11 +145,11 @@ func mainFunc() int {
 	if len(rcfg.ConfigFile.Duration) > 0 {
 		t, err := time.ParseDuration(rcfg.ConfigFile.Duration)
 		if err != nil {
-			cclog.Error("Configuration value 'duration' no valid duration")
+			cclog.Error("Configuration value duration=%s no valid duration", rcfg.ConfigFile.Duration)
 		}
 		rcfg.Duration = t
 		if rcfg.Duration == 0 {
-			cclog.Error("Configuration value 'duration' must be greater than zero")
+			cclog.Error("Configuration value duration=%s must be greater than zero", rcfg.ConfigFile.Duration)
 			return 1
 		}
 	}

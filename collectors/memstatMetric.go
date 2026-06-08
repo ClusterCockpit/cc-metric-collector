@@ -84,7 +84,7 @@ func getStats(filename string) map[string]MemstatStats {
 		case 5:
 			v, err := strconv.ParseFloat(linefields[3], 64)
 			if err == nil {
-				cclog.ComponentDebug("getStats", strings.Trim(linefields[2], ":"), v, linefields[4])
+				cclog.ComponentDebug("MemstatCollector", "getStats %s value %v unit %s", strings.Trim(linefields[2], ":"), v, linefields[4])
 				stats[strings.Trim(linefields[2], ":")] = MemstatStats{
 					value: v,
 					unit:  linefields[4],

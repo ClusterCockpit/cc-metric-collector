@@ -89,9 +89,9 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMessage
 	}
 	buffer, err := os.ReadFile(LOADAVGFILE)
 	if err != nil {
-		cclog.ComponentError(
+		cclog.ComponentErrorf(
 			m.name,
-			fmt.Sprintf("Read(): Failed to read file '%s': %v", LOADAVGFILE, err))
+			"Read(): Failed to read file '%s': %v", LOADAVGFILE, err)
 		return
 	}
 	now := time.Now()
@@ -101,9 +101,9 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMessage
 	for i, name := range m.load_matches {
 		x, err := strconv.ParseFloat(ls[i], 64)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to convert '%s' to float64: %v", ls[i], err))
+				"Read(): Failed to convert '%s' to float64: %v", ls[i], err)
 			continue
 		}
 		if m.load_skips[i] {
@@ -120,9 +120,9 @@ func (m *LoadavgCollector) Read(interval time.Duration, output chan lp.CCMessage
 	for i, name := range m.proc_matches {
 		x, err := strconv.ParseInt(lv[i], 10, 64)
 		if err != nil {
-			cclog.ComponentError(
+			cclog.ComponentErrorf(
 				m.name,
-				fmt.Sprintf("Read(): Failed to convert '%s' to float64: %v", lv[i], err))
+				"Read(): Failed to convert '%s' to float64: %v", lv[i], err)
 			continue
 		}
 		if m.proc_skips[i] {
