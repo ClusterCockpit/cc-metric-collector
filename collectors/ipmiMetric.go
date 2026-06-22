@@ -36,19 +36,7 @@ type IpmiCollector struct {
 
 	ipmitool    string
 	ipmisensors string
-}
-
-func (m *IpmiCollector) metricIncluded(name string) bool {
-    if len(m.config.IncludeMetrics) == 0 {
-        return true
-    }
-
-    for _, metric := range m.config.IncludeMetrics {
-        if metric == name {
-            return true
-        }
-    }
-    return false
+	includeMetrics map[string]bool
 }
 
 func (m *IpmiCollector) Init(config json.RawMessage) error {
@@ -120,6 +108,15 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 	m.ipmitool = ""
 	cclog.ComponentDebugf(m.name, "Unable to use ipmitool for ipmistat collector: %v", ipmiToolErr)
 
+	// read metrics to include
+	m.includeMetrics = make(map[string]bool)
+	for _, metric := range m.config.IncludeMetrics {
+		metric = strings.ToLower(strings.TrimSpace(metric))
+		if metric != "" {
+			m.includeMetrics[metric] = true
+		}
+	}
+
 	return fmt.Errorf("unable to init neither ipmitool (%w) nor ipmi-sensors (%w)", ipmiToolErr, ipmiSensorsErr)
 }
 
@@ -160,7 +157,7 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 		}
 		name := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(lv[0]), " ", "_"))
 
-		if !m.metricIncluded(name) {
+		if len(m.includeMetrics) > 0 && !m.includeMetrics[name] {
  			continue
 		}
 
@@ -229,7 +226,7 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 		}
 		name := strings.ToLower(strings.ReplaceAll(lv[1], " ", "_"))
 
-		if !m.metricIncluded(name) {
+		if len(m.includeMetrics) > 0 && !m.includeMetrics[name] {
 			continue
 		}
 
