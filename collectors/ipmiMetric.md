@@ -15,7 +15,8 @@ hugo_path: docs/reference/cc-metric-collector/collectors/ipmi.md
   "ipmistat": {
     "ipmitool_path": "/path/to/ipmitool",
     "ipmisensors_path": "/path/to/ipmi-sensors",
-    "use_sudo": true
+    "use_sudo": true,
+    "include_metrics" : []
   }
 ```
 
@@ -36,3 +37,5 @@ Defaults: monitoring !log_allowed, !pam_session
 monitoring ALL = (root) NOPASSWD:/usr/bin/ipmitool sensor
 monitoring ALL = (root) NOPASSWD:/usr/sbin/ipmi-sensors --comma-separated-output --sdr-cache-recreate
 ```
+
+If `include_ipmi_metrics` contains any entry, ipmistat collector will only submit these metrics. Any other values will get discarded. 

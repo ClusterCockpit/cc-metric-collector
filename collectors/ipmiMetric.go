@@ -31,10 +31,24 @@ type IpmiCollector struct {
 		IpmitoolPath    string `json:"ipmitool_path"`
 		IpmisensorsPath string `json:"ipmisensors_path"`
 		Sudo            bool   `json:"use_sudo"`
+		IncludeMetrics  []string `json:"include_metrics"`
 	}
 
 	ipmitool    string
 	ipmisensors string
+}
+
+func (m *IpmiCollector) metricIncluded(name string) bool {
+    if len(m.config.IncludeMetrics) == 0 {
+        return true
+    }
+
+    for _, metric := range m.config.IncludeMetrics {
+        if metric == name {
+            return true
+        }
+    }
+    return false
 }
 
 func (m *IpmiCollector) Init(config json.RawMessage) error {
@@ -145,6 +159,11 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 			continue
 		}
 		name := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(lv[0]), " ", "_"))
+
+		if !m.metricIncluded(name) {
+ 			continue
+		}
+
 		unit := strings.TrimSpace(lv[2])
 		switch unit {
 		case "Volts":
@@ -209,6 +228,11 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 			continue
 		}
 		name := strings.ToLower(strings.ReplaceAll(lv[1], " ", "_"))
+
+		if !m.metricIncluded(name) {
+			continue
+		}
+
 		y, err := lp.NewMetric(name, map[string]string{"type": "node"}, m.meta, v, time.Now())
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "Failed to create message: %v", err)
