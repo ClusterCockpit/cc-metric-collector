@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -44,6 +45,37 @@ type SlurmCgroupCollector struct {
 }
 
 const defaultCgroupBase = "/sys/fs/cgroup/system.slice/slurmstepd.scope"
+
+var (
+	// Slurm cgroup v2 directory layout:
+	// - Slurm <= 25.11: job_<numeric job id>
+	// - Slurm >= 26.05: SLUID, encoded as "s" + 13 Crockford Base32 characters
+	jobIDDirRE = regexp.MustCompile(`^job_[0-9]+$`)
+	sluidDirRE = regexp.MustCompile(`(?i)^s[0-9A-HJKMNP-TV-Z]{13}$`)
+)
+
+func (m *SlurmCgroupCollector) findSlurmJobDirs() ([]string, error) {
+	entries, err := os.ReadDir(m.cgroupBase)
+	if err != nil {
+		return nil, err
+	}
+
+	jobDirs := make([]string, 0)
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		if jobIDDirRE.MatchString(name) || sluidDirRE.MatchString(name) {
+			jobDirs = append(jobDirs, filepath.Join(m.cgroupBase, name))
+		}
+	}
+
+	return jobDirs, nil
+}
 
 func ParseCPUs(cpuset string) ([]int, error) {
 	var result []int
@@ -237,10 +269,9 @@ func (m *SlurmCgroupCollector) Read(interval time.Duration, output chan lp.CCMes
 		delete(m.cpuUsed, k)
 	}
 
-	globPattern := filepath.Join(m.cgroupBase, "job_*")
-	jobDirs, err := filepath.Glob(globPattern)
+	jobDirs, err := m.findSlurmJobDirs()
 	if err != nil {
-		cclog.ComponentError(m.name, "Error globbing job directories:", err.Error())
+		cclog.ComponentError(m.name, "Error reading job directories:", err.Error())
 		return
 	}
 
