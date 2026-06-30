@@ -128,7 +128,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 	vars["starttime"] = starttime
 	vars["endtime"] = endtime
 	for _, f := range c.functions {
-		cclog.ComponentDebug("MetricCache", "COLLECT", f.Name, "COND", f.Condition)
+		cclog.ComponentDebugf("MetricCache", "COLLECT %s COND '%s'", f.Name, f.Condition)
 		var valuesFloat64 []float64
 		var valuesFloat32 []float32
 		var valuesInt []int
@@ -140,7 +140,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			vars["metric"] = m
 			value, err := f.gvalCond.EvalBool(context.Background(), vars)
 			if err != nil {
-				cclog.ComponentError("MetricCache", "COLLECT", f.Name, "COND", f.Condition, ":", err.Error())
+				cclog.ComponentErrorf("MetricCache", "COLLECT %s COND '%s' : %s", f.Name, f.Condition, err.Error())
 				continue
 			}
 			if value {
@@ -160,7 +160,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 					case bool:
 						valuesBool = append(valuesBool, x)
 					default:
-						cclog.ComponentError("MetricCache", "COLLECT ADD VALUE", v, "FAILED")
+						cclog.ComponentErrorf("MetricCache", "COLLECT ADD VALUE %v FAILED", v)
 					}
 				}
 				matches = append(matches, m)
@@ -213,13 +213,13 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			vars["values"] = valuesBool
 			len_values = len(valuesBool)
 		}
-		cclog.ComponentDebug("MetricCache", "EVALUATE", f.Name, "METRICS", len_values, "CALC", f.Function)
+		cclog.ComponentDebugf("MetricCache", "EVALUATE %s METRICS %d CALC '%s'", f.Name, len_values, f.Function)
 
 		vars["metrics"] = matches
 		if len_values > 0 {
 			value, err := gval.Evaluate(f.Function, vars, c.language)
 			if err != nil {
-				cclog.ComponentError("MetricCache", "EVALUATE", f.Name, "METRICS", len_values, "CALC", f.Function, ":", err.Error())
+				cclog.ComponentErrorf("MetricCache", "EVALUATE %s METRICS %d CALC '%s': %s", f.Name, len_values, f.Function, err.Error())
 				break
 			}
 
@@ -273,12 +273,12 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			case string:
 				m, err = lp.NewMessage(f.Name, tags, meta, map[string]any{"value": t}, starttime)
 			default:
-				cclog.ComponentError("MetricCache", "Gval returned invalid type", t, "skipping metric", f.Name)
+				cclog.ComponentErrorf("MetricCache", "Gval returned invalid type %s skipping metric %s", t, f.Name)
 			}
 			if err != nil {
-				cclog.ComponentError("MetricCache", "Cannot create metric from Gval result", value, ":", err.Error())
+				cclog.ComponentErrorf("MetricCache", "Cannot create metric from Gval result %v: %s", value, err.Error())
 			}
-			cclog.ComponentDebug("MetricCache", "SEND", m)
+			cclog.ComponentDebugf("MetricCache", "SEND %s", m.ToLineProtocol(nil))
 			select {
 			case c.output <- m:
 			default:
@@ -295,12 +295,12 @@ func (c *metricAggregator) AddAggregation(name, function, condition string, tags
 	newcond := strings.ReplaceAll(condition, "'", "\"")
 	gvalCond, err := gval.Full(metricCacheLanguage).NewEvaluable(newcond)
 	if err != nil {
-		cclog.ComponentError("MetricAggregator", "Cannot add aggregation, invalid if condition", newcond, ":", err.Error())
+		cclog.ComponentErrorf("MetricAggregator", "Cannot add aggregation, invalid if condition '%s': %s", newcond, err.Error())
 		return err
 	}
 	gvalFunc, err := gval.Full(metricCacheLanguage).NewEvaluable(newfunc)
 	if err != nil {
-		cclog.ComponentError("MetricAggregator", "Cannot add aggregation, invalid function condition", newfunc, ":", err.Error())
+		cclog.ComponentErrorf("MetricAggregator", "Cannot add aggregation, invalid function condition %s: %s", newfunc, err.Error())
 		return err
 	}
 	for _, agg := range c.functions {
