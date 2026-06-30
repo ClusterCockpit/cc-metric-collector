@@ -44,7 +44,7 @@ type CpustatCollector struct {
 func (m *CpustatCollector) Init(config json.RawMessage) error {
 	m.name = "CpustatCollector"
 	if err := m.setup(); err != nil {
-		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+		return fmt.Errorf("%s Init(): setup() call failed: %s", m.name, err.Error())
 	}
 	m.parallel = true
 	m.meta = map[string]string{
@@ -58,7 +58,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 		d := json.NewDecoder(bytes.NewReader(config))
 		d.DisallowUnknownFields()
 		if err := d.Decode(&m.config); err != nil {
-			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %s", m.name, err.Error())
 		}
 	}
 	matches := map[string]int{
@@ -85,7 +85,7 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 	// Check input file
 	file, err := os.Open(CPUSTATFILE)
 	if err != nil {
-		return fmt.Errorf("%s Init(): Failed to open file '%s': %w", m.name, CPUSTATFILE, err)
+		return fmt.Errorf("%s Init(): Failed to open file '%s': %s", m.name, CPUSTATFILE, err.Error())
 	}
 
 	// Pre-generate tags for all CPUs
@@ -117,10 +117,13 @@ func (m *CpustatCollector) Init(config json.RawMessage) error {
 			num_cpus++
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("%s Init(): Call to scanner.Err failed: %s", m.name, err.Error())
+	}
 
 	// Close file
 	if err := file.Close(); err != nil {
-		return fmt.Errorf("%s Init(): Failed to close file '%s': %w", m.name, CPUSTATFILE, err)
+		return fmt.Errorf("%s Init(): Failed to close file '%s': %s", m.name, CPUSTATFILE, err.Error())
 	}
 
 	m.lastTimestamp = time.Now()
@@ -173,13 +176,13 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 	if err != nil {
 		cclog.ComponentError(
 			m.name,
-			fmt.Sprintf("Read(): Failed to open file '%s': %v", CPUSTATFILE, err))
+			fmt.Sprintf("Read(): Failed to open file '%s': %v", CPUSTATFILE, err.Error()))
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
 			cclog.ComponentError(
 				m.name,
-				fmt.Sprintf("Read(): Failed to close file '%s': %v", string(CPUSTATFILE), err))
+				fmt.Sprintf("Read(): Failed to close file '%s': %v", string(CPUSTATFILE), err.Error()))
 		}
 	}()
 
@@ -193,6 +196,9 @@ func (m *CpustatCollector) Read(interval time.Duration, output chan lp.CCMessage
 			m.parseStatLine(linefields, m.cputags[linefields[0]], output, now, tsdelta)
 			num_cpus++
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		cclog.ComponentErrorf(m.name, "Init(): Call to scanner.Err failed: %s", err.Error())
 	}
 
 	if !m.config.excludeNumCPUs {

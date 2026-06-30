@@ -165,6 +165,9 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 		y.AddMeta("unit", unit)
 		output <- y
 	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to scan output of command: %s", err.Error())
+	}
 
 	// Wait for command end
 	if err := command.Wait(); err != nil {

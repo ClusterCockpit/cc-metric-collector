@@ -116,6 +116,9 @@ func (m *CPUFreqCpuInfoCollector) Init(_ json.RawMessage) error {
 			physicalPackageID = ""
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("%s Init(): Call to scanner.Err failed: %w", m.name, err)
+	}
 
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("%s Init(): Call to file.Close() failed: %w", m.name, err)
@@ -178,6 +181,9 @@ func (m *CPUFreqCpuInfoCollector) Read(interval time.Duration, output chan lp.CC
 				processorCounter++
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		cclog.ComponentErrorf(m.name, "Read(): Call to scanner.Err failed: %s", err.Error())
 	}
 }
 

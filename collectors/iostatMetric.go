@@ -48,13 +48,13 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "Disk"}
 	if err := m.setup(); err != nil {
-		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
+		return fmt.Errorf("%s Init(): setup() call failed: %s", m.name, err.Error())
 	}
 	if len(config) > 0 {
 		d := json.NewDecoder(bytes.NewReader(config))
 		d.DisallowUnknownFields()
 		if err := d.Decode(&m.config); err != nil {
-			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
+			return fmt.Errorf("%s Init(): Error decoding JSON config: %s", m.name, err.Error())
 		}
 	}
 	// https://www.kernel.org/doc/html/latest/admin-guide/iostats.html
@@ -89,7 +89,7 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 	}
 	file, err := os.Open(IOSTATFILE)
 	if err != nil {
-		return fmt.Errorf("%s Init(): Failed to open file \"%s\": %w", m.name, IOSTATFILE, err)
+		return fmt.Errorf("%s Init(): Failed to open file \"%s\": %s", m.name, IOSTATFILE, err.Error())
 	}
 
 	scanner := bufio.NewScanner(file)
@@ -130,8 +130,11 @@ func (m *IOstatCollector) Init(config json.RawMessage) error {
 			lastValues:    lastValues,
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("%s Init(): Failed to scan content of file %q: %s", m.name, IOSTATFILE, err.Error())
+	}
 	if err := file.Close(); err != nil {
-		return fmt.Errorf("%s Init(): Failed to close file \"%s\": %w", m.name, IOSTATFILE, err)
+		return fmt.Errorf("%s Init(): Failed to close file \"%s\": %s", m.name, IOSTATFILE, err.Error())
 	}
 
 	m.init = true
@@ -147,14 +150,14 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 	if err != nil {
 		cclog.ComponentError(
 			m.name,
-			fmt.Sprintf("Read(): Failed to open file '%s': %v", IOSTATFILE, err))
+			fmt.Sprintf("Read(): Failed to open file '%s': %s", IOSTATFILE, err.Error()))
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
 			cclog.ComponentError(
 				m.name,
-				fmt.Sprintf("Read(): Failed to close file '%s': %v", IOSTATFILE, err))
+				fmt.Sprintf("Read(): Failed to close file '%s': %s", IOSTATFILE, err.Error()))
 		}
 	}()
 
@@ -197,6 +200,11 @@ func (m *IOstatCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			}
 		}
 		m.devices[device] = entry
+	}
+	if err := scanner.Err(); err != nil {
+		cclog.ComponentErrorf(
+			m.name,
+			"Read(): Failed to scan content of file %q: %s", IOSTATFILE, err.Error())
 	}
 }
 

@@ -147,6 +147,11 @@ mountLoop:
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		cclog.ComponentErrorf(
+			m.name,
+			"Read(): Call to scanner.Err failed: %s", err.Error())
+	}
 	if m.allowedMetrics["part_max_used"] {
 		y, err := lp.NewMetric("part_max_used", map[string]string{"type": "node"}, m.meta, int(part_max_used), time.Now())
 		if err == nil {
