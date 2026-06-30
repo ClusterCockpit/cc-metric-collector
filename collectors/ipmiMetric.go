@@ -31,10 +31,12 @@ type IpmiCollector struct {
 		IpmitoolPath    string `json:"ipmitool_path"`
 		IpmisensorsPath string `json:"ipmisensors_path"`
 		Sudo            bool   `json:"use_sudo"`
+		IncludeMetrics  []string `json:"include_metrics"`
 	}
 
 	ipmitool    string
 	ipmisensors string
+	includeMetrics map[string]bool
 }
 
 func (m *IpmiCollector) Init(config json.RawMessage) error {
@@ -61,6 +63,15 @@ func (m *IpmiCollector) Init(config json.RawMessage) error {
 		d.DisallowUnknownFields()
 		if err := d.Decode(&m.config); err != nil {
 			return fmt.Errorf("%s Init(): Error decoding JSON config: %w", m.name, err)
+		}
+	}
+
+	// Read metrics to include
+	m.includeMetrics = make(map[string]bool)
+	for _, metric := range m.config.IncludeMetrics {
+		metric = strings.ToLower(strings.TrimSpace(metric))
+		if metric != "" {
+			m.includeMetrics[metric] = true
 		}
 	}
 
@@ -145,6 +156,11 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 			continue
 		}
 		name := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(lv[0]), " ", "_"))
+
+		if len(m.includeMetrics) > 0 && !m.includeMetrics[name] {
+ 			continue
+		}
+
 		unit := strings.TrimSpace(lv[2])
 		switch unit {
 		case "Volts":
@@ -212,6 +228,11 @@ func (m *IpmiCollector) readIpmiSensors(output chan lp.CCMessage) error {
 			continue
 		}
 		name := strings.ToLower(strings.ReplaceAll(lv[1], " ", "_"))
+
+		if len(m.includeMetrics) > 0 && !m.includeMetrics[name] {
+			continue
+		}
+
 		y, err := lp.NewMetric(name, map[string]string{"type": "node"}, m.meta, v, time.Now())
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "Failed to create message: %v", err)
