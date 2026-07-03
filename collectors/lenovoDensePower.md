@@ -30,7 +30,7 @@ Lenovo ThinkSystem SD665-N V3             | tested, known to work     | node + r
 To test if your system *may* be supported, you can run the following command *at your own risk*:
 
 ```
-ipmitool raw 0x3a 50 4 2 0 0 0
+ipmitool raw 58 50 4 2 0 0 0
 ```
 
 `ipmitool` typically require root to run.
