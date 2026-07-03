@@ -50,6 +50,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"nfsiostat":       new(NfsIOStatCollector),
 	"slurm_cgroup":    new(SlurmCgroupCollector),
 	"smartmon":        new(SmartMonCollector),
+	"lenovo_dense_power": new(LenovoDensePowerCollector),
 }
 
 // Metric collector manager data structure
