@@ -99,7 +99,7 @@ func (m *LenovoDensePowerCollector) readEnergy() (float64, time.Time, error) {
 		return 0, time.Unix(0, 0), fmt.Errorf("Failed to run ipmitool: %w (stdout=%s stderr=%s)", err, stdout.String(), stderr.String())
 	}
 
-	data, err := hex.DecodeString(strings.ReplaceAll(stdout.String(), " ", ""))
+	data, err := hex.DecodeString(strings.ReplaceAll(strings.TrimSpace(stdout.String()), " ", ""))
 	if err != nil {
 		return 0, time.Unix(0, 0), fmt.Errorf("Unable to decode ipmitool hex output: %w (stdout=%s)", err, stdout.String())
 	}
