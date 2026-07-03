@@ -69,6 +69,7 @@ func (m *LenovoDensePowerCollector) Init(config json.RawMessage) error {
 
 	m.energyValLast = energyVal
 	m.energyTimeLast = energyTime
+	m.init = true
 
 	return nil
 }
