@@ -9,8 +9,8 @@ package collectors
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -25,14 +25,14 @@ type LenovoDensePowerCollector struct {
 	metricCollector
 
 	config struct {
-		IpmitoolPath    string `json:"ipmitool_path"`
-		Sudo            bool   `json:"use_sudo"`
+		IpmitoolPath string `json:"ipmitool_path"`
+		Sudo         bool   `json:"use_sudo"`
 	}
 
-	ipmitool    	  string
+	ipmitool string
 
-	energyValLast  	  float64
-	energyTimeLast    time.Time
+	energyValLast  float64
+	energyTimeLast time.Time
 }
 
 func (m *LenovoDensePowerCollector) Init(config json.RawMessage) error {
@@ -111,7 +111,7 @@ func (m *LenovoDensePowerCollector) readEnergy() (float64, time.Time, error) {
 
 	wholeJoules := (uint32(data[2]) << 0) | (uint32(data[3]) << 8) | (uint32(data[4]) << 16) | (uint32(data[5]) << 24)
 	milliJoules := uint16(data[6]) | (uint16(data[7]) << 8)
-	finalJoules := float64(wholeJoules) + float64(milliJoules) * 1e-3
+	finalJoules := float64(wholeJoules) + float64(milliJoules)*1e-3
 
 	wholeSeconds := (uint32(data[8]) << 0) | (uint32(data[9]) << 8) | (uint32(data[10]) << 16) | (uint32(data[11]) << 24)
 	milliSeconds := uint16(data[12]) | (uint16(data[13]) << 8)
