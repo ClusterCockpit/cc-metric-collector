@@ -64,7 +64,7 @@ func (m *LenovoDensePowerCollector) Init(config json.RawMessage) error {
 
 	energyVal, energyTime, err := m.readEnergy()
 	if err != nil {
-		return fmt.Errorf("Energy reading test failed: %w", err)
+		return fmt.Errorf("energy reading test failed: %w", err)
 	}
 
 	m.energyValLast = energyVal
@@ -97,16 +97,16 @@ func (m *LenovoDensePowerCollector) readEnergy() (float64, time.Time, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return 0, time.Unix(0, 0), fmt.Errorf("Failed to run ipmitool: %w (stdout=%s stderr=%s)", err, stdout.String(), stderr.String())
+		return 0, time.Unix(0, 0), fmt.Errorf("failed to run ipmitool: %w (stdout=%s stderr=%s)", err, stdout.String(), stderr.String())
 	}
 
 	data, err := hex.DecodeString(strings.ReplaceAll(strings.TrimSpace(stdout.String()), " ", ""))
 	if err != nil {
-		return 0, time.Unix(0, 0), fmt.Errorf("Unable to decode ipmitool hex output: %w (stdout=%s)", err, stdout.String())
+		return 0, time.Unix(0, 0), fmt.Errorf("unable to decode ipmitool hex output: %w (stdout=%s)", err, stdout.String())
 	}
 
 	if len(data) != 14 {
-		return 0, time.Unix(0, 0), fmt.Errorf("Result must be 14 bytes as specified in the documentation")
+		return 0, time.Unix(0, 0), fmt.Errorf("result must be 14 bytes as specified in the documentation")
 	}
 
 	wholeJoules := (uint32(data[2]) << 0) | (uint32(data[3]) << 8) | (uint32(data[4]) << 16) | (uint32(data[5]) << 24)
