@@ -41,7 +41,7 @@ func (m *LenovoDensePowerCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 
-	m.name = "LenovoDensePower"
+	m.name = "LenovoDensePowerCollector"
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
@@ -80,6 +80,7 @@ func (m *LenovoDensePowerCollector) readEnergy() (float64, time.Time, error) {
 		argv = append(argv, "sudo", "-n")
 	}
 
+	// The Lenovo hardware wants this magic byte string
 	lenovoRequestEnergyMsg := []uint8{0x3a, 0x32, 4, 2, 0, 0, 0}
 
 	argv = append(argv, m.ipmitool, "raw")
@@ -109,6 +110,12 @@ func (m *LenovoDensePowerCollector) readEnergy() (float64, time.Time, error) {
 		return 0, time.Unix(0, 0), fmt.Errorf("result must be 14 bytes as specified in the documentation")
 	}
 
+	// data is layed out like this:
+	// data[0 to 1]: FIFO index of value (for debug only)
+	// data[2 to 5]: Integer part of energy in J (little endian)
+	// data[6 to 7]: Fraction part of energy in mJ (little endian)
+	// data[8 to 11]: Integer part of Unix time of measurement in seconds (little endian)
+	// data[12 to 13]: Fraction part of Unix time of measurement in milliseconds (little endian)
 	wholeJoules := (uint32(data[2]) << 0) | (uint32(data[3]) << 8) | (uint32(data[4]) << 16) | (uint32(data[5]) << 24)
 	milliJoules := uint16(data[6]) | (uint16(data[7]) << 8)
 	finalJoules := float64(wholeJoules) + float64(milliJoules)*1e-3
@@ -133,16 +140,23 @@ func (m *LenovoDensePowerCollector) Read(interval time.Duration, output chan lp.
 	}
 
 	powerVal := 0.0
-	if energyTime.After(m.energyTimeLast) {
-		energyValDiff := energyVal - m.energyValLast
+	if energyTime.Compare(m.energyTimeLast) != 0 {
+		// Check for overflow
+		energyValDiff := int64(energyVal) - int64(m.energyValLast)
+		if energyVal < m.energyValLast {
+			energyValDiff += int64(0x100000000)
+		}
 		energyTimeDiff := energyTime.Sub(m.energyTimeLast)
-		powerVal = energyValDiff / energyTimeDiff.Seconds()
+		if energyTime.Before(m.energyTimeLast) {
+			energyTimeDiff = energyTimeDiff + 0x100000000 * time.Second
+		}
+		powerVal = float64(energyValDiff) / energyTimeDiff.Seconds()
 
 		m.energyValLast = energyVal
 		m.energyTimeLast = energyTime
 	}
 
-	metric, err := lp.NewMetric("node_power", map[string]string{"type": "node"}, m.meta, powerVal, energyTime)
+	metric, err := lp.NewMetric("lenovo_node_power", map[string]string{"type": "node"}, m.meta, powerVal, energyTime)
 	if err != nil {
 		cclog.ComponentErrorf(m.name, "lp.NewMetric failed: %v", err)
 		return

@@ -30,10 +30,14 @@ Lenovo ThinkSystem SD665-N V3             | tested, known to work     | node + r
 To test if your system *may* be supported, you can run the following command *at your own risk*:
 
 ```
-ipmitool raw 58 50 4 2 0 0 0
+$ ipmitool raw 58 50 4 2 0 0 0
+ c4 00 83 a9 cb d3 a2 03 df db 47 6a d8 01
 ```
 
-`ipmitool` typically require root to run.
+Exactly 14 bytes should be returned.
+In case not or another error occurs your hardware is likely not supported.
+
+In addition, `ipmitool` typically require root to run.
 In order to run `cc-metric-collector` without root priviliges, you can enable `use_sudo`.
 Add a file like this in `/etc/sudoers.d/` to allow `cc-metric-collector` to run the required commands:
 
