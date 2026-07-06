@@ -148,7 +148,7 @@ func (m *LenovoDensePowerCollector) Read(interval time.Duration, output chan lp.
 		}
 		energyTimeDiff := energyTime.Sub(m.energyTimeLast)
 		if energyTime.Before(m.energyTimeLast) {
-			energyTimeDiff = energyTimeDiff + 0x100000000 * time.Second
+			energyTimeDiff = energyTimeDiff + 0x100000000*time.Second
 		}
 		powerVal = float64(energyValDiff) / energyTimeDiff.Seconds()
 

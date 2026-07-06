@@ -21,25 +21,25 @@ import (
 // MPS refers to Monolithic Power Systems, from which the MP5922 is used
 // to measure telemetry on the Eureka platform.
 type mpsData struct {
-	cnt int64 `json:"Cnt"` // No idea what this is, ignore
-	energy float64 `json:"Energy"`
-	vin float64 `json:"Vin"`
-	iin float64 `json:"Iin"`
-	pin float64 `json:"Pin"`
-	pinAvg float64 `json:"PinAvg"`
-	vout float64 `json:"Vout"`
-	iout float64 `json:"Iout"`
-	pout float64 `json:"Pout"`
+	cnt         int64   `json:"Cnt"` // No idea what this is, ignore
+	energy      float64 `json:"Energy"`
+	vin         float64 `json:"Vin"`
+	iin         float64 `json:"Iin"`
+	pin         float64 `json:"Pin"`
+	pinAvg      float64 `json:"PinAvg"`
+	vout        float64 `json:"Vout"`
+	iout        float64 `json:"Iout"`
+	pout        float64 `json:"Pout"`
 	standbyVout float64 `json:"StandbyVout"`
 	standbyIout float64 `json:"StandbyIout"`
 	standbyPout float64 `json:"StandbyPout"`
-	tempBusbar float64 `json:"TempBusbar"`
-	tempSsd float64 `json:"TempSsd"`
-	tempMps float64 `json:"TempMps"`
+	tempBusbar  float64 `json:"TempBusbar"`
+	tempSsd     float64 `json:"TempSsd"`
+	tempMps     float64 `json:"TempMps"`
 	// No idea what the ones below mean exactl. Ignore them for now.
-	energyTime int64 `json:"EnergyTime"`
-	energyAccumulator int64 `json:"EnergyAccumulator"`
-	energyRolloverCnt int64 `json:"EnergyRolloverCnt"`
+	energyTime         int64 `json:"EnergyTime"`
+	energyAccumulator  int64 `json:"EnergyAccumulator"`
+	energyRolloverCnt  int64 `json:"EnergyRolloverCnt"`
 	energySampleCntU24 int64 `json:"EnergySampleCntU24"`
 
 	timestamp time.Time
@@ -50,7 +50,7 @@ type MegwareEurekaCollector struct {
 
 	config struct {
 		U20Path string `json:"u20_path"`
-		Sudo         bool   `json:"use_sudo"`
+		Sudo    bool   `json:"use_sudo"`
 	}
 
 	u20path string
@@ -157,24 +157,24 @@ func (m *MegwareEurekaCollector) Read(interval time.Duration, output chan lp.CCM
 	}
 
 	metricNamePrefix := "eureka_"
-	metricMap := map[string]struct{
+	metricMap := map[string]struct {
 		value any
-		unit string
+		unit  string
 	}{
-		"power": { value: powerVal, unit: "Watts" },
-		"vin": { value: data.vin, unit: "Volts" },
-		"iin": { value: data.iin, unit: "Amperes" },
-		"pin": { value: data.pin, unit: "Watts" },
-		"pin_avg": { value: data.pinAvg, unit: "Watts" },
-		"vout": { value: data.vout, unit: "Volts" },
-		"iout": { value: data.iout, unit: "Amperes" },
-		"pout": { value: data.pout, unit: "Watts" },
-		"standby_vout": { value: data.standbyVout, unit: "Volts" },
-		"standby_iout": { value: data.standbyIout, unit: "Amperes" },
-		"standby_pout": { value: data.standbyPout, unit: "Watts" },
-		"temp_busbar": { value: data.tempBusbar, unit: "degC" },
-		"temp_ssd": { value: data.tempSsd, unit: "degC" },
-		"temp_mps": { value: data.tempMps, unit: "degC" },
+		"power":        {value: powerVal, unit: "Watts"},
+		"vin":          {value: data.vin, unit: "Volts"},
+		"iin":          {value: data.iin, unit: "Amperes"},
+		"pin":          {value: data.pin, unit: "Watts"},
+		"pin_avg":      {value: data.pinAvg, unit: "Watts"},
+		"vout":         {value: data.vout, unit: "Volts"},
+		"iout":         {value: data.iout, unit: "Amperes"},
+		"pout":         {value: data.pout, unit: "Watts"},
+		"standby_vout": {value: data.standbyVout, unit: "Volts"},
+		"standby_iout": {value: data.standbyIout, unit: "Amperes"},
+		"standby_pout": {value: data.standbyPout, unit: "Watts"},
+		"temp_busbar":  {value: data.tempBusbar, unit: "degC"},
+		"temp_ssd":     {value: data.tempSsd, unit: "degC"},
+		"temp_mps":     {value: data.tempMps, unit: "degC"},
 	}
 
 	for metricName, metricData := range metricMap {

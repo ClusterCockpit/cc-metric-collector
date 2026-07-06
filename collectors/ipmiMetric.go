@@ -28,14 +28,14 @@ type IpmiCollector struct {
 	metricCollector
 
 	config struct {
-		IpmitoolPath    string `json:"ipmitool_path"`
-		IpmisensorsPath string `json:"ipmisensors_path"`
-		Sudo            bool   `json:"use_sudo"`
+		IpmitoolPath    string   `json:"ipmitool_path"`
+		IpmisensorsPath string   `json:"ipmisensors_path"`
+		Sudo            bool     `json:"use_sudo"`
 		IncludeMetrics  []string `json:"include_metrics"`
 	}
 
-	ipmitool    string
-	ipmisensors string
+	ipmitool       string
+	ipmisensors    string
 	includeMetrics map[string]bool
 }
 
@@ -158,7 +158,7 @@ func (m *IpmiCollector) readIpmiTool(output chan lp.CCMessage) error {
 		name := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(lv[0]), " ", "_"))
 
 		if len(m.includeMetrics) > 0 && !m.includeMetrics[name] {
- 			continue
+			continue
 		}
 
 		unit := strings.TrimSpace(lv[2])
