@@ -88,7 +88,7 @@ func (m *MegwareEurekaCollector) Init(config json.RawMessage) error {
 
 	data, err := m.readMpsData()
 	if err != nil {
-		return fmt.Errorf("Energy reading test failed: %w", err)
+		return fmt.Errorf("energy reading test failed: %w", err)
 	}
 
 	m.energyValLast = data.Energy
@@ -115,16 +115,16 @@ func (m *MegwareEurekaCollector) readMpsData() (*mpsData, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to run u20: %w (stdout=%s stderr=%s)", err, stdout.String(), stderr.String())
+		return nil, fmt.Errorf("failed to run u20: %w (stdout=%s stderr=%s)", err, stdout.String(), stderr.String())
 	}
 
 	var u20output struct {
 		GetMpsPollValues mpsData `json:"GET_MPS_POLL_VALUES"`
 	}
 
-	err = json.Unmarshal([]byte(stdout.String()), &u20output)
+	err = json.Unmarshal(stdout.Bytes(), &u20output)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to decode u20 JSON output: %w (stdout=%s)", err, stdout.String())
+		return nil, fmt.Errorf("unable to decode u20 JSON output: %w (stdout=%s)", err, stdout.String())
 	}
 
 	fmt.Printf("string: %+v\n", stdout.String())

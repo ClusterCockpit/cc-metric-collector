@@ -110,7 +110,7 @@ func (m *LenovoDensePowerCollector) readEnergy() (float64, time.Time, error) {
 		return 0, time.Unix(0, 0), fmt.Errorf("result must be 14 bytes as specified in the documentation")
 	}
 
-	// data is layed out like this:
+	// data is laid out like this:
 	// data[0 to 1]: FIFO index of value (for debug only)
 	// data[2 to 5]: Integer part of energy in J (little endian)
 	// data[6 to 7]: Fraction part of energy in mJ (little endian)
