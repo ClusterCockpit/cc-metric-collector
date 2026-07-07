@@ -65,7 +65,7 @@ func (m *MegwareEurekaCollector) Init(config json.RawMessage) error {
 		return nil
 	}
 
-	m.name = "MegwareEureka"
+	m.name = "MegwareEurekaCollector"
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
