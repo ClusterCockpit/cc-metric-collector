@@ -21,28 +21,28 @@ import (
 // MPS refers to Monolithic Power Systems, from which the MP5922 is used
 // to measure telemetry on the Eureka platform.
 type mpsData struct {
-	cnt         int64   `json:"Cnt"` // No idea what this is, ignore
-	energy      float64 `json:"Energy"`
-	vin         float64 `json:"Vin"`
-	iin         float64 `json:"Iin"`
-	pin         float64 `json:"Pin"`
-	pinAvg      float64 `json:"PinAvg"`
-	vout        float64 `json:"Vout"`
-	iout        float64 `json:"Iout"`
-	pout        float64 `json:"Pout"`
-	standbyVout float64 `json:"StandbyVout"`
-	standbyIout float64 `json:"StandbyIout"`
-	standbyPout float64 `json:"StandbyPout"`
-	tempBusbar  float64 `json:"TempBusbar"`
-	tempSsd     float64 `json:"TempSsd"`
-	tempMps     float64 `json:"TempMps"`
+	Cnt         int64   `json:"Cnt"` // No idea what this is, ignore
+	Energy      float64 `json:"Energy"`
+	Vin         float64 `json:"Vin"`
+	Iin         float64 `json:"Iin"`
+	Pin         float64 `json:"Pin"`
+	PinAvg      float64 `json:"PinAvg"`
+	Vout        float64 `json:"Vout"`
+	Iout        float64 `json:"Iout"`
+	Pout        float64 `json:"Pout"`
+	StandbyVout float64 `json:"StandbyVout"`
+	StandbyIout float64 `json:"StandbyIout"`
+	StandbyPout float64 `json:"StandbyPout"`
+	TempBusbar  float64 `json:"TempBusbar"`
+	TempSsd     float64 `json:"TempSsd"`
+	TempMps     float64 `json:"TempMps"`
 	// No idea what the ones below mean exactl. Ignore them for now.
-	energyTime         int64 `json:"EnergyTime"`
-	energyAccumulator  int64 `json:"EnergyAccumulator"`
-	energyRolloverCnt  int64 `json:"EnergyRolloverCnt"`
-	energySampleCntU24 int64 `json:"EnergySampleCntU24"`
+	EnergyTime         int64 `json:"EnergyTime"`
+	EnergyAccumulator  int64 `json:"EnergyAccumulator"`
+	EnergyRolloverCnt  int64 `json:"EnergyRolloverCnt"`
+	EnergySampleCntU24 int64 `json:"EnergySampleCntU24"`
 
-	timestamp time.Time
+	Timestamp time.Time
 }
 
 type MegwareEurekaCollector struct {
@@ -91,7 +91,7 @@ func (m *MegwareEurekaCollector) Init(config json.RawMessage) error {
 		return fmt.Errorf("Energy reading test failed: %w", err)
 	}
 
-	m.energyValLast = data.energy
+	m.energyValLast = data.Energy
 	m.energyTimeLast = time.Now()
 	m.init = true
 
@@ -119,7 +119,7 @@ func (m *MegwareEurekaCollector) readMpsData() (*mpsData, error) {
 	}
 
 	var u20output struct {
-		getMpsPollValues mpsData `json:"GET_MPS_POLL_VALUES"`
+		GetMpsPollValues mpsData `json:"GET_MPS_POLL_VALUES"`
 	}
 
 	err = json.Unmarshal([]byte(stdout.String()), &u20output)
@@ -127,9 +127,12 @@ func (m *MegwareEurekaCollector) readMpsData() (*mpsData, error) {
 		return nil, fmt.Errorf("Unable to decode u20 JSON output: %w (stdout=%s)", err, stdout.String())
 	}
 
-	u20output.getMpsPollValues.timestamp = time.Now()
+	fmt.Printf("string: %+v\n", stdout.String())
+	fmt.Printf("obj:    %+v\n", u20output)
 
-	return &u20output.getMpsPollValues, nil
+	u20output.GetMpsPollValues.Timestamp = time.Now()
+
+	return &u20output.GetMpsPollValues, nil
 }
 
 func (m *MegwareEurekaCollector) Read(interval time.Duration, output chan lp.CCMessage) {
@@ -146,14 +149,14 @@ func (m *MegwareEurekaCollector) Read(interval time.Duration, output chan lp.CCM
 
 	powerVal := 0.0
 
-	if data.timestamp.After(m.energyTimeLast) {
+	if data.Timestamp.After(m.energyTimeLast) {
 		// Important, m.energy comes in Wh, so multiply by 3600 to get Ws (aka Joule)
-		energyValDiff := data.energy - m.energyValLast
-		energyTimeDiff := data.timestamp.Sub(m.energyTimeLast)
+		energyValDiff := data.Energy - m.energyValLast
+		energyTimeDiff := data.Timestamp.Sub(m.energyTimeLast)
 		powerVal = energyValDiff * 3600 / energyTimeDiff.Seconds()
 
-		m.energyValLast = data.energy
-		m.energyTimeLast = data.timestamp
+		m.energyValLast = data.Energy
+		m.energyTimeLast = data.Timestamp
 	}
 
 	metricNamePrefix := "eureka_"
@@ -162,24 +165,24 @@ func (m *MegwareEurekaCollector) Read(interval time.Duration, output chan lp.CCM
 		unit  string
 	}{
 		"power":        {value: powerVal, unit: "Watts"},
-		"vin":          {value: data.vin, unit: "Volts"},
-		"iin":          {value: data.iin, unit: "Amperes"},
-		"pin":          {value: data.pin, unit: "Watts"},
-		"pin_avg":      {value: data.pinAvg, unit: "Watts"},
-		"vout":         {value: data.vout, unit: "Volts"},
-		"iout":         {value: data.iout, unit: "Amperes"},
-		"pout":         {value: data.pout, unit: "Watts"},
-		"standby_vout": {value: data.standbyVout, unit: "Volts"},
-		"standby_iout": {value: data.standbyIout, unit: "Amperes"},
-		"standby_pout": {value: data.standbyPout, unit: "Watts"},
-		"temp_busbar":  {value: data.tempBusbar, unit: "degC"},
-		"temp_ssd":     {value: data.tempSsd, unit: "degC"},
-		"temp_mps":     {value: data.tempMps, unit: "degC"},
+		"vin":          {value: data.Vin, unit: "Volts"},
+		"iin":          {value: data.Iin, unit: "Amperes"},
+		"pin":          {value: data.Pin, unit: "Watts"},
+		"pin_avg":      {value: data.PinAvg, unit: "Watts"},
+		"vout":         {value: data.Vout, unit: "Volts"},
+		"iout":         {value: data.Iout, unit: "Amperes"},
+		"pout":         {value: data.Pout, unit: "Watts"},
+		"standby_vout": {value: data.StandbyVout, unit: "Volts"},
+		"standby_iout": {value: data.StandbyIout, unit: "Amperes"},
+		"standby_pout": {value: data.StandbyPout, unit: "Watts"},
+		"temp_busbar":  {value: data.TempBusbar, unit: "degC"},
+		"temp_ssd":     {value: data.TempSsd, unit: "degC"},
+		"temp_mps":     {value: data.TempMps, unit: "degC"},
 	}
 
 	for metricName, metricData := range metricMap {
 		metricName = metricNamePrefix + metricName
-		metric, err := lp.NewMetric(metricName, map[string]string{"type": "node"}, m.meta, metricData.value, data.timestamp)
+		metric, err := lp.NewMetric(metricName, map[string]string{"type": "node"}, m.meta, metricData.value, data.Timestamp)
 		if err != nil {
 			cclog.ComponentErrorf(m.name, "lp.NewMetric failed: %v", err)
 			return
