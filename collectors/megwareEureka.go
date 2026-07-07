@@ -127,9 +127,6 @@ func (m *MegwareEurekaCollector) readMpsData() (*mpsData, error) {
 		return nil, fmt.Errorf("unable to decode u20 JSON output: %w (stdout=%s)", err, stdout.String())
 	}
 
-	fmt.Printf("string: %+v\n", stdout.String())
-	fmt.Printf("obj:    %+v\n", u20output)
-
 	u20output.GetMpsPollValues.Timestamp = time.Now()
 
 	return &u20output.GetMpsPollValues, nil
