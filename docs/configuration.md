@@ -19,6 +19,8 @@ The global file contains the paths to the other four files and some global optio
 
 Be aware that the paths are relative to the execution folder of the cc-metric-collector binary, so it is recommended to use absolute paths.
 
+The optional `channel_buffer_size` option sets the capacity of the internal channels between the components (collectors → router → sinks). If unset, it defaults to `max(200, 24 * number of CPUs)` so that one interval's burst of per-hwthread metrics fits without back-pressuring the collectors on nodes with many cores.
+
 ## Component configuration
 
 The others are mainly list of of subcomponents: the collectors, the receivers, the router and the sinks. Their role is best shown in a picture:

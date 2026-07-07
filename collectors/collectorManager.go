@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -56,16 +57,17 @@ var AvailableCollectors = map[string]MetricCollector{
 
 // Metric collector manager data structure
 type collectorManager struct {
-	collectors   []MetricCollector          // List of metric collectors to read in parallel
-	serial       []MetricCollector          // List of metric collectors to read serially
-	output       chan lp.CCMessage          // Output channels
-	done         chan bool                  // channel to finish / stop metric collector manager
-	ticker       mct.MultiChanTicker        // periodically ticking once each interval
-	duration     time.Duration              // duration (for metrics that measure over a given duration)
-	wg           *sync.WaitGroup            // wait group for all goroutines in cc-metric-collector
-	config       map[string]json.RawMessage // json encoded config for collector manager
-	collector_wg sync.WaitGroup             // internally used wait group for the parallel reading of collector
-	parallel_run bool                       // Flag whether the collectors are currently read in parallel
+	collectors    []MetricCollector          // List of metric collectors to read in parallel
+	serial        []MetricCollector          // List of metric collectors to read serially
+	output        chan lp.CCMessage          // Output channels
+	done          chan bool                  // channel to finish / stop metric collector manager
+	ticker        mct.MultiChanTicker        // periodically ticking once each interval
+	duration      time.Duration              // duration (for metrics that measure over a given duration)
+	wg            *sync.WaitGroup            // wait group for all goroutines in cc-metric-collector
+	config        map[string]json.RawMessage // json encoded config for collector manager
+	collector_wg  sync.WaitGroup             // internally used wait group for the parallel reading of collector
+	round_wg      sync.WaitGroup             // wait group for the currently running collection round
+	round_running atomic.Bool                // Flag whether a collection round is currently running
 }
 
 // Metric collector manager access functions
@@ -121,25 +123,53 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	return nil
 }
 
+// runRound executes one collection round: first all parallel collectors
+// concurrently, then the serial collectors one by one
+func (cm *collectorManager) runRound(t time.Time) {
+	roundStart := time.Now()
+	for _, c := range cm.collectors {
+		// Read metrics from collector c via goroutine
+		cclog.ComponentDebug("CollectorManager", c.Name(), t)
+		cm.collector_wg.Add(1)
+		go func(myc MetricCollector) {
+			start := time.Now()
+			myc.Read(cm.duration, cm.output)
+			cclog.ComponentDebug("CollectorManager", myc.Name(), "took", time.Since(start))
+			cm.collector_wg.Done()
+		}(c)
+	}
+	cm.collector_wg.Wait()
+	for _, c := range cm.serial {
+		// Read metrics from collector c
+		cclog.ComponentDebug("CollectorManager", c.Name(), t)
+		start := time.Now()
+		c.Read(cm.duration, cm.output)
+		cclog.ComponentDebug("CollectorManager", c.Name(), "took", time.Since(start))
+	}
+	cclog.ComponentDebug("CollectorManager", "collection round took", time.Since(roundStart))
+}
+
 // Start starts the metric collector manager
 func (cm *collectorManager) Start() {
-	tick := make(chan time.Time)
+	tick := make(chan time.Time, 1)
 	cm.ticker.AddChannel(tick)
 
 	cm.wg.Go(func() {
 		// Collector manager is done
 		done := func() {
-			// close all metric collectors
-			if cm.parallel_run {
-				cm.collector_wg.Wait()
-				cm.parallel_run = false
-			}
+			// wait for a still running collection round, then close all metric collectors
+			cm.round_wg.Wait()
 			for _, c := range cm.collectors {
+				c.Close()
+			}
+			for _, c := range cm.serial {
 				c.Close()
 			}
 			close(cm.done)
 			cclog.ComponentDebug("CollectorManager", "DONE")
 		}
+
+		var roundStart time.Time
 
 		// Wait for done signal or timer event
 		for {
@@ -148,37 +178,20 @@ func (cm *collectorManager) Start() {
 				done()
 				return
 			case t := <-tick:
-				cm.parallel_run = true
-				for _, c := range cm.collectors {
-					// Wait for done signal or execute the collector
-					select {
-					case <-cm.done:
-						done()
-						return
-					default:
-						// Read metrics from collector c via goroutine
-						cclog.ComponentDebug("CollectorManager", c.Name(), t)
-						cm.collector_wg.Add(1)
-						go func(myc MetricCollector) {
-							myc.Read(cm.duration, cm.output)
-							cm.collector_wg.Done()
-						}(c)
-					}
+				// The round runs detached from this loop, so the tick channel
+				// stays drained even when a round takes longer than the interval
+				if cm.round_running.Load() {
+					cclog.ComponentWarn("CollectorManager", "collection round still running after", time.Since(roundStart), "- skipping tick")
+					continue
 				}
-				cm.collector_wg.Wait()
-				cm.parallel_run = false
-				for _, c := range cm.serial {
-					// Wait for done signal or execute the collector
-					select {
-					case <-cm.done:
-						done()
-						return
-					default:
-						// Read metrics from collector c
-						cclog.ComponentDebug("CollectorManager", c.Name(), t)
-						c.Read(cm.duration, cm.output)
-					}
-				}
+				cm.round_running.Store(true)
+				roundStart = time.Now()
+				cm.round_wg.Add(1)
+				go func() {
+					defer cm.round_wg.Done()
+					defer cm.round_running.Store(false)
+					cm.runRound(t)
+				}()
 			}
 		}
 	})

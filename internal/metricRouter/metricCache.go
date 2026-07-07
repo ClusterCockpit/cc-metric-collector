@@ -79,7 +79,7 @@ func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker,
 
 // Start starts the metric cache
 func (c *metricCache) Start() {
-	c.tickchan = make(chan time.Time)
+	c.tickchan = make(chan time.Time, 1)
 	c.ticker.AddChannel(c.tickchan)
 	// Router cache is done
 	done := func() {

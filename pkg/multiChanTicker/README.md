@@ -30,8 +30,8 @@ Afterwards, you can add channels:
 
 ```golang
 t := MultiChanTicker(duration)
-c1 := make(chan time.Time)
-c2 := make(chan time.Time)
+c1 := make(chan time.Time, 1)
+c2 := make(chan time.Time, 1)
 t.AddChannel(c1)
 t.AddChannel(c2)
 
@@ -46,3 +46,5 @@ for {
 ```
 
 The result should be the same `time.Time` output in both channels, notified "simultaneously".
+
+Ticks are delivered with a non-blocking send: a consumer that has not yet read the previous tick does not stall the ticker (which would silently drop `time.Ticker` fires for all consumers); instead, the tick for that consumer is skipped and a warning is logged. Register buffered channels (capacity 1) so a consumer that is briefly busy at tick time does not lose the tick.

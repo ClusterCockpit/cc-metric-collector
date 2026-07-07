@@ -13,6 +13,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -29,8 +30,9 @@ import (
 )
 
 type CentralConfigFile struct {
-	Interval string `json:"interval"`
-	Duration string `json:"duration"`
+	Interval          string `json:"interval"`
+	Duration          string `json:"duration"`
+	ChannelBufferSize int    `json:"channel_buffer_size,omitempty"`
 }
 
 type RuntimeConfig struct {
@@ -158,6 +160,14 @@ func mainFunc() int {
 		return 1
 	}
 
+	// Size the channels between the managers so that one interval's burst of
+	// per-hwthread metrics fits without back-pressuring the collectors
+	chanSize := rcfg.ConfigFile.ChannelBufferSize
+	if chanSize <= 0 {
+		chanSize = max(200, 24*runtime.NumCPU())
+	}
+	cclog.ComponentDebug("main", "channel buffer size", chanSize)
+
 	routerConf := ccconf.GetPackageConfig("router")
 	if len(routerConf) == 0 {
 		cclog.Error("Metric router configuration file must be set")
@@ -194,7 +204,7 @@ func mainFunc() int {
 	}
 
 	// Connect metric router to sink manager
-	RouterToSinksChannel := make(chan lp.CCMessage, 200)
+	RouterToSinksChannel := make(chan lp.CCMessage, chanSize)
 	rcfg.SinkManager.AddInput(RouterToSinksChannel)
 	rcfg.MetricRouter.AddOutput(RouterToSinksChannel)
 
@@ -206,7 +216,7 @@ func mainFunc() int {
 	}
 
 	// Connect collector manager to metric router
-	CollectToRouterChannel := make(chan lp.CCMessage, 200)
+	CollectToRouterChannel := make(chan lp.CCMessage, chanSize)
 	rcfg.CollectManager.AddOutput(CollectToRouterChannel)
 	rcfg.MetricRouter.AddCollectorInput(CollectToRouterChannel)
 
@@ -220,7 +230,7 @@ func mainFunc() int {
 		}
 
 		// Connect receive manager to metric router
-		ReceiveToRouterChannel := make(chan lp.CCMessage, 200)
+		ReceiveToRouterChannel := make(chan lp.CCMessage, chanSize)
 		rcfg.ReceiveManager.AddOutput(ReceiveToRouterChannel)
 		rcfg.MetricRouter.AddReceiverInput(ReceiveToRouterChannel)
 		use_recv = true

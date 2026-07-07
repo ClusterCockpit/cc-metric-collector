@@ -228,9 +228,23 @@ func (r *metricRouter) DoAddTags(point lp.CCMessage) {
 func (r *metricRouter) Start() {
 	// start timer if configured
 	r.timestamp = time.Now()
-	timeChan := make(chan time.Time)
+	timeChan := make(chan time.Time, 1)
 	if r.config.IntervalStamp {
 		r.ticker.AddChannel(timeChan)
+	}
+
+	// Drain a pending tick before stamping new metrics, so a new interval's
+	// metrics never carry the previous interval's timestamp
+	updateTimestamp := func() {
+		if !r.config.IntervalStamp {
+			return
+		}
+		select {
+		case timestamp := <-timeChan:
+			r.timestamp = timestamp
+			cclog.ComponentDebug("MetricRouter", "Update timestamp", r.timestamp.UnixNano())
+		default:
+		}
 	}
 
 	// Router manager is done
@@ -298,14 +312,19 @@ func (r *metricRouter) Start() {
 			case timestamp := <-timeChan:
 				r.timestamp = timestamp
 				cclog.ComponentDebug("MetricRouter", "Update timestamp", r.timestamp.UnixNano())
+				if len(r.coll_input) == cap(r.coll_input) {
+					cclog.ComponentWarn("MetricRouter", "collector input channel full at tick, sinks may be too slow")
+				}
 
 			case p := <-r.coll_input:
+				updateTimestamp()
 				coll_forward(p)
 				for i := 0; len(r.coll_input) > 0 && i < (r.maxForward-1); i++ {
 					coll_forward(<-r.coll_input)
 				}
 
 			case p := <-r.recv_input:
+				updateTimestamp()
 				recv_forward(p)
 				for i := 0; len(r.recv_input) > 0 && i < (r.maxForward-1); i++ {
 					recv_forward(<-r.recv_input)

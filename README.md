@@ -41,6 +41,8 @@ There is a main configuration file with basic settings that point to the other c
 
 The `interval` defines how often the metrics should be read and send to the sink(s). The `duration` tells the collectors how long one measurement has to take. This is important for some collectors, like the `likwid` collector. For more information, see [here](./docs/configuration.md).
 
+The optional `channel_buffer_size` sets the capacity of the internal channels between the components. If unset, it defaults to `max(200, 24 * number of CPUs)` so that one interval's burst of per-hwthread metrics fits without back-pressuring the collectors on nodes with many cores.
+
 See the component READMEs for their configuration:
 
 * [`collectors`](./collectors/README.md)

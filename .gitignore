@@ -17,3 +17,7 @@
 
 # Local copy of LIKWID headers
 /collectors/likwid
+
+# Local development workspace (build against a local cc-lib checkout)
+go.work
+go.work.sum
