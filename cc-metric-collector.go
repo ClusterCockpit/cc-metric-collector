@@ -29,15 +29,17 @@ import (
 )
 
 type CentralConfigFile struct {
-	Interval string `json:"interval"`
-	Duration string `json:"duration"`
+	Interval      string `json:"interval"`
+	Duration      string `json:"duration"`
+	EnableMarkers bool   `json:"enable-markers"`
 }
 
 type RuntimeConfig struct {
-	Interval   time.Duration
-	Duration   time.Duration
-	CliArgs    map[string]string
-	ConfigFile CentralConfigFile
+	Interval      time.Duration
+	Duration      time.Duration
+	EnableMarkers bool
+	CliArgs       map[string]string
+	ConfigFile    CentralConfigFile
 
 	MetricRouter    mr.MetricRouter
 	CollectManager  collectors.CollectorManager
@@ -157,6 +159,7 @@ func mainFunc() int {
 		cclog.Error("The interval should be greater than duration")
 		return 1
 	}
+	rcfg.EnableMarkers = rcfg.ConfigFile.EnableMarkers
 
 	routerConf := ccconf.GetPackageConfig("router")
 	if len(routerConf) == 0 {
@@ -199,7 +202,7 @@ func mainFunc() int {
 	rcfg.MetricRouter.AddOutput(RouterToSinksChannel)
 
 	// Create new collector manager
-	rcfg.CollectManager, err = collectors.New(rcfg.MultiChanTicker, rcfg.Duration, &rcfg.Sync, collectorConf)
+	rcfg.CollectManager, err = collectors.New(rcfg.MultiChanTicker, rcfg.Duration, rcfg.EnableMarkers, &rcfg.Sync, collectorConf)
 	if err != nil {
 		cclog.Error(err.Error())
 		return 1
