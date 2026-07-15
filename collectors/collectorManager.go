@@ -148,6 +148,7 @@ func (cm *collectorManager) Start() {
 				done()
 				return
 			case t := <-tick:
+				lp.NewMetric("ccmc-begin", map[string]string{"type": "node"}, nil, map[string]interface{}{"value": 0}, time.Now())
 				cm.parallel_run = true
 				for _, c := range cm.collectors {
 					// Wait for done signal or execute the collector
@@ -179,6 +180,7 @@ func (cm *collectorManager) Start() {
 						c.Read(cm.duration, cm.output)
 					}
 				}
+				lp.NewMetric("ccmc-end", map[string]string{"type": "node"}, nil, map[string]interface{}{"value": 0}, time.Now())
 			}
 		}
 	})
