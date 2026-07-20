@@ -151,7 +151,12 @@ func (cm *collectorManager) Start() {
 				return
 			case t := <-tick:
 				if cm.enableMarkers {
-					lp.NewMetric("ccmc-begin", map[string]string{"type": "node"}, nil, map[string]interface{}{"value": 0}, time.Now())
+					m, err := lp.NewMetric("ccmc-begin", map[string]string{"type": "node"}, nil, map[string]interface{}{"value": 0}, time.Now())
+					if err != nil {
+						cclog.ComponentErrorf("CollectorManager", "Unable to create marker metric: %v", err)
+					} else {
+						cm.output <- m
+					}
 				}
 				cm.parallel_run = true
 				for _, c := range cm.collectors {
@@ -185,7 +190,12 @@ func (cm *collectorManager) Start() {
 					}
 				}
 				if cm.enableMarkers {
-					lp.NewMetric("ccmc-end", map[string]string{"type": "node"}, nil, map[string]interface{}{"value": 0}, time.Now())
+					m, err := lp.NewMetric("ccmc-end", map[string]string{"type": "node"}, nil, map[string]interface{}{"value": 0}, time.Now())
+					if err != nil {
+						cclog.ComponentErrorf("CollectorManager", "Unable to create marker metric: %v", err)
+					} else {
+						cm.output <- m
+					}
 				}
 			}
 		}
