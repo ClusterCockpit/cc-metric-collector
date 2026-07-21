@@ -56,21 +56,22 @@ var AvailableCollectors = map[string]MetricCollector{
 
 // Metric collector manager data structure
 type collectorManager struct {
-	collectors   []MetricCollector          // List of metric collectors to read in parallel
-	serial       []MetricCollector          // List of metric collectors to read serially
-	output       chan lp.CCMessage          // Output channels
-	done         chan bool                  // channel to finish / stop metric collector manager
-	ticker       mct.MultiChanTicker        // periodically ticking once each interval
-	duration     time.Duration              // duration (for metrics that measure over a given duration)
-	wg           *sync.WaitGroup            // wait group for all goroutines in cc-metric-collector
-	config       map[string]json.RawMessage // json encoded config for collector manager
-	collector_wg sync.WaitGroup             // internally used wait group for the parallel reading of collector
-	parallel_run bool                       // Flag whether the collectors are currently read in parallel
+	collectors    []MetricCollector          // List of metric collectors to read in parallel
+	serial        []MetricCollector          // List of metric collectors to read serially
+	output        chan lp.CCMessage          // Output channels
+	done          chan bool                  // channel to finish / stop metric collector manager
+	ticker        mct.MultiChanTicker        // periodically ticking once each interval
+	duration      time.Duration              // duration (for metrics that measure over a given duration)
+	wg            *sync.WaitGroup            // wait group for all goroutines in cc-metric-collector
+	config        map[string]json.RawMessage // json encoded config for collector manager
+	collector_wg  sync.WaitGroup             // internally used wait group for the parallel reading of collector
+	parallel_run  bool                       // Flag whether the collectors are currently read in parallel
+	enableMarkers bool                       // Send ccmc-{begin,end} metrics
 }
 
 // Metric collector manager access functions
 type CollectorManager interface {
-	Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfig json.RawMessage) error
+	Init(ticker mct.MultiChanTicker, duration time.Duration, enableMarkers bool, wg *sync.WaitGroup, collectConfig json.RawMessage) error
 	AddOutput(output chan lp.CCMessage)
 	Start()
 	Close()
@@ -83,7 +84,7 @@ type CollectorManager interface {
 // * ticker (from variable ticker)
 // * configuration (read from config file in variable collectConfigFile)
 // Initialization is done for all configured collectors
-func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfig json.RawMessage) error {
+func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Duration, enableMarkers bool, wg *sync.WaitGroup, collectConfig json.RawMessage) error {
 	cm.collectors = make([]MetricCollector, 0)
 	cm.serial = make([]MetricCollector, 0)
 	cm.output = nil
@@ -91,6 +92,7 @@ func (cm *collectorManager) Init(ticker mct.MultiChanTicker, duration time.Durat
 	cm.wg = wg
 	cm.ticker = ticker
 	cm.duration = duration
+	cm.enableMarkers = enableMarkers
 
 	d := json.NewDecoder(bytes.NewReader(collectConfig))
 	d.DisallowUnknownFields()
@@ -148,6 +150,14 @@ func (cm *collectorManager) Start() {
 				done()
 				return
 			case t := <-tick:
+				if cm.enableMarkers {
+					m, err := lp.NewMetric("ccmc-begin", map[string]string{"type": "node"}, nil, 0, time.Now())
+					if err != nil {
+						cclog.ComponentErrorf("CollectorManager", "Unable to create marker metric: %v", err)
+					} else {
+						cm.output <- m
+					}
+				}
 				cm.parallel_run = true
 				for _, c := range cm.collectors {
 					// Wait for done signal or execute the collector
@@ -179,6 +189,14 @@ func (cm *collectorManager) Start() {
 						c.Read(cm.duration, cm.output)
 					}
 				}
+				if cm.enableMarkers {
+					m, err := lp.NewMetric("ccmc-end", map[string]string{"type": "node"}, nil, 0, time.Now())
+					if err != nil {
+						cclog.ComponentErrorf("CollectorManager", "Unable to create marker metric: %v", err)
+					} else {
+						cm.output <- m
+					}
+				}
 			}
 		}
 	})
@@ -201,9 +219,9 @@ func (cm *collectorManager) Close() {
 }
 
 // New creates a new initialized metric collector manager
-func New(ticker mct.MultiChanTicker, duration time.Duration, wg *sync.WaitGroup, collectConfig json.RawMessage) (CollectorManager, error) {
+func New(ticker mct.MultiChanTicker, duration time.Duration, enableMarkers bool, wg *sync.WaitGroup, collectConfig json.RawMessage) (CollectorManager, error) {
 	cm := new(collectorManager)
-	err := cm.Init(ticker, duration, wg, collectConfig)
+	err := cm.Init(ticker, duration, enableMarkers, wg, collectConfig)
 	if err != nil {
 		return nil, err
 	}
