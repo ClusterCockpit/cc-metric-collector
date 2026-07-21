@@ -21,8 +21,8 @@ NAME=cc-metric-collector
 DESC="ClusterCockpit metric collector"
 DEFAULT=/etc/default/${NAME}
 
-CC_USER=monitoring
-CC_GROUP=monitoring
+CC_USER=clustercockpit
+CC_GROUP=clustercockpit
 CONF_DIR=/etc/cc-metric-collector
 PID_FILE=/var/run/$NAME.pid
 DAEMON=/usr/bin/$NAME
