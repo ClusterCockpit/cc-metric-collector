@@ -33,6 +33,7 @@ There is a main configuration file with basic settings that point to the other c
   "receivers-file" : "receivers.json",
   "router-file" : "router.json",
   "main": {
+    "enable-markers": false,
     "interval": "10s",
     "duration": "1s"
   }
