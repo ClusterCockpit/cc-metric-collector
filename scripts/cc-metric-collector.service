@@ -2,12 +2,12 @@
 Description=ClusterCockpit metric collector
 Documentation=https://github.com/ClusterCockpit/cc-metric-collector
 Wants=network-online.target
-After=network-online.target
+After=network-online.target remote-fs.target
 
 [Service]
 EnvironmentFile=/etc/default/cc-metric-collector
-User=clustercockpit
-Group=clustercockpit
+User=monitoring
+Group=monitoring
 Type=simple
 Restart=on-failure
 WorkingDirectory=/tmp

@@ -1,2 +1,2 @@
-#Type Name           ID GECOS                     Home directory           Shell
-u     clustercockpit -  "User for ClusterCockpit" /run/cc-metric-collector /sbin/nologin
+#Type Name           ID   GECOS                     Home directory           Shell
+u     monitoring 905  "User for ClusterCockpit" /run/cc-metric-collector /sbin/nologin
