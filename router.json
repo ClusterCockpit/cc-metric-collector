@@ -1,0 +1,58 @@
+{
+  "num_cache_intervals": 3,
+  "interval_timestamp": false,
+  "raw_aggregate_interval": 10,
+  "raw_aggregates": [
+    {
+      "name": "mem_free_min",
+      "if": "metric.Name() == 'mem_free'",
+      "function": "min(values)",
+      "tags": {
+        "stat": "min",
+        "type": "node"
+      },
+      "meta": {
+        "group": "Memory",
+        "unit": "<copy>",
+        "source": "MemstatCollector"
+      }
+    },
+    {
+      "name": "mem_free_max",
+      "if": "metric.Name() == 'mem_free'",
+      "function": "max(values)",
+      "tags": {
+        "stat": "max",
+        "type": "node"
+      },
+      "meta": {
+        "group": "Memory",
+        "unit": "<copy>",
+        "source": "MemstatCollector"
+      }
+    },
+    {
+      "name": "mem_free_avg",
+      "if": "metric.Name() == 'mem_free'",
+      "function": "avg(values)",
+      "tags": {
+        "stat": "avg",
+        "type": "node"
+      },
+      "meta": {
+        "group": "Memory",
+        "unit": "<copy>",
+        "source": "MemstatCollector"
+      }
+    }
+  ],
+  "process_messages": {
+    "add_tags_if": [
+      {
+        "key": "hostname",
+        "value": "",
+        "if": "true"
+      }
+    ]
+  }
+}
