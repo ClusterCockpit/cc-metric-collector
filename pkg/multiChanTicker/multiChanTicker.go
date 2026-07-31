@@ -17,17 +17,20 @@ type multiChanTicker struct {
 	ticker   *time.Ticker
 	channels []chan time.Time
 	done     chan bool
+	duration time.Duration
 }
 
 type MultiChanTicker interface {
 	Init(duration time.Duration)
 	AddChannel(channel chan time.Time)
+	GetDuration() time.Duration
 	Close()
 }
 
 func (t *multiChanTicker) Init(duration time.Duration) {
 	t.ticker = time.NewTicker(duration)
 	t.done = make(chan bool)
+	t.duration = duration
 	go func() {
 		done := func() {
 			close(t.done)
@@ -51,6 +54,10 @@ func (t *multiChanTicker) Init(duration time.Duration) {
 			}
 		}
 	}()
+}
+
+func (t *multiChanTicker) GetDuration() time.Duration {
+	return t.duration
 }
 
 func (t *multiChanTicker) AddChannel(channel chan time.Time) {
