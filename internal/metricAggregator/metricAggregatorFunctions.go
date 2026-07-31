@@ -336,14 +336,14 @@ func getCpuListOfDieFunc(args any) (any, error) {
 }
 
 // wrapper function to get a list of all cpuids of the node
-func getCpuListOfNode() (any, error) {
+func getCpuListOfNodeFunc() (any, error) {
 	return topo.HwthreadList(), nil
 }
 
 // helper function to get the cpuid list for a CCMetric type tag set (type and type-id)
 // since there is no access to the metric data in the function, is should be called like
 // `getCpuListOfType()`
-func getCpuListOfType(args ...any) (any, error) {
+func getCpuListOfTypeFunc(args ...any) (any, error) {
 	cpulist := make([]int, 0)
 	switch typ := args[0].(type) {
 	case string:

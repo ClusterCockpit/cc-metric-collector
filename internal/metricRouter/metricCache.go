@@ -9,6 +9,7 @@ package metricRouter
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -19,57 +20,104 @@ import (
 	mct "github.com/ClusterCockpit/cc-metric-collector/pkg/multiChanTicker"
 )
 
-type metricCachePeriod struct {
-	startstamp  time.Time
-	stopstamp   time.Time
-	numMetrics  int
-	sizeMetrics int
-	metrics     []lp.CCMessage
+type ccCache struct {
+	periodIdx   int
+	maxPeriods  int
+	periods     [][]lp.CCMessage
+	periodTimes []struct {
+		starttime time.Time
+		endtime   time.Time
+	}
+}
+
+type CCCache interface {
+	Init(numPeriods int) error
+	Add(msg lp.CCMessage) error
+	GetPeriod(offset int) (time.Time, time.Time, []lp.CCMessage)
+	GetAll() []lp.CCMessage
+	NewPeriod()
+}
+
+func (c *ccCache) Init(numPeriods int) error {
+	c.maxPeriods = numPeriods
+	c.periodIdx = 0
+	c.periods = make([][]lp.CCMessage, c.maxPeriods)
+	c.periodTimes = make([]struct {
+		starttime time.Time
+		endtime   time.Time
+	}, c.maxPeriods)
+	return nil
+}
+
+func (c *ccCache) NewPeriod() {
+	c.periodTimes[c.periodIdx].endtime = time.Now()
+	c.periodIdx = (c.periodIdx + 1) % c.maxPeriods
+	fmt.Printf("New period index %d\n", c.periodIdx)
+	c.periods[c.periodIdx] = c.periods[c.periodIdx][:0]
+	c.periodTimes[c.periodIdx].starttime = time.Now()
+	c.periodTimes[c.periodIdx].endtime = c.periodTimes[c.periodIdx].starttime
+}
+
+func (c *ccCache) Add(msg lp.CCMessage) error {
+	c.periods[c.periodIdx] = append(c.periods[c.periodIdx], msg)
+	c.periodTimes[c.periodIdx].endtime = msg.Time()
+	return nil
+}
+
+func (c *ccCache) GetPeriod(offset int) (time.Time, time.Time, []lp.CCMessage) {
+	if offset > c.maxPeriods {
+		offset = offset % c.maxPeriods
+	}
+	out := make([]lp.CCMessage, 0)
+	poff := int(math.Abs(float64(c.periodIdx - offset)))
+	out = append(out, c.periods[poff%c.maxPeriods]...)
+
+	return c.periodTimes[poff%c.maxPeriods].starttime, c.periodTimes[poff%c.maxPeriods].endtime, out
+}
+
+func (c *ccCache) GetAll() []lp.CCMessage {
+	out := make([]lp.CCMessage, 0)
+	for _, data := range c.periods {
+		out = append(out, data...)
+	}
+	return out
 }
 
 // Metric cache data structure
 type metricCache struct {
-	numPeriods int
-	curPeriod  int
-	lock       sync.Mutex
-	intervals  []*metricCachePeriod
+	cache      CCCache
 	wg         *sync.WaitGroup
 	ticker     mct.MultiChanTicker
 	tickchan   chan time.Time
 	done       chan bool
 	output     chan lp.CCMessage
 	aggEngine  agg.MetricAggregator
+	numPeriods int
+	started    bool
 }
 
 type MetricCache interface {
-	Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error
+	Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, interval time.Duration, numPeriods int) error
 	Start()
 	Add(metric lp.CCMessage)
-	GetPeriod(index int) (time.Time, time.Time, []lp.CCMessage)
 	AddAggregation(name, function, condition string, tags, meta map[string]string) error
 	DeleteAggregation(name string) error
 	Close()
 }
 
-func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) error {
+func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, interval time.Duration, numPeriods int) error {
 	var err error
 	c.done = make(chan bool)
 	c.wg = wg
 	c.ticker = ticker
 	c.numPeriods = numPeriods
+	c.started = false
+	c.cache = new(ccCache)
 	c.output = output
-	c.intervals = make([]*metricCachePeriod, 0)
-	for i := 0; i < c.numPeriods+1; i++ {
-		p := new(metricCachePeriod)
-		p.numMetrics = 0
-		p.sizeMetrics = 0
-		p.metrics = make([]lp.CCMessage, 0)
-		c.intervals = append(c.intervals, p)
-	}
 
-	// Create a new aggregation engine. No separate goroutine at the moment
-	// The code is executed by the MetricCache goroutine
-	c.aggEngine, err = agg.NewAggregator(c.output)
+	c.cache.Init(numPeriods)
+
+	c.aggEngine, err = agg.NewAggregatorExpr(c.output)
 	if err != nil {
 		return fmt.Errorf("MetricCache: failed to create aggregator: %w", err)
 	}
@@ -81,69 +129,56 @@ func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker,
 func (c *metricCache) Start() {
 	c.tickchan = make(chan time.Time)
 	c.ticker.AddChannel(c.tickchan)
-	// Router cache is done
-	done := func() {
-		cclog.ComponentDebug("MetricCache", "DONE")
-		close(c.done)
-	}
 
-	// Rotate cache interval
-	rotate := func(timestamp time.Time) int {
-		oldPeriod := c.curPeriod
-		c.curPeriod = oldPeriod + 1
-		if c.curPeriod >= c.numPeriods {
-			c.curPeriod = 0
-		}
-		c.intervals[oldPeriod].numMetrics = 0
-		c.intervals[oldPeriod].stopstamp = timestamp
-		c.intervals[c.curPeriod].startstamp = timestamp
-		c.intervals[c.curPeriod].stopstamp = timestamp
-		return oldPeriod
-	}
-
-	c.wg.Go(func() {
+	c.wg.Add(1)
+	go func() {
 		for {
 			select {
 			case <-c.done:
-				done()
+				c.wg.Done()
+				close(c.done)
+				cclog.ComponentDebug("MetricCache", "DONE")
+
 				return
 			case tick := <-c.tickchan:
-				c.lock.Lock()
-				old := rotate(tick)
-				// Get the last period and evaluate aggregation metrics
-				starttime, endtime, metrics := c.GetPeriod(old)
-				c.lock.Unlock()
-				if len(metrics) > 0 {
-					c.aggEngine.Eval(starttime, endtime, metrics)
+				cclog.ComponentDebug("MetricCache", "Tick", tick)
+				allmetrics := c.cache.GetAll()
+				c.cache.NewPeriod()
+				mintime := tick
+				maxtime := mintime.AddDate(-1, 0, 0)
+
+				for _, metric := range allmetrics {
+					if metric.Time().Before(mintime) {
+						mintime = metric.Time()
+					}
+					if metric.Time().After(maxtime) {
+						maxtime = metric.Time()
+					}
+				}
+				if len(allmetrics) > 0 {
+					cclog.ComponentDebugf("MetricCache", "Evaluate %d metrics from %v to %v", len(allmetrics), mintime.UnixNano(), maxtime.UnixNano())
+					c.wg.Add(1)
+					go func() {
+						c.aggEngine.Eval(mintime, maxtime, allmetrics)
+						c.wg.Done()
+					}()
 				} else {
 					// This message is also printed in the first interval after startup
 					cclog.ComponentDebug("MetricCache", "EMPTY INTERVAL?")
 				}
+
 			}
 		}
-	})
-	cclog.ComponentDebug("MetricCache", "START")
+	}()
+
+	cclog.ComponentDebug("MetricCache", "STARTED")
 }
 
 // Add a metric to the cache. The interval is defined by the global timer (rotate() in Start())
 // The intervals list is used as round-robin buffer and the metric list grows dynamically and
 // to avoid reallocations
 func (c *metricCache) Add(metric lp.CCMessage) {
-	if c.curPeriod >= 0 && c.curPeriod < c.numPeriods {
-		c.lock.Lock()
-		p := c.intervals[c.curPeriod]
-		if p.numMetrics < p.sizeMetrics {
-			p.metrics[p.numMetrics] = metric
-			p.numMetrics++
-			p.stopstamp = metric.Time()
-		} else {
-			p.metrics = append(p.metrics, metric)
-			p.numMetrics++
-			p.sizeMetrics++
-			p.stopstamp = metric.Time()
-		}
-		c.lock.Unlock()
-	}
+	c.cache.Add(metric)
 }
 
 func (c *metricCache) AddAggregation(name, function, condition string, tags, meta map[string]string) error {
@@ -154,40 +189,20 @@ func (c *metricCache) DeleteAggregation(name string) error {
 	return c.aggEngine.DeleteAggregation(name)
 }
 
-// Get all metrics of a interval. The index is the difference to the current interval, so index=0
-// is the current one, index=1 the last interval and so on. Returns and empty array if a wrong index
-// is given (negative index, index larger than configured number of total intervals, ...)
-func (c *metricCache) GetPeriod(index int) (time.Time, time.Time, []lp.CCMessage) {
-	start := time.Now()
-	stop := time.Now()
-	var metrics []lp.CCMessage
-	if index >= 0 && index < c.numPeriods {
-		pindex := c.curPeriod - index
-		if pindex < 0 {
-			pindex = c.numPeriods - pindex
-		}
-		if pindex >= 0 && pindex < c.numPeriods {
-			start = c.intervals[pindex].startstamp
-			stop = c.intervals[pindex].stopstamp
-			metrics = c.intervals[pindex].metrics
-		} else {
-			metrics = make([]lp.CCMessage, 0)
-		}
-	} else {
-		metrics = make([]lp.CCMessage, 0)
-	}
-	return start, stop, metrics
-}
-
 // Close finishes / stops the metric cache
 func (c *metricCache) Close() {
 	cclog.ComponentDebug("MetricCache", "CLOSE")
-	c.done <- true
+	if c.started {
+		c.done <- true
+		c.wg.Wait()
+
+	}
+	cclog.ComponentDebug("MetricCache", "CLOSED")
 }
 
 func NewCache(output chan lp.CCMessage, ticker mct.MultiChanTicker, wg *sync.WaitGroup, numPeriods int) (MetricCache, error) {
 	c := new(metricCache)
-	err := c.Init(output, ticker, wg, numPeriods)
+	err := c.Init(output, ticker, wg, ticker.GetDuration(), numPeriods)
 	if err != nil {
 		return nil, err
 	}
