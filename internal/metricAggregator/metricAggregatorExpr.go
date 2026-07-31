@@ -149,7 +149,7 @@ func (m *metricAggregatorExpr) AddAggregationWithType(name, function, condition,
 		err = fmt.Errorf("failed to compile condition for aggregation %s: %s", name, err.Error())
 		return err
 	}
-	var exprOption expr.Option = expr.AsFloat64()
+	var exprOption = expr.AsFloat64()
 	switch valueType {
 	case "int":
 	case "int32":

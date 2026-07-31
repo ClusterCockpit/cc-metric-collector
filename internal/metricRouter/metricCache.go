@@ -10,6 +10,7 @@ package metricRouter
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -68,8 +69,8 @@ func (c *ccCache) GetPeriod(offset int) (time.Time, time.Time, []lp.CCMessage) {
 	if offset > c.maxPeriods {
 		offset = offset % c.maxPeriods
 	}
-	out := make([]lp.CCMessage, 0)
 	poff := int(math.Abs(float64(c.periodIdx - offset)))
+	out := make([]lp.CCMessage, 0, len(c.periods[poff%c.maxPeriods]))
 	out = append(out, c.periods[poff%c.maxPeriods]...)
 
 	return c.periodTimes[poff%c.maxPeriods].starttime, c.periodTimes[poff%c.maxPeriods].endtime, out
@@ -115,7 +116,10 @@ func (c *metricCache) Init(output chan lp.CCMessage, ticker mct.MultiChanTicker,
 	c.cache = new(ccCache)
 	c.output = output
 
-	c.cache.Init(numPeriods)
+	err = c.cache.Init(numPeriods)
+	if err != nil {
+		return fmt.Errorf("MetricCache: failed to create cache: %w", err)
+	}
 
 	c.aggEngine, err = agg.NewAggregatorExpr(c.output)
 	if err != nil {
@@ -157,11 +161,9 @@ func (c *metricCache) Start() {
 				}
 				if len(allmetrics) > 0 {
 					cclog.ComponentDebugf("MetricCache", "Evaluate %d metrics from %v to %v", len(allmetrics), mintime.UnixNano(), maxtime.UnixNano())
-					c.wg.Add(1)
-					go func() {
+					c.wg.Go(func() {
 						c.aggEngine.Eval(mintime, maxtime, allmetrics)
-						c.wg.Done()
-					}()
+					})
 				} else {
 					// This message is also printed in the first interval after startup
 					cclog.ComponentDebug("MetricCache", "EMPTY INTERVAL?")
@@ -178,7 +180,12 @@ func (c *metricCache) Start() {
 // The intervals list is used as round-robin buffer and the metric list grows dynamically and
 // to avoid reallocations
 func (c *metricCache) Add(metric lp.CCMessage) {
-	c.cache.Add(metric)
+	err := c.cache.Add(metric)
+	if err != nil {
+		s := metric.ToLineProtocol(nil)
+		s = strings.TrimSpace(s)
+		cclog.ComponentErrorf("MetricCache", "Failed to add metric %s", s)
+	}
 }
 
 func (c *metricCache) AddAggregation(name, function, condition string, tags, meta map[string]string) error {
