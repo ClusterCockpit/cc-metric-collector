@@ -85,5 +85,6 @@ Metrics:
 * `nv_energy`
 * `nv_energy_abs`
 * `nv_average_power`
+* `nv_util_eff` (`nv_util` * (`nv_power_usage` / `nv_power_max_limit`))
 
 Some metrics add the additional sub type tag (`stype`) like the `nv_nvlink_*` metrics set `stype=nvlink,stype-id=<link_number>`. 
