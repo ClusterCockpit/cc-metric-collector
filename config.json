@@ -5,6 +5,6 @@
   "router-file": "./router.json",
   "main": {
     "interval": "1s",
-    "duration": "1s"
+    "duration": "0.2s"
   }
 }

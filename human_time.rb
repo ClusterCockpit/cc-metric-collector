@@ -1,34 +1,34 @@
 #!/usr/bin/env ruby
 
-# Читаем построчно из стандартного ввода
+# Read input line by line from stdin
 STDIN.each_line do |line|
   line = line.chomp
   next if line.empty?
 
-  # Ищем последний пробел — разделитель между набором полей и временной меткой
+  # Find the last space - separator between fields and timestamp
   last_space = line.rindex(' ')
   unless last_space
     puts line
     next
   end
 
-  prefix = line[0...last_space]          # часть до timestamp
-  ts_str = line[last_space + 1..-1]      # строка с наносекундами
+  prefix = line[0...last_space]          # part before timestamp
+  ts_str = line[last_space + 1..-1]      # timestamp string in nanoseconds
 
   begin
-    ts_ns = ts_str.to_i                  # наносекунды с эпохи (целое)
-    seconds = ts_ns / 1_000_000_000      # целые секунды
-    nanoseconds = ts_ns % 1_000_000_000  # остаток в наносекундах
+    ts_ns = ts_str.to_i                  # nanoseconds since epoch (integer)
+    seconds = ts_ns / 1_000_000_000      # whole seconds
+    nanoseconds = ts_ns % 1_000_000_000  # remaining nanoseconds
 
-    # Создаём объект времени в UTC (InfluxDB хранит время в UTC)
+    # Create time object in UTC (InfluxDB stores timestamps in UTC)
     time = Time.at(seconds, nanoseconds, :nsec)
 
-    # Форматируем: ГГГГ-ММ-ДД ЧЧ:ММ:СС.наносекунды (9 цифр)
+    # Format: YYYY-MM-DD HH:MM:SS.nanoseconds (9 digits)
     human_time = time.utc.strftime('%Y-%m-%d %H:%M:%S.%9N')
 
     puts "#{prefix} #{human_time}"
   rescue => e
-    # В случае ошибки парсинга выводим строку без изменений
+    # On parsing error, output the line unchanged
     puts line
   end
 end
