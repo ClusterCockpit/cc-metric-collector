@@ -513,7 +513,6 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 
 	// warmup measuring
 	if m.warmupDelay > 0 {
-		fmt.Printf("Performing warmup measurement for %s\n", m.warmupDelay)
 		select {
 		case <-sigchan:
 			ret = -1
