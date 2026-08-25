@@ -46,6 +46,7 @@ const (
 	LIKWID_LIB_DL_FLAGS   = dl.RTLD_LAZY | dl.RTLD_GLOBAL
 	LIKWID_DEF_ACCESSMODE = "direct"
 	LIKWID_DEF_LOCKFILE   = "/var/run/likwid.lock"
+	LIKWID_DEF_WARMUP_DEL = "0s"
 )
 
 type LikwidCollectorMetricConfig struct {
@@ -83,6 +84,7 @@ type LikwidCollectorConfig struct {
 	DaemonPath     string                          `json:"accessdaemon_path,omitempty"`
 	LibraryPath    string                          `json:"liblikwid_path,omitempty"`
 	LockfilePath   string                          `json:"lockfile_path,omitempty"`
+	WarmupDelay    string                          `json:"warmup_delay"`
 }
 
 type LikwidCollector struct {
@@ -104,6 +106,7 @@ type LikwidCollector struct {
 	likwidGroups  map[C.int]LikwidEventsetConfig
 	lock          sync.Mutex
 	measureThread thread.Thread
+	warmupDelay   time.Duration
 }
 
 type LikwidMetric struct {
@@ -206,6 +209,7 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	m.config.AccessMode = LIKWID_DEF_ACCESSMODE
 	m.config.LibraryPath = LIKWID_LIB_NAME
 	m.config.LockfilePath = LIKWID_DEF_LOCKFILE
+	m.config.WarmupDelay = LIKWID_DEF_WARMUP_DEL
 	if len(config) > 0 {
 		d := json.NewDecoder(bytes.NewReader(config))
 		d.DisallowUnknownFields()
@@ -240,6 +244,17 @@ func (m *LikwidCollector) Init(config json.RawMessage) error {
 	for i, c := range cpulist {
 		m.cpulist[i] = C.int(c)
 		m.cpu2tid[c] = i
+	}
+
+	if len(m.config.WarmupDelay) > 0 {
+		t, err := time.ParseDuration(m.config.WarmupDelay)
+		if err != nil {
+			return fmt.Errorf("%s Init(): Cannot parse WarmupDelay: %w", m.name, err)
+		}
+		if t < 0 {
+			return fmt.Errorf("%s Init(): WarmupDelay must not be negative", m.name)
+		}
+		m.warmupDelay = t
 	}
 
 	m.likwidGroups = make(map[C.int]LikwidEventsetConfig)
@@ -495,6 +510,28 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	if ret != 0 {
 		return true, fmt.Errorf("failed to start events '%s', error %d", evset.go_estr, ret)
 	}
+
+	// warmup measuring
+	if m.warmupDelay > 0 {
+		fmt.Printf("Performing warmup measurement for %s\n", m.warmupDelay)
+		select {
+		case <-sigchan:
+			ret = -1
+		case e := <-watcher.Events:
+			if e.Op != fsnotify.Chmod {
+				ret = C.perfmon_readCounters()
+			}
+		default:
+			ret = C.perfmon_readCounters()
+		}
+		if ret != 0 {
+			return true, fmt.Errorf("failed to read events '%s', error %d", evset.go_estr, ret)
+		}
+
+		time.Sleep(m.warmupDelay)
+	}
+
+	// begin measuring
 	select {
 	case <-sigchan:
 		ret = -1
@@ -512,7 +549,7 @@ func (m *LikwidCollector) takeMeasurement(evidx int, evset LikwidEventsetConfig,
 	// Wait
 	time.Sleep(interval)
 
-	// Read counters
+	// end measuring
 	select {
 	case <-sigchan:
 		ret = -1

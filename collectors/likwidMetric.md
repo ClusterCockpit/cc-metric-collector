@@ -63,6 +63,7 @@ Additional options:
 - `accessdaemon_path`: Folder of the accessDaemon `likwid-accessD` (like `/usr/local/sbin`)
 - `liblikwid_path`: Location of `liblikwid.so` including file name like `/usr/local/lib/liblikwid.so`
 - `lockfile_path`: Location of LIKWID's lock file if multiple tools should access the hardware counters. Default `/var/run/likwid.lock`
+- `warmup_delay`: Run an additional measurement of the specified length before the actual measurement. This can be used as a workaround for CPU starvation (during high load) in the measurement thread. Default is disabled (i.e. `0s`).
 
 ### Available metric types
 
