@@ -1,6 +1,6 @@
 module github.com/ClusterCockpit/cc-metric-collector
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/ClusterCockpit/cc-lib/v2 v2.13.0
@@ -10,7 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/tklauser/go-sysconf v0.4.0
 	golang.design/x/runtime v0.3.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
