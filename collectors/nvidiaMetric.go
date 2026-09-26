@@ -1115,6 +1115,31 @@ func readNVLinkStats(device *NvidiaCollectorDevice, output chan lp.CCMessage) er
 	return nil
 }
 
+func readEfficiency(device *NvidiaCollectorDevice, output chan lp.CCMessage) error {
+	if !device.excludeMetrics["nv_util_eff"] {
+		maxPower, ret := nvml.DeviceGetEnforcedPowerLimit(device.device)
+		if ret == nvml.SUCCESS {
+			curPower, ret := nvml.DeviceGetPowerUsage(device.device)
+			if ret == nvml.SUCCESS {
+				util, ret := nvml.DeviceGetUtilizationRates(device.device)
+				if ret == nvml.SUCCESS {
+					factor := float64(curPower) / float64(maxPower)
+					eff := uint32(float64(util.Gpu) * factor)
+					if eff > 100 {
+						eff = 100
+					}
+					y, err := lp.NewMetric("nv_util_eff", device.tags, device.meta, eff, time.Now())
+					if err == nil {
+						y.AddTag("unit", "percent")
+						output <- y
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 	var err error
 	if !m.init {
@@ -1219,6 +1244,11 @@ func (m *NvidiaCollector) Read(interval time.Duration, output chan lp.CCMessage)
 		err = readNVLinkStats(device, output)
 		if err != nil {
 			cclog.ComponentDebug(m.name, "readNVLinkStats for device", name, "failed")
+		}
+
+		err = readEfficiency(device, output)
+		if err != nil {
+			cclog.ComponentDebug(m.name, "readEfficiency for device", name, "failed")
 		}
 	}
 
