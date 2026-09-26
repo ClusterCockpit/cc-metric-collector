@@ -35,19 +35,19 @@ type metricRouterTagConfig struct {
 
 // Metric router configuration
 type metricRouterConfig struct {
-	HostnameTagName   string                               `json:"hostname_tag"`        // Key name used when adding the hostname to a metric (default 'hostname')
-	AddTags           []metricRouterTagConfig              `json:"add_tags"`            // List of tags that are added when the condition is met
-	DelTags           []metricRouterTagConfig              `json:"delete_tags"`         // List of tags that are removed when the condition is met
-	IntervalAgg       []agg.MetricAggregatorIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
-	DropMetrics       []string                             `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
-	DropMetricsIf     []string                             `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
-	RenameMetrics     map[string]string                    `json:"rename_metrics"`      // Map to rename metric name from key to value
-	IntervalStamp     bool                                 `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
-	NumCacheIntervals int                                  `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
-	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
-	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
-	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
-	MessageProcessor  json.RawMessage                      `json:"process_messages,omitempty"`
+	HostnameTagName   string                                   `json:"hostname_tag"`        // Key name used when adding the hostname to a metric (default 'hostname')
+	AddTags           []metricRouterTagConfig                  `json:"add_tags"`            // List of tags that are added when the condition is met
+	DelTags           []metricRouterTagConfig                  `json:"delete_tags"`         // List of tags that are removed when the condition is met
+	IntervalAgg       []agg.MetricAggregatorExprIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
+	DropMetrics       []string                                 `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
+	DropMetricsIf     []string                                 `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
+	RenameMetrics     map[string]string                        `json:"rename_metrics"`      // Map to rename metric name from key to value
+	IntervalStamp     bool                                     `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
+	NumCacheIntervals int                                      `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
+	MaxForward        int                                      `json:"max_forward"`         // Number of maximal forwarded metrics at one select
+	NormalizeUnits    bool                                     `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
+	ChangeUnitPrefix  map[string]string                        `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
+	MessageProcessor  json.RawMessage                          `json:"process_messages,omitempty"`
 }
 
 // Metric router data structure
@@ -253,7 +253,7 @@ func (r *metricRouter) Start() {
 		}
 		// even if the metric is dropped, it is stored in the cache for
 		// aggregations
-		if r.config.NumCacheIntervals > 0 {
+		if r.config.NumCacheIntervals > 0 && m != nil {
 			r.cache.Add(m)
 		}
 	}
