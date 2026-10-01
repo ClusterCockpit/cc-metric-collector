@@ -89,7 +89,8 @@ func (m *BeegfsStorageCollector) Init(config json.RawMessage) error {
 		"group":  "BeegfsStorage",
 	}
 	m.tags = map[string]string{
-		"type":       "node",
+		"type":       "filesystem",
+		"type-id":    "",
 		"filesystem": "",
 	}
 	m.skipFS = make(map[string]struct{})
@@ -140,6 +141,7 @@ func (m *BeegfsStorageCollector) Read(interval time.Duration, output chan lp.CCM
 	}
 	// collects stats for each BeeGFS on Demand FS
 	for _, mountpoint := range mountpoints {
+		m.tags["type-id"] = mountpoint
 		m.tags["filesystem"] = mountpoint
 
 		// bwwgfs-ctl:

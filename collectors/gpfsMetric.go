@@ -333,7 +333,8 @@ func (m *GpfsCollector) Init(config json.RawMessage) error {
 		"group":  "GPFS",
 	}
 	m.tags = map[string]string{
-		"type":       "node",
+		"type":       "filesystem",
+		"type-id":    "",
 		"filesystem": "",
 	}
 	m.skipFS = make(map[string]struct{})
@@ -506,7 +507,8 @@ func (m *GpfsCollector) Read(interval time.Duration, output chan lp.CCMessage) {
 			continue
 		}
 
-		// Add filesystem tag
+		// Add filesystem tags
+		m.tags["type-id"] = filesystem
 		m.tags["filesystem"] = filesystem
 
 		if _, ok := m.lastState[filesystem]; !ok {

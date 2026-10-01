@@ -39,7 +39,7 @@ type NfsIOStatCollector struct {
 	meta          map[string]string           // default meta information
 	tags          map[string]string           // default tags
 	data          map[string]map[string]int64 // data storage for difference calculation
-	key           string                      // which device info should be used as subtype ID? 'server' or 'mntpoint'
+	key           string                      // which device info should be used as type ID? 'server' or 'mntpoint'
 	lastTimestamp time.Time
 }
 
@@ -110,7 +110,7 @@ func (m *NfsIOStatCollector) Init(config json.RawMessage) error {
 	}
 	m.parallel = true
 	m.meta = map[string]string{"source": m.name, "group": "NFS", "unit": "bytes"}
-	m.tags = map[string]string{"type": "node"}
+	m.tags = map[string]string{"type": "filesystem"}
 	m.config.UseServerAddressAsSType = false
 	// Set default configuration
 	m.config.SendAbsoluteValues = true
@@ -147,8 +147,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 				if m.config.SendAbsoluteValues {
 					msg, err := lp.NewMetric("nfsio_"+name, m.tags, m.meta, newVal, now)
 					if err == nil {
-						msg.AddTag("stype", "filesystem")
-						msg.AddTag("stype-id", mntpoint)
+						msg.AddTag("type-id", mntpoint)
 						output <- msg
 					}
 				}
@@ -161,8 +160,7 @@ func (m *NfsIOStatCollector) Read(interval time.Duration, output chan lp.CCMessa
 						} else {
 							msg.AddMeta("unit", "bytes/sec")
 						}
-						msg.AddTag("stype", "filesystem")
-						msg.AddTag("stype-id", mntpoint)
+						msg.AddTag("type-id", mntpoint)
 						output <- msg
 					}
 				}

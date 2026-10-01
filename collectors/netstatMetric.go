@@ -133,11 +133,10 @@ func (m *NetstatCollector) Init(config json.RawMessage) error {
 
 		// Check if device is a included device
 		if slices.Contains(m.config.IncludeDevices, canonical) {
-			// Tag will contain original device name (raw).
+			// Tag will contain canonical device name, so aliases map to the same id.
 			tags := map[string]string{
-				"stype":    "network",
-				"stype-id": raw,
-				"type":     "node",
+				"type":    "network",
+				"type-id": canonical,
 			}
 			meta_unit_byte := map[string]string{
 				"source": m.name,

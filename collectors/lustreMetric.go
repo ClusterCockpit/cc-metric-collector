@@ -106,6 +106,22 @@ func getMetricData(lines []string, prefix string, offset int) (int64, error) {
 	return 0, errors.New("no such line in data")
 }
 
+// lustreFsname returns the filesystem name of a llite instance by stripping
+// the per-mount hexadecimal suffix (e.g. scratch-ffff9a6e4c1bc800 -> scratch).
+// Names without such a suffix are returned unchanged.
+func lustreFsname(llite string) string {
+	i := strings.LastIndex(llite, "-")
+	if i <= 0 || i == len(llite)-1 {
+		return llite
+	}
+	for _, c := range llite[i+1:] {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", c) {
+			return llite
+		}
+	}
+	return llite[:i]
+}
+
 // //Version reading the stats data of a device from sysfs
 // func (m *LustreCollector) getDeviceDataSysfs(device string) []string {
 // 	llitedir := filepath.Join(LUSTRE_SYSFS, "llite")
@@ -309,7 +325,7 @@ func (m *LustreCollector) Init(config json.RawMessage) error {
 	if err := m.setup(); err != nil {
 		return fmt.Errorf("%s Init(): setup() call failed: %w", m.name, err)
 	}
-	m.tags = map[string]string{"type": "node"}
+	m.tags = map[string]string{"type": "filesystem"}
 	m.meta = map[string]string{"source": m.name, "group": "Lustre"}
 
 	// Lustre file system statistics can only be queried by user root
@@ -425,6 +441,7 @@ func (m *LustreCollector) Read(interval time.Duration, output chan lp.CCMessage)
 			}
 			if err == nil {
 				y.AddTag("device", device)
+				y.AddTag("type-id", lustreFsname(device))
 				if len(def.unit) > 0 {
 					y.AddMeta("unit", def.unit)
 				}

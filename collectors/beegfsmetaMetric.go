@@ -96,7 +96,8 @@ func (m *BeegfsMetaCollector) Init(config json.RawMessage) error {
 		"group":  "BeegfsMeta",
 	}
 	m.tags = map[string]string{
-		"type":       "node",
+		"type":       "filesystem",
+		"type-id":    "",
 		"filesystem": "",
 	}
 	m.skipFS = make(map[string]struct{})
@@ -149,6 +150,7 @@ func (m *BeegfsMetaCollector) Read(interval time.Duration, output chan lp.CCMess
 	}
 
 	for _, mountpoint := range mountpoints {
+		m.tags["type-id"] = mountpoint
 		m.tags["filesystem"] = mountpoint
 
 		// bwwgfs-ctl:

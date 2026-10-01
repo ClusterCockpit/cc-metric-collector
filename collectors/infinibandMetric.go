@@ -65,6 +65,11 @@ type InfinibandCollector struct {
 	lastTimestamp time.Time // Store time stamp of last tick to derive bandwidths
 }
 
+// infinibandTypeID returns the network instance id of an IB port, e.g. mlx5_0:1
+func infinibandTypeID(device, port string) string {
+	return device + ":" + port
+}
+
 // Init initializes the Infiniband collector by walking through files below ibBasePath
 func (m *InfinibandCollector) Init(config json.RawMessage) error {
 	// Check if already initialized
@@ -183,10 +188,11 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				port:             port,
 				portCounterFiles: portCounterFiles,
 				tagSet: map[string]string{
-					"type":   "node",
-					"device": device,
-					"port":   port,
-					"lid":    LID,
+					"type":    "network",
+					"type-id": infinibandTypeID(device, port),
+					"device":  device,
+					"port":    port,
+					"lid":     LID,
 				},
 			})
 	}
