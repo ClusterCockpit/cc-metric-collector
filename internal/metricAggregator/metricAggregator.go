@@ -69,8 +69,8 @@ var metricCacheLanguage = gval.NewLanguage(
 	gval.Function("getNumaCpuList", getCpuListOfNumaDomainFunc),
 	gval.Function("getDieCpuList", getCpuListOfDieFunc),
 	gval.Function("getCoreCpuList", getCpuListOfCoreFunc),
-	gval.Function("getCpuList", getCpuListOfNode),
-	gval.Function("getCpuListOfType", getCpuListOfType),
+	gval.Function("getCpuList", getCpuListOfNodeFunc),
+	gval.Function("getCpuListOfType", getCpuListOfTypeFunc),
 )
 
 var language gval.Language = gval.NewLanguage(
