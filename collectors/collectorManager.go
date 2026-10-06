@@ -30,6 +30,7 @@ var AvailableCollectors = map[string]MetricCollector{
 	"cpustat":            new(CpustatCollector),
 	"topprocs":           new(TopProcsCollector),
 	"nvidia":             new(NvidiaCollector),
+	"nvidia_gpm":         new(NvidiaGPMCollector),
 	"customcmd":          new(CustomCmdCollector),
 	"iostat":             new(IOstatCollector),
 	"diskstat":           new(DiskstatCollector),
