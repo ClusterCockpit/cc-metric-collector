@@ -488,7 +488,7 @@ func readEnergyConsumption(device *NvidiaCollectorDevice, output chan lp.CCMessa
 					}
 					if !device.excludeMetrics["nv_average_power"] {
 
-						energyDiff := float64(energy - device.lastEnergyReading) / 1000.0
+						energyDiff := float64(energy-device.lastEnergyReading) / 1000.0
 						timeDiff := now.Sub(device.lastEnergyTimestamp)
 						y, err := lp.NewMetric("nv_average_power", device.tags, device.meta, energyDiff/float64(timeDiff.Seconds()), now)
 						if err == nil {
