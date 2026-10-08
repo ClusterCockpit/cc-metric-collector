@@ -110,9 +110,11 @@ type NvidiaGPMCollectorConfig struct {
 }
 
 type NvidiaGPMCollectorDevice struct {
-	device        nvml.Device
-	tags          map[string]string
-	meta          map[string]string
+	device nvml.Device
+	tags   map[string]string
+	meta   map[string]string
+	// startTime and endTime are not really used at the moment
+	// Perhaps a future metric may require this
 	startTime     time.Time
 	endTime       time.Time
 	measurement   nvml.GpmMetricsGetType
@@ -323,6 +325,14 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 		}
 		g.measurement.NumMetrics = uint32(metIdx)
 		m.gpus = append(m.gpus, g)
+
+		// Perform first measurement
+		g.startTime = time.Now()
+		nvmlErr = g.measurement.Sample1.Get(g.device)
+		if nvmlErr != nvml.SUCCESS {
+			err = errors.New(nvml.ErrorString(nvmlErr))
+			cclog.ComponentError(m.name, "Unable to get start GPM sample for device at index", i, ":", err.Error())
+		}
 	}
 	cclog.ComponentDebugf(m.name, "Found %d Nvidia GPUs with GPM support", len(m.gpus))
 	m.num_gpus = len(m.gpus)
@@ -336,22 +346,11 @@ func (m *NvidiaGPMCollector) Read(interval time.Duration, output chan lp.CCMessa
 		return
 	}
 	for i, gpu := range m.gpus {
-		gpu.startTime = time.Now()
-		nvmlErr := gpu.measurement.Sample1.Get(gpu.device)
-		if nvmlErr != nvml.SUCCESS {
-			err = errors.New(nvml.ErrorString(nvmlErr))
-			cclog.ComponentError(m.name, "Unable to get start GPM sample for device at index", i, ":", err.Error())
-			continue
-		}
-	}
-	time.Sleep(interval)
-
-	for i, gpu := range m.gpus {
 		gpu.endTime = time.Now()
 		nvmlErr := gpu.measurement.Sample2.Get(gpu.device)
 		if nvmlErr != nvml.SUCCESS {
 			err = errors.New(nvml.ErrorString(nvmlErr))
-			cclog.ComponentError(m.name, "Unable to get stop GPM sample for device at index", i, ":", err.Error())
+			cclog.ComponentError(m.name, "Unable to get start GPM sample for device at index", i, ":", err.Error())
 			continue
 		}
 	}
@@ -363,6 +362,7 @@ func (m *NvidiaGPMCollector) Read(interval time.Duration, output chan lp.CCMessa
 			cclog.ComponentError(m.name, "Unable to get evaluate GPM sample for device at index", i, ":", err.Error())
 			continue
 		}
+
 		for idx, metricDef := range gpu.metricsLookup {
 			y, err := lp.NewMetric(metricDef.outname, gpu.tags, gpu.meta, gpu.measurement.Metrics[idx].Value, time.Now())
 			if err == nil {
@@ -370,8 +370,13 @@ func (m *NvidiaGPMCollector) Read(interval time.Duration, output chan lp.CCMessa
 				output <- y
 			}
 		}
-	}
 
+		// Swap Sample1 and Sample2. Our current end sample becomes our new start sample
+		tmp := gpu.measurement.Sample1
+		gpu.measurement.Sample1 = gpu.measurement.Sample2
+		gpu.measurement.Sample2 = tmp
+		gpu.startTime = gpu.endTime
+	}
 }
 
 func (m *NvidiaGPMCollector) Close() {
