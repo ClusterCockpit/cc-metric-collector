@@ -125,8 +125,7 @@ type NvidiaGPMCollector struct {
 	metricCollector
 
 	config   NvidiaGPMCollectorConfig
-	gpus     []NvidiaGPMCollectorDevice
-	num_gpus int
+	gpus     []*NvidiaGPMCollectorDevice
 }
 
 func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
@@ -169,7 +168,7 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 	}
 
 	// For all GPUs
-	m.gpus = make([]NvidiaGPMCollectorDevice, 0, num_gpus)
+	m.gpus = make([]*NvidiaGPMCollectorDevice, 0, num_gpus)
 	for i := range num_gpus {
 
 		// Skip excluded devices by ID
@@ -258,7 +257,7 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 		}
 
 		// Now we got all infos together, populate the device list
-		g := NvidiaGPMCollectorDevice{}
+		g := &NvidiaGPMCollectorDevice{}
 
 		// Add device handle
 		g.device = device
@@ -335,7 +334,6 @@ func (m *NvidiaGPMCollector) Init(config json.RawMessage) error {
 		}
 	}
 	cclog.ComponentDebugf(m.name, "Found %d Nvidia GPUs with GPM support", len(m.gpus))
-	m.num_gpus = len(m.gpus)
 	m.init = true
 	return err
 }
