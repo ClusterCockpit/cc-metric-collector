@@ -37,7 +37,7 @@ type InfinibandCollectorMetric struct {
 	path               string
 	unit               string
 	unitRates          string
-	scaleByFourLanes   bool
+	scale              uint64
 	addToIBTotal       bool
 	addToIBTotalPkgs   bool
 	lastState          uint64
@@ -127,28 +127,35 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 			continue
 		}
 
+		// InfiniBand data counters use 4-byte units; hfi1 counts 8-byte Omni-Path flits.
+		dataScale := uint64(4)
+		driver, err := filepath.EvalSymlinks(filepath.Join(ibBasePath, device, "device", "driver"))
+		if err == nil && filepath.Base(driver) == "hfi1" {
+			dataScale = 8
+		}
+
 		// Check access to counter files
 		countersDir := filepath.Join(path, "counters")
 		portCounterFiles := []InfinibandCollectorMetric{
 			{
-				// Total number of data octets, divided by 4 (lanes), received on all VLs.
+				// Total received data on all VLs, in device-specific counter units.
 				// This is 64 bit counter
-				name:             "ib_recv",
-				path:             filepath.Join(countersDir, "port_rcv_data"),
-				unit:             ibDataUnit,
-				unitRates:        ibDataRateUnit,
-				scaleByFourLanes: true,
-				addToIBTotal:     true,
+				name:         "ib_recv",
+				path:         filepath.Join(countersDir, "port_rcv_data"),
+				unit:         ibDataUnit,
+				unitRates:    ibDataRateUnit,
+				scale:        dataScale,
+				addToIBTotal: true,
 			},
 			{
-				// Total number of data octets, divided by 4 (lanes), transmitted on all VLs.
+				// Total transmitted data on all VLs, in device-specific counter units.
 				// This is 64 bit counter
-				name:             "ib_xmit",
-				path:             filepath.Join(countersDir, "port_xmit_data"),
-				unit:             ibDataUnit,
-				unitRates:        ibDataRateUnit,
-				scaleByFourLanes: true,
-				addToIBTotal:     true,
+				name:         "ib_xmit",
+				path:         filepath.Join(countersDir, "port_xmit_data"),
+				unit:         ibDataUnit,
+				unitRates:    ibDataRateUnit,
+				scale:        dataScale,
+				addToIBTotal: true,
 			},
 			{
 				// Total number of packets received on all VLs from this port (this may include packets containing Errors.
@@ -157,6 +164,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				path:             filepath.Join(countersDir, "port_rcv_packets"),
 				unit:             ibPkgUnit,
 				unitRates:        ibPkgRateUnit,
+				scale:            1,
 				addToIBTotalPkgs: true,
 			},
 			{
@@ -166,6 +174,7 @@ func (m *InfinibandCollector) Init(config json.RawMessage) error {
 				path:             filepath.Join(countersDir, "port_xmit_packets"),
 				unit:             ibPkgUnit,
 				unitRates:        ibPkgRateUnit,
+				scale:            1,
 				addToIBTotalPkgs: true,
 			},
 		}
@@ -244,10 +253,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 				counterDef.lastStateAvailable = false
 				continue
 			}
-			vScaledCounter := vRawCounter
-			if counterDef.scaleByFourLanes {
-				vScaledCounter *= uint64(4)
-			}
+			vScaledCounter := vRawCounter * counterDef.scale
 
 			// Send absolut values
 			if m.config.SendAbsoluteValues {
@@ -267,10 +273,7 @@ func (m *InfinibandCollector) Read(interval time.Duration, output chan lp.CCMess
 					// = (2^64 - 1) - lastState + vRawCounter + 1
 					// = 2^64 - lastState + vRawCounter
 					// ≡ vRawCounter - lastState (mod 2^64)
-					rate = float64(vRawCounter-counterDef.lastState) / timeDiff
-					if counterDef.scaleByFourLanes {
-						rate *= float64(4)
-					}
+					rate = float64(vRawCounter-counterDef.lastState) / timeDiff * float64(counterDef.scale)
 					if y, err := lp.NewMetric(counterDef.name+"_bw", info.tagSet, m.meta, rate, now); err == nil {
 						y.AddMeta("unit", counterDef.unitRates)
 						output <- y
