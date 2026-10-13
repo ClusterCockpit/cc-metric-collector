@@ -220,7 +220,7 @@ func (c *metricAggregator) Eval(starttime time.Time, endtime time.Time, metrics 
 			value, err := gval.Evaluate(f.Function, vars, c.language)
 			if err != nil {
 				cclog.ComponentErrorf("MetricCache", "EVALUATE %s METRICS %d CALC '%s': %s", f.Name, len_values, f.Function, err.Error())
-				break
+				continue
 			}
 
 			copy_tags := func(tags map[string]string, metrics []lp.CCMessage) map[string]string {

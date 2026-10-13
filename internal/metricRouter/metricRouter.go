@@ -35,37 +35,42 @@ type metricRouterTagConfig struct {
 
 // Metric router configuration
 type metricRouterConfig struct {
-	HostnameTagName   string                               `json:"hostname_tag"`        // Key name used when adding the hostname to a metric (default 'hostname')
-	AddTags           []metricRouterTagConfig              `json:"add_tags"`            // List of tags that are added when the condition is met
-	DelTags           []metricRouterTagConfig              `json:"delete_tags"`         // List of tags that are removed when the condition is met
-	IntervalAgg       []agg.MetricAggregatorIntervalConfig `json:"interval_aggregates"` // List of aggregation function processed at the end of an interval
-	DropMetrics       []string                             `json:"drop_metrics"`        // List of metric names to drop. For fine-grained dropping use drop_metrics_if
-	DropMetricsIf     []string                             `json:"drop_metrics_if"`     // List of evaluatable terms to drop metrics
-	RenameMetrics     map[string]string                    `json:"rename_metrics"`      // Map to rename metric name from key to value
-	IntervalStamp     bool                                 `json:"interval_timestamp"`  // Update timestamp periodically by ticker each interval?
-	NumCacheIntervals int                                  `json:"num_cache_intervals"` // Number of intervals of cached metrics for evaluation
-	MaxForward        int                                  `json:"max_forward"`         // Number of maximal forwarded metrics at one select
-	NormalizeUnits    bool                                 `json:"normalize_units"`     // Check unit meta flag and normalize it using cc-units
-	ChangeUnitPrefix  map[string]string                    `json:"change_unit_prefix"`  // Add prefix that should be applied to the metrics
-	MessageProcessor  json.RawMessage                      `json:"process_messages,omitempty"`
+	HostnameTagName     string                               `json:"hostname_tag"`          // Key name used when adding the hostname to a metric (default 'hostname')
+	AddTags             []metricRouterTagConfig              `json:"add_tags"`              // List of tags that are added when the condition is met
+	DelTags             []metricRouterTagConfig              `json:"delete_tags"`           // List of tags that are removed when the condition is met
+	IntervalAgg         []agg.MetricAggregatorIntervalConfig `json:"interval_aggregates"`   // List of aggregation function processed at the end of an interval
+	RawAgg              []agg.MetricAggregatorIntervalConfig `json:"raw_aggregates"`        // List of aggregation functions for raw data aggregation (new implementation)
+	RawAggInterval      int                                  `json:"raw_aggregate_interval"`// Interval in seconds for raw data aggregation (default 10)
+	DropMetrics         []string                             `json:"drop_metrics"`          // List of metric names to drop. For fine-grained dropping use drop_metrics_if
+	DropMetricsIf       []string                             `json:"drop_metrics_if"`       // List of evaluatable terms to drop metrics
+	RenameMetrics       map[string]string                    `json:"rename_metrics"`        // Map to rename metric name from key to value
+	IntervalStamp       bool                                 `json:"interval_timestamp"`    // Update timestamp periodically by ticker each interval?
+	NumCacheIntervals   int                                  `json:"num_cache_intervals"`   // Number of intervals of cached metrics for evaluation
+	MaxForward          int                                  `json:"max_forward"`           // Number of maximal forwarded metrics at one select
+	NormalizeUnits      bool                                 `json:"normalize_units"`       // Check unit meta flag and normalize it using cc-units
+	ChangeUnitPrefix    map[string]string                    `json:"change_unit_prefix"`    // Add prefix that should be applied to the metrics
+	MessageProcessor    json.RawMessage                      `json:"process_messages,omitempty"`
 }
 
 // Metric router data structure
 type metricRouter struct {
-	hostname    string              // Hostname used in tags
-	coll_input  chan lp.CCMessage   // Input channel from CollectorManager
-	recv_input  chan lp.CCMessage   // Input channel from ReceiveManager
-	cache_input chan lp.CCMessage   // Input channel from MetricCache
-	outputs     []chan lp.CCMessage // List of all output channels
-	done        chan bool           // channel to finish / stop metric router
-	wg          *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
-	timestamp   time.Time           // timestamp periodically updated by ticker each interval
-	ticker      mct.MultiChanTicker // periodically ticking once each interval
-	config      metricRouterConfig  // json encoded config for metric router
-	cache       MetricCache         // pointer to MetricCache
-	cachewg     sync.WaitGroup      // wait group for MetricCache
-	maxForward  int                 // number of metrics to forward maximally in one iteration
-	mp          mp.MessageProcessor
+	hostname      string              // Hostname used in tags
+	coll_input    chan lp.CCMessage   // Input channel from CollectorManager
+	recv_input    chan lp.CCMessage   // Input channel from ReceiveManager
+	cache_input   chan lp.CCMessage   // Input channel from MetricCache
+	raw_agg_input chan lp.CCMessage   // Input channel from RawDataAggregator
+	outputs       []chan lp.CCMessage // List of all output channels
+	done          chan bool           // channel to finish / stop metric router
+	wg            *sync.WaitGroup     // wait group for all goroutines in cc-metric-collector
+	timestamp     time.Time           // timestamp periodically updated by ticker each interval
+	ticker        mct.MultiChanTicker // periodically ticking once each interval
+	config        metricRouterConfig  // json encoded config for metric router
+	cache         MetricCache         // pointer to MetricCache
+	cachewg       sync.WaitGroup      // wait group for MetricCache
+	rawAgg        RawDataAggregator   // raw data aggregator for collecting and aggregating metrics
+	rawAggwg      sync.WaitGroup      // wait group for RawDataAggregator
+	maxForward    int                 // number of metrics to forward maximally in one iteration
+	mp            mp.MessageProcessor
 }
 
 // MetricRouter access functions
@@ -118,6 +123,29 @@ func (r *metricRouter) Init(ticker mct.MultiChanTicker, wg *sync.WaitGroup, rout
 			err = r.cache.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
 			if err != nil {
 				return fmt.Errorf("MetricCache AddAggregation() failed: %w", err)
+			}
+		}
+	}
+
+	// Initialize RawDataAggregator if raw_aggregates are configured
+	if len(r.config.RawAgg) > 0 {
+		// Create a channel for raw aggregator output
+		r.raw_agg_input = make(chan lp.CCMessage, 200)
+
+		// Use configured interval or default to 10 seconds
+		interval := r.config.RawAggInterval
+		if interval < 1 {
+			interval = 10
+		}
+
+		r.rawAgg, err = NewRawDataAggregator(r.raw_agg_input, r.ticker, &r.rawAggwg, interval)
+		if err != nil {
+			return fmt.Errorf("MetricRouter: failed to initialize RawDataAggregator: %w", err)
+		}
+		for _, agg := range r.config.RawAgg {
+			err = r.rawAgg.AddAggregation(agg.Name, agg.Function, agg.Condition, agg.Tags, agg.Meta)
+			if err != nil {
+				return fmt.Errorf("RawDataAggregator AddAggregation() failed: %w", err)
 			}
 		}
 	}
@@ -256,6 +284,10 @@ func (r *metricRouter) Start() {
 		if r.config.NumCacheIntervals > 0 {
 			r.cache.Add(m)
 		}
+		// Send to raw data aggregator for interval-based aggregation
+		if r.rawAgg != nil {
+			r.rawAgg.Add(m)
+		}
 	}
 
 	// Forward message received from receivers channel
@@ -283,9 +315,25 @@ func (r *metricRouter) Start() {
 		}
 	}
 
+	// Forward message received from raw aggregator channel
+	raw_agg_forward := func(p lp.CCMessage) {
+		// receive from raw data aggregator
+		m, err := r.mp.ProcessMessage(p)
+		if err == nil && m != nil {
+			for _, o := range r.outputs {
+				o <- m
+			}
+		}
+	}
+
 	// Start Metric Cache
 	if r.config.NumCacheIntervals > 0 {
 		r.cache.Start()
+	}
+
+	// Start RawDataAggregator
+	if r.rawAgg != nil {
+		r.rawAgg.Start()
 	}
 
 	r.wg.Go(func() {
@@ -315,6 +363,12 @@ func (r *metricRouter) Start() {
 				cache_forward(p)
 				for i := 0; len(r.cache_input) > 0 && i < (r.maxForward-1); i++ {
 					cache_forward(<-r.cache_input)
+				}
+
+			case p := <-r.raw_agg_input:
+				raw_agg_forward(p)
+				for i := 0; len(r.raw_agg_input) > 0 && i < (r.maxForward-1); i++ {
+					raw_agg_forward(<-r.raw_agg_input)
 				}
 			}
 		}
@@ -349,6 +403,13 @@ func (r *metricRouter) Close() {
 		cclog.ComponentDebug("MetricRouter", "CACHE CLOSE")
 		r.cache.Close()
 		r.cachewg.Wait()
+	}
+
+	// stop raw data aggregator
+	if r.rawAgg != nil {
+		cclog.ComponentDebug("MetricRouter", "RAW AGG CLOSE")
+		r.rawAgg.Close()
+		r.rawAggwg.Wait()
 	}
 }
 

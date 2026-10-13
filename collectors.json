@@ -1,0 +1,155 @@
+{
+  "memstat": {
+    "exclude_metrics": []
+  },
+  "iostat": {
+    "exclude_metrics": [],
+    "exclude_devices": []
+  },
+  "likwid": {
+    "force_overwrite": true,
+    "invalid_to_zero": true,
+    "access_mode": "direct",
+    "eventsets": [
+      {
+        "events": {
+          "FIXC0": "INSTR_RETIRED_ANY",
+          "FIXC1": "CPU_CLK_UNHALTED_CORE",
+          "FIXC2": "CPU_CLK_UNHALTED_REF",
+          "PMC0": "L2_TRANS_ALL_REQUESTS",
+          "PMC1": "L2_RQSTS_MISS",
+          "PMC2": "MEM_LOAD_RETIRED_L3_HIT",
+          "PMC3": "MEM_LOAD_RETIRED_L3_MISS"
+        },
+        "metrics": [
+          {
+            "name": "l2_cache_misses",
+            "calc": "PMC1",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "l2_cache_requests",
+            "calc": "PMC0",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "l2_miss_rate",
+            "calc": "100.0*PMC1/PMC0",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "percent"
+          },
+          {
+            "name": "l3_cache_misses",
+            "calc": "PMC3",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "l3_cache_hits",
+            "calc": "PMC2",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "l3_miss_rate",
+            "calc": "100.0*PMC3/(PMC2+PMC3)",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "percent"
+          },
+          {
+            "name": "ipc",
+            "calc": "FIXC0/FIXC1",
+            "type": "hwthread",
+            "publish": false,
+            "unit": "instr_per_cycle"
+          }
+        ]
+      },
+      {
+        "events": {
+          "FIXC0": "INSTR_RETIRED_ANY",
+          "FIXC1": "CPU_CLK_UNHALTED_CORE",
+          "PMC0": "L1D_REPLACEMENT",
+          "PMC1": "MEM_LOAD_RETIRED_L3_MISS",
+          "PMC2": "UOPS_RETIRED_ALL",
+          "PMC3": "CYCLE_ACTIVITY_STALLS_MEM_ANY"
+        },
+        "metrics": [
+          {
+            "name": "instructions",
+            "calc": "FIXC0",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "unhalted_core_cycles",
+            "calc": "FIXC1",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "cycles"
+          },
+          {
+            "name": "l1_cache_miss",
+            "calc": "PMC0",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "llc_cache_miss",
+            "calc": "PMC1",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "retire_slots",
+            "calc": "PMC2",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "stalls_pdm_pending",
+            "calc": "PMC3",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "cycles"
+          }
+        ]
+      },
+      {
+        "events": {
+          "PMC0": "LD_BLOCKS_STORE_FORWARD",
+          "PMC1": "UOPS_EXECUTED_THREAD"
+        },
+        "metrics": [
+          {
+            "name": "stalls_sb",
+            "calc": "PMC0",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          },
+          {
+            "name": "thread_any",
+            "calc": "PMC1",
+            "type": "hwthread",
+            "publish": true,
+            "unit": "count"
+          }
+        ]
+      }
+    ],
+    "globalmetrics": []
+  }
+}
