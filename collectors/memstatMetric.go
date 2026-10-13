@@ -84,13 +84,16 @@ func getStats(filename string) map[string]MemstatStats {
 		case 5:
 			v, err := strconv.ParseFloat(linefields[3], 64)
 			if err == nil {
-				cclog.ComponentDebug("getStats", strings.Trim(linefields[2], ":"), v, linefields[4])
+				cclog.ComponentDebug("MemstatCollector", strings.Trim(linefields[2], ":"), v, linefields[4])
 				stats[strings.Trim(linefields[2], ":")] = MemstatStats{
 					value: v,
 					unit:  linefields[4],
 				}
 			}
 		}
+	}
+	if scanner.Err() != nil {
+		cclog.ComponentError("MemstatCollector", "Failed to get memory stats")
 	}
 	return stats
 }
@@ -245,12 +248,6 @@ func (m *MemstatCollector) Read(interval time.Duration, output chan lp.CCMessage
 							memUsed -= cacheVal.value
 							if len(cacheVal.unit) > 0 && len(unit) == 0 {
 								unit = cacheVal.unit
-							}
-						}
-						if shmemVal, shmem := stats["Shmem"]; shmem {
-							memUsed -= shmemVal.value
-							if len(shmemVal.unit) > 0 && len(unit) == 0 {
-								unit = shmemVal.unit
 							}
 						}
 					}
